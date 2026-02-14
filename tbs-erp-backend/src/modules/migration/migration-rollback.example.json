@@ -1,0 +1,16 @@
+[
+  {
+    "migrationId": "LEGACY_AR_MIGRATION_1707648000000",
+    "executedAt": "2026-02-11T10:30:00.000Z",
+    "createdArIds": [
+      "clxxx1234567890abcdef",
+      "clxxx2234567890abcdef",
+      "clxxx3234567890abcdef"
+    ],
+    "orderIds": [
+      "clyyy1234567890abcdef",
+      "clyyy2234567890abcdef",
+      "clyyy3234567890abcdef"
+    ]
+  }
+]

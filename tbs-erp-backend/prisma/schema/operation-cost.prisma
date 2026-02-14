@@ -1,0 +1,38 @@
+// ============================================
+// OPERATION COST — Trip Costs & Cost Allocation
+// ============================================
+
+model OperationCost {
+  id              String    @id @default(cuid())
+  containerId     String    @map("container_id")
+  container       Container @relation(fields: [containerId], references: [id])
+  costType        CostType  @map("cost_type")
+  amount          Decimal   @db.Decimal(15, 2)
+  currency        Currency  @default(VND)
+  description     String?
+  invoiceRef      String?   @map("invoice_ref")
+  estimatedAmount Decimal?  @map("estimated_amount") @db.Decimal(15, 2)
+  note            String?
+  createdBy       String?   @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([containerId])
+  @@index([costType])
+  @@map("operation_costs")
+}
+
+model CostAllocation {
+  id              String   @id @default(cuid())
+  containerId     String   @map("container_id")
+  orderId         String   @map("order_id")
+  order           Order    @relation(fields: [orderId], references: [id])
+  method          String   @default("WEIGHT") // WEIGHT, VOLUME, EVEN
+  proportion      Decimal  @default(0) @db.Decimal(10, 6)
+  allocatedAmount Decimal  @default(0) @map("allocated_amount") @db.Decimal(15, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([orderId])
+  @@index([containerId])
+  @@map("cost_allocations")
+}

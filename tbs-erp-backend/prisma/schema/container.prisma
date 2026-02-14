@@ -1,0 +1,45 @@
+// ============================================
+// CONTAINER — Container, Shipment
+// ============================================
+
+model Container {
+  id              String        @id @default(cuid())
+  code            String        @unique            // Mã cont: TBS-CNT-240101-01
+  shippingRoute   ShippingRoute @map("shipping_route")
+  status          String        @default("PLANNING") // PLANNING, LOADING, IN_TRANSIT, ARRIVED, CUSTOMS, COMPLETED
+  origin          String?                           // Kho TQ
+  destination     String?                           // Kho VN
+
+  // Thông tin vận chuyển
+  carrier         String?                           // Hãng tàu/xe
+  bookingRef      String?       @map("booking_ref")
+  sealNumber      String?       @map("seal_number")
+  vesselName      String?       @map("vessel_name")
+
+  // Trọng lượng & số kiện
+  totalPackages   Int           @default(0) @map("total_packages")
+  totalWeight     Decimal       @default(0) @map("total_weight") @db.Decimal(10, 2)
+  maxCapacity     Decimal?      @map("max_capacity") @db.Decimal(10, 2) // Tấn
+  fillRate        Decimal?      @map("fill_rate") @db.Decimal(5, 2)     // %
+
+  // Timeline
+  estimatedDepartureAt DateTime? @map("estimated_departure_at")
+  actualDepartureAt    DateTime? @map("actual_departure_at")
+  estimatedArrivalAt   DateTime? @map("estimated_arrival_at")
+  actualArrivalAt      DateTime? @map("actual_arrival_at")
+  customsClearedAt     DateTime? @map("customs_cleared_at")
+
+  createdBy       String        @map("created_by")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  orders          Order[]
+  packages        Package[]
+  trackingEvents  TrackingEvent[]
+  operationCosts  OperationCost[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("containers")
+}

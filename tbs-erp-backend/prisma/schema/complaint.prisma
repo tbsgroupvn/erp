@@ -1,0 +1,49 @@
+// ============================================
+// COMPLAINT — Customer Complaints Management
+// ============================================
+
+model Complaint {
+  id                String            @id @default(cuid())
+  code              String            @unique           // Mã: QMS-202501-0001
+  orderId           String?           @map("order_id")
+  order             Order?            @relation(fields: [orderId], references: [id])
+  customerId        String            @map("customer_id")
+  customer          Customer          @relation(fields: [customerId], references: [id])
+  packageId         String?           @map("package_id")
+  type              ComplaintType
+  severity          ComplaintSeverity
+  status            ComplaintStatus   @default(OPEN)
+  description       String
+  attachments       String[]          @default([])
+
+  // Assignment
+  handlerId         String?           @map("handler_id")
+  handler           User?             @relation("ComplaintHandler", fields: [handlerId], references: [id])
+  assignedAt        DateTime?         @map("assigned_at")
+
+  // Investigation
+  investigationNotes Json?            @map("investigation_notes") // Array of { note, addedAt }
+
+  // Resolution
+  resolutionType    ResolutionType?   @map("resolution_type")
+  compensationAmount Decimal?         @map("compensation_amount") @db.Decimal(15, 2)
+  resolutionNotes   String?           @map("resolution_notes")
+  resolvedAt        DateTime?         @map("resolved_at")
+
+  // Escalation
+  escalationLevel   String?           @map("escalation_level") // SALES_LEADER, SALES_DIRECTOR, CEO
+  escalatedAt       DateTime?         @map("escalated_at")
+
+  note              String?
+  createdBy         String            @map("created_by")
+  createdByUser     User              @relation("ComplaintCreator", fields: [createdBy], references: [id])
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  @@index([orderId])
+  @@index([customerId])
+  @@index([status])
+  @@index([severity])
+  @@index([handlerId])
+  @@map("complaints")
+}

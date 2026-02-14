@@ -1,0 +1,439 @@
+// ============================================
+// MASTER ORDER — Đơn tổng
+// ============================================
+
+model MasterOrder {
+  id              String            @id @default(uuid())
+  code            String            @unique  // #NV001.070226.0001
+  customerId      String            @map("customer_id")
+  saleId          String            @map("sale_id")
+  branch          Branch
+  overallStatus   MasterOrderStatus @default(ACTIVE) @map("overall_status")
+  note            String?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  customer        Customer          @relation(fields: [customerId], references: [id])
+  sale            User              @relation("MasterOrderSale", fields: [saleId], references: [id])
+  subOrders       Order[]
+
+  @@index([customerId])
+  @@index([saleId])
+  @@index([overallStatus])
+  @@index([createdAt])
+  @@map("master_orders")
+}
+
+// ============================================
+// ORDER — Đơn hàng, Order Items, Status History
+// ============================================
+
+model Order {
+  id              String       @id @default(cuid())
+  code            String       @unique           // Mã đơn: TBS-ORD-240101-0001
+  customerId      String       @map("customer_id")
+  saleId          String       @map("sale_id")   // Sale owner
+  serviceType     ServiceType  @map("service_type")
+  status          OrderStatus  @default(CONSULTING)
+  branch          Branch
+
+  // Tài chính
+  totalAmount     Decimal      @default(0) @map("total_amount") @db.Decimal(15, 2)
+  currency        Currency     @default(VND)
+  depositRequired Decimal      @default(0) @map("deposit_required") @db.Decimal(15, 2)
+  depositPaid     Decimal      @default(0) @map("deposit_paid") @db.Decimal(15, 2)
+  isDepositPaid   Boolean      @default(false) @map("is_deposit_paid")
+  discountPercent Decimal      @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal      @default(0) @map("discount_amount") @db.Decimal(15, 2)
+
+  // Vận chuyển
+  shippingRoute   ShippingRoute? @map("shipping_route")
+  containerId     String?      @map("container_id")
+
+  // Trọng lượng tổng
+  totalActualWeight    Decimal? @map("total_actual_weight") @db.Decimal(10, 2)
+  totalChargeableWeight Decimal? @map("total_chargeable_weight") @db.Decimal(10, 2)
+
+  // Master order link
+  masterOrderId   String?      @map("master_order_id")
+  subOrderSuffix  String?      @map("sub_order_suffix")  // "A", "B", "C"
+  clearanceType   ClearanceType @default(TIEU_NGACH) @map("clearance_type")
+
+  // Contract link
+  contractId      String?      @map("contract_id")
+
+  note            String?
+  cancelReason    String?      @map("cancel_reason")
+  completedAt     DateTime?    @map("completed_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  masterOrder     MasterOrder? @relation(fields: [masterOrderId], references: [id])
+  customer        Customer     @relation(fields: [customerId], references: [id])
+  container       Container?   @relation(fields: [containerId], references: [id])
+  contract        Contract?    @relation(fields: [contractId], references: [id])
+  items           OrderItem[]
+  statusHistory   OrderStatusHistory[]
+  packages        Package[]
+  deliveries      Delivery[]
+  receivables     AccountReceivable[]
+  paymentVouchers PaymentVoucher[]
+  complaints      Complaint[]
+  costAllocations CostAllocation[]
+  commissions     CommissionRecord[]
+  allocations     PaymentAllocation[]
+  supplierOrders  SupplierOrder[]
+  qcInspections   QCInspection[]
+  mhhIssues       MHHIssue[]
+
+  @@index([customerId])
+  @@index([saleId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([containerId])
+  @@index([masterOrderId])
+  @@index([contractId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String   @id @default(cuid())
+  orderId         String   @map("order_id")
+  productName     String   @map("product_name")
+  productUrl      String?  @map("product_url")  // Link sản phẩm TQ
+  quantity        Int      @default(1)
+  unitPrice       Decimal  @default(0) @map("unit_price") @db.Decimal(15, 2)
+  currency        Currency @default(CNY)
+  totalPrice      Decimal  @default(0) @map("total_price") @db.Decimal(15, 2)
+
+  // === MHH: Variant / Thông tin biến thể sản phẩm ===
+  color           String?                         // Màu sắc
+  size            String?                         // Size
+  specification   String?                         // Thông số kỹ thuật khác (material, style, v.v.)
+
+  // === MHH: Chi phí chi tiết ===
+  serviceFeePercent    Decimal?  @map("service_fee_percent") @db.Decimal(5, 2)    // % phí dịch vụ MHH (3-8%)
+  serviceFeeAmount     Decimal?  @map("service_fee_amount") @db.Decimal(15, 2)    // Phí DV tính ra tiền (CNY)
+  domesticShippingCN   Decimal?  @map("domestic_shipping_cn") @db.Decimal(15, 2)  // Ship nội địa TQ (CNY)
+  exchangeRateUsed     Decimal?  @map("exchange_rate_used") @db.Decimal(15, 6)    // Tỷ giá CNY→VND lock lúc mua
+  actualSupplierPrice  Decimal?  @map("actual_supplier_price") @db.Decimal(15, 2) // Giá TBS trả NCC thực tế (CNY)
+  totalCostCNY         Decimal?  @map("total_cost_cny") @db.Decimal(15, 2)        // Tổng chi phí CNY = unitPrice + serviceFee + shipping
+  totalCostVND         Decimal?  @map("total_cost_vnd") @db.Decimal(15, 2)        // Tổng chi phí quy VND
+
+  note            String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  supplierOrders  SupplierOrder[]
+
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(cuid())
+  orderId     String      @map("order_id")
+  fromStatus  OrderStatus? @map("from_status")
+  toStatus    OrderStatus @map("to_status")
+  changedBy   String      @map("changed_by")  // userId
+  note        String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
+}
+
+model PreAlert {
+  id              String   @id @default(cuid())
+  customerId      String   @map("customer_id")
+  trackingNumber  String   @map("tracking_number") // Mã vận đơn TQ
+  description     String?
+  expectedPieces  Int?     @map("expected_pieces")
+  imageUrl        String?  @map("image_url")
+  status          String   @default("WAITING") // WAITING, RECEIVED, ASSIGNED
+  matchedPackageId String? @map("matched_package_id")
+  orderId         String?  @map("order_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([trackingNumber])
+  @@index([customerId])
+  @@map("pre_alerts")
+}
+
+// ============================================
+// CONTRACT — Hợp đồng & Phụ lục
+// ============================================
+
+model Contract {
+  id              String          @id @default(cuid())
+  code            String          @unique        // HĐ-NV001-2025-001
+  customerId      String          @map("customer_id")
+  saleId          String          @map("sale_id")
+  type            ContractType    @default(MASTER)
+  parentId        String?         @map("parent_id") // Cho phụ lục hợp đồng
+
+  title           String
+  signedDate      DateTime?       @map("signed_date")
+  effectiveDate   DateTime        @map("effective_date")
+  expiryDate      DateTime?       @map("expiry_date")
+
+  totalValue      Decimal         @default(0) @map("total_value") @db.Decimal(15, 2)
+  depositRequired Decimal         @default(0) @map("deposit_required") @db.Decimal(15, 2)
+  depositPaid     Decimal         @default(0) @map("deposit_paid") @db.Decimal(15, 2)
+  totalPaid       Decimal         @default(0) @map("total_paid") @db.Decimal(15, 2)
+  currency        Currency        @default(VND)
+
+  status          ContractStatus  @default(DRAFT)
+  settledAt       DateTime?       @map("settled_at")
+  closedAt        DateTime?       @map("closed_at")
+
+  attachments     String[]        @default([])
+  terms           String?         @db.Text
+  note            String?
+
+  createdBy       String          @map("created_by")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  customer        Customer        @relation(fields: [customerId], references: [id])
+  sale            User            @relation("ContractSale", fields: [saleId], references: [id])
+  parent          Contract?       @relation("ContractAppendixes", fields: [parentId], references: [id])
+  appendixes      Contract[]      @relation("ContractAppendixes")
+  orders          Order[]
+  allocations     PaymentAllocation[]
+  paymentVouchers PaymentVoucher[]
+
+  @@index([customerId])
+  @@index([saleId])
+  @@index([status])
+  @@index([parentId])
+  @@map("contracts")
+}
+
+// ============================================
+// QUOTATION — Báo giá
+// ============================================
+
+model Quotation {
+  id                String          @id @default(cuid())
+  code              String          @unique           // Mã: QUO-202501-0001
+  customerId        String          @map("customer_id")
+  customer          Customer        @relation(fields: [customerId], references: [id])
+  createdBy         String          @map("created_by")
+  createdByUser     User            @relation("QuotationCreator", fields: [createdBy], references: [id])
+  serviceType       ServiceType     @map("service_type")
+  branch            Branch
+  shippingRoute     ShippingRoute?  @map("shipping_route")
+  status            QuotationStatus @default(DRAFT)
+  version           Int             @default(1)
+
+  // Tài chính
+  subtotal          Decimal         @default(0) @db.Decimal(15, 2)
+  discountPercent   Decimal         @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount    Decimal         @default(0) @map("discount_amount") @db.Decimal(15, 2)
+  taxRate           Decimal         @default(0.1) @map("tax_rate") @db.Decimal(5, 4)
+  taxAmount         Decimal         @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  totalAmount       Decimal         @default(0) @map("total_amount") @db.Decimal(15, 2)
+
+  // Validity
+  validUntil        DateTime?       @map("valid_until")
+
+  // Approval / Rejection
+  approvedBy        String?         @map("approved_by")
+  approvedAt        DateTime?       @map("approved_at")
+  rejectedBy        String?         @map("rejected_by")
+  rejectedAt        DateTime?       @map("rejected_at")
+  rejectionReason   String?         @map("rejection_reason")
+
+  // Conversion
+  convertedOrderId  String?         @map("converted_order_id")
+
+  // Versioning
+  parentQuotationId String?         @map("parent_quotation_id")
+
+  note              String?
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  items             QuotationItem[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdBy])
+  @@index([parentQuotationId])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id            String    @id @default(cuid())
+  quotationId   String    @map("quotation_id")
+  quotation     Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productName   String    @map("product_name")
+  productUrl    String?   @map("product_url")
+  quantity      Int       @default(1)
+  unitPrice     Decimal   @default(0) @map("unit_price") @db.Decimal(15, 2)
+  currency      String    @default("CNY")
+  totalPrice    Decimal   @default(0) @map("total_price") @db.Decimal(15, 2)
+  note          String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([quotationId])
+  @@map("quotation_items")
+}
+
+// ============================================
+// SUPPLIER ORDER — Đặt hàng nhà cung cấp TQ (MHH)
+// ============================================
+
+model SupplierOrder {
+  id                  String              @id @default(cuid())
+  code                String              @unique           // SO-YYYYMM-XXXX
+  orderId             String              @map("order_id")
+  orderItemId         String?             @map("order_item_id")  // Link tới item cụ thể (optional, 1 SO có thể cover nhiều items)
+  vendorId            String?             @map("vendor_id")
+
+  // Thông tin NCC
+  supplierName        String              @map("supplier_name")  // Tên shop/NCC trên TMĐT
+  supplierPlatform    String?             @map("supplier_platform")  // TAOBAO, 1688, PINDUODUO, DIRECT
+  supplierOrderNumber String?             @map("supplier_order_number") // Mã đơn trên sàn TMĐT
+  supplierUrl         String?             @map("supplier_url")   // Link đơn hàng trên sàn
+
+  // Trạng thái
+  status              SupplierOrderStatus @default(DRAFT)
+
+  // Tài chính
+  quotedPriceCNY      Decimal?            @map("quoted_price_cny") @db.Decimal(15, 2)   // Giá NCC báo
+  actualPriceCNY      Decimal?            @map("actual_price_cny") @db.Decimal(15, 2)   // Giá thực tế trả
+  shippingFeeCNY      Decimal?            @map("shipping_fee_cny") @db.Decimal(15, 2)   // Phí ship nội địa TQ
+  totalCNY            Decimal?            @map("total_cny") @db.Decimal(15, 2)
+  exchangeRateUsed    Decimal?            @map("exchange_rate_used") @db.Decimal(15, 6)
+  totalVND            Decimal?            @map("total_vnd") @db.Decimal(15, 2)
+
+  // Vận chuyển nội địa TQ
+  trackingNumberCN    String?             @map("tracking_number_cn")  // Mã vận đơn nội địa TQ
+  estimatedDelivery   DateTime?           @map("estimated_delivery")  // Ngày dự kiến NCC giao đến kho TQ
+  actualDelivery      DateTime?           @map("actual_delivery")     // Ngày thực tế nhận
+
+  // Số lượng
+  quantityOrdered     Int                 @default(0) @map("quantity_ordered")
+  quantityReceived    Int                 @default(0) @map("quantity_received")
+
+  // Metadata
+  note                String?
+  internalNote        String?             @map("internal_note")  // Ghi chú nội bộ
+  attachments         String[]            @default([])           // Screenshots đơn hàng, chat NCC
+
+  // Timestamps
+  orderedAt           DateTime?           @map("ordered_at")
+  confirmedAt         DateTime?           @map("confirmed_at")
+  shippedAt           DateTime?           @map("shipped_at")
+  receivedAt          DateTime?           @map("received_at")
+  cancelledAt         DateTime?           @map("cancelled_at")
+
+  createdBy           String              @map("created_by")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  order               Order               @relation(fields: [orderId], references: [id])
+  orderItem           OrderItem?          @relation(fields: [orderItemId], references: [id])
+
+  @@index([orderId])
+  @@index([orderItemId])
+  @@index([status])
+  @@index([trackingNumberCN])
+  @@index([createdAt])
+  @@map("supplier_orders")
+}
+
+// ============================================
+// MHH ISSUE — Sự cố mua hàng hộ
+// ============================================
+
+model MHHIssue {
+  id                  String              @id @default(cuid())
+  code                String              @unique           // MHH-ISS-YYYYMM-XXXX
+  orderId             String              @map("order_id")
+  orderItemId         String?             @map("order_item_id")
+  packageId           String?             @map("package_id")
+  supplierOrderId     String?             @map("supplier_order_id")
+
+  // Phân loại sự cố
+  issueType           MHHIssueType        @map("issue_type")
+  status              MHHIssueStatus      @default(OPEN)
+  severity            ComplaintSeverity   @default(MEDIUM)
+
+  // Mô tả
+  description         String
+  attachments         String[]            @default([])       // Ảnh sự cố
+  evidenceUrls        String[]            @default([]) @map("evidence_urls")  // Ảnh chứng từ
+
+  // Giải quyết
+  resolution          MHHIssueResolution? @map("resolution")
+  resolutionNote      String?             @map("resolution_note")
+  compensationAmount  Decimal?            @map("compensation_amount") @db.Decimal(15, 2)
+  compensationCurrency Currency?          @map("compensation_currency")
+  resolvedAt          DateTime?           @map("resolved_at")
+
+  // Assignment
+  handlerId           String?             @map("handler_id")
+  assignedAt          DateTime?           @map("assigned_at")
+
+  // Khách hàng quyết định
+  customerDecision    String?             @map("customer_decision") // KEEP, RETURN, EXCHANGE
+  customerDecisionAt  DateTime?           @map("customer_decision_at")
+  customerNote        String?             @map("customer_note")
+
+  createdBy           String              @map("created_by")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  order               Order               @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([issueType])
+  @@index([status])
+  @@index([handlerId])
+  @@index([createdAt])
+  @@map("mhh_issues")
+}
+
+// ============================================
+// SERVICE FEE CONFIG — Cấu hình phí dịch vụ MHH
+// ============================================
+
+model ServiceFeeConfig {
+  id              String       @id @default(cuid())
+  name            String                                // Tên rule: "VIP - Hàng thường"
+  serviceType     ServiceType  @default(MHH) @map("service_type")
+
+  // Điều kiện áp dụng
+  customerTier    CustomerTier? @map("customer_tier")   // null = tất cả
+  minOrderValue   Decimal?     @map("min_order_value") @db.Decimal(15, 2) // Giá trị đơn tối thiểu (CNY)
+  maxOrderValue   Decimal?     @map("max_order_value") @db.Decimal(15, 2)
+  minQuantity     Int?         @map("min_quantity")     // Số lượng tối thiểu
+  productCategory String?      @map("product_category") // Danh mục hàng hóa
+
+  // Phí
+  feePercent      Decimal      @map("fee_percent") @db.Decimal(5, 2)  // % phí dịch vụ
+  minFeeAmount    Decimal?     @map("min_fee_amount") @db.Decimal(15, 2) // Phí tối thiểu (CNY)
+  maxFeeAmount    Decimal?     @map("max_fee_amount") @db.Decimal(15, 2) // Phí tối đa (CNY)
+
+  // Meta
+  priority        Int          @default(0)              // Ưu tiên cao hơn = áp dụng trước
+  isActive        Boolean      @default(true) @map("is_active")
+  note            String?
+
+  createdBy       String       @map("created_by")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  @@index([serviceType, isActive])
+  @@index([customerTier])
+  @@index([priority])
+  @@map("service_fee_configs")
+}

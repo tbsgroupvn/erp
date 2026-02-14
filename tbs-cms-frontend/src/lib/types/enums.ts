@@ -1,0 +1,345 @@
+// ============================================
+// ENUMS — Mirror all backend Prisma enums exactly
+// ============================================
+
+export enum UserRole {
+  // Ban Giam Doc
+  CEO = 'CEO',
+  COO = 'COO',
+  // Kinh doanh
+  SALES_DIRECTOR = 'SALES_DIRECTOR',
+  SALES_LEADER = 'SALES_LEADER',
+  SALE = 'SALE',
+  // Marketing
+  MARKETING_STAFF = 'MARKETING_STAFF',
+  CSKH = 'CSKH',
+  // Ke toan
+  CHIEF_ACCOUNTANT = 'CHIEF_ACCOUNTANT',
+  ACCOUNTANT_AR = 'ACCOUNTANT_AR',
+  ACCOUNTANT_COST = 'ACCOUNTANT_COST',
+  // XNK
+  XNK_MANAGER = 'XNK_MANAGER',
+  XNK_STAFF = 'XNK_STAFF',
+  // Kho
+  WAREHOUSE_CN_AGENT = 'WAREHOUSE_CN_AGENT',
+  WAREHOUSE_VN_MANAGER = 'WAREHOUSE_VN_MANAGER',
+  WAREHOUSE_VN_STAFF = 'WAREHOUSE_VN_STAFF',
+  // Van tai
+  DRIVER = 'DRIVER',
+}
+
+export enum OrderStatus {
+  CONSULTING = 'CONSULTING',
+  QUOTATION = 'QUOTATION',
+  PENDING_DEPOSIT = 'PENDING_DEPOSIT',
+  SOURCING = 'SOURCING',
+  WAREHOUSE_CN = 'WAREHOUSE_CN',
+  PACKING = 'PACKING',
+  CONSOLIDATION = 'CONSOLIDATION',
+  IN_TRANSIT = 'IN_TRANSIT',
+  CUSTOMS = 'CUSTOMS',
+  WAREHOUSE_VN = 'WAREHOUSE_VN',
+  DELIVERING = 'DELIVERING',
+  SETTLEMENT = 'SETTLEMENT',
+  COMPLETED = 'COMPLETED',
+  ON_HOLD = 'ON_HOLD',
+  CANCELLED = 'CANCELLED',
+  RETURNED = 'RETURNED',
+  ISSUE = 'ISSUE',
+}
+
+export enum ServiceType {
+  VCT = 'VCT',
+  MHH = 'MHH',
+  UTXNK = 'UTXNK',
+  LCLCN = 'LCLCN',
+}
+
+export enum CustomerTier {
+  NEW = 'NEW',
+  REGULAR = 'REGULAR',
+  VIP = 'VIP',
+  STRATEGIC = 'STRATEGIC',
+}
+
+export enum PaymentMethod {
+  WALLET = 'WALLET',
+  BANK_TRANSFER = 'BANK_TRANSFER',
+  CASH = 'CASH',
+  COD = 'COD',
+  CREDIT = 'CREDIT',
+}
+
+export enum Currency {
+  VND = 'VND',
+  CNY = 'CNY',
+  USD = 'USD',
+}
+
+export enum ApprovalStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  CANCELLED = 'CANCELLED',
+  RETURNED = 'RETURNED',
+  WITHDRAWN = 'WITHDRAWN',
+}
+
+export enum ApprovalType {
+  DISCOUNT = 'DISCOUNT',
+  PAYMENT_VOUCHER = 'PAYMENT_VOUCHER',
+  RECEIPT_VOUCHER = 'RECEIPT_VOUCHER',
+  ORDER_CANCEL = 'ORDER_CANCEL',
+  CREDIT_EXTENSION = 'CREDIT_EXTENSION',
+  DEPOSIT_EXEMPTION = 'DEPOSIT_EXEMPTION',
+  CONTAINER_PLAN = 'CONTAINER_PLAN',
+  WAREHOUSE_RELEASE = 'WAREHOUSE_RELEASE',
+  LEAVE_REQUEST = 'LEAVE_REQUEST',
+  OVERTIME_REQUEST = 'OVERTIME_REQUEST',
+  PURCHASE_ORDER = 'PURCHASE_ORDER',
+  QUOTATION_SPECIAL = 'QUOTATION_SPECIAL',
+  EXPENSE_CLAIM = 'EXPENSE_CLAIM',
+  SALARY_ADJUSTMENT = 'SALARY_ADJUSTMENT',
+  CUSTOM = 'CUSTOM',
+}
+
+export enum ApprovalNodeType {
+  START = 'START',
+  END = 'END',
+  APPROVER = 'APPROVER',
+  CC = 'CC',
+  CONDITION = 'CONDITION',
+}
+
+export enum ApproverType {
+  SPECIFIC_USER = 'SPECIFIC_USER',
+  ROLE = 'ROLE',
+  DIRECT_MANAGER = 'DIRECT_MANAGER',
+  DEPARTMENT_HEAD = 'DEPARTMENT_HEAD',
+  REQUESTER_MANAGER = 'REQUESTER_MANAGER',
+}
+
+export enum ApprovalMode {
+  SEQUENTIAL = 'SEQUENTIAL',
+  PARALLEL_AND = 'PARALLEL_AND',
+  PARALLEL_OR = 'PARALLEL_OR',
+}
+
+export enum ApprovalAction {
+  SUBMIT = 'SUBMIT',
+  APPROVE = 'APPROVE',
+  REJECT = 'REJECT',
+  DELEGATE = 'DELEGATE',
+  ADD_APPROVER = 'ADD_APPROVER',
+  WITHDRAW = 'WITHDRAW',
+  RETURN = 'RETURN',
+  AUTO_APPROVE = 'AUTO_APPROVE',
+  AUTO_ESCALATE = 'AUTO_ESCALATE',
+  COMMENT = 'COMMENT',
+}
+
+export enum ShippingRoute {
+  SEA = 'SEA',
+  ROAD = 'ROAD',
+  AIR = 'AIR',
+}
+
+export enum Branch {
+  HN = 'HN',
+  HCM = 'HCM',
+}
+
+export enum NotificationChannel {
+  APP_PUSH = 'APP_PUSH',
+  EMAIL = 'EMAIL',
+  SMS = 'SMS',
+  ZALO_ZNS = 'ZALO_ZNS',
+}
+
+// Quotation
+export enum QuotationStatus {
+  DRAFT = 'DRAFT',
+  PENDING_APPROVAL = 'PENDING_APPROVAL',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  CONVERTED = 'CONVERTED',
+  EXPIRED = 'EXPIRED',
+}
+
+// Complaint
+export enum ComplaintType {
+  DAMAGE = 'DAMAGE',
+  MISSING = 'MISSING',
+  DELAY = 'DELAY',
+  QUALITY = 'QUALITY',
+  OTHER = 'OTHER',
+}
+
+export enum ComplaintSeverity {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL',
+}
+
+export enum ComplaintStatus {
+  OPEN = 'OPEN',
+  INVESTIGATING = 'INVESTIGATING',
+  PENDING_RESOLUTION = 'PENDING_RESOLUTION',
+  RESOLVED = 'RESOLVED',
+  CLOSED = 'CLOSED',
+}
+
+export enum ResolutionType {
+  REFUND = 'REFUND',
+  REPLACEMENT = 'REPLACEMENT',
+  CREDIT = 'CREDIT',
+  APOLOGY = 'APOLOGY',
+  NONE = 'NONE',
+}
+
+// Task
+export enum TaskPriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  URGENT = 'URGENT',
+}
+
+export enum TaskStatus {
+  OPEN = 'OPEN',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
+
+// Employee
+export enum EmployeeStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  RESIGNED = 'RESIGNED',
+}
+
+// Leave
+export enum LeaveType {
+  ANNUAL = 'ANNUAL',
+  SICK = 'SICK',
+  PERSONAL = 'PERSONAL',
+  MATERNITY = 'MATERNITY',
+  OTHER = 'OTHER',
+}
+
+export enum LeaveStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  CANCELLED = 'CANCELLED',
+}
+
+// Vehicle/Fleet
+export enum VehicleType {
+  TRUCK = 'TRUCK',
+  VAN = 'VAN',
+  MOTORCYCLE = 'MOTORCYCLE',
+}
+
+export enum VehicleStatus {
+  ACTIVE = 'ACTIVE',
+  MAINTENANCE = 'MAINTENANCE',
+  RETIRED = 'RETIRED',
+}
+
+export enum MaintenanceType {
+  ROUTINE = 'ROUTINE',
+  REPAIR = 'REPAIR',
+  INSPECTION = 'INSPECTION',
+}
+
+// Driver
+export enum DriverStatus {
+  AVAILABLE = 'AVAILABLE',
+  ON_DELIVERY = 'ON_DELIVERY',
+  OFF_DUTY = 'OFF_DUTY',
+}
+
+// Document
+export enum DocumentCategory {
+  CONTRACT = 'CONTRACT',
+  INVOICE = 'INVOICE',
+  CUSTOMS = 'CUSTOMS',
+  POD = 'POD',
+  PHOTO = 'PHOTO',
+  OTHER = 'OTHER',
+}
+
+// Purchase
+export enum PurchaseStatus {
+  DRAFT = 'DRAFT',
+  SUBMITTED = 'SUBMITTED',
+  APPROVED = 'APPROVED',
+  ORDERED = 'ORDERED',
+  RECEIVED = 'RECEIVED',
+  CLOSED = 'CLOSED',
+  CANCELLED = 'CANCELLED',
+}
+
+// Stock
+export enum StockMovementType {
+  RECEIPT = 'RECEIPT',
+  ISSUE = 'ISSUE',
+  ADJUSTMENT = 'ADJUSTMENT',
+  TRANSFER = 'TRANSFER',
+}
+
+// Tracking
+export enum TrackingEventType {
+  PICKED_UP = 'PICKED_UP',
+  IN_WAREHOUSE_CN = 'IN_WAREHOUSE_CN',
+  PACKED = 'PACKED',
+  LOADED_CONTAINER = 'LOADED_CONTAINER',
+  DEPARTED_CN = 'DEPARTED_CN',
+  IN_TRANSIT = 'IN_TRANSIT',
+  ARRIVED_PORT = 'ARRIVED_PORT',
+  CUSTOMS_CLEARANCE = 'CUSTOMS_CLEARANCE',
+  CUSTOMS_RELEASED = 'CUSTOMS_RELEASED',
+  IN_WAREHOUSE_VN = 'IN_WAREHOUSE_VN',
+  OUT_FOR_DELIVERY = 'OUT_FOR_DELIVERY',
+  DELIVERED = 'DELIVERED',
+}
+
+// Netting
+export enum NettingStatus {
+  DRAFT = 'DRAFT',
+  SUBMITTED = 'SUBMITTED',
+  APPROVED = 'APPROVED',
+  EXECUTED = 'EXECUTED',
+  REJECTED = 'REJECTED',
+}
+
+// Master Order
+export enum MasterOrderStatus {
+  ACTIVE = 'ACTIVE',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum ClearanceType {
+  CHINH_NGACH = 'CHINH_NGACH',
+  TIEU_NGACH = 'TIEU_NGACH',
+}
+
+// COD
+export enum CODStatus {
+  PENDING = 'PENDING',
+  COLLECTED = 'COLLECTED',
+  REMITTED = 'REMITTED',
+  RECONCILED = 'RECONCILED',
+  SHORTAGE = 'SHORTAGE',
+}
+
+export enum NotificationPriority {
+  LOW = 'LOW',
+  NORMAL = 'NORMAL',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL',
+}

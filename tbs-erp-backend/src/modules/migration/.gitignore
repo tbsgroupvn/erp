@@ -1,0 +1,6 @@
+# Ignore actual rollback files (but keep the example)
+migration-rollback.json
+*.log
+
+# Keep example files
+!migration-rollback.example.json

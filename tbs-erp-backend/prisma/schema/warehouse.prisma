@@ -1,0 +1,121 @@
+// ============================================
+// WAREHOUSE — Kho TQ, Kho VN, Package
+// ============================================
+
+model Package {
+  id                String   @id @default(cuid())
+  code              String   @unique               // Mã kiện: TBS-PKG-000001
+  orderId           String   @map("order_id")
+  trackingNumberCN  String?  @map("tracking_number_cn") // Mã vận đơn TQ
+  description       String?
+  imageUrls         String[] @default([]) @map("image_urls")
+
+  // Trọng lượng & kích thước (Kho TQ nhập)
+  actualWeight      Decimal? @map("actual_weight") @db.Decimal(10, 2)  // kg
+  length            Decimal? @db.Decimal(10, 2) // cm
+  width             Decimal? @db.Decimal(10, 2) // cm
+  height            Decimal? @db.Decimal(10, 2) // cm
+  volumetricWeight  Decimal? @map("volumetric_weight") @db.Decimal(10, 2) // Tính tự động
+  chargeableWeight  Decimal? @map("chargeable_weight") @db.Decimal(10, 2) // MAX(actual, volumetric)
+
+  // Trạng thái
+  warehouseCNStatus String?  @map("warehouse_cn_status") // RECEIVED, CHECKED, PACKED, SHIPPED
+  warehouseVNStatus String?  @map("warehouse_vn_status") // RECEIVED, SORTED, READY, DELIVERED
+
+  // Timestamps kho
+  receivedCNAt      DateTime? @map("received_cn_at")
+  receivedCNBy      String?   @map("received_cn_by")
+  packedAt          DateTime? @map("packed_at")
+  receivedVNAt      DateTime? @map("received_vn_at")
+  receivedVNBy      String?   @map("received_vn_by")
+  deliveredAt       DateTime? @map("delivered_at")
+
+  containerId       String?  @map("container_id")
+  note              String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  order             Order    @relation(fields: [orderId], references: [id])
+  container         Container? @relation(fields: [containerId], references: [id])
+  trackingEvents    TrackingEvent[]
+  qcInspections     QCInspection[]
+
+  @@index([orderId])
+  @@index([trackingNumberCN])
+  @@index([containerId])
+  @@map("packages")
+}
+
+model LostAndFound {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  trackingNumber  String?  @map("tracking_number")
+  description     String?
+  imageUrls       String[] @default([]) @map("image_urls")
+  weight          Decimal? @db.Decimal(10, 2)
+  warehouse       String   // CN | VN
+  status          String   @default("UNIDENTIFIED") // UNIDENTIFIED, CLAIMED, DISPOSED
+  claimedBy       String?  @map("claimed_by")       // customerId
+  claimedAt       DateTime? @map("claimed_at")
+  receivedBy      String   @map("received_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([trackingNumber])
+  @@map("lost_and_found")
+}
+
+// ============================================
+// QC INSPECTION — Kiểm tra chất lượng tại kho TQ
+// ============================================
+
+model QCInspection {
+  id                  String     @id @default(cuid())
+  code                String     @unique            // QC-YYYYMM-XXXX
+  orderId             String     @map("order_id")
+  packageId           String?    @map("package_id")
+
+  // Trạng thái QC
+  status              QCStatus   @default(PENDING)
+
+  // Kiểm tra
+  inspectedQuantity   Int        @default(0) @map("inspected_quantity")
+  passedQuantity      Int        @default(0) @map("passed_quantity")
+  failedQuantity      Int        @default(0) @map("failed_quantity")
+
+  // Ảnh QC (gửi cho khách xem)
+  photoUrls           String[]   @default([]) @map("photo_urls")        // Ảnh tổng quan
+  detailPhotoUrls     String[]   @default([]) @map("detail_photo_urls") // Ảnh chi tiết sản phẩm
+  defectPhotoUrls     String[]   @default([]) @map("defect_photo_urls") // Ảnh lỗi (nếu có)
+
+  // Đánh giá
+  overallRating       Int?       @map("overall_rating")  // 1-5 sao
+  checklistResults    Json?      @map("checklist_results") // { "correct_item": true, "correct_qty": true, "no_damage": false, ... }
+
+  // Ghi chú
+  inspectorNote       String?    @map("inspector_note")
+  customerNote        String?    @map("customer_note")   // KH feedback sau khi xem ảnh
+  defectDescription   String?    @map("defect_description")
+
+  // Customer review
+  sentToCustomerAt    DateTime?  @map("sent_to_customer_at")
+  customerReviewedAt  DateTime?  @map("customer_reviewed_at")
+  customerApproved    Boolean?   @map("customer_approved")
+
+  // Timestamps
+  inspectedBy         String?    @map("inspected_by")
+  inspectedAt         DateTime?  @map("inspected_at")
+  createdBy           String     @map("created_by")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  order               Order      @relation(fields: [orderId], references: [id])
+  package             Package?   @relation(fields: [packageId], references: [id])
+
+  @@index([orderId])
+  @@index([packageId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("qc_inspections")
+}

@@ -1,0 +1,394 @@
+// ============================================
+// SHARED ENUMS - Dùng chung cho nhiều modules
+// ============================================
+
+enum ServiceType {
+  VCT   // Vận chuyển thuần
+  MHH   // Mua hàng hộ
+  UTXNK // Ủy thác XNK
+  LCLCN // LCL chính ngạch
+}
+
+enum OrderStatus {
+  CONSULTING       // GĐ 1: Tiếp nhận
+  QUOTATION        // GĐ 2: Báo giá
+  PENDING_DEPOSIT  // GĐ 3: Chờ cọc
+  SOURCING         // GĐ 4: Mua hàng
+  WAREHOUSE_CN     // GĐ 5: Nhập kho TQ
+  PACKING          // GĐ 6: Đóng gói
+  CONSOLIDATION    // GĐ 7: Ghép cont
+  IN_TRANSIT       // GĐ 8: Vận chuyển
+  CUSTOMS          // GĐ 9: Thông quan
+  WAREHOUSE_VN     // GĐ 10: Nhập kho VN
+  DELIVERING       // GĐ 11: Giao hàng
+  SETTLEMENT       // GĐ 12: Quyết toán
+  COMPLETED        // GĐ 13: Hoàn thành
+  ON_HOLD          // Tạm giữ
+  CANCELLED        // Đã hủy
+  RETURNED         // Trả hàng
+  ISSUE            // Có vấn đề
+}
+
+enum CustomerTier {
+  NEW        // Khách mới (< 3 đơn) — Cọc 100%
+  REGULAR    // Khách thường — Cọc 70%
+  VIP        // Khách VIP (> 500tr/năm) — Cọc 50%
+  STRATEGIC  // Đối tác chiến lược — Cọc 30%
+}
+
+enum PaymentMethod {
+  WALLET        // Ví điện tử
+  BANK_TRANSFER // Chuyển khoản
+  CASH          // Tiền mặt
+  COD           // Thu hộ
+  CREDIT        // Công nợ
+}
+
+enum Currency {
+  VND
+  CNY
+  USD
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  RETURNED           // Trả lại để sửa
+  WITHDRAWN          // Người gửi rút lại
+}
+
+enum ApprovalType {
+  DISCOUNT           // Giảm giá
+  PAYMENT_VOUCHER    // Phiếu chi
+  RECEIPT_VOUCHER    // Phiếu thu
+  ORDER_CANCEL       // Hủy đơn
+  CREDIT_EXTENSION   // Gia hạn công nợ
+  DEPOSIT_EXEMPTION  // Miễn/giảm cọc
+  CONTAINER_PLAN     // Kế hoạch container
+  WAREHOUSE_RELEASE  // Xuất kho
+  LEAVE_REQUEST      // Nghỉ phép
+  OVERTIME_REQUEST   // Tăng ca
+  PURCHASE_ORDER     // Mua hàng
+  QUOTATION_SPECIAL  // Báo giá đặc biệt
+  EXPENSE_CLAIM      // Hoàn ứng chi phí
+  SALARY_ADJUSTMENT  // Điều chỉnh lương
+  CUSTOM             // Admin tự định nghĩa
+}
+
+enum ApprovalNodeType {
+  START
+  END
+  APPROVER
+  CC
+  CONDITION
+}
+
+enum ApproverType {
+  SPECIFIC_USER      // User cụ thể
+  ROLE               // Theo role (UserRole)
+  DIRECT_MANAGER     // Cấp trên trực tiếp (User.leaderId)
+  DEPARTMENT_HEAD    // Trưởng phòng
+  REQUESTER_MANAGER  // Quản lý của người gửi
+}
+
+enum ApprovalMode {
+  SEQUENTIAL         // Tuần tự
+  PARALLEL_AND       // Tất cả phải duyệt
+  PARALLEL_OR        // 1 người duyệt là đủ
+}
+
+enum ApprovalAction {
+  SUBMIT
+  APPROVE
+  REJECT
+  DELEGATE
+  ADD_APPROVER
+  WITHDRAW
+  RETURN
+  AUTO_APPROVE
+  AUTO_ESCALATE
+  COMMENT
+}
+
+enum ShippingRoute {
+  SEA  // Đường biển — hệ số 6000
+  ROAD // Đường bộ — hệ số 5000
+  AIR  // Đường hàng không — hệ số 5000
+}
+
+enum Branch {
+  HN  // Hà Nội
+  HCM // Hồ Chí Minh
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum NotificationChannel {
+  APP_PUSH
+  EMAIL
+  SMS
+  ZALO_ZNS
+}
+
+enum QuotationStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  CONVERTED
+  EXPIRED
+}
+
+enum ComplaintType {
+  DAMAGE
+  MISSING
+  DELAY
+  QUALITY
+  OTHER
+}
+
+enum ComplaintSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ComplaintStatus {
+  OPEN
+  INVESTIGATING
+  PENDING_RESOLUTION
+  RESOLVED
+  CLOSED
+}
+
+enum ResolutionType {
+  REFUND
+  REPLACEMENT
+  CREDIT
+  APOLOGY
+  NONE
+}
+
+enum CostType {
+  FREIGHT
+  CUSTOMS_DUTY
+  HANDLING
+  TRANSPORT_CN
+  TRANSPORT_VN
+  INSURANCE
+  OTHER
+}
+
+enum StockMovementType {
+  RECEIPT
+  ISSUE
+  ADJUSTMENT
+  TRANSFER
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  PERSONAL
+  MATERNITY
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum MaintenanceType {
+  ROUTINE
+  REPAIR
+  INSPECTION
+}
+
+enum VehicleType {
+  TRUCK
+  VAN
+  MOTORCYCLE
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum DriverStatus {
+  AVAILABLE
+  ON_DELIVERY
+  OFF_DUTY
+}
+
+enum DocumentCategory {
+  CONTRACT
+  INVOICE
+  CUSTOMS
+  POD
+  PHOTO
+  OTHER
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum PurchaseStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  ORDERED
+  RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  RESIGNED
+}
+
+enum TrackingEventType {
+  PICKED_UP
+  IN_WAREHOUSE_CN
+  PACKED
+  LOADED_CONTAINER
+  DEPARTED_CN
+  IN_TRANSIT
+  ARRIVED_PORT
+  CUSTOMS_CLEARANCE
+  CUSTOMS_RELEASED
+  IN_WAREHOUSE_VN
+  OUT_FOR_DELIVERY
+  DELIVERED
+}
+
+enum NettingStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  EXECUTED
+  REJECTED
+}
+
+enum CODStatus {
+  PENDING
+  COLLECTED
+  REMITTED
+  RECONCILED
+  SHORTAGE
+}
+
+enum ClearanceType {
+  CHINH_NGACH  // Chính ngạch
+  TIEU_NGACH   // Tiểu ngạch
+}
+
+enum MasterOrderStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+// ============================================
+// MHH (Mua hàng hộ) — Enums
+// ============================================
+
+enum SupplierOrderStatus {
+  DRAFT            // Nháp, chưa gửi NCC
+  QUOTED           // Đã báo giá từ NCC
+  ORDERED          // Đã đặt hàng NCC
+  CONFIRMED        // NCC xác nhận đơn
+  PARTIALLY_SHIPPED // NCC gửi một phần
+  SHIPPED_CN       // NCC đã gửi hàng (có tracking nội địa TQ)
+  RECEIVED_CN      // Kho TQ đã nhận hàng từ NCC
+  CANCELLED        // Đã hủy đơn NCC
+  ISSUE            // Có vấn đề với NCC
+}
+
+enum QCStatus {
+  PENDING          // Chờ kiểm tra
+  INSPECTING       // Đang kiểm tra
+  PASSED           // Đạt chất lượng
+  FAILED           // Không đạt
+  PARTIAL          // Đạt một phần (thiếu/sai một số item)
+  CUSTOMER_REVIEW  // Chờ khách duyệt (gửi ảnh cho KH xem)
+  CUSTOMER_APPROVED // Khách đồng ý
+  CUSTOMER_REJECTED // Khách từ chối
+}
+
+enum MHHIssueType {
+  OUT_OF_STOCK     // Hết hàng
+  WRONG_ITEM       // Sai hàng
+  DAMAGED          // Hư hỏng
+  INCOMPLETE       // Thiếu hàng
+  QUALITY          // Chất lượng không đạt
+  PRICE_CHANGE     // NCC thay đổi giá
+  DELAY            // Giao hàng chậm
+  OTHER            // Khác
+}
+
+enum MHHIssueStatus {
+  OPEN             // Mới phát hiện
+  INVESTIGATING    // Đang xử lý
+  WAITING_SUPPLIER // Chờ NCC phản hồi
+  WAITING_CUSTOMER // Chờ KH quyết định
+  RESOLVED         // Đã giải quyết
+  CLOSED           // Đã đóng
+}
+
+enum MHHIssueResolution {
+  REFUND           // Hoàn tiền
+  REPLACE          // Đổi hàng
+  SUPPLEMENT       // Gửi bổ sung
+  PRICE_ADJUST     // Điều chỉnh giá
+  ACCEPT           // KH chấp nhận giữ lại
+  RETURN_SUPPLIER  // Trả hàng NCC
+  CANCEL_ITEM      // Hủy item
+}
+
+enum ContractType {
+  MASTER               // Hợp đồng chính
+  APPENDIX             // Phụ lục hợp đồng
+}
+
+enum ContractStatus {
+  DRAFT                // Đang soạn thảo
+  PENDING_SIGNATURE    // Chờ ký
+  SIGNED               // Đã ký
+  ACTIVE               // Đang thực hiện
+  SETTLED              // Đã thanh lý
+  COMPLETED            // Hoàn thành
+  CANCELLED            // Đã hủy
+  SUSPENDED            // Tạm dừng
+}

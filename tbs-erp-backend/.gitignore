@@ -1,0 +1,8 @@
+dist
+node_modules
+.env
+coverage
+*.js.map
+*.d.ts
+!.eslintrc.js
+uploads/

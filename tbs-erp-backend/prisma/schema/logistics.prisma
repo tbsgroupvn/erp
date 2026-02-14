@@ -1,0 +1,119 @@
+// ============================================
+// LOGISTICS — Fleet, Driver, Delivery, COD
+// ============================================
+
+model Vehicle {
+  id                String        @id @default(cuid())
+  plateNumber       String        @unique @map("plate_number")
+  type              VehicleType
+  brand             String?
+  model             String?
+  year              Int?
+  capacityKg        Float?
+  volumeM3          Float?
+  status            VehicleStatus @default(ACTIVE)
+  branch            Branch
+  insuranceExpiry   DateTime?
+  registrationExpiry DateTime?
+  maintenanceRecords VehicleMaintenance[]
+  fuelRecords       FuelRecord[]
+  deliveries        Delivery[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([status])
+  @@index([branch])
+  @@map("vehicles")
+}
+
+model Driver {
+  id            String       @id @default(cuid())
+  employeeId    String?
+  fullName      String
+  phone         String
+  licenseNumber String?
+  licenseExpiry DateTime?
+  licenseType   String?
+  vehicleId     String?
+  branch        Branch
+  status        DriverStatus @default(AVAILABLE)
+  deliveries    Delivery[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([status])
+  @@index([branch])
+}
+
+model Delivery {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  orderId         String   @map("order_id")
+  driverId        String?  @map("driver_id")
+  vehicleId       String?  @map("vehicle_id")
+  branch          Branch
+
+  // Dia chi giao
+  recipientName   String   @map("recipient_name")
+  recipientPhone  String   @map("recipient_phone")
+  deliveryAddress String   @map("delivery_address")
+
+  // Trang thai
+  status          String   @default("PENDING") // PENDING, DISPATCHED, PICKED_UP, DELIVERING, DELIVERED, FAILED
+  scheduledAt     DateTime? @map("scheduled_at")
+  pickedUpAt      DateTime? @map("picked_up_at")
+  deliveredAt     DateTime? @map("delivered_at")
+  podImageUrl     String?  @map("pod_image_url")   // Proof of Delivery
+  signatureUrl    String?  @map("signature_url")
+
+  // COD
+  codAmount       Decimal  @default(0) @map("cod_amount") @db.Decimal(15, 2)
+  codCollected    Boolean  @default(false) @map("cod_collected")
+  codCollectedAt  DateTime? @map("cod_collected_at")
+  codReceiptUrl   String?  @map("cod_receipt_url")
+
+  failReason      String?  @map("fail_reason")
+  note            String?
+  dispatchedBy    String?  @map("dispatched_by")  // Truong kho
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  order           Order    @relation(fields: [orderId], references: [id])
+  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
+  driver          Driver?  @relation(fields: [driverId], references: [id])
+
+  @@index([orderId])
+  @@index([driverId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("deliveries")
+}
+
+model VehicleMaintenance {
+  id          String          @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id])
+  type        MaintenanceType
+  scheduledDate DateTime
+  completedDate DateTime?
+  cost        Float?
+  notes       String?
+  nextDueDate DateTime?
+  createdAt   DateTime        @default(now())
+
+  @@index([vehicleId])
+}
+
+model FuelRecord {
+  id        String  @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id])
+  date      DateTime
+  liters    Float
+  cost      Float
+  odometer  Float?
+  createdAt DateTime @default(now())
+
+  @@index([vehicleId])
+  @@index([date])
+}

@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Environment files (secrets)
+.env
+.env.local
+.env.production
+!.env.example
+!.env.docker.example
+!.env.example.monitoring
+
+# Build outputs
+dist/
+.next/
+out/
+coverage/
+
+# Backend build artifacts
+*.js.map
+*.d.ts
+!.eslintrc.js
+
+# Uploads
+uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
+nul
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temp files
+temp-writer.js
+write_file.py
+d1.ps1

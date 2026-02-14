@@ -1,0 +1,122 @@
+// ============================================
+// HR — Employee, Attendance, Leave, Payroll
+// ============================================
+
+model Employee {
+  id              String         @id @default(cuid())
+  code            String         @unique
+  userId          String?        @unique
+  user            User?          @relation(fields: [userId], references: [id])
+  fullName        String
+  email           String?
+  phone           String?
+  departmentCode  String
+  positionTitle   String
+  branch          Branch
+  managerId       String?
+  manager         Employee?      @relation("EmployeeManager", fields: [managerId], references: [id])
+  subordinates    Employee[]     @relation("EmployeeManager")
+  joinDate        DateTime
+  salary          Float?
+  bankAccount     String?
+  bankName        String?
+  taxCode         String?
+  insuranceId     String?
+  status          EmployeeStatus @default(ACTIVE)
+  attendances     Attendance[]
+  leaveRequests   LeaveRequest[]
+  payrollRecords     PayrollRecord[]
+  overtimeRequests   OvertimeRequest[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([departmentCode])
+  @@index([branch])
+  @@index([status])
+  @@map("employees")
+}
+
+model Attendance {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  date        DateTime @db.Date
+  checkIn     DateTime?
+  checkOut    DateTime?
+  checkInLat  Float?
+  checkInLng  Float?
+  checkOutLat Float?
+  checkOutLng Float?
+  type        String   @default("OFFICE") // OFFICE, REMOTE, FIELD
+  workHours   Float?
+  overtimeHours Float? @default(0)
+  isLate      Boolean  @default(false)
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+}
+
+model LeaveRequest {
+  id          String      @id @default(cuid())
+  employeeId  String
+  employee    Employee    @relation(fields: [employeeId], references: [id])
+  type        LeaveType
+  status      LeaveStatus @default(PENDING)
+  startDate   DateTime    @db.Date
+  endDate     DateTime    @db.Date
+  totalDays   Float
+  reason      String?
+  approvedBy  String?
+  approvedAt  DateTime?
+  rejectionReason String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+model OvertimeRequest {
+  id           String      @id @default(cuid())
+  employeeId   String
+  employee     Employee    @relation(fields: [employeeId], references: [id])
+  date         DateTime    @db.Date
+  hours        Float
+  reason       String?
+  status       LeaveStatus @default(PENDING)
+  approverId   String?
+  approvedAt   DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([employeeId])
+  @@index([date])
+}
+
+model PayrollRecord {
+  id           String   @id @default(cuid())
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id])
+  month        Int
+  year         Int
+  baseSalary   Float
+  overtimePay  Float    @default(0)
+  allowances   Float    @default(0)
+  grossSalary  Float
+  taxDeduction Float    @default(0)
+  insuranceDeduction Float @default(0)
+  otherDeductions Float @default(0)
+  netSalary    Float
+  status       String   @default("DRAFT") // DRAFT, APPROVED, PAID
+  approvedBy   String?
+  approvedAt   DateTime?
+  paidAt       DateTime?
+  createdAt    DateTime @default(now())
+
+  @@unique([employeeId, month, year])
+  @@index([employeeId])
+  @@index([month, year])
+}

@@ -1,0 +1,96 @@
+// ============================================
+// CRM — Customer, Contact, Wallet
+// ============================================
+
+model Customer {
+  id              String       @id @default(cuid())
+  code            String       @unique            // Mã KH: TBS-KH-000001
+  companyName     String?      @map("company_name")
+  fullName        String       @map("full_name")
+  phone           String
+  email           String?
+  address         String?
+  taxCode         String?      @map("tax_code")
+  tier            CustomerTier @default(NEW)
+  creditLimit     Decimal      @default(0) @map("credit_limit") @db.Decimal(15, 2)
+  currentDebt     Decimal      @default(0) @map("current_debt") @db.Decimal(15, 2)
+  depositRate     Int          @default(100) @map("deposit_rate") // % cọc tối thiểu
+  totalOrders     Int          @default(0) @map("total_orders")
+  totalRevenue    Decimal      @default(0) @map("total_revenue") @db.Decimal(15, 2)
+  branch          Branch?
+  saleId          String?      @map("sale_id")    // Sale phụ trách
+  note            String?
+  isActive        Boolean      @default(true) @map("is_active")
+
+  // Payment Terms & Credit Control
+  paymentTermDays     Int      @default(0) @map("payment_term_days")     // 0=Cash, 7=Net7, 15=Net15, 30=Net30, 60=Net60
+  gracePeriodDays     Int      @default(3) @map("grace_period_days")     // Extra days before marking overdue
+  overdueInterestRate Decimal  @default(0) @map("overdue_interest_rate") @db.Decimal(5, 2) // Annual interest rate %
+  isBlocked           Boolean  @default(false) @map("is_blocked")
+  blockReason         String?  @map("block_reason")
+  blockedAt           DateTime? @map("blocked_at")
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  contacts        Contact[]
+  wallet          Wallet?
+  orders          Order[]
+  masterOrders    MasterOrder[]
+  receivables     AccountReceivable[]
+  quotations      Quotation[]
+  complaints      Complaint[]
+  contracts       Contract[]
+  agingSnapshots  ARAgingSnapshot[]
+
+  @@index([saleId])
+  @@index([tier])
+  @@map("customers")
+}
+
+model Contact {
+  id          String   @id @default(cuid())
+  customerId  String   @map("customer_id")
+  fullName    String   @map("full_name")
+  phone       String?
+  email       String?
+  position    String?
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("contacts")
+}
+
+model Wallet {
+  id          String   @id @default(cuid())
+  customerId  String   @unique @map("customer_id")
+  balance     Decimal  @default(0) @db.Decimal(15, 2)
+  currency    Currency @default(VND)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id              String   @id @default(cuid())
+  walletId        String   @map("wallet_id")
+  amount          Decimal  @db.Decimal(15, 2)  // + nạp, - trừ
+  type            String   // TOPUP, DEDUCT, REFUND
+  reference       String?  // Mã tham chiếu (orderId, paymentId)
+  allocationType  String?  @map("allocation_type") // CONTRACT, ORDER, UNALLOCATED
+  allocationId    String?  @map("allocation_id")
+  note            String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  wallet          Wallet   @relation(fields: [walletId], references: [id])
+
+  @@index([walletId, createdAt])
+  @@index([allocationType, allocationId])
+  @@map("wallet_transactions")
+}

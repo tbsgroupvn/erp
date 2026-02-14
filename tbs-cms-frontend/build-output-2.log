@@ -1,0 +1,2522 @@
+
+> tbs-erp-frontend@0.1.0 build
+> next build
+
+  ▲ Next.js 14.2.21
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+
+./src/components/blog/blog-post-form.tsx
+300:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+   Collecting page data ...
+ ⚠ Using edge runtime on a page currently disables static generation for that page
+   Generating static pages (0/71) ...
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+(node:32396) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Error fetching blog posts for sitemap: en [AxiosError]: Request failed with status code 400
+    at e$ (D:\ERPv1\tbs-erp-frontend\.next\server\app\sitemap.xml\route.js:1:18705)
+    at IncomingMessage.<anonymous> (D:\ERPv1\tbs-erp-frontend\.next\server\app\sitemap.xml\route.js:3:12066)
+    at IncomingMessage.emit (node:events:520:35)
+    at endReadableNT (node:internal/streams/readable:1701:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+    at a1.request (D:\ERPv1\tbs-erp-frontend\.next\server\app\sitemap.xml\route.js:3:24534)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Object.list (D:\ERPv1\tbs-erp-frontend\.next\server\app\sitemap.xml\route.js:3:30153)
+    at async a8 (D:\ERPv1\tbs-erp-frontend\.next\server\app\sitemap.xml\route.js:3:31493)
+    at async ii (D:\ERPv1\tbs-erp-frontend\.next\server\app\sitemap.xml\route.js:3:32201)
+    at async D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:38411
+    at async e_.execute (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:27880)
+    at async e_.handle (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:39745)
+    at async exportAppRoute (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\export\routes\app-route.js:77:26)
+    at async exportPageImpl (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\export\worker.js:175:20) {
+  isAxiosError: true,
+  code: 'ERR_BAD_REQUEST',
+  config: {
+    transitional: {
+      silentJSONParsing: true,
+      forcedJSONParsing: true,
+      clarifyTimeoutError: false
+    },
+    adapter: [ 'xhr', 'http', 'fetch' ],
+    transformRequest: [ [Function (anonymous)] ],
+    transformResponse: [ [Function (anonymous)] ],
+    timeout: 30000,
+    xsrfCookieName: 'XSRF-TOKEN',
+    xsrfHeaderName: 'X-XSRF-TOKEN',
+    maxContentLength: -1,
+    maxBodyLength: -1,
+    env: { FormData: [Function], Blob: [class Blob] },
+    validateStatus: [Function: validateStatus],
+    headers: Object [AxiosHeaders] {
+      Accept: 'application/json, text/plain, */*',
+      'Content-Type': 'application/json',
+      'User-Agent': 'axios/1.13.4',
+      'Accept-Encoding': 'gzip, compress, deflate, br'
+    },
+    baseURL: 'http://localhost:4000/api',
+    params: { status: 'published', limit: 1000 },
+    method: 'get',
+    url: '/blog-posts',
+    allowAbsoluteUrls: true,
+    data: undefined
+  },
+  request: <ref *1> ClientRequest {
+    _events: [Object: null prototype] {
+      abort: [Function (anonymous)],
+      aborted: [Function (anonymous)],
+      connect: [Function (anonymous)],
+      error: [Function (anonymous)],
+      socket: [Function (anonymous)],
+      timeout: [Function (anonymous)],
+      finish: [Function: requestOnFinish]
+    },
+    _eventsCount: 7,
+    _maxListeners: undefined,
+    outputData: [],
+    outputSize: 0,
+    writable: true,
+    destroyed: true,
+    _last: true,
+    chunkedEncoding: false,
+    shouldKeepAlive: true,
+    maxRequestsOnConnectionReached: false,
+    _defaultKeepAlive: true,
+    useChunkedEncodingByDefault: false,
+    sendDate: false,
+    _removedConnection: false,
+    _removedContLen: false,
+    _removedTE: false,
+    strictContentLength: false,
+    _contentLength: 0,
+    _hasBody: true,
+    _trailer: '',
+    finished: true,
+    _headerSent: true,
+    _closed: true,
+    _header: 'GET /api/blog-posts?status=published&limit=1000 HTTP/1.1\r\n' +
+      'Accept: application/json, text/plain, */*\r\n' +
+      'Content-Type: application/json\r\n' +
+      'User-Agent: axios/1.13.4\r\n' +
+      'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+      'Host: localhost:4000\r\n' +
+      'Connection: keep-alive\r\n' +
+      '\r\n',
+    _keepAliveTimeout: 0,
+    _onPendingData: [Function: nop],
+    agent: Agent {
+      _events: [Object: null prototype],
+      _eventsCount: 2,
+      _maxListeners: undefined,
+      options: [Object: null prototype],
+      defaultPort: 80,
+      protocol: 'http:',
+      requests: [Object: null prototype] {},
+      sockets: [Object: null prototype] {},
+      freeSockets: [Object: null prototype],
+      keepAliveMsecs: 1000,
+      keepAlive: true,
+      maxSockets: Infinity,
+      maxFreeSockets: 256,
+      scheduling: 'lifo',
+      maxTotalSockets: Infinity,
+      totalSocketCount: 1,
+      agentKeepAliveTimeoutBuffer: 1000,
+      Symbol(shapeMode): false,
+      Symbol(kCapture): false
+    },
+    socketPath: undefined,
+    method: 'GET',
+    maxHeaderSize: undefined,
+    insecureHTTPParser: undefined,
+    joinDuplicateHeaders: undefined,
+    path: '/api/blog-posts?status=published&limit=1000',
+    _ended: true,
+    res: IncomingMessage {
+      _events: [Object],
+      _readableState: [ReadableState],
+      _maxListeners: undefined,
+      socket: null,
+      httpVersionMajor: 1,
+      httpVersionMinor: 1,
+      httpVersion: '1.1',
+      complete: true,
+      rawHeaders: [Array],
+      rawTrailers: [],
+      joinDuplicateHeaders: undefined,
+      aborted: false,
+      upgrade: false,
+      url: '',
+      method: null,
+      statusCode: 400,
+      statusMessage: 'Bad Request',
+      client: [Socket],
+      _consuming: false,
+      _dumped: false,
+      req: [Circular *1],
+      _eventsCount: 4,
+      responseUrl: 'http://localhost:4000/api/blog-posts?status=published&limit=1000',
+      redirects: [],
+      Symbol(shapeMode): true,
+      Symbol(kCapture): false,
+      Symbol(kHeaders): [Object],
+      Symbol(kHeadersCount): 40,
+      Symbol(kTrailers): null,
+      Symbol(kTrailersCount): 0
+    },
+    aborted: false,
+    timeoutCb: null,
+    upgradeOrConnect: false,
+    parser: null,
+    maxHeadersCount: null,
+    reusedSocket: false,
+    host: 'localhost',
+    protocol: 'http:',
+    _redirectable: Writable {
+      _events: [Object],
+      _writableState: [WritableState],
+      _maxListeners: undefined,
+      _options: [Object],
+      _ended: true,
+      _ending: true,
+      _redirectCount: 0,
+      _redirects: [],
+      _requestBodyLength: 0,
+      _requestBodyBuffers: [],
+      _eventsCount: 3,
+      _onNativeResponse: [Function (anonymous)],
+      _currentRequest: [Circular *1],
+      _currentUrl: 'http://localhost:4000/api/blog-posts?status=published&limit=1000',
+      _timeout: null,
+      Symbol(shapeMode): true,
+      Symbol(kCapture): false
+    },
+    Symbol(shapeMode): false,
+    Symbol(kCapture): false,
+    Symbol(kBytesWritten): 0,
+    Symbol(kNeedDrain): false,
+    Symbol(corked): 0,
+    Symbol(kChunkedBuffer): [],
+    Symbol(kChunkedLength): 0,
+    Symbol(kSocket): Socket {
+      connecting: false,
+      _hadError: false,
+      _parent: null,
+      _host: 'localhost',
+      _closeAfterHandlingError: false,
+      _events: [Object],
+      _readableState: [ReadableState],
+      _writableState: [WritableState],
+      allowHalfOpen: false,
+      _maxListeners: undefined,
+      _eventsCount: 6,
+      _sockname: null,
+      _pendingData: null,
+      _pendingEncoding: '',
+      server: null,
+      _server: null,
+      timeout: 4000,
+      parser: null,
+      _httpMessage: null,
+      autoSelectFamilyAttemptedAddresses: [Array],
+      Symbol(async_id_symbol): -1,
+      Symbol(kHandle): [TCP],
+      Symbol(lastWriteQueueSize): 0,
+      Symbol(timeout): Timeout {
+        _idleTimeout: 4000,
+        _idlePrev: [TimersList],
+        _idleNext: [TimersList],
+        _idleStart: 1453,
+        _onTimeout: [Function: bound ],
+        _timerArgs: undefined,
+        _repeat: null,
+        _destroyed: false,
+        Symbol(refed): false,
+        Symbol(kHasPrimitive): false,
+        Symbol(asyncId): 50,
+        Symbol(triggerId): 48,
+        Symbol(kAsyncContextFrame): [AsyncContextFrame [Map]]
+      },
+      Symbol(kBuffer): null,
+      Symbol(kBufferCb): null,
+      Symbol(kBufferGen): null,
+      Symbol(shapeMode): true,
+      Symbol(kCapture): false,
+      Symbol(kSetNoDelay): true,
+      Symbol(kSetKeepAlive): true,
+      Symbol(kSetKeepAliveInitialDelay): 1,
+      Symbol(kBytesRead): 0,
+      Symbol(kBytesWritten): 0
+    },
+    Symbol(kOutHeaders): [Object: null prototype] {
+      accept: [Array],
+      'content-type': [Array],
+      'user-agent': [Array],
+      'accept-encoding': [Array],
+      host: [Array]
+    },
+    Symbol(errored): null,
+    Symbol(kHighWaterMark): 16384,
+    Symbol(kRejectNonStandardBodyWrites): false,
+    Symbol(kUniqueHeaders): null
+  },
+  response: {
+    status: 400,
+    statusText: 'Bad Request',
+    headers: Object [AxiosHeaders] {
+      'content-security-policy': "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests",
+      'cross-origin-opener-policy': 'same-origin',
+      'cross-origin-resource-policy': 'same-origin',
+      'origin-agent-cluster': '?1',
+      'referrer-policy': 'no-referrer',
+      'strict-transport-security': 'max-age=31536000; includeSubDomains',
+      'x-content-type-options': 'nosniff',
+      'x-dns-prefetch-control': 'off',
+      'x-download-options': 'noopen',
+      'x-frame-options': 'SAMEORIGIN',
+      'x-permitted-cross-domain-policies': 'none',
+      'x-xss-protection': '0',
+      vary: 'Origin',
+      'access-control-allow-credentials': 'true',
+      'content-type': 'application/json; charset=utf-8',
+      'content-length': '260',
+      etag: 'W/"104-UpdKz9pJJkelfQqC5qxxsPCEP8A"',
+      date: 'Tue, 10 Feb 2026 02:35:26 GMT',
+      connection: 'keep-alive',
+      'keep-alive': 'timeout=5'
+    },
+    config: {
+      transitional: [Object],
+      adapter: [Array],
+      transformRequest: [Array],
+      transformResponse: [Array],
+      timeout: 30000,
+      xsrfCookieName: 'XSRF-TOKEN',
+      xsrfHeaderName: 'X-XSRF-TOKEN',
+      maxContentLength: -1,
+      maxBodyLength: -1,
+      env: [Object],
+      validateStatus: [Function: validateStatus],
+      headers: [Object [AxiosHeaders]],
+      baseURL: 'http://localhost:4000/api',
+      params: [Object],
+      method: 'get',
+      url: '/blog-posts',
+      allowAbsoluteUrls: true,
+      data: undefined
+    },
+    request: <ref *1> ClientRequest {
+      _events: [Object: null prototype],
+      _eventsCount: 7,
+      _maxListeners: undefined,
+      outputData: [],
+      outputSize: 0,
+      writable: true,
+      destroyed: true,
+      _last: true,
+      chunkedEncoding: false,
+      shouldKeepAlive: true,
+      maxRequestsOnConnectionReached: false,
+      _defaultKeepAlive: true,
+      useChunkedEncodingByDefault: false,
+      sendDate: false,
+      _removedConnection: false,
+      _removedContLen: false,
+      _removedTE: false,
+      strictContentLength: false,
+      _contentLength: 0,
+      _hasBody: true,
+      _trailer: '',
+      finished: true,
+      _headerSent: true,
+      _closed: true,
+      _header: 'GET /api/blog-posts?status=published&limit=1000 HTTP/1.1\r\n' +
+        'Accept: application/json, text/plain, */*\r\n' +
+        'Content-Type: application/json\r\n' +
+        'User-Agent: axios/1.13.4\r\n' +
+        'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+        'Host: localhost:4000\r\n' +
+        'Connection: keep-alive\r\n' +
+        '\r\n',
+      _keepAliveTimeout: 0,
+      _onPendingData: [Function: nop],
+      agent: [Agent],
+      socketPath: undefined,
+      method: 'GET',
+      maxHeaderSize: undefined,
+      insecureHTTPParser: undefined,
+      joinDuplicateHeaders: undefined,
+      path: '/api/blog-posts?status=published&limit=1000',
+      _ended: true,
+      res: [IncomingMessage],
+      aborted: false,
+      timeoutCb: null,
+      upgradeOrConnect: false,
+      parser: null,
+      maxHeadersCount: null,
+      reusedSocket: false,
+      host: 'localhost',
+      protocol: 'http:',
+      _redirectable: [Writable],
+      Symbol(shapeMode): false,
+      Symbol(kCapture): false,
+      Symbol(kBytesWritten): 0,
+      Symbol(kNeedDrain): false,
+      Symbol(corked): 0,
+      Symbol(kChunkedBuffer): [],
+      Symbol(kChunkedLength): 0,
+      Symbol(kSocket): [Socket],
+      Symbol(kOutHeaders): [Object: null prototype],
+      Symbol(errored): null,
+      Symbol(kHighWaterMark): 16384,
+      Symbol(kRejectNonStandardBodyWrites): false,
+      Symbol(kUniqueHeaders): null
+    },
+    data: {
+      success: false,
+      statusCode: 400,
+      message: [Array],
+      error: 'Bad Request',
+      timestamp: '2026-02-10T02:35:26.078Z',
+      path: '/api/blog-posts?status=published&limit=1000'
+    }
+  },
+  status: 400
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ Sending SIGTERM signal to static worker due to timeout of 60 seconds. Subsequent errors may be a result of the worker exiting.
+ ⚠ Restarted static page generation for /_not-found because it took more than 60 seconds
+ ⚠ See more info here https://nextjs.org/docs/messages/static-page-generation-timeout
+ ⚠ Restarted static page generation for /bao-cao/tai-chinh because it took more than 60 seconds
+ ⚠ Restarted static page generation for /don-hang because it took more than 60 seconds
+ ⚠ Restarted static page generation for /don-hang/template because it took more than 60 seconds
+ ⚠ Restarted static page generation for /cong-viec because it took more than 60 seconds
+ ⚠ Restarted static page generation for /hoa-hong because it took more than 60 seconds
+ ⚠ Restarted static page generation for /cong-viec/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /container because it took more than 60 seconds
+ ⚠ Restarted static page generation for /khach-hang/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /giao-hang because it took more than 60 seconds
+ ⚠ Restarted static page generation for /khach-hang because it took more than 60 seconds
+ ⚠ Restarted static page generation for /khieu-nai/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /don-hang/nhap-excel because it took more than 60 seconds
+ ⚠ Restarted static page generation for /don-hang/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /luong because it took more than 60 seconds
+ ⚠ Restarted static page generation for /kho-viet-nam because it took more than 60 seconds
+ ⚠ Restarted static page generation for /kho-vat-tu because it took more than 60 seconds
+ ⚠ Restarted static page generation for /kho-trung-quoc because it took more than 60 seconds
+ ⚠ Restarted static page generation for /nhan-su/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /phe-duyet because it took more than 60 seconds
+ ⚠ Restarted static page generation for /nha-cung-cap because it took more than 60 seconds
+ ⚠ Restarted static page generation for /khieu-nai because it took more than 60 seconds
+ ⚠ Restarted static page generation for /nhan-su because it took more than 60 seconds
+ ⚠ Restarted static page generation for /mua-hang/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /mua-hang because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-chinh/cong-no-phai-tra because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-chinh/bu-tru-cong-no because it took more than 60 seconds
+ ⚠ Restarted static page generation for /quan-ly-user because it took more than 60 seconds
+ ⚠ Restarted static page generation for /phuong-tien because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-chinh/hoa-don because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-lieu because it took more than 60 seconds
+ ⚠ Restarted static page generation for /don-hang/template/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /uy-quyen because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dang-ky because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-chinh/phieu-thu-chi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /theo-doi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /hoi-dap because it took more than 60 seconds
+ ⚠ Restarted static page generation for /lien-he because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-xe because it took more than 60 seconds
+ ⚠ Restarted static page generation for /offline because it took more than 60 seconds
+ ⚠ Restarted static page generation for /bao-cao/doanh-so because it took more than 60 seconds
+ ⚠ Restarted static page generation for /thong-bao because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tin-tuc because it took more than 60 seconds
+ ⚠ Restarted static page generation for /cham-cong because it took more than 60 seconds
+ ⚠ Restarted static page generation for /so-sanh because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-chinh/cong-no-phai-thu because it took more than 60 seconds
+ ⚠ Restarted static page generation for /login because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tong-quan because it took more than 60 seconds
+ ⚠ Restarted static page generation for /cai-dat/quy-trinh-phe-duyet because it took more than 60 seconds
+ ⚠ Restarted static page generation for / because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-chinh/ty-gia because it took more than 60 seconds
+ ⚠ Restarted static page generation for /cai-dat because it took more than 60 seconds
+ ⚠ Restarted static page generation for /bai-viet because it took more than 60 seconds
+ ⚠ Restarted static page generation for /bao-gia/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /cai-dat/quy-trinh-phe-duyet/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /chuyen-gia because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dich-vu/lcl-chinh-ngach because it took more than 60 seconds
+ ⚠ Restarted static page generation for /bai-viet/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /chinh-sach-bao-mat because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dich-vu/uy-thac-xuat-nhap-khau because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dieu-khoan-su-dung because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tinh-phi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tra-cuu because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dich-vu because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dich-vu/mua-hang-ho because it took more than 60 seconds
+ ⚠ Restarted static page generation for /gioi-thieu because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dich-vu/van-chuyen-hang-hoa because it took more than 60 seconds
+ ⚠ Restarted static page generation for /bao-gia because it took more than 60 seconds
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ Sending SIGTERM signal to static worker due to timeout of 60 seconds. Subsequent errors may be a result of the worker exiting.
+ ⚠ Restarted static page generation for /_not-found because it took more than 60 seconds
+ ⚠ Restarted static page generation for /bao-cao/tai-chinh because it took more than 60 seconds
+ ⚠ Restarted static page generation for /don-hang because it took more than 60 seconds
+ ⚠ Restarted static page generation for /don-hang/template because it took more than 60 seconds
+ ⚠ Restarted static page generation for /cong-viec because it took more than 60 seconds
+ ⚠ Restarted static page generation for /hoa-hong because it took more than 60 seconds
+ ⚠ Restarted static page generation for /cong-viec/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /container because it took more than 60 seconds
+ ⚠ Restarted static page generation for /khach-hang/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /giao-hang because it took more than 60 seconds
+ ⚠ Restarted static page generation for /khach-hang because it took more than 60 seconds
+ ⚠ Restarted static page generation for /khieu-nai/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /don-hang/nhap-excel because it took more than 60 seconds
+ ⚠ Restarted static page generation for /don-hang/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /luong because it took more than 60 seconds
+ ⚠ Restarted static page generation for /kho-viet-nam because it took more than 60 seconds
+ ⚠ Restarted static page generation for /kho-vat-tu because it took more than 60 seconds
+ ⚠ Restarted static page generation for /kho-trung-quoc because it took more than 60 seconds
+ ⚠ Restarted static page generation for /nhan-su/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /phe-duyet because it took more than 60 seconds
+ ⚠ Restarted static page generation for /nha-cung-cap because it took more than 60 seconds
+ ⚠ Restarted static page generation for /khieu-nai because it took more than 60 seconds
+ ⚠ Restarted static page generation for /nhan-su because it took more than 60 seconds
+ ⚠ Restarted static page generation for /mua-hang/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /mua-hang because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-chinh/cong-no-phai-tra because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-chinh/bu-tru-cong-no because it took more than 60 seconds
+ ⚠ Restarted static page generation for /quan-ly-user because it took more than 60 seconds
+ ⚠ Restarted static page generation for /phuong-tien because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-chinh/hoa-don because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-lieu because it took more than 60 seconds
+ ⚠ Restarted static page generation for /don-hang/template/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /uy-quyen because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dang-ky because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-chinh/phieu-thu-chi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /theo-doi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /hoi-dap because it took more than 60 seconds
+ ⚠ Restarted static page generation for /lien-he because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-xe because it took more than 60 seconds
+ ⚠ Restarted static page generation for /offline because it took more than 60 seconds
+ ⚠ Restarted static page generation for /bao-cao/doanh-so because it took more than 60 seconds
+ ⚠ Restarted static page generation for /thong-bao because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tin-tuc because it took more than 60 seconds
+ ⚠ Restarted static page generation for /cham-cong because it took more than 60 seconds
+ ⚠ Restarted static page generation for /so-sanh because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-chinh/cong-no-phai-thu because it took more than 60 seconds
+ ⚠ Restarted static page generation for /login because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tong-quan because it took more than 60 seconds
+ ⚠ Restarted static page generation for /cai-dat/quy-trinh-phe-duyet because it took more than 60 seconds
+ ⚠ Restarted static page generation for / because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tai-chinh/ty-gia because it took more than 60 seconds
+ ⚠ Restarted static page generation for /cai-dat because it took more than 60 seconds
+ ⚠ Restarted static page generation for /bai-viet because it took more than 60 seconds
+ ⚠ Restarted static page generation for /bao-gia/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /cai-dat/quy-trinh-phe-duyet/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /chuyen-gia because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dich-vu/lcl-chinh-ngach because it took more than 60 seconds
+ ⚠ Restarted static page generation for /bai-viet/tao-moi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /chinh-sach-bao-mat because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dich-vu/uy-thac-xuat-nhap-khau because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dieu-khoan-su-dung because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tinh-phi because it took more than 60 seconds
+ ⚠ Restarted static page generation for /tra-cuu because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dich-vu because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dich-vu/mua-hang-ho because it took more than 60 seconds
+ ⚠ Restarted static page generation for /gioi-thieu because it took more than 60 seconds
+ ⚠ Restarted static page generation for /dich-vu/van-chuyen-hang-hoa because it took more than 60 seconds
+ ⚠ Restarted static page generation for /bao-gia because it took more than 60 seconds
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:150373)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '3072086941'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
+            ^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ek (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:140440)
+    at Object.toJSON (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135629)
+    at stringify (<anonymous>)
+    at eP (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142093)
+    at eE (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:142572)
+    at Timeout._onTimeout (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:135349)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  digest: '2552374775'
+}
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ Sending SIGTERM signal to static worker due to timeout of 60 seconds. Subsequent errors may be a result of the worker exiting.
+
+> Build error occurred
+Error: Static page generation for /_not-found is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout
+    at onRestart (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\build\index.js:292:27)
+    at D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\lib\worker.js:99:40
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\export\index.js:450:20
+    at async Span.traceAsyncFn (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\trace\trace.js:154:20)
+    at async D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\export\index.js:448:24
+    at async Promise.all (index 3)
+    at async exportAppImpl (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\export\index.js:440:21)
+    at async D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\export\index.js:623:16
+    at async Span.traceAsyncFn (D:\ERPv1\tbs-erp-frontend\node_modules\next\dist\trace\trace.js:154:20)

@@ -1,0 +1,353 @@
+// ============================================
+// SYSTEM — Approval, Notification, Task
+// ============================================
+
+// ============================================
+// APPROVAL FLOW DEFINITION — Template quy trình
+// ============================================
+
+model ApprovalFlowDefinition {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String?                   // SALES, FINANCE, HR, LOGISTICS
+  triggerType String   @map("trigger_type")  // ApprovalType value
+  isActive    Boolean  @default(true)   @map("is_active")
+  version     Int      @default(1)
+  formSchema  Json?    @map("form_schema")
+  createdBy   String   @map("created_by")
+
+  nodes       ApprovalFlowNode[]
+  edges       ApprovalFlowEdge[]
+  instances   Approval[]
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt      @map("updated_at")
+
+  @@unique([triggerType, version])
+  @@map("approval_flow_definitions")
+}
+
+model ApprovalFlowNode {
+  id               String           @id @default(cuid())
+  flowDefinitionId String           @map("flow_definition_id")
+  nodeKey          String           @map("node_key")
+  nodeType         ApprovalNodeType @map("node_type")
+  label            String?
+
+  // APPROVER fields
+  approverType     ApproverType?    @map("approver_type")
+  approverRole     UserRole?        @map("approver_role")
+  approverUserId   String?          @map("approver_user_id")
+  approvalMode     ApprovalMode?    @map("approval_mode")
+
+  // CONDITION fields
+  conditionField    String?         @map("condition_field")
+  conditionOperator String?         @map("condition_operator")  // GT, GTE, LT, LTE, EQ, NEQ, IN
+  conditionValue    String?         @map("condition_value")
+
+  // SLA
+  deadlineHours    Int?             @map("deadline_hours")
+  autoAction       String?          @map("auto_action")  // AUTO_APPROVE, AUTO_ESCALATE
+
+  // Field permissions: { "amount": "read", "note": "edit", "internal": "hidden" }
+  fieldPermissions Json?            @map("field_permissions")
+
+  // Visual builder position
+  positionX        Float?           @map("position_x")
+  positionY        Float?           @map("position_y")
+
+  flowDefinition   ApprovalFlowDefinition @relation(fields: [flowDefinitionId], references: [id], onDelete: Cascade)
+  outgoingEdges    ApprovalFlowEdge[] @relation("EdgeSource")
+  incomingEdges    ApprovalFlowEdge[] @relation("EdgeTarget")
+
+  @@unique([flowDefinitionId, nodeKey])
+  @@map("approval_flow_nodes")
+}
+
+model ApprovalFlowEdge {
+  id                  String   @id @default(cuid())
+  flowDefinitionId    String   @map("flow_definition_id")
+  sourceNodeId        String   @map("source_node_id")
+  targetNodeId        String   @map("target_node_id")
+  label               String?
+  conditionExpression String?  @map("condition_expression")  // "amount > 50000000"
+  sortOrder           Int      @default(0) @map("sort_order")
+
+  flowDefinition      ApprovalFlowDefinition @relation(fields: [flowDefinitionId], references: [id], onDelete: Cascade)
+  sourceNode          ApprovalFlowNode @relation("EdgeSource", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode          ApprovalFlowNode @relation("EdgeTarget", fields: [targetNodeId], references: [id], onDelete: Cascade)
+
+  @@map("approval_flow_edges")
+}
+
+// ============================================
+// APPROVAL — Instance phê duyệt
+// ============================================
+
+model Approval {
+  id               String         @id @default(cuid())
+  type             ApprovalType
+  referenceId      String         @map("reference_id")  // orderId, voucherId, etc.
+  referenceCode    String?        @map("reference_code")
+  requestedBy      String         @map("requested_by")
+  requestData      Json?          @map("request_data")  // Dữ liệu cần duyệt
+
+  status           ApprovalStatus @default(PENDING)
+  currentStep      Int            @default(1) @map("current_step")
+  totalSteps       Int            @default(1) @map("total_steps")
+
+  // New fields for graph-based engine
+  flowDefinitionId String?        @map("flow_definition_id")
+  currentNodeKey   String?        @map("current_node_key")
+  isUrgent         Boolean        @default(false) @map("is_urgent")
+  deadline         DateTime?
+
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  flowDefinition   ApprovalFlowDefinition? @relation(fields: [flowDefinitionId], references: [id])
+  steps            ApprovalStep[]
+  ccUsers          ApprovalCC[]
+  comments         ApprovalComment[]
+  actionLogs       ApprovalActionLog[]
+
+  @@index([type, status])
+  @@index([requestedBy])
+  @@index([referenceId])
+  @@index([flowDefinitionId])
+  @@map("approvals")
+}
+
+model ApprovalStep {
+  id                  String          @id @default(cuid())
+  approvalId          String          @map("approval_id")
+  stepNumber          Int             @map("step_number")
+  approverRole        UserRole        @map("approver_role")
+  approverId          String?         @map("approver_id")
+  status              ApprovalStatus  @default(PENDING)
+  comment             String?
+  decidedAt           DateTime?       @map("decided_at")
+
+  // New fields for graph-based engine
+  nodeId              String?         @map("node_id")
+  assignedUserId      String?         @map("assigned_user_id")
+  approvalMode        ApprovalMode?   @map("approval_mode")
+  groupKey            String?         @map("group_key")
+  delegatedFromUserId String?         @map("delegated_from_user_id")
+  deadlineAt          DateTime?       @map("deadline_at")
+  isOverdue           Boolean         @default(false) @map("is_overdue")
+
+  approval            Approval        @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  @@unique([approvalId, stepNumber])
+  @@index([assignedUserId, status])
+  @@index([groupKey])
+  @@map("approval_steps")
+}
+
+// ============================================
+// APPROVAL CC — Người theo dõi
+// ============================================
+
+model ApprovalCC {
+  id          String   @id @default(cuid())
+  approvalId  String   @map("approval_id")
+  userId      String   @map("user_id")
+  nodeId      String?  @map("node_id")
+  notifiedAt  DateTime @default(now()) @map("notified_at")
+
+  approval    Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  @@unique([approvalId, userId])
+  @@map("approval_cc")
+}
+
+// ============================================
+// APPROVAL COMMENT — Bình luận
+// ============================================
+
+model ApprovalComment {
+  id          String   @id @default(cuid())
+  approvalId  String   @map("approval_id")
+  userId      String   @map("user_id")
+  content     String
+  stepId      String?  @map("step_id")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  approval    Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  @@index([approvalId])
+  @@map("approval_comments")
+}
+
+// ============================================
+// APPROVAL ACTION LOG — Nhật ký hành động
+// ============================================
+
+model ApprovalActionLog {
+  id               String         @id @default(cuid())
+  approvalId       String         @map("approval_id")
+  userId           String         @map("user_id")
+  action           ApprovalAction
+  dataSnapshot     Json?          @map("data_snapshot")
+  comment          String?
+  delegateToUserId String?        @map("delegate_to_user_id")
+  addedStepId      String?        @map("added_step_id")
+
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  approval         Approval       @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  @@index([approvalId])
+  @@map("approval_action_logs")
+}
+
+// ============================================
+// APPROVAL DELEGATION — Ủy quyền khi vắng mặt
+// ============================================
+
+model ApprovalDelegation {
+  id            String   @id @default(cuid())
+  fromUserId    String   @map("from_user_id")
+  toUserId      String   @map("to_user_id")
+  approvalTypes String[] @map("approval_types")  // empty = all types
+  startDate     DateTime @map("start_date")
+  endDate       DateTime @map("end_date")
+  reason        String?
+  isActive      Boolean  @default(true) @map("is_active")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([fromUserId, isActive])
+  @@index([toUserId, isActive])
+  @@map("approval_delegations")
+}
+
+model Notification {
+  id          String              @id @default(cuid())
+  userId      String              @map("user_id")
+  title       String
+  body        String
+  channel     NotificationChannel @default(APP_PUSH)
+  type        String?                               // ORDER, APPROVAL, FINANCE, WAREHOUSE, etc.
+  referenceId String?             @map("reference_id")
+  isRead      Boolean             @default(false) @map("is_read")
+  isUrgent    Boolean             @default(false) @map("is_urgent")
+  sentAt      DateTime?           @map("sent_at")
+  readAt      DateTime?           @map("read_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model NotificationRecord {
+  id        String              @id @default(cuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id])
+  title     String
+  body      String
+  type      String              // ORDER, PAYMENT, APPROVAL, SYSTEM, ALERT
+  channel   NotificationChannel @default(APP_PUSH)
+  priority  NotificationPriority @default(NORMAL)
+  data      Json?
+  isRead    Boolean             @default(false)
+  readAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+model Document {
+  id           String           @id @default(cuid())
+  name         String
+  category     DocumentCategory
+  entityType   String           // ORDER, CUSTOMER, CONTAINER, PACKAGE
+  entityId     String
+  fileName     String
+  fileSize     Int
+  mimeType     String
+  storageKey   String
+  version      Int              @default(1)
+  tags         String[]
+  uploadedBy   String
+  isDeleted    Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([entityType, entityId])
+  @@index([category])
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  title       String
+  description String?
+  assigneeId  String
+  assignee    User         @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  priority    TaskPriority @default(MEDIUM)
+  status      TaskStatus   @default(OPEN)
+  dueDate     DateTime?
+  entityType  String?      // ORDER, CUSTOMER, APPROVAL
+  entityId    String?
+  tags        String[]
+  comments    TaskComment[]
+  createdBy   String
+  createdByUser User       @relation("TaskCreator", fields: [createdBy], references: [id])
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([assigneeId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model Vendor {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+  country       String   @default("CN")
+  paymentTerms  String?
+  bankName      String?
+  bankAccount   String?
+  isApproved    Boolean  @default(false)
+  ratings       VendorRating[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model VendorRating {
+  id        String   @id @default(cuid())
+  vendorId  String
+  vendor    Vendor   @relation(fields: [vendorId], references: [id])
+  score     Int      // 1-5
+  category  String?  // QUALITY, DELIVERY, PRICE, COMMUNICATION
+  comment   String?
+  orderId   String?
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@index([vendorId])
+}

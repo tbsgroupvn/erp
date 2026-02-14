@@ -1,0 +1,107 @@
+/**
+ * Updated main.ts with Monitoring
+ *
+ * INSTRUCTIONS:
+ * 1. Merge this into your existing main.ts
+ * 2. Install dependencies: npm install @sentry/node @sentry/profiling-node
+ * 3. Add SENTRY_DSN to .env
+ */
+
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { AppModule } from './app.module';
+import { initSentry, sentryErrorHandler, sentryRequestHandler, sentryTracingHandler } from './config/sentry.config';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  // ============================================
+  // MONITORING SETUP
+  // ============================================
+
+  // Initialize Sentry (FIRST!)
+  initSentry(app);
+
+  // Sentry request handler (MUST be before routes)
+  app.use(sentryRequestHandler());
+
+  // Sentry tracing (MUST be after request handler)
+  app.use(sentryTracingHandler());
+
+  // ============================================
+  // CORS & SECURITY
+  // ============================================
+
+  app.enableCors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true,
+  });
+
+  // ============================================
+  // GLOBAL PIPES & FILTERS
+  // ============================================
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  app.useGlobalFilters(
+    new HttpExceptionFilter(),
+    new PrismaExceptionFilter(),
+  );
+
+  app.useGlobalInterceptors(
+    new TransformInterceptor(),
+    new LoggingInterceptor(),
+  );
+
+  // ============================================
+  // SWAGGER DOCUMENTATION
+  // ============================================
+
+  const config = new DocumentBuilder()
+    .setTitle('TBS ERP API')
+    .setDescription('TBS Logistics ERP System API Documentation')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
+  // ============================================
+  // SENTRY ERROR HANDLER (LAST!)
+  // ============================================
+
+  app.use(sentryErrorHandler());
+
+  // ============================================
+  // START SERVER
+  // ============================================
+
+  const port = process.env.PORT || 3001;
+  await app.listen(port);
+
+  console.log(`
+    ============================================
+    🚀 TBS ERP API Server
+    ============================================
+    Environment: ${process.env.NODE_ENV}
+    Port: ${port}
+    API Docs: http://localhost:${port}/api
+    Health Check: http://localhost:${port}/health
+    Monitoring: ${process.env.SENTRY_DSN ? 'Enabled (Sentry)' : 'Disabled'}
+    ============================================
+  `);
+}
+
+bootstrap();

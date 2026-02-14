@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Huong Dan Su Dung TBS ERP v1</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 20mm 18mm;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.6;
+    color: #1a1a2e;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ===== COVER PAGE ===== */
+  .cover {
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    text-align: center;
+    background: linear-gradient(135deg, #1E3A8A 0%, #1e3a5f 100%);
+    color: white;
+    padding: 60px 40px;
+    margin: -20mm -18mm;
+    padding: 80px 60px;
+  }
+  .cover-logo {
+    font-size: 56pt;
+    font-weight: 800;
+    letter-spacing: 4px;
+    margin-bottom: 8px;
+    color: #CA8A04;
+  }
+  .cover-subtitle {
+    font-size: 14pt;
+    color: #93c5fd;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-bottom: 50px;
+  }
+  .cover-title {
+    font-size: 28pt;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 12px;
+    border-top: 3px solid #CA8A04;
+    border-bottom: 3px solid #CA8A04;
+    padding: 20px 0;
+  }
+  .cover-desc {
+    font-size: 13pt;
+    color: #bfdbfe;
+    margin-top: 20px;
+    max-width: 500px;
+  }
+  .cover-version {
+    margin-top: 60px;
+    font-size: 10pt;
+    color: #93c5fd;
+  }
+  .cover-version span {
+    display: block;
+    margin-top: 4px;
+  }
+
+  /* ===== TOC ===== */
+  .toc {
+    page-break-after: always;
+    padding-top: 20px;
+  }
+  .toc h1 {
+    font-size: 20pt;
+    color: #1E3A8A;
+    border-bottom: 3px solid #CA8A04;
+    padding-bottom: 10px;
+    margin-bottom: 24px;
+  }
+  .toc-section {
+    margin-bottom: 16px;
+  }
+  .toc-section-title {
+    font-size: 12pt;
+    font-weight: 700;
+    color: #1E3A8A;
+    margin-bottom: 4px;
+    padding: 4px 8px;
+    background: #eff6ff;
+    border-left: 4px solid #CA8A04;
+  }
+  .toc-item {
+    font-size: 10pt;
+    padding: 2px 0 2px 24px;
+    color: #374151;
+  }
+
+  /* ===== HEADINGS ===== */
+  h1 {
+    font-size: 22pt;
+    color: #fff;
+    background: #1E3A8A;
+    padding: 14px 20px;
+    margin: 30px -18mm 18px -18mm;
+    padding-left: 18mm;
+    padding-right: 18mm;
+    page-break-before: always;
+    letter-spacing: 1px;
+  }
+  h1:first-of-type {
+    page-break-before: auto;
+  }
+  .toc + h1,
+  .cover + .toc + h1 {
+    page-break-before: always;
+  }
+
+  h2 {
+    font-size: 15pt;
+    color: #1E3A8A;
+    border-bottom: 2px solid #CA8A04;
+    padding-bottom: 5px;
+    margin-top: 26px;
+    margin-bottom: 12px;
+    page-break-after: avoid;
+  }
+
+  h3 {
+    font-size: 12pt;
+    color: #1e3a5f;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    padding-left: 10px;
+    border-left: 3px solid #CA8A04;
+    page-break-after: avoid;
+  }
+
+  h4 {
+    font-size: 10.5pt;
+    color: #374151;
+    font-weight: 700;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+  }
+
+  /* ===== CONTENT ===== */
+  p {
+    margin-bottom: 8px;
+  }
+
+  strong {
+    color: #1e3a5f;
+  }
+
+  /* ===== TABLES ===== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 16px 0;
+    font-size: 9.5pt;
+    page-break-inside: auto;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+  th {
+    background: #1E3A8A;
+    color: #fff;
+    font-weight: 600;
+    text-align: left;
+    padding: 7px 10px;
+    font-size: 9pt;
+    letter-spacing: 0.3px;
+  }
+  td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+  }
+  tr:nth-child(even) {
+    background: #f8fafc;
+  }
+  tr:hover {
+    background: #eff6ff;
+  }
+
+  /* ===== CODE / FLOW ===== */
+  .flow-box {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-left: 4px solid #1E3A8A;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin: 10px 0 16px 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 9.5pt;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    page-break-inside: avoid;
+  }
+
+  code {
+    background: #e2e8f0;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'Consolas', monospace;
+    font-size: 9pt;
+  }
+
+  /* ===== CALLOUTS ===== */
+  .callout {
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 10px 0 14px 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  .callout-info {
+    background: #eff6ff;
+    border-left: 4px solid #3b82f6;
+  }
+  .callout-warning {
+    background: #fefce8;
+    border-left: 4px solid #eab308;
+  }
+  .callout-danger {
+    background: #fef2f2;
+    border-left: 4px solid #ef4444;
+  }
+  .callout-success {
+    background: #f0fdf4;
+    border-left: 4px solid #22c55e;
+  }
+  .callout-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  /* ===== LISTS ===== */
+  ul, ol {
+    margin: 6px 0 10px 20px;
+  }
+  li {
+    margin-bottom: 3px;
+  }
+
+  /* ===== BADGES ===== */
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-yellow { background: #fef9c3; color: #854d0e; }
+  .badge-gray { background: #f3f4f6; color: #374151; }
+  .badge-cyan { background: #cffafe; color: #155e75; }
+  .badge-purple { background: #f3e8ff; color: #6b21a8; }
+
+  /* ===== STATUS FLOW ===== */
+  .status-flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin: 8px 0 14px 0;
+  }
+  .status-step {
+    background: #1E3A8A;
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 8pt;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .status-arrow {
+    color: #CA8A04;
+    font-weight: 700;
+    font-size: 11pt;
+  }
+  .status-step.special {
+    background: #dc2626;
+  }
+
+  /* ===== SECTION INTRO ===== */
+  .section-intro {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    page-break-inside: avoid;
+  }
+  .section-intro p {
+    margin-bottom: 4px;
+  }
+
+  /* ===== DIAGRAM ===== */
+  .diagram {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 12px 0 16px 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 8.5pt;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+    page-break-inside: avoid;
+  }
+
+  /* ===== ROLE TABLE ===== */
+  .role-table th,
+  .role-table td {
+    text-align: center;
+    padding: 4px 3px;
+    font-size: 7.5pt;
+  }
+  .role-table td:first-child,
+  .role-table th:first-child {
+    text-align: left;
+    padding-left: 6px;
+    min-width: 90px;
+  }
+  .check { color: #16a34a; font-weight: 700; }
+
+  /* ===== FOOTER ===== */
+  .page-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 8pt;
+    color: #9ca3af;
+    padding: 8px;
+  }
+
+  /* ===== UTILITY ===== */
+  .no-break { page-break-inside: avoid; }
+  .mt-0 { margin-top: 0; }
+  .mb-0 { margin-bottom: 0; }
+  .text-center { text-align: center; }
+  .text-sm { font-size: 9pt; }
+  .text-muted { color: #6b7280; }
+</style>
+</head>
+<body>
+
+<!-- ==================== COVER PAGE ==================== -->
+<div class="cover">
+  <div class="cover-logo">TBS ERP</div>
+  <div class="cover-subtitle">Logistics Management System</div>
+  <div class="cover-title">HUONG DAN SU DUNG<br>PHAN MEM</div>
+  <div class="cover-desc">
+    Tai lieu huong dan van hanh chi tiet theo tung phong ban<br>
+    danh cho nguoi su dung he thong TBS ERP v1
+  </div>
+  <div class="cover-version">
+    <span>Phien ban: 1.0 &nbsp;|&nbsp; Ngay: 13/02/2026</span>
+    <span>Bao mat: Noi bo cong ty</span>
+  </div>
+</div>
+
+<!-- ==================== TABLE OF CONTENTS ==================== -->
+<div class="toc">
+  <h1 style="page-break-before:auto;">MUC LUC</h1>
+
+  <div class="toc-section">
+    <div class="toc-section-title">A. HUONG DAN CHUNG (TAT CA PHONG BAN)</div>
+    <div class="toc-item">A.1. Dang nhap he thong</div>
+    <div class="toc-item">A.2. Giao dien chinh</div>
+    <div class="toc-item">A.3. Cac thao tac chung tren trang danh sach</div>
+    <div class="toc-item">A.4. Cau truc menu theo phong ban</div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">B. PHONG KINH DOANH (SALES)</div>
+    <div class="toc-item">B.1. Quan ly Khach hang</div>
+    <div class="toc-item">B.2. Tao Bao gia</div>
+    <div class="toc-item">B.3. Quan ly Don hang</div>
+    <div class="toc-item">B.4. Dashboard Ban hang</div>
+    <div class="toc-item">B.5. Hoa hong - Cach tinh</div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">C. PHONG KE TOAN - TAI CHINH (FINANCE)</div>
+    <div class="toc-item">C.1. Cong no phai thu (AR)</div>
+    <div class="toc-item">C.2. Phan bo thanh toan</div>
+    <div class="toc-item">C.3. Phieu thu chi</div>
+    <div class="toc-item">C.4. Hoa don</div>
+    <div class="toc-item">C.5. Bu tru cong no</div>
+    <div class="toc-item">C.6. Ty gia</div>
+    <div class="toc-item">C.7. Bang luong</div>
+    <div class="toc-item">C.8. Mua hang</div>
+    <div class="toc-item">C.9. Kho vat tu</div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">D. PHONG KHO VAN - XNK</div>
+    <div class="toc-item">D.1. Kho Trung Quoc</div>
+    <div class="toc-item">D.2. Container</div>
+    <div class="toc-item">D.3. Kho Viet Nam</div>
+    <div class="toc-item">D.4. Theo doi van chuyen</div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">E. PHONG VAN TAI</div>
+    <div class="toc-item">E.1. Giao hang</div>
+    <div class="toc-item">E.2. Quan ly Tai xe</div>
+    <div class="toc-item">E.3. Quan ly Phuong tien</div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">F. PHONG NHAN SU (HR)</div>
+    <div class="toc-item">F.1. Quan ly Nhan vien</div>
+    <div class="toc-item">F.2. Cham cong</div>
+    <div class="toc-item">F.3. Hoa hong</div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">G. BAN GIAM DOC (EXECUTIVE)</div>
+    <div class="toc-item">G.1. Tong quan Dashboard</div>
+    <div class="toc-item">G.2. Phe duyet</div>
+    <div class="toc-item">G.3. Uy quyen</div>
+    <div class="toc-item">G.4. Khieu nai</div>
+    <div class="toc-item">G.5. Cong viec</div>
+    <div class="toc-item">G.6. Thong bao</div>
+    <div class="toc-item">G.7. Tai lieu</div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">PHU LUC</div>
+    <div class="toc-item">Bang quyen truy cap theo vai tro</div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- A. HUONG DAN CHUNG                                               -->
+<!-- ================================================================ -->
+<h1>A. HUONG DAN CHUNG (TAT CA PHONG BAN)</h1>
+
+<h2>A.1. Dang nhap he thong</h2>
+<ol>
+  <li>Truy cap dia chi: <code>http://localhost:3000</code></li>
+  <li>Nhap <strong>Email</strong> va <strong>Mat khau</strong></li>
+  <li>Nhan <strong>Dang nhap</strong></li>
+  <li>He thong chuyen den trang <strong>Tong quan</strong> (<code>/tong-quan</code>)</li>
+</ol>
+<div class="callout callout-info">
+  <div class="callout-title">Luu y</div>
+  Phien dang nhap co hieu luc 7 ngay. He thong tu dong lam moi token ma khong can dang nhap lai.
+</div>
+
+<h2>A.2. Giao dien chinh</h2>
+<table>
+  <thead>
+    <tr><th>Thanh phan</th><th>Vi tri</th><th>Mo ta</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Sidebar (Thanh menu)</strong></td><td>Ben trai</td><td>Menu dieu huong theo phong ban, co the thu gon (68px) hoac mo rong (280px)</td></tr>
+    <tr><td><strong>Topbar</strong></td><td>Tren cung</td><td>Chuong thong bao + Menu nguoi dung</td></tr>
+    <tr><td><strong>Vung noi dung</strong></td><td>Chinh giua</td><td>Hien thi trang dang truy cap</td></tr>
+  </tbody>
+</table>
+
+<h2>A.3. Cac thao tac chung tren trang danh sach</h2>
+<table>
+  <thead><tr><th>Thao tac</th><th>Cach su dung</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Tim kiem</strong></td><td>Nhap tu khoa vao o tim kiem (tu dong tim sau 500ms)</td></tr>
+    <tr><td><strong>Loc</strong></td><td>Su dung cac dropdown loc theo trang thai, chi nhanh, thoi gian...</td></tr>
+    <tr><td><strong>Xoa bo loc</strong></td><td>Nhan nut "Xoa bo loc" de dat lai toan bo</td></tr>
+    <tr><td><strong>Phan trang</strong></td><td>Dung nut Truoc / Sau o cuoi bang</td></tr>
+    <tr><td><strong>Sap xep</strong></td><td>Nhan vao tieu de cot de sap xep tang/giam</td></tr>
+  </tbody>
+</table>
+
+<h2>A.4. Cau truc menu theo phong ban</h2>
+<table>
+  <thead><tr><th>Nhom menu</th><th>Muc menu</th><th>Duong dan</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Tong quan</strong></td><td>Tong quan</td><td><code>/tong-quan</code></td></tr>
+    <tr><td rowspan="3"><strong>Kinh doanh</strong></td><td>Don hang</td><td><code>/don-hang</code></td></tr>
+    <tr><td>Bao gia</td><td><code>/bao-gia</code></td></tr>
+    <tr><td>Khach hang</td><td><code>/khach-hang</code></td></tr>
+    <tr><td rowspan="4"><strong>Kho van</strong></td><td>Kho Trung Quoc</td><td><code>/kho-trung-quoc</code></td></tr>
+    <tr><td>Container</td><td><code>/container</code></td></tr>
+    <tr><td>Kho Viet Nam</td><td><code>/kho-viet-nam</code></td></tr>
+    <tr><td>Theo doi</td><td><code>/theo-doi</code></td></tr>
+    <tr><td rowspan="3"><strong>Van tai</strong></td><td>Giao hang</td><td><code>/giao-hang</code></td></tr>
+    <tr><td>Phuong tien</td><td><code>/phuong-tien</code></td></tr>
+    <tr><td>Tai xe</td><td><code>/tai-xe</code></td></tr>
+    <tr><td rowspan="6"><strong>Tai chinh</strong></td><td>Cong no phai thu</td><td><code>/tai-chinh/cong-no-phai-thu</code></td></tr>
+    <tr><td>Cong no phai tra</td><td><code>/tai-chinh/cong-no-phai-tra</code></td></tr>
+    <tr><td>Phieu thu chi</td><td><code>/tai-chinh/phieu-thu-chi</code></td></tr>
+    <tr><td>Hoa don</td><td><code>/tai-chinh/hoa-don</code></td></tr>
+    <tr><td>Ty gia</td><td><code>/tai-chinh/ty-gia</code></td></tr>
+    <tr><td>Bu tru cong no</td><td><code>/tai-chinh/bu-tru-cong-no</code></td></tr>
+    <tr><td rowspan="3"><strong>Mua hang &amp; Kho</strong></td><td>Mua hang</td><td><code>/mua-hang</code></td></tr>
+    <tr><td>Nha cung cap</td><td><code>/nha-cung-cap</code></td></tr>
+    <tr><td>Kho vat tu</td><td><code>/kho-vat-tu</code></td></tr>
+    <tr><td rowspan="4"><strong>Nhan su</strong></td><td>Nhan su</td><td><code>/nhan-su</code></td></tr>
+    <tr><td>Cham cong</td><td><code>/cham-cong</code></td></tr>
+    <tr><td>Bang luong</td><td><code>/luong</code></td></tr>
+    <tr><td>Hoa hong</td><td><code>/hoa-hong</code></td></tr>
+    <tr><td rowspan="2"><strong>Bao cao</strong></td><td>Bao cao doanh so</td><td><code>/bao-cao/doanh-so</code></td></tr>
+    <tr><td>Bao cao tai chinh</td><td><code>/bao-cao/tai-chinh</code></td></tr>
+    <tr><td rowspan="8"><strong>He thong</strong></td><td>Cong viec</td><td><code>/cong-viec</code></td></tr>
+    <tr><td>Khieu nai</td><td><code>/khieu-nai</code></td></tr>
+    <tr><td>Tai lieu</td><td><code>/tai-lieu</code></td></tr>
+    <tr><td>Thong bao</td><td><code>/thong-bao</code></td></tr>
+    <tr><td>Phe duyet</td><td><code>/phe-duyet</code></td></tr>
+    <tr><td>Uy quyen</td><td><code>/uy-quyen</code></td></tr>
+    <tr><td>Quan ly user</td><td><code>/quan-ly-user</code></td></tr>
+    <tr><td>Cai dat</td><td><code>/cai-dat</code></td></tr>
+  </tbody>
+</table>
+
+
+<!-- ================================================================ -->
+<!-- B. PHONG KINH DOANH                                              -->
+<!-- ================================================================ -->
+<h1>B. PHONG KINH DOANH (SALES)</h1>
+
+<div class="section-intro">
+  <p><strong>Vai tro:</strong> SALE, SALES_LEADER, SALES_DIRECTOR</p>
+  <p><strong>Menu truy cap:</strong> Don hang, Bao gia, Khach hang, Hoa hong, Khieu nai, Cong viec, Phe duyet</p>
+</div>
+
+<h2>B.1. Quan ly Khach hang (<code>/khach-hang</code>)</h2>
+
+<h3>B.1.1. Xem danh sach khach hang</h3>
+<ol>
+  <li>Vao menu <strong>Kinh doanh &rarr; Khach hang</strong></li>
+  <li>Su dung bo loc:
+    <ul>
+      <li><strong>O tim kiem:</strong> Tim theo ten, so dien thoai, ma khach hang</li>
+      <li><strong>Hang KH:</strong> Moi / Thuong / VIP / Chien luoc</li>
+      <li><strong>Chi nhanh:</strong> Ha Noi / Ho Chi Minh</li>
+      <li><strong>Trang thai:</strong> Tat ca / Hoat dong / Ngung hoat dong</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>B.1.2. Them khach hang moi</h3>
+<ol>
+  <li>Nhan nut <strong>"Them khach hang"</strong> (goc phai tren)</li>
+  <li>He thong chuyen den <code>/khach-hang/tao-moi</code></li>
+  <li>Dien thong tin:</li>
+</ol>
+<table>
+  <thead><tr><th>Truong</th><th>Bat buoc</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Ho ten</td><td><span class="badge badge-red">Bat buoc</span></td><td>Ten khach hang hoac nguoi dai dien</td></tr>
+    <tr><td>So dien thoai</td><td><span class="badge badge-red">Bat buoc</span></td><td>So lien he chinh</td></tr>
+    <tr><td>Email</td><td></td><td>Email lien he</td></tr>
+    <tr><td>Ten cong ty</td><td></td><td>Ten doanh nghiep</td></tr>
+    <tr><td>Dia chi</td><td></td><td>Dia chi chi tiet</td></tr>
+    <tr><td>Tinh/Thanh</td><td></td><td>Thanh pho</td></tr>
+    <tr><td>Quan/Huyen</td><td></td><td>Quan huyen</td></tr>
+    <tr><td>Phuong/Xa</td><td></td><td>Phuong xa</td></tr>
+    <tr><td>Ma so thue</td><td></td><td>MST doanh nghiep</td></tr>
+    <tr><td>DKKD</td><td></td><td>So dang ky kinh doanh</td></tr>
+    <tr><td>Han muc tin dung</td><td></td><td>Han muc cong no cho phep (VND)</td></tr>
+  </tbody>
+</table>
+<ol start="4">
+  <li><strong>Them nguoi lien he</strong> (co the them nhieu): Ho ten, SDT, Email, Chuc vu. Danh dau <strong>"Lien he chinh"</strong> cho 1 nguoi.</li>
+  <li>Nhan <strong>Luu</strong></li>
+</ol>
+<div class="callout callout-success">
+  <div class="callout-title">He thong tu dong thuc hien</div>
+  <ul>
+    <li>Tao ma khach hang: <code>TBS-KH-000001</code></li>
+    <li>Dat hang = <strong>MOI</strong> (dat coc 100%)</li>
+    <li>Tao <strong>Vi dien tu</strong> cho khach</li>
+  </ul>
+</div>
+
+<h3>B.1.3. Phan hang khach hang (tu dong)</h3>
+<table>
+  <thead><tr><th>Hang</th><th>Ty le dat coc</th><th>Dieu kien</th></tr></thead>
+  <tbody>
+    <tr><td><span class="badge badge-gray">MOI (NEW)</span></td><td>100%</td><td>Mac dinh khi tao moi</td></tr>
+    <tr><td><span class="badge badge-blue">THUONG (REGULAR)</span></td><td>70%</td><td>Dat nguong don hang/doanh thu</td></tr>
+    <tr><td><span class="badge badge-purple">VIP</span></td><td>50%</td><td>Doanh thu &gt; 500 trieu/nam</td></tr>
+    <tr><td><span class="badge badge-yellow">CHIEN LUOC (STRATEGIC)</span></td><td>30%</td><td>Chi BGD dat thu cong</td></tr>
+  </tbody>
+</table>
+
+<!-- ===== BAO GIA ===== -->
+<h2>B.2. Tao Bao gia (<code>/bao-gia</code>)</h2>
+
+<h3>B.2.1. Xem danh sach bao gia</h3>
+<ol>
+  <li>Vao menu <strong>Kinh doanh &rarr; Bao gia</strong></li>
+  <li>Chon tab theo trang thai: <span class="badge badge-gray">Tat ca</span> <span class="badge badge-blue">Nhap</span> <span class="badge badge-yellow">Cho duyet</span> <span class="badge badge-green">Da duyet</span> <span class="badge badge-red">Tu choi</span> <span class="badge badge-cyan">Da chuyen don</span></li>
+</ol>
+
+<h3>B.2.2. Tao bao gia moi</h3>
+<ol>
+  <li>Nhan <strong>"Tao bao gia"</strong></li>
+  <li>Dien thong tin:</li>
+</ol>
+<table>
+  <thead><tr><th>Truong</th><th>Bat buoc</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Khach hang</td><td><span class="badge badge-red">Bat buoc</span></td><td>Chon tu danh sach</td></tr>
+    <tr><td>Loai dich vu</td><td><span class="badge badge-red">Bat buoc</span></td><td>VCT / MHH / UTXNK / LCLCN</td></tr>
+    <tr><td>Chi nhanh</td><td><span class="badge badge-red">Bat buoc</span></td><td>HN / HCM</td></tr>
+    <tr><td>Tuyen van chuyen</td><td></td><td>Duong bien / Duong bo / Duong hang khong</td></tr>
+    <tr><td>Chiet khau (%)</td><td></td><td>Neu &gt; 0% &rarr; tu dong chuyen trang thai <strong>Cho duyet</strong></td></tr>
+    <tr><td>Hieu luc (ngay)</td><td></td><td>Mac dinh 30 ngay</td></tr>
+    <tr><td>Ghi chu</td><td></td><td>Ghi chu them</td></tr>
+  </tbody>
+</table>
+<ol start="3">
+  <li><strong>Them san pham</strong> (it nhat 1): Ten SP, Link SP, So luong (&ge;1), Don gia (&ge;0), Ghi chu</li>
+  <li>He thong tu tinh: Thanh tien, Chiet khau, Thue 10%, <strong>Tong cong</strong></li>
+  <li>Nhan <strong>Luu</strong></li>
+</ol>
+
+<h3>B.2.3. Cac thao tac tren bao gia</h3>
+<table>
+  <thead><tr><th>Thao tac</th><th>Dieu kien</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Sua</strong></td><td>Nhap hoac Tu choi</td><td>Chinh sua noi dung, tinh lai tong</td></tr>
+    <tr><td><strong>Nhan ban</strong></td><td>Moi trang thai</td><td>Tao ban sao moi (xoa chiet khau, trang thai Nhap)</td></tr>
+    <tr><td><strong>Chuyen thanh don hang</strong></td><td>Da duyet</td><td>Tao don hang moi tu bao gia</td></tr>
+    <tr><td><strong>Xuat Excel</strong></td><td>Moi trang thai</td><td>Tai file .xlsx</td></tr>
+    <tr><td><strong>Xuat PDF</strong></td><td>Moi trang thai</td><td>Tai file .pdf gui khach</td></tr>
+    <tr><td><strong>Xem phien ban</strong></td><td>Moi trang thai</td><td>Xem lich su chinh sua</td></tr>
+  </tbody>
+</table>
+
+<!-- ===== DON HANG ===== -->
+<h2>B.3. Quan ly Don hang (<code>/don-hang</code>)</h2>
+
+<h3>B.3.1. Xem danh sach don hang</h3>
+<ol>
+  <li>Vao menu <strong>Kinh doanh &rarr; Don hang</strong></li>
+  <li>Bang hien thi <strong>Don tong (Master Order)</strong> voi cac cot: Ma don tong, Khach hang, Trang thai, Loai dich vu, Loai thong quan, Tong tien</li>
+  <li>Nhan vao dong de <strong>mo rong</strong> &rarr; Xem cac <strong>don con</strong> ben trong</li>
+  <li>Su dung bo loc: Trang thai, Dich vu, Khach hang, Khoang thoi gian</li>
+</ol>
+
+<h3>B.3.2. Tao don hang moi (Quy trinh 3 buoc)</h3>
+
+<h4>Buoc 1/3: Thong tin chung</h4>
+<ol>
+  <li>Nhan <strong>"Tao don hang"</strong> hoac <strong>"Nhap Excel"</strong></li>
+  <li>He thong chuyen den <code>/don-hang/tao-moi</code> (form 3 buoc)</li>
+  <li>Dien thong tin:</li>
+</ol>
+<table>
+  <thead><tr><th>Truong</th><th>Bat buoc</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Khach hang</td><td><span class="badge badge-red">Bat buoc</span></td><td>Tim kiem va chon (co autocomplete)</td></tr>
+    <tr><td>Chi nhanh</td><td><span class="badge badge-red">Bat buoc</span></td><td>HN / HCM</td></tr>
+    <tr><td>Ghi chu don tong</td><td></td><td>Ghi chu chung</td></tr>
+  </tbody>
+</table>
+<div class="callout callout-warning">
+  <div class="callout-title">Kiem tra tin dung tu dong (CreditCheckGuard)</div>
+  <ul>
+    <li>Khach bi khoa &rarr; Khong cho tao don</li>
+    <li>Cong no qua han &gt; 15 ngay &rarr; Chan voi thong bao chi tiet</li>
+    <li>Vuot han muc tin dung &rarr; Chan voi thong bao chi tiet</li>
+    <li>Chi <strong>Sales Director</strong> co quyen bo qua kiem tra nay</li>
+  </ul>
+</div>
+
+<h4>Buoc 2/3: Don con (Sub-orders)</h4>
+<p>Them it nhat 1 don con, moi don con gom:</p>
+<table>
+  <thead><tr><th>Truong</th><th>Bat buoc</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Loai dich vu</td><td><span class="badge badge-red">Bat buoc</span></td><td>VCT / MHH / UTXNK / LCLCN</td></tr>
+    <tr><td>Loai thong quan</td><td><span class="badge badge-red">Bat buoc</span></td><td>Chinh ngach / Tieu ngach</td></tr>
+    <tr><td>Tuyen van chuyen</td><td></td><td>Bien / Bo / Hang khong</td></tr>
+    <tr><td>Ghi chu don con</td><td></td><td>Ghi chu rieng</td></tr>
+  </tbody>
+</table>
+<p>Them <strong>san pham</strong> cho moi don con (it nhat 1): Ten SP (bat buoc, &ge;2 ky tu), Link SP, So luong (&ge;1), Don gia (&ge;0, don vi CNY), Ghi chu.</p>
+<div class="callout callout-info">
+  <div class="callout-title">Tinh nang ho tro</div>
+  <ul>
+    <li><strong>Che do nhanh:</strong> Bat/tat de an cac truong khong bat buoc</li>
+    <li><strong>Template:</strong> Chon mau don hang da luu</li>
+    <li><strong>Nhan ban don:</strong> Sao chep tu don hang cu</li>
+    <li><strong>Tu dong luu nhap:</strong> Moi 30 giay, khi quay lai se hoi khoi phuc</li>
+  </ul>
+</div>
+
+<h4>Buoc 3/3: Xac nhan</h4>
+<ol>
+  <li>Xem lai toan bo thong tin: Khach hang, Chi nhanh, Cac don con, San pham, Tong tien</li>
+  <li>Nhan <strong>Xac nhan tao don</strong></li>
+  <li>He thong tao: Ma don tong <code>#NV001.070226.0001</code>, Cac don con <code>TBS-ORD-240101-0001</code></li>
+</ol>
+
+<h3>B.3.3. Vong doi don hang - Phan Sale quan ly</h3>
+<div class="status-flow">
+  <span class="status-step">TU VAN</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">BAO GIA</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">CHO DAT COC</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">TIM NGUON HANG</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#64748b;">Chuyen Kho van</span>
+</div>
+<div class="callout callout-danger">
+  <div class="callout-title">Cong dat coc (Deposit Gate)</div>
+  Don hang dich vu MHH <strong>khong the</strong> chuyen sang trang thai "Tim nguon hang" neu chua nhan du tien coc. Khi dat coc du, he thong tu dong tao <strong>phieu cong no phai thu (AR)</strong> cho so tien con lai.
+</div>
+
+<h3>B.3.4. Huy don hang</h3>
+<ol>
+  <li>Mo chi tiet don hang &rarr; Nhan <strong>"Huy don"</strong></li>
+  <li>Nhap <strong>ly do huy</strong> (toi thieu 10 ky tu)</li>
+</ol>
+<table>
+  <thead><tr><th>Giai doan</th><th>Chinh sach hoan tien</th></tr></thead>
+  <tbody>
+    <tr><td>Tu van, Bao gia</td><td>Khong co tien coc &rarr; Khong hoan</td></tr>
+    <tr><td>Cho dat coc</td><td>Coc - 2% phi hanh chinh</td></tr>
+    <tr><td>Tim nguon &ndash; Dong goi</td><td>Coc - Chi phi phat sinh - 2% phi</td></tr>
+    <tr><td>Gom hang tro di</td><td>Xet theo tung truong hop</td></tr>
+  </tbody>
+</table>
+<p>Don hang &gt; 50 trieu VND &rarr; Tu dong yeu cau <strong>phe duyet</strong> tu cap tren.</p>
+
+<h2>B.4. Dashboard Ban hang</h2>
+<div class="no-break">
+<h4>Dong 1 - The KPI:</h4>
+<table>
+  <thead><tr><th>The</th><th>Noi dung</th></tr></thead>
+  <tbody>
+    <tr><td>Tong don hang</td><td>So luong don hang</td></tr>
+    <tr><td>Don cho thanh toan</td><td>So luong don chua thu du tien</td></tr>
+    <tr><td>So tien qua han</td><td>Tong tien cong no qua han (VND)</td></tr>
+    <tr><td>Hoa hong dang cho</td><td>Tong hoa hong chua duyet/chi (VND)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>Dong 2 - Bieu do:</h4>
+<ul>
+  <li><strong>Bieu do tuoi no:</strong> Cot phan theo nhom 0-15 ngay (xanh), 15-30 ngay (vang), 30+ ngay (do)</li>
+  <li><strong>Bieu do hoa hong:</strong> Tron phan theo Cho duyet / Da duyet / Da chi</li>
+</ul>
+
+<h4>Dong 3 - Bang don hang:</h4>
+<table>
+  <thead><tr><th>Cot</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Ma don</td><td>Ma don hang</td></tr>
+    <tr><td>Khach hang</td><td>Ten khach</td></tr>
+    <tr><td>Tong tien</td><td>Gia tri don</td></tr>
+    <tr><td>Da thanh toan</td><td>So tien da thu</td></tr>
+    <tr><td>Con no</td><td>So tien chua thu</td></tr>
+    <tr><td>Ngay qua han</td><td>So ngay qua han</td></tr>
+    <tr><td>Trang thai HH</td><td>Cho / Da duyet / Da chi</td></tr>
+  </tbody>
+</table>
+<p>Nhan <strong>Xuat Excel</strong> de tai bao cao .xlsx. Du lieu tu dong lam moi moi 5 phut.</p>
+
+<h2>B.5. Hoa hong - Cach tinh</h2>
+<div class="flow-box">Loi nhuan rong = Doanh thu don hang - Tong chi phi van hanh
+Hoa hong = Loi nhuan rong x Ty le (theo bang quy tac)</div>
+<table>
+  <thead><tr><th>Dich vu</th><th>Loi nhuan rong</th><th>Ty le HH</th></tr></thead>
+  <tbody>
+    <tr><td>VCT</td><td>0 - 10 trieu</td><td>2.0%</td></tr>
+    <tr><td>VCT</td><td>10 - 50 trieu</td><td>2.5%</td></tr>
+    <tr><td>VCT</td><td>&gt; 50 trieu</td><td>3.0%</td></tr>
+    <tr><td>MHH</td><td>0 - 5 trieu</td><td>1.5%</td></tr>
+    <tr><td>MHH</td><td>&gt; 5 trieu</td><td>2.0%</td></tr>
+  </tbody>
+</table>
+
+<h4>Quy trinh duyet hoa hong (tu dong):</h4>
+<div class="status-flow">
+  <span class="status-step">Don HOAN THANH</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#6b7280;">Tinh HH: CHO DUYET</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#2563eb;">KH thanh toan: DA DUYET</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#16a34a;">KT xuat phieu: DA CHI</span>
+</div>
+<div class="callout callout-warning">
+  <div class="callout-title">Luu y quan trong</div>
+  Hoa hong chi duoc duyet khi khach hang da thanh toan du. Dieu nay khuyen khich Sale chu dong don doc thu tien.
+</div>
+
+
+<!-- ================================================================ -->
+<!-- C. PHONG KE TOAN                                                 -->
+<!-- ================================================================ -->
+<h1>C. PHONG KE TOAN - TAI CHINH (FINANCE)</h1>
+
+<div class="section-intro">
+  <p><strong>Vai tro:</strong> CHIEF_ACCOUNTANT, ACCOUNTANT_AR, ACCOUNTANT_COST</p>
+  <p><strong>Menu truy cap:</strong> Don hang, Tai chinh (tat ca muc), Mua hang, Nha cung cap, Kho vat tu, Bang luong, Phe duyet</p>
+</div>
+
+<h2>C.1. Cong no phai thu (<code>/tai-chinh/cong-no-phai-thu</code>)</h2>
+
+<h3>C.1.1. Xem danh sach cong no</h3>
+<table>
+  <thead><tr><th>Cot</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Ma</td><td>Ma cong no (<code>TBS-AR-000001</code>)</td></tr>
+    <tr><td>Khach hang</td><td>Ten khach hang</td></tr>
+    <tr><td>So tien</td><td>Tong cong no</td></tr>
+    <tr><td>Da thu</td><td>So tien da thu</td></tr>
+    <tr><td>Con lai</td><td>So tien chua thu</td></tr>
+    <tr><td>Trang thai</td><td><span class="badge badge-blue">Mo</span> <span class="badge badge-yellow">Mot phan</span> <span class="badge badge-green">Da thu du</span> <span class="badge badge-red">Qua han</span> <span class="badge badge-gray">Da bu tru</span></td></tr>
+    <tr><td>Ngay den han</td><td>Han thanh toan</td></tr>
+  </tbody>
+</table>
+
+<h3>C.1.2. Ghi nhan thu tien</h3>
+<ol>
+  <li>Tim dong cong no can thu &rarr; Nhan nut <strong>"Thu tien"</strong> (hien thi khi con no &gt; 0)</li>
+  <li>Form thu tien hien ra (inline):</li>
+</ol>
+<table>
+  <thead><tr><th>Truong</th><th>Bat buoc</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>So tien thu</td><td><span class="badge badge-red">Bat buoc</span></td><td>Tu dong dien so tien con lai, co the sua</td></tr>
+    <tr><td>Phuong thuc</td><td><span class="badge badge-red">Bat buoc</span></td><td>Vi / Chuyen khoan / Tien mat / COD / Tin dung</td></tr>
+    <tr><td>Ma tham chieu</td><td></td><td>Ma giao dich ngan hang</td></tr>
+    <tr><td>Ghi chu</td><td></td><td>Ghi chu them</td></tr>
+  </tbody>
+</table>
+<ol start="3">
+  <li>Nhan <strong>Xac nhan thu tien</strong></li>
+</ol>
+<div class="callout callout-success">
+  <div class="callout-title">He thong tu dong xu ly</div>
+  <ul>
+    <li>Cap nhat so tien da thu tren cong no</li>
+    <li>Thu du &rarr; Trang thai chuyen thanh <strong>Da thu du</strong></li>
+    <li>Thu mot phan &rarr; Trang thai <strong>Thanh toan mot phan</strong></li>
+    <li>Kich hoat su kien &rarr; Tu dong duyet hoa hong cho Sale</li>
+  </ul>
+</div>
+
+<h3>C.1.3. Phan tich tuoi no (AR Aging)</h3>
+<p>He thong <strong>tu dong chay hang dem</strong> (00:00) de chup snapshot:</p>
+<table>
+  <thead><tr><th>Nhom</th><th>Muc rui ro</th><th>Hanh dong he thong</th></tr></thead>
+  <tbody>
+    <tr><td>Chua den han</td><td><span class="badge badge-green">THAP</span></td><td>Khong</td></tr>
+    <tr><td>1-30 ngay qua han</td><td><span class="badge badge-green">THAP</span></td><td>Nhac nho</td></tr>
+    <tr><td>31-60 ngay</td><td><span class="badge badge-yellow">TRUNG BINH</span></td><td>Canh bao Sale</td></tr>
+    <tr><td>61-90 ngay</td><td><span class="badge badge-red">CAO</span></td><td>Bao cao Sales Director</td></tr>
+    <tr><td>&gt; 90 ngay</td><td><span class="badge badge-red">NGHIEM TRONG</span></td><td><strong>TU DONG KHOA KHACH HANG</strong></td></tr>
+  </tbody>
+</table>
+
+<h2>C.2. Phan bo thanh toan (Payment Allocation)</h2>
+<div class="callout callout-danger">
+  <div class="callout-title">QUY TRINH BAT BUOC</div>
+  Moi khoan thanh toan nhan tu khach hang <strong>PHAI</strong> duoc phan bo cu the den hop dong hoac don hang.
+</div>
+
+<h3>C.2.1. Thao tac phan bo</h3>
+<h4>Phan dau - Thong tin thanh toan:</h4>
+<table>
+  <thead><tr><th>Truong</th><th>Bat buoc</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Tong so tien</td><td><span class="badge badge-red">Bat buoc</span></td><td>Tong tien khach chuyen</td></tr>
+    <tr><td>Loai tien</td><td><span class="badge badge-red">Bat buoc</span></td><td>VND / USD / CNY</td></tr>
+    <tr><td>Phuong thuc</td><td><span class="badge badge-red">Bat buoc</span></td><td>Vi / Chuyen khoan / Tien mat / COD / Tin dung</td></tr>
+    <tr><td>Ten nguoi thu huong</td><td><span class="badge badge-red">Bat buoc</span></td><td>Ten nguoi/cong ty nhan</td></tr>
+    <tr><td>Ly do</td><td><span class="badge badge-red">Bat buoc</span></td><td>Toi thieu 20 ky tu</td></tr>
+  </tbody>
+</table>
+
+<h4>Phan duoi - Bang phan bo chi tiet (bat buoc &ge; 1 dong):</h4>
+<table>
+  <thead><tr><th>Cot</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Loai muc tieu</td><td>Chon: <strong>Hop dong</strong> hoac <strong>Don hang</strong></td></tr>
+    <tr><td>Muc tieu</td><td>Tim kiem va chon hop dong/don hang cu the (hien thi: Ma, Ten, Tong gia tri, Da thanh toan)</td></tr>
+    <tr><td>So tien phan bo</td><td>Nhap so tien phan bo cho muc nay</td></tr>
+    <tr><td>Muc dich</td><td>Chon: <strong>Dat coc</strong> / <strong>Quyet toan</strong> / <strong>Tra gop</strong></td></tr>
+    <tr><td>Ghi chu</td><td>Ghi chu rieng cho dong nay</td></tr>
+  </tbody>
+</table>
+
+<h4>Kiem tra can doi (hien thi real-time):</h4>
+<table>
+  <thead><tr><th>Ky hieu</th><th>Y nghia</th><th>Cho phep luu</th></tr></thead>
+  <tbody>
+    <tr><td style="color:#16a34a;font-weight:700;">&#10003; "Phan bo chinh xac"</td><td>Tong phan bo = Tong thanh toan</td><td><span class="badge badge-green">Co</span></td></tr>
+    <tr><td style="color:#eab308;font-weight:700;">&#9888; "Chua khop (con X VND)"</td><td>Chua can doi</td><td><span class="badge badge-red">Khong</span></td></tr>
+  </tbody>
+</table>
+
+<h2>C.3. Phieu thu chi (<code>/tai-chinh/phieu-thu-chi</code>)</h2>
+<h3>C.3.1. Tao phieu thu/chi moi</h3>
+<ol>
+  <li>Nhan <strong>"Tao phieu"</strong> &rarr; Form inline hien ra</li>
+  <li>Dien thong tin:</li>
+</ol>
+<table>
+  <thead><tr><th>Truong</th><th>Bat buoc</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Loai phieu</td><td><span class="badge badge-red">Bat buoc</span></td><td><strong>Phieu thu</strong> (Receipt) hoac <strong>Phieu chi</strong> (Payment)</td></tr>
+    <tr><td>Ma don hang</td><td></td><td>Lien ket voi don hang (tim kiem)</td></tr>
+    <tr><td>So tien</td><td><span class="badge badge-red">Bat buoc</span></td><td>So tien thu/chi</td></tr>
+    <tr><td>Phuong thuc</td><td><span class="badge badge-red">Bat buoc</span></td><td>Vi / CK / Tien mat / COD / Tin dung</td></tr>
+    <tr><td>Loai chi phi</td><td><span class="badge badge-red">Bat buoc</span></td><td>Dat coc / Thanh toan / Phi van chuyen / Phi thong quan / Dong goi / Kho bai / Hoan tien / Khac</td></tr>
+    <tr><td>Ten nguoi thu huong</td><td><span class="badge badge-red">Bat buoc</span></td><td>Nguoi nhan tien</td></tr>
+    <tr><td>Ly do</td><td><span class="badge badge-red">Bat buoc</span></td><td>Chi tiet ly do (&ge; 20 ky tu)</td></tr>
+  </tbody>
+</table>
+<ol start="3">
+  <li>Nhan <strong>Tao phieu</strong> &rarr; Phieu tao o trang thai <span class="badge badge-yellow">CHO DUYET</span></li>
+</ol>
+<div class="callout callout-info">
+  <div class="callout-title">Chong gian lan</div>
+  He thong tu dong phat hien phieu trung so tien tren cung ma tham chieu.
+</div>
+
+<h2>C.4. Hoa don (<code>/tai-chinh/hoa-don</code>)</h2>
+<div class="status-flow">
+  <span class="status-step">NHAP</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">PHAT HANH</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">GUI CO QUAN THUE</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step special">HUY / DIEU CHINH</span>
+</div>
+<ul>
+  <li><strong>Tao hoa don:</strong> Tu don hang, tao hoa don GTGT</li>
+  <li><strong>Phat hanh:</strong> Chuyen Nhap &rarr; Da phat hanh</li>
+  <li><strong>Gui thue:</strong> Lien ket voi MISA/Viettel Invoice</li>
+  <li><strong>Huy:</strong> Chi khi chua gui co quan thue</li>
+  <li><strong>Dieu chinh:</strong> Tao hoa don dieu chinh (lien ket hoa don goc)</li>
+</ul>
+
+<h2>C.5. Bu tru cong no (<code>/tai-chinh/bu-tru-cong-no</code>)</h2>
+<p>Dung khi cung 1 doi tac vua la khach hang (no phai thu) vua la nha cung cap (no phai tra):</p>
+<ol>
+  <li>Chon doi tac</li>
+  <li>Nhap so tien AR (cong no phai thu) va AP (cong no phai tra)</li>
+  <li>He thong tinh so tien bu tru rong</li>
+  <li>Gui phe duyet</li>
+  <li>Sau khi duyet &rarr; Cap nhat ca AR va AP</li>
+</ol>
+
+<h2>C.6. Ty gia (<code>/tai-chinh/ty-gia</code>)</h2>
+<ul>
+  <li>Quan ly ty gia VND/CNY/USD</li>
+  <li>Cap nhat theo ngay, nguon (mac dinh Vietcombank)</li>
+  <li>He thong tu dong quy doi trong cac giao dich da tien te</li>
+</ul>
+
+<h2>C.7. Bang luong (<code>/luong</code>)</h2>
+<h3>C.7.1. Xem bang luong</h3>
+<ol>
+  <li>Chon <strong>Thang</strong> va <strong>Nam</strong> o dropdown tren cung</li>
+  <li>Loc theo Trang thai: <span class="badge badge-gray">Nhap</span> <span class="badge badge-blue">Da tinh</span> <span class="badge badge-green">Da duyet</span> <span class="badge badge-cyan">Da chi</span></li>
+  <li>The tong hop hien thi: Tong luong gross, Tong khau tru, Tong thuc linh, So nhan vien</li>
+</ol>
+
+<h3>C.7.2. Tinh luong &amp; Duyet luong</h3>
+<table>
+  <thead><tr><th>Buoc</th><th>Thao tac</th><th>Ket qua</th></tr></thead>
+  <tbody>
+    <tr><td>1. Tinh luong</td><td>Nhan <strong>"Tinh luong"</strong></td><td>He thong tu dong tinh: Luong co ban + Lam them + Phu cap - Thue - BHXH - Khau tru</td></tr>
+    <tr><td>2. Duyet luong</td><td>Nhan <strong>"Duyet luong"</strong> (nut xanh)</td><td>Trang thai: Da tinh &rarr; Da duyet. Chi KT truong/BGD duyet duoc.</td></tr>
+  </tbody>
+</table>
+
+<h3>C.7.3. Xem phieu luong</h3>
+<p>Nhan nut <strong>"Phieu luong"</strong> tren dong nhan vien &rarr; Hien thi:</p>
+<ul>
+  <li><strong>Thu nhap:</strong> Luong co ban, Lam them, Phu cap, Tong thu nhap</li>
+  <li><strong>Khau tru:</strong> Thue TNCN, BHXH, Khau tru khac, Tong khau tru</li>
+  <li><strong>Thuc linh</strong> (highlight xanh)</li>
+</ul>
+
+<h2>C.8. Mua hang (<code>/mua-hang</code>)</h2>
+<div class="status-flow">
+  <span class="status-step">Yeu cau mua (PR)</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">Phe duyet</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">Don mua hang (PO)</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#16a34a;">Nhan hang (GR)</span>
+</div>
+<ul>
+  <li><strong>Tab "Yeu cau mua":</strong> Tao PR &rarr; Dien NCC, Ma DH lien quan, DS san pham &rarr; Gui duyet</li>
+  <li><strong>Tab "Don mua hang":</strong> Tao PO tu PR da duyet hoac tao truc tiep &rarr; Ghi nhan nhan hang: SL nhan, Chat luong (OK/Hu hong/Thieu)</li>
+</ul>
+
+<h2>C.9. Kho vat tu (<code>/kho-vat-tu</code>)</h2>
+<table>
+  <thead><tr><th>Thao tac</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Nhap kho (Receipt)</strong></td><td>Ghi nhan nhap vat tu</td></tr>
+    <tr><td><strong>Xuat kho (Issue)</strong></td><td>Ghi nhan xuat - he thong kiem tra ton kho du</td></tr>
+    <tr><td><strong>Dieu chinh (Adjustment)</strong></td><td>Kiem ke thuc te, tu dong tao phieu dieu chinh neu lech</td></tr>
+    <tr><td><strong>Canh bao</strong></td><td>Hien thi vat tu duoi muc toi thieu</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ================================================================ -->
+<!-- D. PHONG KHO VAN                                                 -->
+<!-- ================================================================ -->
+<h1>D. PHONG KHO VAN - XNK</h1>
+
+<div class="section-intro">
+  <p><strong>Vai tro:</strong> XNK_MANAGER, XNK_STAFF, WAREHOUSE_CN_AGENT, WAREHOUSE_VN_MANAGER, WAREHOUSE_VN_STAFF</p>
+  <p><strong>Menu truy cap:</strong> Don hang, Kho TQ, Container, Kho VN, Theo doi, Giao hang, Phuong tien, Tai xe</p>
+</div>
+
+<h2>D.1. Kho Trung Quoc (<code>/kho-trung-quoc</code>)</h2>
+
+<h3>D.1.1. Nhan kien hang</h3>
+<ol>
+  <li>Vao menu <strong>Kho van &rarr; Kho Trung Quoc</strong></li>
+  <li>Nhan <strong>"Nhan kien"</strong> &rarr; Form inline hien ra</li>
+</ol>
+<table>
+  <thead><tr><th>Truong</th><th>Bat buoc</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Ma don hang</td><td><span class="badge badge-red">Bat buoc</span></td><td>Nhap ma don hang lien quan</td></tr>
+    <tr><td>Ma van don TQ</td><td></td><td>Tracking number tu TQ</td></tr>
+    <tr><td>Mo ta</td><td></td><td>Mo ta kien hang</td></tr>
+    <tr><td>Ghi chu</td><td></td><td>Ghi chu them</td></tr>
+  </tbody>
+</table>
+<ol start="3">
+  <li>Nhan <strong>Xac nhan nhan kien</strong></li>
+</ol>
+<div class="callout callout-success">
+  <div class="callout-title">He thong tu dong</div>
+  <ul>
+    <li>Tao kien hang voi ma: <code>TBS-PKG-000001</code></li>
+    <li>Trang thai: <span class="badge badge-blue">DA NHAN</span></li>
+    <li>Tu dong doi chieu voi Pre-Alert (neu co)</li>
+    <li>Neu khong khop Pre-Alert &rarr; Tao ban ghi <strong>Lost &amp; Found</strong></li>
+  </ul>
+</div>
+
+<h3>D.1.2. Can/Do kien hang</h3>
+<ol>
+  <li>Tim kien hang trang thai <span class="badge badge-blue">DA NHAN</span> hoac <span class="badge badge-cyan">DA KIEM</span></li>
+  <li>Nhan nut <strong>"Can/Do"</strong></li>
+  <li>Nhap:</li>
+</ol>
+<table>
+  <thead><tr><th>Truong</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Can nang thuc (kg)</td><td>Can nang thuc te</td></tr>
+    <tr><td>Dai (cm)</td><td>Chieu dai</td></tr>
+    <tr><td>Rong (cm)</td><td>Chieu rong</td></tr>
+    <tr><td>Cao (cm)</td><td>Chieu cao</td></tr>
+  </tbody>
+</table>
+<div class="callout callout-info">
+  <div class="callout-title">He thong tu dong tinh</div>
+  <ul>
+    <li><strong>Can nang the tich</strong> = (Dai x Rong x Cao) &divide; He so tuyen (Bien: 6000 | Bo: 5000 | HK: 5000)</li>
+    <li><strong>Can tinh cuoc</strong> = MAX(Can thuc, Can the tich)</li>
+    <li>Cap nhat tong trong luong don hang</li>
+  </ul>
+</div>
+
+<h3>D.1.3. Chuyen trang thai kien hang</h3>
+<div class="status-flow">
+  <span class="status-step" style="background:#3b82f6;">DA NHAN</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#06b6d4;">DA KIEM</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#10b981;">DA DONG</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#16a34a;">DA GUI</span>
+</div>
+<table>
+  <thead><tr><th>Trang thai hien tai</th><th>Nut hanh dong</th><th>Trang thai moi</th></tr></thead>
+  <tbody>
+    <tr><td><span class="badge badge-blue">DA NHAN</span></td><td>"Kiem tra"</td><td><span class="badge badge-cyan">DA KIEM</span></td></tr>
+    <tr><td><span class="badge badge-cyan">DA KIEM</span></td><td>"Dong goi"</td><td><span class="badge badge-green">DA DONG</span></td></tr>
+    <tr><td><span class="badge badge-green">DA DONG</span></td><td>"Da gui"</td><td><span class="badge badge-green">DA GUI</span></td></tr>
+  </tbody>
+</table>
+
+<h2>D.2. Container (<code>/container</code>)</h2>
+<div class="status-flow">
+  <span class="status-step">LEN KE HOACH</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">DANG DONG</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">DANG VAN CHUYEN</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">DA DEN</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">THONG QUAN</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#16a34a;">HOAN THANH</span>
+</div>
+<table>
+  <thead><tr><th>Chuc nang</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Tao container</strong></td><td>Ma tu dong <code>TBS-CNT-240101-01</code>, chon tuyen, hang tau</td></tr>
+    <tr><td><strong>Dong hang</strong></td><td>Them don hang/kien vao container, theo doi ty le lap day</td></tr>
+    <tr><td><strong>Theo doi</strong></td><td>Ngay di du kien/thuc te, Ngay den du kien/thuc te</td></tr>
+    <tr><td><strong>Chi phi van hanh</strong></td><td>Ghi nhan: Cuoc van chuyen, Hai quan, Handling, Bao hiem...</td></tr>
+    <tr><td><strong>Phan bo chi phi</strong></td><td>Chia chi phi container cho tung don hang theo: Trong luong / The tich / Deu</td></tr>
+  </tbody>
+</table>
+
+<h2>D.3. Kho Viet Nam (<code>/kho-viet-nam</code>)</h2>
+
+<h3>D.3.1. Nhan hang tu container</h3>
+<ol>
+  <li>Nhan <strong>"Nhan tu container"</strong> &rarr; Form inline</li>
+  <li>Nhap: Ma Container, Ma kien (nhieu ma, phan tach boi dau phay), Ghi chu</li>
+  <li>Nhan <strong>Xac nhan</strong> &rarr; Cac kien hang chuyen trang thai <span class="badge badge-blue">DA NHAN</span> tai kho VN</li>
+</ol>
+
+<h3>D.3.2. Phan loai kien hang (Batch Action)</h3>
+<ol>
+  <li><strong>Tick chon</strong> nhieu kien hang bang checkbox</li>
+  <li>Thanh batch action hien ra: <strong>"Da chon X kien"</strong></li>
+  <li>Cac nut hanh dong:</li>
+</ol>
+<table>
+  <thead><tr><th>Nut</th><th>Dieu kien</th><th>Hanh dong</th></tr></thead>
+  <tbody>
+    <tr><td><strong>"Phan loai"</strong></td><td>Tat ca kien duoc chon o trang thai DA NHAN</td><td>Chuyen hang loat sang <span class="badge badge-cyan">DA PHAN LOAI</span></td></tr>
+    <tr><td><strong>"San sang giao"</strong></td><td>Tat ca kien duoc chon o trang thai DA PHAN LOAI</td><td>Chuyen hang loat sang <span class="badge badge-green">SAN SANG</span></td></tr>
+  </tbody>
+</table>
+
+<h3>D.3.3. Luong trang thai kho VN</h3>
+<div class="status-flow">
+  <span class="status-step" style="background:#3b82f6;">DA NHAN</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#06b6d4;">DA PHAN LOAI</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#10b981;">SAN SANG</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#16a34a;">DA GIAO</span>
+</div>
+
+<h3>D.3.4. Xuat kho giao hang</h3>
+<ol>
+  <li>Chon cac kien <span class="badge badge-green">SAN SANG</span></li>
+  <li>Tao Phieu giao hang (Dispatch): Chi dinh tai xe, phuong tien, nhom theo khu vuc</li>
+  <li>He thong tao ban ghi Delivery cho moi don</li>
+</ol>
+
+<h2>D.4. Theo doi van chuyen (<code>/theo-doi</code>)</h2>
+<table>
+  <thead><tr><th>Chuc nang</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Theo doi kien</strong></td><td>Xem toan bo su kien theo doi theo ma kien</td></tr>
+    <tr><td><strong>Theo doi container</strong></td><td>Xem container + tat ca kien ben trong</td></tr>
+    <tr><td><strong>Dong bo tracking</strong></td><td>Lay du lieu tu Kuaidi100, 17Track</td></tr>
+    <tr><td><strong>Uoc tinh ETA</strong></td><td>Tinh thoi gian giao du kien dua tren vi tri hien tai va tuyen duong</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ================================================================ -->
+<!-- E. PHONG VAN TAI                                                 -->
+<!-- ================================================================ -->
+<h1>E. PHONG VAN TAI</h1>
+
+<div class="section-intro">
+  <p><strong>Vai tro:</strong> DRIVER, WAREHOUSE_VN_MANAGER, WAREHOUSE_VN_STAFF</p>
+  <p><strong>Menu truy cap:</strong> Giao hang, Phuong tien, Tai xe, Cong viec, Cham cong</p>
+</div>
+
+<h2>E.1. Giao hang (<code>/giao-hang</code>)</h2>
+
+<h3>E.1.1. Quy trinh giao hang (cho Tai xe)</h3>
+<div class="status-flow">
+  <span class="status-step">DANG CHO</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">DA DIEU PHOI</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">DA LAY</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">DANG GIAO</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#16a34a;">DA GIAO</span>
+</div>
+<table>
+  <thead><tr><th>Buoc</th><th>Thao tac</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Nhan phieu giao</td><td>Xem danh sach phieu duoc phan cong</td></tr>
+    <tr><td>2</td><td>Lay hang</td><td>Den kho lay hang &rarr; Cap nhat trang thai <span class="badge badge-blue">DA LAY</span></td></tr>
+    <tr><td>3</td><td>Giao hang</td><td>Den dia chi khach &rarr; Cap nhat <span class="badge badge-cyan">DANG GIAO</span></td></tr>
+    <tr><td>4a</td><td>Xac nhan giao</td><td>Chup anh POD + Lay chu ky khach + Thu COD (neu co) &rarr; <span class="badge badge-green">DA GIAO</span></td></tr>
+    <tr><td>4b</td><td>Giao that bai</td><td>Nhap ly do &rarr; <span class="badge badge-red">THAT BAI</span></td></tr>
+  </tbody>
+</table>
+
+<h3>E.1.2. Thu tien COD (Cash on Delivery)</h3>
+<ol>
+  <li>Khi giao hang co COD, he thong hien thi so tien can thu</li>
+  <li>Tai xe thu tien &rarr; Ghi nhan: So tien, Phuong thuc, Ghi chu</li>
+  <li>Ve kho &rarr; Nop tien COD &rarr; Kho xac nhan <span class="badge badge-green">DA NOP</span></li>
+  <li>Neu thieu tien &rarr; Ghi nhan <span class="badge badge-red">THIEU</span> kem ly do</li>
+</ol>
+
+<h2>E.2. Quan ly Tai xe (<code>/tai-xe</code>)</h2>
+<h3>E.2.1. Them tai xe</h3>
+<p>Nhan <strong>"Them tai xe"</strong> &rarr; Dien: Ho ten, So GPLX, SDT, Dia chi, Chi nhanh &rarr; Ma tu dong: <code>DRV-XXXX</code></p>
+
+<h3>E.2.2. Trang thai tai xe</h3>
+<table>
+  <thead><tr><th>Trang thai</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td><span class="badge badge-green">SAN SANG</span></td><td>Co the nhan giao hang</td></tr>
+    <tr><td><span class="badge badge-blue">DANG GIAO</span></td><td>Dang giao hang</td></tr>
+    <tr><td><span class="badge badge-gray">NGHI</span></td><td>Khong hoat dong</td></tr>
+  </tbody>
+</table>
+
+<h2>E.3. Quan ly Phuong tien (<code>/phuong-tien</code>)</h2>
+<h3>E.3.1. Them phuong tien</h3>
+<p>Nhan <strong>"Them xe"</strong> &rarr; Dien: Bien so, Loai xe (Xe tai/Xe van/Xe may), Hang, Nam, Tai trong, Chi nhanh</p>
+
+<h3>E.3.2. Bo loc</h3>
+<ul>
+  <li><strong>Tim kiem:</strong> Theo bien so</li>
+  <li><strong>Loai xe:</strong> Xe tai / Xe van / Xe may</li>
+  <li><strong>Trang thai:</strong> Hoat dong / Bao tri / Thanh ly</li>
+  <li><strong>Chi nhanh:</strong> HN / HCM</li>
+</ul>
+
+<h3>E.3.3. Bao tri &amp; Nhien lieu</h3>
+<table>
+  <thead><tr><th>Chuc nang</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Bao tri</strong></td><td>Tao lich bao tri: Dinh ky / Sua chua / Kiem tra. Nhap ngay, chi phi uoc tinh. Hoan thanh: nhap chi phi thuc te.</td></tr>
+    <tr><td><strong>Nhien lieu</strong></td><td>Ghi nhan: So lit, Gia/lit, ODO (km). He thong tinh hieu suat nhien lieu.</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ================================================================ -->
+<!-- F. PHONG NHAN SU                                                 -->
+<!-- ================================================================ -->
+<h1>F. PHONG NHAN SU (HR)</h1>
+
+<div class="section-intro">
+  <p><strong>Menu truy cap:</strong> Nhan su, Cham cong, Bang luong, Hoa hong</p>
+</div>
+
+<h2>F.1. Quan ly Nhan vien (<code>/nhan-su</code>)</h2>
+
+<h3>F.1.1. Them nhan vien</h3>
+<p>Nhan <strong>"Them nhan vien"</strong> &rarr; <code>/nhan-su/tao-moi</code></p>
+<table>
+  <thead><tr><th>Truong</th><th>Bat buoc</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Ho ten</td><td><span class="badge badge-red">Bat buoc</span></td><td>Ten day du</td></tr>
+    <tr><td>Email</td><td><span class="badge badge-red">Bat buoc</span></td><td>Email (duy nhat)</td></tr>
+    <tr><td>SDT</td><td></td><td>So dien thoai</td></tr>
+    <tr><td>Phong ban</td><td><span class="badge badge-red">Bat buoc</span></td><td>Ma phong ban</td></tr>
+    <tr><td>Chuc vu</td><td><span class="badge badge-red">Bat buoc</span></td><td>Ten chuc vu</td></tr>
+    <tr><td>Chi nhanh</td><td><span class="badge badge-red">Bat buoc</span></td><td>HN / HCM</td></tr>
+    <tr><td>Ngay vao lam</td><td><span class="badge badge-red">Bat buoc</span></td><td>Ngay bat dau</td></tr>
+    <tr><td>Quan ly truc tiep</td><td></td><td>Chon quan ly</td></tr>
+    <tr><td>Vai tro he thong</td><td><span class="badge badge-red">Bat buoc</span></td><td>Chon role (CEO, SALE, ACCOUNTANT...)</td></tr>
+    <tr><td>Luong co ban</td><td></td><td>Muc luong</td></tr>
+    <tr><td>TK ngan hang</td><td></td><td>STK + Ten ngan hang</td></tr>
+    <tr><td>Ma so thue</td><td></td><td>MST ca nhan</td></tr>
+    <tr><td>So BHXH</td><td></td><td>Ma BHXH</td></tr>
+  </tbody>
+</table>
+
+<h3>F.1.2. Nghi viec</h3>
+<p>Chon nhan vien &rarr; <strong>Ngung hoat dong</strong> &rarr; Nhap ly do &rarr; Tai khoan bi vo hieu hoa.</p>
+
+<h2>F.2. Cham cong (<code>/cham-cong</code>)</h2>
+
+<h3>F.2.1. Ghi nhan cham cong</h3>
+<table>
+  <thead><tr><th>Thao tac</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Diem danh vao</strong></td><td>Ghi nhan gio check-in + toa do GPS</td></tr>
+    <tr><td><strong>Diem danh ra</strong></td><td>Ghi nhan gio check-out + toa do GPS</td></tr>
+    <tr><td><strong>Loai hinh</strong></td><td>Van phong / Tu xa / Ngoai hien truong</td></tr>
+    <tr><td><strong>Tu dong tinh</strong></td><td>So gio lam, Gio tang ca, Di muon</td></tr>
+  </tbody>
+</table>
+
+<h3>F.2.2. Don nghi phep</h3>
+<ol>
+  <li>Tao don xin nghi: Loai (Phep nam/Om/Viec rieng/Thai san/Khac), Ngay BD, Ngay KT, So ngay, Ly do</li>
+  <li>Trang thai: <span class="badge badge-yellow">CHO DUYET</span> &rarr; <span class="badge badge-green">DUYET</span> / <span class="badge badge-red">TU CHOI</span></li>
+  <li>Quan ly truc tiep duyet</li>
+</ol>
+
+<h3>F.2.3. Don tang ca</h3>
+<p>Tao don: Ngay, So gio, Ly do &rarr; Cho duyet &rarr; Tinh vao luong thang.</p>
+
+<h2>F.3. Hoa hong (<code>/hoa-hong</code>)</h2>
+<table>
+  <thead><tr><th>Vai tro</th><th>Chuc nang</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Sale</strong></td><td>Xem hoa hong ca nhan theo khoang thoi gian. Trang thai: Cho duyet / Da duyet / Da chi</td></tr>
+    <tr><td><strong>Sales Leader</strong></td><td>Xem hoa hong toan doi, tong hop theo nhan vien</td></tr>
+    <tr><td><strong>KT Truong</strong></td><td>Duyet hoa hong hang loat, xuat bao cao, tao phieu chi hoa hong</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ================================================================ -->
+<!-- G. BAN GIAM DOC                                                  -->
+<!-- ================================================================ -->
+<h1>G. BAN GIAM DOC (EXECUTIVE)</h1>
+
+<div class="section-intro">
+  <p><strong>Vai tro:</strong> CEO, COO</p>
+  <p><strong>Menu truy cap:</strong> <strong>Toan bo he thong</strong></p>
+</div>
+
+<h2>G.1. Tong quan Dashboard (<code>/tong-quan</code>)</h2>
+<table>
+  <thead><tr><th>Nhom KPI</th><th>Chi so</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Don hang</strong></td><td>Tong so, Doanh thu, So khach hang (30 ngay gan nhat)</td></tr>
+    <tr><td><strong>Tai chinh</strong></td><td>Tong AR, AR qua han, AR &gt; 90 ngay, Tong AP, Ty le thu tien</td></tr>
+    <tr><td><strong>Kho bai</strong></td><td>Kien dang van chuyen, Kien cho giao, Thoi gian xu ly trung binh</td></tr>
+    <tr><td><strong>Bieu do</strong></td><td>Don hang theo trang thai (tron), Don hang theo dich vu (tron)</td></tr>
+  </tbody>
+</table>
+
+<h2>G.2. Phe duyet (<code>/phe-duyet</code>)</h2>
+
+<h3>G.2.1. Giao dien phe duyet</h3>
+<table>
+  <thead><tr><th>Tab</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Cho toi duyet</strong></td><td>Cac yeu cau dang cho ban xu ly (co badge do)</td></tr>
+    <tr><td><strong>Toi da gui</strong></td><td>Cac yeu cau ban da tao</td></tr>
+    <tr><td><strong>Da xu ly</strong></td><td>Cac yeu cau ban da duyet/tu choi</td></tr>
+    <tr><td><strong>Theo doi</strong></td><td>Cac yeu cau ban duoc CC</td></tr>
+    <tr><td><strong>Tat ca</strong></td><td>Toan bo yeu cau</td></tr>
+  </tbody>
+</table>
+
+<h3>G.2.2. Xu ly phe duyet</h3>
+<table>
+  <thead><tr><th>Nut</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Duyet</strong></td><td>Phe duyet buoc hien tai &rarr; Chuyen buoc tiep theo hoac hoan thanh</td></tr>
+    <tr><td><strong>Tu choi</strong></td><td>Tu choi (bat buoc nhap ly do)</td></tr>
+    <tr><td><strong>Uy quyen</strong></td><td>Chuyen cho nguoi khac xu ly</td></tr>
+    <tr><td><strong>Tra ve</strong></td><td>Tra ve nguoi gui de sua doi</td></tr>
+    <tr><td><strong>Them nguoi duyet</strong></td><td>Them 1 buoc phe duyet nua</td></tr>
+    <tr><td><strong>Binh luan</strong></td><td>Them ghi chu</td></tr>
+  </tbody>
+</table>
+
+<h3>G.2.3. Cac loai phe duyet</h3>
+<table>
+  <thead><tr><th>Loai</th><th>Khi nao phat sinh</th></tr></thead>
+  <tbody>
+    <tr><td>Huy don hang</td><td>Don &gt; 50 trieu hoac da o giai doan van chuyen</td></tr>
+    <tr><td>Chiet khau bao gia</td><td>Bao gia co chiet khau &gt; 0%</td></tr>
+    <tr><td>Phieu thu/chi</td><td>Tao phieu thu chi</td></tr>
+    <tr><td>Gia han tin dung</td><td>Nang han muc cho khach hang</td></tr>
+    <tr><td>Mien dat coc</td><td>Bo qua yeu cau dat coc</td></tr>
+    <tr><td>Ke hoach container</td><td>Phe duyet ke hoach gom hang</td></tr>
+    <tr><td>Xuat kho</td><td>Phe duyet xuat kho</td></tr>
+    <tr><td>Nghi phep / Tang ca</td><td>Duyet don nghi phep, tang ca</td></tr>
+    <tr><td>Don mua hang</td><td>Duyet PO/PR</td></tr>
+    <tr><td>Dieu chinh luong</td><td>Thay doi luong NV</td></tr>
+  </tbody>
+</table>
+
+<h2>G.3. Uy quyen (<code>/uy-quyen</code>)</h2>
+<p>Khi BGD di vang, uy quyen phe duyet cho nguoi khac:</p>
+<ol>
+  <li>Nhan <strong>Tao uy quyen</strong></li>
+  <li>Chon: Nguoi duoc uy quyen, Loai phe duyet (de trong = tat ca)</li>
+  <li>Chon: Ngay bat dau, Ngay ket thuc, Ly do</li>
+  <li>Trong thoi gian uy quyen, cac yeu cau phe duyet tu dong chuyen den nguoi duoc uy quyen</li>
+</ol>
+
+<h2>G.4. Khieu nai (<code>/khieu-nai</code>)</h2>
+
+<h3>G.4.1. Tong quan khieu nai</h3>
+<p><strong>The thong ke tren cung:</strong> Tong so | Dang mo | Dang xu ly | Da giai quyet</p>
+<p><strong>Bo loc:</strong></p>
+<ul>
+  <li>Trang thai: Mo / Dang dieu tra / Cho giai quyet / Da giai quyet / Dong</li>
+  <li>Muc nghiem trong: Thap / Trung binh / Cao / Nghiem trong</li>
+  <li>Loai: Hu hong / Mat hang / Cham tre / Chat luong / Khac</li>
+</ul>
+
+<h3>G.4.2. Xu ly khieu nai</h3>
+<div class="status-flow">
+  <span class="status-step">MO</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">DANG DIEU TRA</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">CHO GIAI QUYET</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#16a34a;">DA GIAI QUYET</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#64748b;">DONG</span>
+</div>
+<table>
+  <thead><tr><th>Buoc</th><th>Thao tac</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Phan cong</strong></td><td>Chi dinh nhan vien xu ly</td></tr>
+    <tr><td><strong>Dieu tra</strong></td><td>Them ghi chu dieu tra</td></tr>
+    <tr><td><strong>Giai quyet</strong></td><td>Chon hinh thuc: Hoan tien / Ghi co / Thay the / Xin loi</td></tr>
+    <tr><td><strong>Leo thang</strong></td><td>Chuyen len cap cao hon (Sales Leader &rarr; Sales Director &rarr; CEO)</td></tr>
+  </tbody>
+</table>
+<div class="callout callout-warning">
+  <div class="callout-title">Luu y</div>
+  Neu so tien boi thuong cao &rarr; Yeu cau phe duyet tu BGD. Khieu nai muc NGHIEM TRONG &rarr; Tu dong thong bao CEO.
+</div>
+
+<h2>G.5. Cong viec (<code>/cong-viec</code>)</h2>
+<p><strong>Tab:</strong> Tat ca | Cua toi | Qua han</p>
+<p><strong>Tao cong viec:</strong> Tieu de, Mo ta, Nguoi thuc hien, Muc uu tien (Thap/TB/Cao/Khan), Han chot</p>
+<div class="status-flow">
+  <span class="status-step">MO</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step">DANG LAM</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#16a34a;">HOAN THANH</span><span class="status-arrow">&rarr;</span>
+  <span class="status-step" style="background:#64748b;">DONG</span>
+</div>
+<p>Co the them <strong>binh luan</strong> trao doi tren moi cong viec.</p>
+
+<h2>G.6. Thong bao (<code>/thong-bao</code>)</h2>
+<table>
+  <thead><tr><th>Chuc nang</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td>Xem thong bao</td><td>Danh sach theo thoi gian</td></tr>
+    <tr><td>Danh dau da doc</td><td>Nhan vao thong bao hoac "Danh dau tat ca da doc"</td></tr>
+    <tr><td>Badge</td><td>So thong bao chua doc tren chuong</td></tr>
+    <tr><td>Kenh</td><td>Trong app / Email / SMS / Zalo ZNS</td></tr>
+    <tr><td>Loai</td><td>Don hang, Thanh toan, Phe duyet, Kho bai, He thong, Canh bao</td></tr>
+  </tbody>
+</table>
+
+<h2>G.7. Tai lieu (<code>/tai-lieu</code>)</h2>
+<table>
+  <thead><tr><th>Chuc nang</th><th>Mo ta</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Upload</strong></td><td>Dinh kem file cho don hang, khach hang, container, kien hang</td></tr>
+    <tr><td><strong>Phan loai</strong></td><td>Hop dong / Hoa don / Hai quan / POD / Anh / Khac</td></tr>
+    <tr><td><strong>Phien ban</strong></td><td>Upload ban moi, giu lich su</td></tr>
+    <tr><td><strong>Tai ve</strong></td><td>Link download tam thoi (pre-signed URL)</td></tr>
+    <tr><td><strong>Xoa</strong></td><td>Soft delete (co the khoi phuc)</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ================================================================ -->
+<!-- PHU LUC                                                          -->
+<!-- ================================================================ -->
+<h1>PHU LUC: BANG QUYEN TRUY CAP THEO VAI TRO</h1>
+
+<table class="role-table">
+  <thead>
+    <tr>
+      <th>Chuc nang</th>
+      <th>CEO<br>COO</th>
+      <th>Sales<br>Dir</th>
+      <th>Sales<br>Lead</th>
+      <th>Sale</th>
+      <th>KT<br>Truong</th>
+      <th>KT<br>AR</th>
+      <th>KT<br>CP</th>
+      <th>XNK<br>Mgr</th>
+      <th>Kho<br>TQ</th>
+      <th>Kho VN<br>Mgr</th>
+      <th>Kho VN<br>Staff</th>
+      <th>Tai<br>xe</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Tong quan</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+    <tr><td>Don hang</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Bao gia</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Khach hang</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Kho TQ</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td></td></tr>
+    <tr><td>Container</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td></tr>
+    <tr><td>Kho VN</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="check">&#10003;</td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td></tr>
+    <tr><td>Theo doi</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td></tr>
+    <tr><td>Giao hang</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+    <tr><td>Phuong tien</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td></tr>
+    <tr><td>Tai xe</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td></tr>
+    <tr><td>Cong no thu</td><td class="check">&#10003;</td><td></td><td></td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Cong no tra</td><td class="check">&#10003;</td><td></td><td></td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Phieu thu chi</td><td class="check">&#10003;</td><td></td><td></td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Hoa don</td><td class="check">&#10003;</td><td></td><td></td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Mua hang</td><td class="check">&#10003;</td><td></td><td></td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Nhan su</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Cham cong</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+    <tr><td>Bang luong</td><td class="check">&#10003;</td><td></td><td></td><td></td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Hoa hong</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Phe duyet</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td class="check">&#10003;</td><td></td><td></td><td class="check">&#10003;</td><td></td><td class="check">&#10003;</td><td></td><td></td></tr>
+    <tr><td>Uy quyen</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td class="check">&#10003;</td><td></td><td></td><td class="check">&#10003;</td><td></td><td class="check">&#10003;</td><td></td><td></td></tr>
+    <tr><td>Khieu nai</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Cong viec</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+    <tr><td>Bao cao</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td></td><td></td><td class="check">&#10003;</td><td></td><td></td><td class="check">&#10003;</td><td></td><td></td><td></td><td></td></tr>
+  </tbody>
+</table>
+
+<div style="margin-top:40px; padding:20px; text-align:center; color:#6b7280; font-size:9pt; border-top:2px solid #e5e7eb;">
+  <strong>TBS ERP v1</strong> &mdash; Huong dan su dung phan mem<br>
+  Phien ban 1.0 | Ngay cap nhat: 13/02/2026<br>
+  Tai lieu noi bo &mdash; Khong pho bien ra ben ngoai
+</div>
+
+</body>
+</html>

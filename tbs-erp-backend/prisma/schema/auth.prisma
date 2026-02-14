@@ -1,0 +1,116 @@
+// ============================================
+// AUTH & RBAC — User, Role, Permission, Session
+// ============================================
+
+enum UserRole {
+  // BGĐ
+  CEO
+  COO
+  // Kinh doanh
+  SALES_DIRECTOR   // GĐ Kinh doanh
+  SALES_LEADER     // Leader
+  SALE             // Nhân viên KD
+  // Marketing
+  MARKETING_STAFF
+  CSKH             // Chăm sóc khách hàng
+  // Kế toán
+  CHIEF_ACCOUNTANT // KT Tổng hợp (TP KT)
+  ACCOUNTANT_AR    // KT Thanh toán
+  ACCOUNTANT_COST  // KT Chi phí VN
+  // XNK
+  XNK_MANAGER      // TP XNK
+  XNK_STAFF
+  // Kho
+  WAREHOUSE_CN_AGENT  // Agent kho TQ
+  WAREHOUSE_VN_MANAGER // Trưởng kho VN
+  WAREHOUSE_VN_STAFF
+  // Vận tải
+  DRIVER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  phone         String?   @unique
+  passwordHash  String    @map("password_hash")
+  fullName      String    @map("full_name")
+  role          UserRole
+  branch        Branch?
+  saleCode      String?   @unique @map("sale_code")  // NV001, NV002
+  isActive      Boolean   @default(true) @map("is_active")
+  is2FAEnabled  Boolean   @default(false) @map("is_2fa_enabled")
+  resetToken    String?   @map("reset_token")
+  resetTokenExpiry DateTime? @map("reset_token_expiry")
+  lastLoginAt   DateTime? @map("last_login_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Quan hệ KD: Sale → Leader → GĐ KD
+  leaderId      String?   @map("leader_id")
+  leader        User?     @relation("LeaderSales", fields: [leaderId], references: [id])
+  teamMembers   User[]    @relation("LeaderSales")
+
+  // Relations
+  sessions      Session[]
+  auditLogs     AuditLog[]
+  employee      Employee?
+
+  // Order & Quotation relations
+  quotationsCreated  Quotation[]        @relation("QuotationCreator")
+
+  // Complaint relations
+  complaintsHandled  Complaint[]        @relation("ComplaintHandler")
+  complaintsCreated  Complaint[]        @relation("ComplaintCreator")
+
+  // Finance relations
+  commissions        CommissionRecord[] @relation("SaleCommissions")
+
+  // Master order relations
+  masterOrders       MasterOrder[]      @relation("MasterOrderSale")
+
+  // Contract relations
+  contracts          Contract[]         @relation("ContractSale")
+
+  // System relations
+  notifications      NotificationRecord[]
+  tasksAssigned      Task[]             @relation("TaskAssignee")
+  tasksCreated       Task[]             @relation("TaskCreator")
+  taskComments       TaskComment[]
+
+  @@index([resetToken, resetTokenExpiry]) // Fast lookup for password reset
+  @@map("users")
+}
+
+model Session {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  refreshToken  String   @map("refresh_token")
+  userAgent     String?  @map("user_agent")
+  ipAddress     String?  @map("ip_address")
+  expiresAt     DateTime @map("expires_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  action     String   // CREATE, UPDATE, DELETE, LOGIN, APPROVE, REJECT
+  entity     String   // Order, Payment, etc.
+  entityId   String?  @map("entity_id")
+  oldData    Json?    @map("old_data")
+  newData    Json?    @map("new_data")
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}

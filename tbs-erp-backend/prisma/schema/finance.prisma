@@ -1,0 +1,475 @@
+// ============================================
+// FINANCE — AR, AP, Cash, Invoice, Payment Voucher
+// ============================================
+
+model AccountReceivable {
+  id            String   @id @default(cuid())
+  code          String   @unique            // Mã: TBS-AR-000001
+  customerId    String   @map("customer_id")
+  orderId       String?  @map("order_id")
+  amount        Decimal  @db.Decimal(15, 2)
+  paidAmount    Decimal  @default(0) @map("paid_amount") @db.Decimal(15, 2)
+  currency      Currency @default(VND)
+  dueDate       DateTime @map("due_date")
+  status        String   @default("OPEN")   // OPEN, PARTIAL, PAID, OVERDUE, NETTED
+  nettedAmount  Decimal  @default(0) @map("netted_amount") @db.Decimal(15, 2)
+  note          String?
+  createdBy     String   @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  customer      Customer @relation(fields: [customerId], references: [id])
+  order         Order?   @relation(fields: [orderId], references: [id])
+
+  @@index([customerId, status])
+  @@index([dueDate])
+  @@map("account_receivables")
+}
+
+model AccountPayable {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  vendorId      String?  @map("vendor_id")
+  vendorName    String   @map("vendor_name")
+  amount        Decimal  @db.Decimal(15, 2)
+  paidAmount    Decimal  @default(0) @map("paid_amount") @db.Decimal(15, 2)
+  currency      Currency @default(VND)
+  dueDate       DateTime @map("due_date")
+  status        String   @default("OPEN")
+  nettedAmount  Decimal  @default(0) @map("netted_amount") @db.Decimal(15, 2)
+  note          String?
+  createdBy     String   @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([vendorId, status])
+  @@index([dueDate])
+  @@map("account_payables")
+}
+
+model PaymentVoucher {
+  id              String         @id @default(cuid())
+  code            String         @unique
+  type            String                         // RECEIPT (thu) | PAYMENT (chi)
+  orderId         String?        @map("order_id") // Optional - có thể phân bổ cho hợp đồng
+  contractId      String?        @map("contract_id")
+  amount          Decimal        @db.Decimal(15, 2)
+  currency        Currency       @default(VND)
+  paymentMethod   PaymentMethod  @map("payment_method")
+  costType        String         @map("cost_type")       // Loại chi phí (dropdown)
+  beneficiary     String                                  // Người thụ hưởng
+  reason          String                                  // Lý do (≥ 20 ký tự)
+  attachments     String[]       @default([])             // URLs chứng từ
+  status          ApprovalStatus @default(PENDING)
+  approvedBy      String?        @map("approved_by")
+  approvedAt      DateTime?      @map("approved_at")
+  isFlagged       Boolean        @default(false) @map("is_flagged")
+  flagReason      String?        @map("flag_reason")
+  createdBy       String         @map("created_by")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  order           Order?         @relation(fields: [orderId], references: [id])
+  contract        Contract?      @relation(fields: [contractId], references: [id])
+  allocations     PaymentAllocation[]
+
+  @@index([orderId])
+  @@index([contractId])
+  @@index([createdBy])
+  @@index([status])
+  @@map("payment_vouchers")
+}
+
+model CashTransaction {
+  id            String        @id @default(cuid())
+  voucherId     String?       @map("voucher_id")
+  type          String                         // IN | OUT
+  amount        Decimal       @db.Decimal(15, 2)
+  currency      Currency      @default(VND)
+  paymentMethod PaymentMethod @map("payment_method")
+  reference     String?
+  note          String?
+  createdBy     String        @map("created_by")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("cash_transactions")
+}
+
+model Invoice {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  orderId         String?  @map("order_id")
+  customerId      String   @map("customer_id")
+  type            String   @default("GTGT")    // GTGT, Điều chỉnh, Hủy
+  amount          Decimal  @db.Decimal(15, 2)
+  taxRate         Decimal  @default(0.1) @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount       Decimal  @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(15, 2)
+  status          String   @default("DRAFT")   // DRAFT, ISSUED, SENT_TAX, CANCELLED, ADJUSTED
+  issuedAt        DateTime? @map("issued_at")
+  sentToTaxAt     DateTime? @map("sent_to_tax_at")
+  externalId      String?  @map("external_id") // Mã từ MISA/Viettel
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([orderId])
+  @@index([customerId])
+  @@map("invoices")
+}
+
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  from      Currency
+  to        Currency
+  rate      Decimal  @db.Decimal(15, 6)
+  source    String   @default("VIETCOMBANK")
+  date      DateTime @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([from, to, date])
+  @@map("exchange_rates")
+}
+
+model DebtNetting {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  partnerId       String   @map("partner_id")
+  partnerName     String   @map("partner_name")
+  arAmount        Decimal  @map("ar_amount") @db.Decimal(15, 2)
+  apAmount        Decimal  @map("ap_amount") @db.Decimal(15, 2)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(15, 2)
+  status          ApprovalStatus @default(PENDING)
+  approvedBy      String?  @map("approved_by")
+  approvedAt      DateTime? @map("approved_at")
+  note            String?
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("debt_nettings")
+}
+
+model ChartOfAccount {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  type        String   // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
+  parentCode  String?
+  level       Int      @default(1)
+  isActive    Boolean  @default(true)
+  entries     JournalEntryLine[]
+  createdAt   DateTime @default(now())
+}
+
+model JournalEntry {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  date        DateTime
+  description String
+  reference   String?  // Source document reference
+  periodYear  Int
+  periodMonth Int
+  isPosted    Boolean  @default(false)
+  lines       JournalEntryLine[]
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  @@index([periodYear, periodMonth])
+  @@index([date])
+}
+
+model JournalEntryLine {
+  id          String         @id @default(cuid())
+  entryId     String
+  entry       JournalEntry   @relation(fields: [entryId], references: [id])
+  accountCode String
+  account     ChartOfAccount @relation(fields: [accountCode], references: [code])
+  debit       Float          @default(0)
+  credit      Float          @default(0)
+  description String?
+
+  @@index([entryId])
+  @@index([accountCode])
+}
+
+model CommissionRule {
+  id          String      @id @default(cuid())
+  serviceType ServiceType
+  minProfit   Float
+  maxProfit   Float
+  rate        Float       // 0.0 to 1.0
+  description String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model CommissionRecord {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  saleId      String
+  sale        User     @relation("SaleCommissions", fields: [saleId], references: [id])
+  orderRevenue Float
+  orderCost   Float
+  netProfit   Float
+  commissionRate Float
+  commissionAmount Float
+  status      String   @default("PENDING") // PENDING, APPROVED, PAID
+  approvedBy  String?
+  approvedAt  DateTime?
+  paidAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@index([saleId])
+  @@index([status])
+}
+
+model PurchaseRequest {
+  id          String         @id @default(cuid())
+  code        String         @unique
+  vendorId    String?
+  orderId     String?
+  status      PurchaseStatus @default(DRAFT)
+  totalAmount Float          @default(0)
+  currency    Currency       @default(VND)
+  notes       String?
+  items       PurchaseRequestItem[]
+  createdBy   String
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status])
+  @@index([vendorId])
+}
+
+model PurchaseRequestItem {
+  id          String          @id @default(cuid())
+  requestId   String
+  request     PurchaseRequest @relation(fields: [requestId], references: [id])
+  description String
+  quantity    Float
+  unit        String
+  unitPrice   Float
+  amount      Float
+
+  @@index([requestId])
+}
+
+model PurchaseOrder {
+  id          String         @id @default(cuid())
+  code        String         @unique
+  prId        String?        // Linked PR
+  vendorId    String
+  orderId     String?
+  status      PurchaseStatus @default(DRAFT)
+  totalAmount Float          @default(0)
+  currency    Currency       @default(CNY)
+  notes       String?
+  createdBy   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([vendorId])
+  @@index([status])
+}
+
+model StockItem {
+  id          String          @id @default(cuid())
+  code        String          @unique
+  name        String
+  unit        String
+  category    String?
+  currentQty  Float           @default(0)
+  minLevel    Float           @default(0)
+  maxLevel    Float           @default(0)
+  location    String?
+  movements   StockMovement[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model StockMovement {
+  id          String            @id @default(cuid())
+  itemId      String
+  item        StockItem         @relation(fields: [itemId], references: [id])
+  type        StockMovementType
+  quantity    Float
+  reference   String?
+  notes       String?
+  createdBy   String
+  createdAt   DateTime          @default(now())
+
+  @@index([itemId])
+  @@index([type])
+}
+
+model CODRecord {
+  id          String    @id @default(cuid())
+  deliveryId  String
+  amount      Float
+  collectedAmount Float @default(0)
+  status      CODStatus @default(PENDING)
+  paymentMethod String?
+  driverId    String
+  collectedAt DateTime?
+  remittedAt  DateTime?
+  shortage    Float     @default(0)
+  notes       String?
+  photoUrl    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([deliveryId])
+  @@index([driverId])
+  @@index([status])
+}
+
+model ClosedPeriod {
+  id        String   @id @default(cuid())
+  year      Int
+  month     Int
+  closedBy  String   @map("closed_by")
+  closedAt  DateTime @default(now()) @map("closed_at")
+
+  @@unique([year, month])
+  @@map("closed_periods")
+}
+
+model DebtNettingItem {
+  id          String @id @default(cuid())
+  nettingId   String @map("netting_id")
+  type        String // AR | AP
+  referenceId String @map("reference_id")
+  amount      Float
+
+  @@index([nettingId])
+  @@map("debt_netting_items")
+}
+
+// ============================================
+// PAYMENT ALLOCATION — Phân bổ thanh toán
+// ============================================
+
+model PaymentAllocation {
+  id              String              @id @default(cuid())
+  code            String              @unique        // PA-000001
+
+  // Nguồn: Tiền đến từ đâu
+  sourceType      PaymentSourceType   @map("source_type")
+  sourceId        String              @map("source_id") // voucherId hoặc walletTransactionId
+  sourceReference String?             @map("source_reference")
+  voucherId       String?             @map("voucher_id")
+
+  // Đích: Hợp đồng hoặc Đơn hàng
+  targetType      PaymentTargetType   @map("target_type")
+  contractId      String?             @map("contract_id")
+  orderId         String?             @map("order_id")
+
+  totalAmount     Decimal             @map("total_amount") @db.Decimal(15, 2)
+  allocatedAmount Decimal             @default(0) @map("allocated_amount") @db.Decimal(15, 2)
+  currency        Currency            @default(VND)
+
+  purposeType     PaymentPurpose      @map("purpose_type") // DEPOSIT, SETTLEMENT, REFUND
+  note            String?
+
+  allocatedBy     String              @map("allocated_by")
+  allocatedAt     DateTime            @default(now()) @map("allocated_at")
+  isReversed      Boolean             @default(false) @map("is_reversed")
+  reversedAt      DateTime?           @map("reversed_at")
+  reversalReason  String?             @map("reversal_reason")
+
+  contract        Contract?           @relation(fields: [contractId], references: [id])
+  order           Order?              @relation(fields: [orderId], references: [id])
+  voucher         PaymentVoucher?     @relation(fields: [voucherId], references: [id])
+  details         PaymentAllocationDetail[]
+
+  @@index([contractId])
+  @@index([orderId])
+  @@index([voucherId])
+  @@index([sourceType, sourceId])
+  @@map("payment_allocations")
+}
+
+model PaymentAllocationDetail {
+  id              String              @id @default(cuid())
+  allocationId    String              @map("allocation_id")
+  arId            String?             @map("ar_id") // Liên kết đến AccountReceivable
+  description     String
+  amount          Decimal             @db.Decimal(15, 2)
+  createdAt       DateTime            @default(now()) @map("created_at")
+
+  allocation      PaymentAllocation   @relation(fields: [allocationId], references: [id], onDelete: Cascade)
+
+  @@index([allocationId])
+  @@index([arId])
+  @@map("payment_allocation_details")
+}
+
+enum PaymentSourceType {
+  PAYMENT_VOUCHER      // Từ PaymentVoucher (chuyển khoản, tiền mặt)
+  WALLET_TOPUP         // Từ WalletTransaction (khách nạp trước)
+  CREDIT_NOTE          // Từ phiếu ghi có/hoàn tiền
+}
+
+enum PaymentTargetType {
+  CONTRACT             // Phân bổ cho toàn bộ hợp đồng
+  ORDER                // Phân bổ cho đơn hàng cụ thể
+}
+
+enum PaymentPurpose {
+  DEPOSIT              // Tiền cọc ban đầu
+  SETTLEMENT           // Thanh toán cuối cùng (thanh lý)
+  INSTALLMENT          // Thanh toán trả góp
+  REFUND               // Hoàn tiền cho khách
+  ADJUSTMENT           // Điều chỉnh
+}
+
+// ============================================
+// AR AGING SNAPSHOTS — Historical aging tracking
+// ============================================
+
+model ARAgingSnapshot {
+  id              String   @id @default(cuid())
+  snapshotDate    DateTime @map("snapshot_date")
+  customerId      String?  @map("customer_id")
+
+  // Aging buckets (all amounts in VND)
+  current         Decimal  @default(0) @db.Decimal(15, 2)  // Not due yet
+  days1_30        Decimal  @default(0) @map("days_1_30") @db.Decimal(15, 2)
+  days31_60       Decimal  @default(0) @map("days_31_60") @db.Decimal(15, 2)
+  days61_90       Decimal  @default(0) @map("days_61_90") @db.Decimal(15, 2)
+  days90Plus      Decimal  @default(0) @map("days_90_plus") @db.Decimal(15, 2)
+
+  // Aggregates
+  totalOutstanding Decimal  @map("total_outstanding") @db.Decimal(15, 2)
+  totalOverdue    Decimal  @map("total_overdue") @db.Decimal(15, 2)
+  maxOverdueDays  Int      @default(0) @map("max_overdue_days")
+
+  // Counts
+  countCurrent    Int      @default(0) @map("count_current")
+  count1_30       Int      @default(0) @map("count_1_30")
+  count31_60      Int      @default(0) @map("count_31_60")
+  count61_90      Int      @default(0) @map("count_61_90")
+  count90Plus     Int      @default(0) @map("count_90_plus")
+
+  // Risk indicators
+  riskLevel       String   @default("LOW") @map("risk_level")
+  // LOW, MEDIUM, HIGH, CRITICAL
+
+  shouldBlock     Boolean  @default(false) @map("should_block")
+  blockReason     String?  @map("block_reason")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  customer        Customer? @relation(fields: [customerId], references: [id])
+
+  @@index([snapshotDate])
+  @@index([customerId, snapshotDate])
+  @@index([riskLevel])
+  @@map("ar_aging_snapshots")
+}

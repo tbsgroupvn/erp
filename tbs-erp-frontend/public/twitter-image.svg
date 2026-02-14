@@ -1,0 +1,37 @@
+<svg width="1200" height="600" viewBox="0 0 1200 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="600" fill="url(#gradient)"/>
+  <defs>
+    <linearGradient id="gradient" x1="0" y1="0" x2="1200" y2="600">
+      <stop offset="0%" style="stop-color:#2563EB;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E40AF;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Content -->
+  <rect x="80" y="80" width="1040" height="440" rx="20" fill="white" fill-opacity="0.1"/>
+
+  <!-- Logo -->
+  <rect x="120" y="120" width="100" height="100" rx="12" fill="white"/>
+  <text x="170" y="185" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#2563EB" text-anchor="middle">TBS</text>
+
+  <!-- Title -->
+  <text x="250" y="165" font-family="Arial, sans-serif" font-size="52" font-weight="bold" fill="white">TBS ERP System</text>
+  <text x="250" y="215" font-family="Arial, sans-serif" font-size="28" fill="white" fill-opacity="0.9">Vận chuyển Trung Quốc - Việt Nam</text>
+
+  <!-- Stats -->
+  <text x="200" y="320" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="white" text-anchor="middle">10+</text>
+  <text x="200" y="360" font-family="Arial, sans-serif" font-size="20" fill="white" fill-opacity="0.9" text-anchor="middle">Năm Kinh Nghiệm</text>
+
+  <text x="450" y="320" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="white" text-anchor="middle">3000+</text>
+  <text x="450" y="360" font-family="Arial, sans-serif" font-size="20" fill="white" fill-opacity="0.9" text-anchor="middle">Khách Hàng</text>
+
+  <text x="700" y="320" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="white" text-anchor="middle">99%</text>
+  <text x="700" y="360" font-family="Arial, sans-serif" font-size="20" fill="white" fill-opacity="0.9" text-anchor="middle">Hàng An Toàn</text>
+
+  <text x="950" y="320" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="white" text-anchor="middle">24/7</text>
+  <text x="950" y="360" font-family="Arial, sans-serif" font-size="20" fill="white" fill-opacity="0.9" text-anchor="middle">Hỗ Trợ</text>
+
+  <!-- Footer -->
+  <text x="600" y="480" font-family="Arial, sans-serif" font-size="28" fill="white" text-anchor="middle">nhaphangchinhngach.vn</text>
+</svg>

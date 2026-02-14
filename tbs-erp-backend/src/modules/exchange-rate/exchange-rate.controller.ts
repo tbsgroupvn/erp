@@ -1,0 +1,99 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
+import { Currency } from '@prisma/client';
+import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { BaseResponse } from '@common/dto/base-response.dto';
+import { ExchangeRateService } from './exchange-rate.service';
+import { SetRateDto } from './dto/set-rate.dto';
+import { ConvertDto } from './dto/convert.dto';
+
+@ApiTags('Exchange Rate')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Controller('exchange-rates')
+export class ExchangeRateController {
+  constructor(private readonly exchangeRateService: ExchangeRateService) {}
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Set exchange rate', description: 'Manually set an exchange rate for a currency pair and date.' })
+  @ApiResponse({ status: 201, description: 'Rate set successfully' })
+  async setRate(@Body() dto: SetRateDto) {
+    const rate = await this.exchangeRateService.setRate(dto);
+    return BaseResponse.ok(rate, 'Exchange rate set successfully');
+  }
+
+  @Get('current')
+  @ApiOperation({ summary: 'Get current rate', description: 'Returns the latest effective rate for a currency pair.' })
+  @ApiQuery({ name: 'from', enum: Currency, required: true })
+  @ApiQuery({ name: 'to', enum: Currency, required: true })
+  @ApiResponse({ status: 200, description: 'Current rate retrieved' })
+  @ApiResponse({ status: 404, description: 'Rate not found' })
+  async getCurrentRate(
+    @Query('from') from: Currency,
+    @Query('to') to: Currency,
+  ) {
+    const rate = await this.exchangeRateService.getCurrentRate(from, to);
+    return BaseResponse.ok(rate);
+  }
+
+  @Get('history')
+  @ApiOperation({ summary: 'Get historical rates', description: 'Returns rate history for a currency pair within a date range.' })
+  @ApiQuery({ name: 'from', enum: Currency, required: true })
+  @ApiQuery({ name: 'to', enum: Currency, required: true })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiResponse({ status: 200, description: 'Historical rates retrieved' })
+  async getHistoricalRates(
+    @Query('from') from: Currency,
+    @Query('to') to: Currency,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const rates = await this.exchangeRateService.getHistoricalRates(from, to, startDate, endDate);
+    return BaseResponse.ok(rates);
+  }
+
+  @Post('convert')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Convert amount', description: 'Converts an amount between currencies using the rate on a given date (or latest).' })
+  @ApiResponse({ status: 200, description: 'Conversion result' })
+  @ApiResponse({ status: 404, description: 'Rate not found for conversion' })
+  async convert(@Body() dto: ConvertDto) {
+    const result = await this.exchangeRateService.convert(dto);
+    return BaseResponse.ok(result);
+  }
+
+  @Post('sync/vietcombank')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sync from Vietcombank', description: 'Stub for fetching CNY/VND, USD/VND rates from Vietcombank API.' })
+  @ApiResponse({ status: 200, description: 'Sync result' })
+  async syncFromVietcombank() {
+    const result = await this.exchangeRateService.syncFromVietcombank();
+    return BaseResponse.ok(result);
+  }
+
+  @Get('active')
+  @ApiOperation({ summary: 'Get all active rates', description: 'Returns the latest rate for each currency pair.' })
+  @ApiResponse({ status: 200, description: 'Active rates retrieved' })
+  async getActiveRates() {
+    const rates = await this.exchangeRateService.getActiveRates();
+    return BaseResponse.ok(rates);
+  }
+}

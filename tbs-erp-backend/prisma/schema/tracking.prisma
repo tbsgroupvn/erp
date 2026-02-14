@@ -1,0 +1,27 @@
+// ============================================
+// TRACKING — Tracking Events for Packages & Containers
+// ============================================
+
+model TrackingEvent {
+  id              String           @id @default(cuid())
+  packageId       String?          @map("package_id")
+  package         Package?         @relation(fields: [packageId], references: [id])
+  containerId     String?          @map("container_id")
+  container       Container?       @relation(fields: [containerId], references: [id])
+  trackingNumber  String?          @map("tracking_number")
+  eventType       TrackingEventType @map("event_type")
+  location        String?
+  description     String?
+  carrier         String?
+  eventTimestamp  DateTime         @map("event_timestamp")
+  source          String?          // MANUAL, KUAIDI100, 17TRACK
+  rawData         Json?            @map("raw_data")
+  createdBy       String?          @map("created_by")
+  createdAt       DateTime         @default(now()) @map("created_at")
+
+  @@index([packageId])
+  @@index([containerId])
+  @@index([trackingNumber])
+  @@index([eventTimestamp])
+  @@map("tracking_events")
+}

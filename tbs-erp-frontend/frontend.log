@@ -1,0 +1,184 @@
+
+> tbs-erp-frontend@0.1.0 dev
+> next dev -p 3001
+
+  ▲ Next.js 14.2.21
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.4s
+ ○ Compiling / ...
+ ✓ Compiled / in 7.5s (1043 modules)
+ ⨯ Error: Event handlers cannot be passed to Client Component props.
+  <button onClick={function onClick} className=... children=...>
+                  ^^^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+digest: "3156596739"
+ GET / 200 in 7966ms
+ ○ Compiling /dich-vu ...
+ ✓ Compiled /dich-vu in 2.6s (1034 modules)
+ ⨯ Error: Event handlers cannot be passed to Client Component props.
+  <button onClick={function onClick} className=... children=...>
+                  ^^^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+digest: "3156596739"
+ GET /dich-vu 200 in 2732ms
+ ○ Compiling /lien-he ...
+ ✓ Compiled /lien-he in 1251ms (1223 modules)
+ ⨯ Error: Event handlers cannot be passed to Client Component props.
+  <button onClick={function onClick} className=... children=...>
+                  ^^^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+digest: "3156596739"
+ GET /lien-he 200 in 1400ms
+ ✓ Compiled in 245ms (541 modules)
+ ✓ Compiled in 138ms (541 modules)
+ ✓ Compiled in 120ms (541 modules)
+ ✓ Compiled in 139ms (541 modules)
+ ✓ Compiled in 143ms (541 modules)
+ ✓ Compiled in 489ms (541 modules)
+ ✓ Compiled in 170ms (541 modules)
+ ✓ Compiled in 159ms (541 modules)
+ ✓ Compiled in 168ms (541 modules)
+ ✓ Compiled in 158ms (541 modules)
+ ✓ Compiled in 172ms (541 modules)
+ ✓ Compiled in 145ms (541 modules)
+ ✓ Compiled in 174ms (541 modules)
+ ✓ Compiled in 155ms (541 modules)
+ ✓ Compiled in 132ms (541 modules)
+ ✓ Compiled in 169ms (541 modules)
+ ✓ Compiled in 257ms (541 modules)
+[Error: ENOENT: no such file or directory, stat 'D:\ERPv1\tbs-erp-frontend\.next\cache\webpack\client-development\4.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\ERPv1\\tbs-erp-frontend\\.next\\cache\\webpack\\client-development\\4.pack.gz'
+}
+ ⨯ unhandledRejection: [Error: ENOENT: no such file or directory, stat 'D:\ERPv1\tbs-erp-frontend\.next\cache\webpack\client-development\4.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\ERPv1\\tbs-erp-frontend\\.next\\cache\\webpack\\client-development\\4.pack.gz'
+}
+ ⨯ unhandledRejection: [Error: ENOENT: no such file or directory, stat 'D:\ERPv1\tbs-erp-frontend\.next\cache\webpack\client-development\4.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\ERPv1\\tbs-erp-frontend\\.next\\cache\\webpack\\client-development\\4.pack.gz'
+}
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, stat 'D:\ERPv1\tbs-erp-frontend\.next\cache\webpack\client-development\4.pack.gz'
+ ⚠ Found a change in next.config.mjs. Restarting the server to apply the changes...
+  ▲ Next.js 14.2.21
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.3s
+ ⚠ Found a change in next.config.mjs. Restarting the server to apply the changes...
+  ▲ Next.js 14.2.21
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1563ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3.6s (1048 modules)
+ GET / 200 in 3810ms
+ ✓ Compiled /dich-vu/van-chuyen-hang-hoa in 326ms (1042 modules)
+ GET /dich-vu/van-chuyen-hang-hoa 200 in 422ms
+ ○ Compiling /lien-he ...
+ ✓ Compiled /lien-he in 734ms (1229 modules)
+ GET /lien-he 200 in 856ms
+ GET / 200 in 65ms
+ ✓ Compiled /dich-vu in 272ms (1129 modules)
+ GET /dich-vu 200 in 408ms
+ ✓ Compiled /lien-he in 92ms (695 modules)
+ GET /lien-he 200 in 192ms
+ ○ Compiling /tin-tuc ...
+ ✓ Compiled /tin-tuc in 1421ms (2397 modules)
+ GET /tin-tuc 200 in 1513ms
+ GET / 200 in 121ms
+ ○ Compiling /gioi-thieu ...
+ ✓ Compiled /gioi-thieu in 875ms (1823 modules)
+ ✓ Compiled /tin-tuc in 221ms (1293 modules)
+ ○ Compiling /tra-cuu ...
+ ✓ Compiled /tra-cuu in 664ms (2418 modules)
+ ○ Compiling /tinh-phi ...
+ ✓ Compiled /tinh-phi in 722ms (2428 modules)
+ ✓ Compiled in 1770ms (1806 modules)
+ ✓ Compiled in 1137ms (1806 modules)
+ ✓ Compiled in 1268ms (1136 modules)
+ ✓ Compiled in 1172ms (1806 modules)
+ ✓ Compiled in 420ms (1136 modules)
+ ✓ Compiled in 262ms (1136 modules)
+ ✓ Compiled in 245ms (1136 modules)
+ ✓ Compiled in 274ms (1136 modules)
+ ✓ Compiled in 255ms (1136 modules)
+ ✓ Compiled in 263ms (1136 modules)
+ ✓ Compiled in 755ms (1806 modules)
+ ✓ Compiled in 530ms (1806 modules)
+ ✓ Compiled in 405ms (1806 modules)
+ ✓ Compiled in 1380ms (1806 modules)
+ ✓ Compiled in 966ms (1806 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 226ms
+ ✓ Compiled in 280ms (1136 modules)
+ GET / 200 in 51ms
+ ○ Compiling /gioi-thieu ...
+ ✓ Compiled /gioi-thieu in 544ms (692 modules)
+ ○ Compiling /tin-tuc ...
+ ✓ Compiled /tin-tuc in 655ms (1280 modules)
+ ✓ Compiled in 395ms (1136 modules)
+ ✓ Compiled in 236ms (1136 modules)
+ ✓ Compiled in 258ms (1136 modules)
+ ✓ Compiled in 227ms (1136 modules)
+ ✓ Compiled in 199ms (1136 modules)
+ ✓ Compiled in 212ms (1136 modules)
+ ✓ Compiled in 219ms (1136 modules)
+ ✓ Compiled in 202ms (1136 modules)
+ ✓ Compiled in 237ms (1136 modules)
+ ✓ Compiled in 203ms (1136 modules)
+ ✓ Compiled in 202ms (1136 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 824ms (2403 modules)
+ GET /tin-tuc 200 in 197ms
+ ✓ Compiled in 863ms (2403 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.6s (2628 modules)
+ GET /tin-tuc 200 in 179ms
+ ✓ Compiled in 702ms (2642 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1137ms (2640 modules)
+ GET /tin-tuc 200 in 66ms
+ ✓ Compiled in 959ms (2626 modules)
+ GET /tin-tuc 200 in 70ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1407ms (2628 modules)
+ GET /tin-tuc 200 in 176ms
+ ✓ Compiled in 421ms (1320 modules)
+ ✓ Compiled in 255ms (1320 modules)
+ GET /tin-tuc 200 in 44ms
+ GET / 200 in 66ms
+ GET /dashboard 404 in 31ms
+ ✓ Compiled in 589ms (2626 modules)
+ ○ Compiling /cms/pages ...
+ ✓ Compiled /cms/pages in 2.6s (2839 modules)
+ GET /cms/pages 200 in 2859ms
+ ○ Compiling /don-hang ...
+ ✓ Compiled /don-hang in 865ms (2873 modules)
+ GET /don-hang 200 in 199ms
+ GET / 200 in 92ms
+ ✓ Compiled /_not-found in 405ms (1436 modules)
+ GET /cms 404 in 556ms
+ GET /cms/pages 200 in 116ms
+[?25h

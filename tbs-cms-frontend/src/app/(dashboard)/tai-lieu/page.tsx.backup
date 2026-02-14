@@ -1,0 +1,104 @@
+'use client';
+
+import { useState } from 'react';
+import { Upload, Search } from 'lucide-react';
+import { PageHeader } from '@/components/shared/page-header';
+import { DataTable } from '@/components/shared/data-table';
+import { documentColumns } from '@/features/documents/document-table-columns';
+import { useDocuments } from '@/lib/hooks/use-documents';
+import { DocumentCategory } from '@/lib/types/enums';
+import { DOCUMENT_CATEGORY_LABELS } from '@/lib/utils/constants';
+import type { DocumentQueryParams } from '@/lib/types/document.types';
+
+export default function TaiLieuPage() {
+  const [filters, setFilters] = useState<DocumentQueryParams>({});
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useDocuments({ ...filters, page, limit: 20 });
+
+  const [entityType, setEntityType] = useState('');
+  const [category, setCategory] = useState('');
+  const [search, setSearch] = useState('');
+
+  const applyFilters = (overrides: Partial<{ entityType: string; category: string; search: string }> = {}) => {
+    const newFilters: DocumentQueryParams = {
+      entityType: (overrides.entityType !== undefined ? overrides.entityType : entityType) || undefined,
+      category: ((overrides.category !== undefined ? overrides.category : category) || undefined) as DocumentCategory | undefined,
+      search: (overrides.search !== undefined ? overrides.search : search) || undefined,
+    };
+    setFilters(newFilters);
+    setPage(1);
+  };
+
+  return (
+    <div>
+      <PageHeader title="Tài liệu" description="Quản lý tài liệu và tệp đính kèm">
+        <button
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          <Upload className="h-4 w-4" />
+          Tải lên
+        </button>
+      </PageHeader>
+
+      <div className="space-y-4">
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Tìm theo tên tài liệu..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                applyFilters({ search: e.target.value });
+              }}
+              className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <select
+            value={entityType}
+            onChange={(e) => {
+              setEntityType(e.target.value);
+              applyFilters({ entityType: e.target.value });
+            }}
+            className="h-9 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">Loại đối tượng</option>
+            <option value="ORDER">Đơn hàng</option>
+            <option value="CUSTOMER">Khách hàng</option>
+            <option value="VENDOR">Nhà cung cấp</option>
+            <option value="CONTAINER">Container</option>
+            <option value="PACKAGE">Kiện hàng</option>
+          </select>
+
+          <select
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              applyFilters({ category: e.target.value });
+            }}
+            className="h-9 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">Danh mục</option>
+            {Object.entries(DOCUMENT_CATEGORY_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <DataTable
+          columns={documentColumns}
+          data={data?.data ?? []}
+          pageCount={data?.meta?.totalPages}
+          page={page}
+          onPageChange={setPage}
+          isLoading={isLoading}
+        />
+      </div>
+    </div>
+  );
+}

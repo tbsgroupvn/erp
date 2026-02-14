@@ -1,0 +1,52 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { CurrentUser } from '@common/decorators/current-user.decorator';
+import { ICurrentUser } from '@common/interfaces/current-user.interface';
+import { BaseResponse } from '@common/dto/base-response.dto';
+import { DelegationService } from './delegation.service';
+import { CreateDelegationDto } from './dto/create-delegation.dto';
+
+@ApiTags('System - Approval Delegations')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('approval-delegations')
+export class DelegationController {
+  constructor(private readonly delegationService: DelegationService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get my delegations' })
+  async findAll(@CurrentUser('id') userId: string) {
+    const data = await this.delegationService.findByUser(userId);
+    return BaseResponse.ok(data);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Create a delegation' })
+  async create(
+    @Body() dto: CreateDelegationDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const data = await this.delegationService.create(dto, user.id);
+    return BaseResponse.ok(data, 'Delegation created');
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Deactivate a delegation' })
+  @ApiParam({ name: 'id' })
+  async deactivate(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    const data = await this.delegationService.deactivate(id, userId);
+    return BaseResponse.ok(data, 'Delegation deactivated');
+  }
+}

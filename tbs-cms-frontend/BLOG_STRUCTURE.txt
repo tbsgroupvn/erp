@@ -1,0 +1,186 @@
+BLOG SYSTEM FILE STRUCTURE
+==========================
+
+tbs-erp-frontend/
+│
+├── src/
+│   ├── app/
+│   │   │
+│   │   ├── (public)/                         [Public Route Group]
+│   │   │   ├── layout.tsx                    (Existing - Navbar + Footer)
+│   │   │   └── tin-tuc/                      ✓ CREATED
+│   │   │       ├── page.tsx                  ✓ Blog Listing Page
+│   │   │       │   • Paginated grid layout
+│   │   │       │   • Search functionality
+│   │   │       │   • Tag filtering
+│   │   │       │   • Professional design
+│   │   │       │
+│   │   │       └── [slug]/                   ✓ Dynamic Route
+│   │   │           └── page.tsx              ✓ Blog Detail Page
+│   │   │               • Full content display
+│   │   │               • Social sharing
+│   │   │               • View counter
+│   │   │               • Author info
+│   │   │
+│   │   └── (blog-admin)/                     [Admin Route Group]
+│   │       ├── layout.tsx                    ✓ CREATED
+│   │       │   • Auth check
+│   │       │   • Simple header
+│   │       │   • Navigation
+│   │       │
+│   │       └── bai-viet/                     ✓ CREATED
+│   │           ├── page.tsx                  ✓ Blog Admin List
+│   │           │   • Table with all posts
+│   │           │   • Search & filters
+│   │           │   • Actions (edit, delete, view)
+│   │           │   • Status badges
+│   │           │
+│   │           ├── tao-moi/                  ✓ CREATED
+│   │           │   └── page.tsx              ✓ Create Post Page
+│   │           │       • Blog form integration
+│   │           │       • Create mutation
+│   │           │
+│   │           └── [id]/                     ✓ Dynamic Route
+│   │               └── chinh-sua/            ✓ CREATED
+│   │                   └── page.tsx          ✓ Edit Post Page
+│   │                       • Pre-filled form
+│   │                       • Update mutation
+│   │
+│   ├── components/
+│   │   └── blog/                             ✓ CREATED
+│   │       ├── blog-post-form.tsx            ✓ CREATED
+│   │       │   • Reusable form component
+│   │       │   • React Hook Form + Zod
+│   │       │   • Auto-slug generation
+│   │       │   • Tag management
+│   │       │   • Image preview
+│   │       │   • Rich text integration
+│   │       │
+│   │       └── rich-text-editor.tsx          ✓ CREATED
+│   │           • Quill WYSIWYG editor
+│   │           • Full toolbar
+│   │           • SSR-safe loading
+│   │           • Custom styling
+│   │
+│   ├── lib/
+│   │   ├── api/
+│   │   │   ├── blog.ts                       ✓ CREATED
+│   │   │   │   • Blog API client
+│   │   │   │   • All CRUD operations
+│   │   │   │   • TypeScript types
+│   │   │   │
+│   │   │   └── index.ts                      ✓ MODIFIED
+│   │   │       • Added blogApi export
+│   │   │
+│   │   └── hooks/
+│   │       └── use-blog-posts.ts             ✓ CREATED
+│   │           • React Query hooks
+│   │           • useBlogPosts (list)
+│   │           • useBlogPost (by ID)
+│   │           • useBlogPostBySlug
+│   │           • useCreateBlogPost
+│   │           • useUpdateBlogPost
+│   │           • useDeleteBlogPost
+│   │           • useIncrementBlogView
+│   │
+│   └── types/
+│       └── react-quill.d.ts                  ✓ CREATED
+│           • TypeScript declarations
+│           • Quill editor types
+│
+├── middleware.ts                             (Existing - Configured)
+│   • /tin-tuc in publicPaths
+│   • /bai-viet requires auth
+│
+├── BLOG_SYSTEM.md                            ✓ CREATED
+│   • Complete documentation
+│   • API specifications
+│   • Usage guide
+│
+└── BLOG_FILES_CREATED.md                     ✓ CREATED
+    • File summary
+    • Installation guide
+
+ROUTE MAP
+=========
+
+Public (No Authentication):
+  GET  /tin-tuc                    → Blog listing with search & filters
+  GET  /tin-tuc/[slug]             → Blog post detail page
+
+Admin (Authentication Required):
+  GET  /bai-viet                   → Admin blog list
+  GET  /bai-viet/tao-moi           → Create new post
+  GET  /bai-viet/[id]/chinh-sua    → Edit existing post
+
+API ENDPOINTS (Backend Required)
+================================
+
+Public:
+  GET    /api/blog-posts                    List posts (pagination, search, filters)
+  GET    /api/blog-posts/slug/:slug         Get post by slug
+  GET    /api/blog-posts/tags               Get all tags
+  POST   /api/blog-posts/slug/:slug/view    Increment view count
+
+Protected:
+  GET    /api/blog-posts/:id                Get post by ID
+  POST   /api/blog-posts                    Create post
+  PATCH  /api/blog-posts/:id                Update post
+  DELETE /api/blog-posts/:id                Delete post
+
+DEPENDENCIES
+===========
+
+New:
+  ✓ react-quill    (Rich text editor)
+  ✓ quill          (Editor core)
+
+Existing (Used):
+  ✓ @tanstack/react-query      (Data fetching)
+  ✓ react-hook-form             (Forms)
+  ✓ zod                         (Validation)
+  ✓ @hookform/resolvers         (Zod integration)
+  ✓ date-fns                    (Date formatting)
+  ✓ lucide-react                (Icons)
+  ✓ sonner                      (Toasts)
+  ✓ shadcn/ui                   (UI components)
+
+FEATURES
+========
+
+Public Blog:
+  ✓ Blog listing with pagination
+  ✓ Search functionality
+  ✓ Tag filtering
+  ✓ Blog detail page
+  ✓ Social sharing (Facebook, Twitter, LinkedIn, Copy)
+  ✓ View count tracking
+  ✓ Responsive design
+  ✓ SEO optimized
+
+Admin CMS:
+  ✓ Blog list table
+  ✓ Create new posts
+  ✓ Edit existing posts
+  ✓ Delete with confirmation
+  ✓ Rich text WYSIWYG editor
+  ✓ Auto-slug generation
+  ✓ Tag management
+  ✓ Cover image (URL-based)
+  ✓ Status control (draft/published/archived)
+  ✓ Publish date scheduling
+  ✓ Preview functionality
+  ✓ Authentication required
+
+STATUS: ✓ COMPLETE
+===================
+
+Total Files Created: 12
+- API & Hooks: 2
+- Public Pages: 2
+- Admin Pages: 4
+- Components: 2
+- Types: 1
+- Documentation: 2
+
+Ready for backend integration!
