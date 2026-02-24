@@ -8,6 +8,7 @@ import { PURCHASE_STATUS_LABELS, PURCHASE_STATUS_COLORS } from '@/lib/utils/cons
 import { formatCurrency, formatDate } from '@/lib/utils/format';
 import type { Currency } from '@/lib/types';
 import { MoreHorizontal, Eye, CheckCircle, ArrowRightCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import Link from 'next/link';
 
 export const purchaseRequestColumns: ColumnDef<PurchaseRequest>[] = [
@@ -84,10 +85,16 @@ export const purchaseRequestColumns: ColumnDef<PurchaseRequest>[] = [
           >
             <Eye className="h-4 w-4" /> Xem chi tiết
           </Link>
-          <button className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent">
+          <button
+            onClick={() => toast.info('Tính năng đang phát triển')}
+            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+          >
             <CheckCircle className="h-4 w-4" /> Duyệt
           </button>
-          <button className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent">
+          <button
+            onClick={() => toast.info('Tính năng đang phát triển')}
+            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+          >
             <ArrowRightCircle className="h-4 w-4" /> Chuyển PO
           </button>
         </div>

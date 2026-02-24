@@ -21,7 +21,7 @@ interface Menu {
 
 async function getPublicMenu(location: string): Promise<Menu | null> {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
     const res = await fetch(`${apiUrl}/public/cms/menus/${location}`);
     if (!res.ok) return null;
     const data = await res.json();

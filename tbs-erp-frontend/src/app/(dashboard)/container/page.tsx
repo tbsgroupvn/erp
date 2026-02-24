@@ -15,9 +15,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useContainers,
   useCreateContainer,
-  useAddPackagesToContainer,
   useUpdateContainerStatus,
-} from '@/lib/hooks/use-warehouse';
+} from '@/lib/hooks/use-containers';
+import { useAddPackagesToContainer } from '@/lib/hooks/use-warehouse';
 import { formatDate } from '@/lib/utils/format';
 import { SHIPPING_ROUTE_LABELS } from '@/lib/utils/constants';
 import { ShippingRoute } from '@/lib/types';
@@ -32,6 +32,7 @@ const CONTAINER_STATUS_LABELS: Record<string, string> = {
   PLANNING: 'Kế hoạch',
   LOADING: 'Đang xếp',
   IN_TRANSIT: 'Vận chuyển',
+  ON_HOLD_BORDER: 'Giữ biên giới',
   ARRIVED: 'Đã đến',
   CUSTOMS: 'Thông quan',
   COMPLETED: 'Hoàn thành',
@@ -41,6 +42,7 @@ const CONTAINER_STATUS_COLORS: Record<string, string> = {
   PLANNING: 'bg-slate-100 text-slate-700',
   LOADING: 'bg-blue-100 text-blue-700',
   IN_TRANSIT: 'bg-indigo-100 text-indigo-700',
+  ON_HOLD_BORDER: 'bg-red-100 text-red-700',
   ARRIVED: 'bg-emerald-100 text-emerald-700',
   CUSTOMS: 'bg-amber-100 text-amber-700',
   COMPLETED: 'bg-green-100 text-green-700',
@@ -59,10 +61,24 @@ const STATUS_FLOW: Container['status'][] = [
   'COMPLETED',
 ];
 
+/** Map of valid next statuses from each status (supports branching for ON_HOLD_BORDER) */
+const STATUS_TRANSITIONS: Partial<Record<Container['status'], Container['status'][]>> = {
+  PLANNING: ['LOADING'],
+  LOADING: ['IN_TRANSIT'],
+  IN_TRANSIT: ['ARRIVED', 'ON_HOLD_BORDER'],
+  ON_HOLD_BORDER: ['ARRIVED'],
+  ARRIVED: ['CUSTOMS'],
+  CUSTOMS: ['COMPLETED'],
+};
+
 function getNextStatus(current: Container['status']): Container['status'] | null {
   const idx = STATUS_FLOW.indexOf(current);
   if (idx === -1 || idx >= STATUS_FLOW.length - 1) return null;
   return STATUS_FLOW[idx + 1];
+}
+
+function getAvailableTransitions(current: Container['status']): Container['status'][] {
+  return STATUS_TRANSITIONS[current] ?? [];
 }
 
 // ---------------------------------------------------------------------------
@@ -100,7 +116,7 @@ function ContainerRowActions({ container }: { container: Container }) {
   const updateStatus = useUpdateContainerStatus();
   const addPackages = useAddPackagesToContainer();
 
-  const nextStatus = getNextStatus(container.status);
+  const availableTransitions = getAvailableTransitions(container.status);
   const canAddPackages = container.status === 'PLANNING' || container.status === 'LOADING';
 
   const addPackagesForm = useForm<AddPackagesFormData>({
@@ -126,25 +142,25 @@ function ContainerRowActions({ container }: { container: Container }) {
     );
   };
 
-  const onUpdateStatus = () => {
-    if (!nextStatus) return;
+  const onUpdateStatus = (nextStatus: Container['status']) => {
     updateStatus.mutate({ id: container.id, status: nextStatus });
   };
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        {nextStatus && (
+        {availableTransitions.map((nextStatus) => (
           <Button
-            variant="outline"
+            key={nextStatus}
+            variant={nextStatus === 'ON_HOLD_BORDER' ? 'destructive' : 'outline'}
             size="sm"
-            onClick={onUpdateStatus}
+            onClick={() => onUpdateStatus(nextStatus)}
             disabled={updateStatus.isPending}
           >
             <ArrowRight className="mr-1 h-3 w-3" />
             {CONTAINER_STATUS_LABELS[nextStatus]}
           </Button>
-        )}
+        ))}
         {canAddPackages && (
           <Button
             variant="outline"
@@ -501,7 +517,7 @@ export default function ContainerPage() {
             className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <option value="">Tất cả</option>
-            {STATUS_FLOW.map((status) => (
+            {[...STATUS_FLOW.slice(0, 3), 'ON_HOLD_BORDER' as Container['status'], ...STATUS_FLOW.slice(3)].map((status) => (
               <option key={status} value={status}>
                 {CONTAINER_STATUS_LABELS[status]}
               </option>

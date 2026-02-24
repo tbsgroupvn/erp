@@ -81,9 +81,19 @@ export const voucherColumns: ColumnDef<PaymentVoucher>[] = [
     id: 'actions',
     header: '',
     cell: ({ row }) => (
-      <button className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent">
-        <MoreHorizontal className="h-4 w-4" />
-      </button>
+      <div className="relative group">
+        <button className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent">
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+        <div className="absolute right-0 top-full z-10 hidden w-48 rounded-md border bg-popover p-1 shadow-md group-hover:block">
+          <Link
+            href={`/tai-chinh/phieu/${row.original.id}`}
+            className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+          >
+            <Eye className="h-4 w-4" /> Xem chi tiết
+          </Link>
+        </div>
+      </div>
     ),
   },
 ];

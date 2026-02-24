@@ -4,17 +4,20 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PackageCheck, Truck, X, CheckCircle, DollarSign } from 'lucide-react';
+import { toast } from 'sonner';
+import { PackageCheck, Truck, X, CheckCircle, DollarSign, AlertTriangle, RotateCcw } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useDeliveryPlan, useDispatchDelivery, useConfirmDelivery } from '@/lib/hooks/use-warehouse';
+import { useDeliveryPlan, useDispatchDelivery, useConfirmDelivery } from '@/lib/hooks/use-warehouse-vn';
 import { useDrivers, useDriverDeliveries } from '@/lib/hooks/use-drivers';
 import { useRecordCODCollection } from '@/lib/hooks/use-cod';
 import { useAuthStore } from '@/lib/stores/auth-store';
+import { apiClient } from '@/lib/api/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDate, formatCurrency } from '@/lib/utils/format';
 import { BRANCH_LABELS } from '@/lib/utils/constants';
 import { Branch, UserRole } from '@/lib/types';
@@ -27,6 +30,8 @@ const DELIVERY_STATUS_LABELS: Record<string, string> = {
   DELIVERING: 'Đang giao',
   DELIVERED: 'Đã giao',
   FAILED: 'Thất bại',
+  RETURN_TO_ORIGIN: 'Trả về kho',
+  RTO_RECEIVED: 'Đã nhận trả',
 };
 
 const DELIVERY_STATUS_COLORS: Record<string, string> = {
@@ -36,7 +41,19 @@ const DELIVERY_STATUS_COLORS: Record<string, string> = {
   DELIVERING: 'bg-amber-100 text-amber-700',
   DELIVERED: 'bg-green-100 text-green-700',
   FAILED: 'bg-red-100 text-red-700',
+  RETURN_TO_ORIGIN: 'bg-orange-100 text-orange-700',
+  RTO_RECEIVED: 'bg-blue-100 text-blue-700',
 };
+
+const DELIVERY_FAIL_REASONS = [
+  { value: 'CUSTOMER_ABSENT', label: 'Khách vắng nhà' },
+  { value: 'WRONG_ADDRESS', label: 'Sai địa chỉ' },
+  { value: 'CUSTOMER_REFUSED', label: 'Khách từ chối nhận' },
+  { value: 'DAMAGED_IN_TRANSIT', label: 'Hư hỏng khi vận chuyển' },
+  { value: 'INCORRECT_COD', label: 'Sai số tiền COD' },
+  { value: 'WEATHER', label: 'Thời tiết xấu' },
+  { value: 'OTHER', label: 'Lý do khác' },
+];
 
 const dispatchSchema = z.object({
   orderId: z.string().min(1, 'Bắt buộc'),
@@ -75,6 +92,9 @@ export default function GiaoHangPage() {
   const [selectedPackages, setSelectedPackages] = useState<Set<string>>(new Set());
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [codCollectId, setCodCollectId] = useState<string | null>(null);
+  const [failingDeliveryId, setFailingDeliveryId] = useState<string | null>(null);
+  const [failReason, setFailReason] = useState('');
+  const queryClient = useQueryClient();
 
   const { data: plan, isLoading } = useDeliveryPlan(selectedBranch);
   const { data: driversData } = useDrivers({ branch: selectedBranch, status: 'ACTIVE' as any });
@@ -159,6 +179,29 @@ export default function GiaoHangPage() {
     });
   };
 
+  const failDeliveryMutation = useMutation({
+    mutationFn: ({ deliveryId, reason }: { deliveryId: string; reason: string }) =>
+      apiClient.patch(`/warehouse-vn/deliveries/${encodeURIComponent(deliveryId)}/fail`, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['driver-deliveries'] });
+      queryClient.invalidateQueries({ queryKey: ['vn-packages'] });
+      toast.success('Da bao giao that bai');
+      setFailingDeliveryId(null);
+      setFailReason('');
+    },
+    onError: () => {
+      toast.error('Khong the bao giao that bai');
+    },
+  });
+
+  const handleFailDelivery = () => {
+    if (!failingDeliveryId || !failReason) {
+      toast.error('Vui long chon ly do that bai');
+      return;
+    }
+    failDeliveryMutation.mutate({ deliveryId: failingDeliveryId, reason: failReason });
+  };
+
   const packages = plan?.packages ?? [];
   const readyPackages = packages.filter((p: Package) => p.warehouseVNStatus === 'READY');
 
@@ -218,9 +261,82 @@ export default function GiaoHangPage() {
                       {delivery.scheduledAt && <span>Hẹn: {formatDate(delivery.scheduledAt)}</span>}
                     </div>
 
+                    {/* RTO / Failed status indicators */}
+                    {delivery.status === 'RETURN_TO_ORIGIN' && (
+                      <div className="flex items-center gap-2 rounded-md bg-orange-50 p-2 text-sm">
+                        <RotateCcw className="h-4 w-4 text-orange-600" />
+                        <span className="font-medium text-orange-700">Dang tra ve kho</span>
+                      </div>
+                    )}
+                    {delivery.status === 'RTO_RECEIVED' && (
+                      <div className="flex items-center gap-2 rounded-md bg-blue-50 p-2 text-sm">
+                        <RotateCcw className="h-4 w-4 text-blue-600" />
+                        <span className="font-medium text-blue-700">Kho da nhan lai hang</span>
+                      </div>
+                    )}
+
                     {/* Action buttons for driver */}
-                    {delivery.status !== 'DELIVERED' && delivery.status !== 'FAILED' && (
-                      <div className="flex gap-2">
+                    {delivery.status !== 'DELIVERED' && delivery.status !== 'FAILED' && delivery.status !== 'RETURN_TO_ORIGIN' && delivery.status !== 'RTO_RECEIVED' && (
+                      <div className="flex flex-wrap gap-2">
+                        {/* Report failed delivery */}
+                        {failingDeliveryId === delivery.id ? (
+                          <div className="flex-1 min-w-[200px] space-y-2 rounded-md border p-3 bg-red-50">
+                            <p className="text-sm font-medium text-red-700 flex items-center gap-1">
+                              <AlertTriangle className="h-4 w-4" />
+                              Bao giao that bai
+                            </p>
+                            <div>
+                              <Label className="text-xs">Ly do *</Label>
+                              <select
+                                value={failReason}
+                                onChange={(e) => setFailReason(e.target.value)}
+                                className="flex h-8 w-full rounded-md border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                              >
+                                <option value="">-- Chon ly do --</option>
+                                {DELIVERY_FAIL_REASONS.map((r) => (
+                                  <option key={r.value} value={r.value}>
+                                    {r.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={handleFailDelivery}
+                                disabled={failDeliveryMutation.isPending || !failReason}
+                              >
+                                {failDeliveryMutation.isPending ? '...' : 'Xac nhan'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setFailingDeliveryId(null);
+                                  setFailReason('');
+                                }}
+                              >
+                                Huy
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 border-red-300 hover:bg-red-50"
+                            onClick={() => {
+                              setFailingDeliveryId(delivery.id);
+                              setConfirmingId(null);
+                              setCodCollectId(null);
+                            }}
+                          >
+                            <AlertTriangle className="mr-1 h-3.5 w-3.5" />
+                            Giao that bai
+                          </Button>
+                        )}
+
                         {/* Confirm delivery */}
                         {confirmingId === delivery.id ? (
                           <form

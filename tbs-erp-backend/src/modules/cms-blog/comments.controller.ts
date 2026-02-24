@@ -8,9 +8,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CmsBlogService } from './cms-blog.service';
-import { JwtAuthGuard } from '@/core/auth/guards/jwt-auth.guard';
-import { RolesGuard } from '@/core/rbac/guards/roles.guard';
-import { Roles } from '@/core/rbac/decorators/roles.decorator';
+import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { BlogCommentFiltersDto } from './dto';
 
 @Controller('cms/blog/comments')

@@ -2,6 +2,17 @@
 // LOGISTICS — Fleet, Driver, Delivery, COD
 // ============================================
 
+enum DeliveryStatus {
+  PENDING
+  DISPATCHED
+  PICKED_UP
+  DELIVERING
+  DELIVERED
+  FAILED
+  RETURN_TO_ORIGIN
+  RTO_RECEIVED
+}
+
 model Vehicle {
   id                String        @id @default(cuid())
   plateNumber       String        @unique @map("plate_number")
@@ -38,11 +49,18 @@ model Driver {
   branch        Branch
   status        DriverStatus @default(AVAILABLE)
   deliveries    Delivery[]
+  codRecords    CODRecord[]
+
+  // COD enforcement
+  isCODBlocked    Boolean    @default(false) @map("is_cod_blocked")
+  codBlockedAt    DateTime?  @map("cod_blocked_at")
+
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
   @@index([status])
   @@index([branch])
+  @@map("drivers")
 }
 
 model Delivery {
@@ -59,20 +77,32 @@ model Delivery {
   deliveryAddress String   @map("delivery_address")
 
   // Trang thai
-  status          String   @default("PENDING") // PENDING, DISPATCHED, PICKED_UP, DELIVERING, DELIVERED, FAILED
+  status          DeliveryStatus @default(PENDING)
   scheduledAt     DateTime? @map("scheduled_at")
   pickedUpAt      DateTime? @map("picked_up_at")
   deliveredAt     DateTime? @map("delivered_at")
   podImageUrl     String?  @map("pod_image_url")   // Proof of Delivery
   signatureUrl    String?  @map("signature_url")
+  deliveryProofUrls String[] @default([]) @map("delivery_proof_urls") // Multiple POD photos
 
   // COD
-  codAmount       Decimal  @default(0) @map("cod_amount") @db.Decimal(15, 2)
+  codAmount       Decimal  @default(0) @map("cod_amount") @db.Decimal(18, 2)
   codCollected    Boolean  @default(false) @map("cod_collected")
   codCollectedAt  DateTime? @map("cod_collected_at")
   codReceiptUrl   String?  @map("cod_receipt_url")
 
   failReason      String?  @map("fail_reason")
+
+  // RTO fields
+  rtoReason       String?  @map("rto_reason")
+  rtoReceivedAt   DateTime? @map("rto_received_at")
+  rtoStorageFee   Decimal? @map("rto_storage_fee") @db.Decimal(18, 2)
+  rtoStorageDays  Int?     @map("rto_storage_days")
+
+  // Partial delivery
+  isPartialDelivery Boolean @default(false) @map("is_partial_delivery")
+  packageIds      String[] @default([]) @map("package_ids")
+
   note            String?
   dispatchedBy    String?  @map("dispatched_by")  // Truong kho
   createdAt       DateTime @default(now()) @map("created_at")
@@ -81,6 +111,7 @@ model Delivery {
   order           Order    @relation(fields: [orderId], references: [id])
   vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
   driver          Driver?  @relation(fields: [driverId], references: [id])
+  codRecords      CODRecord[]
 
   @@index([orderId])
   @@index([driverId])
@@ -96,12 +127,13 @@ model VehicleMaintenance {
   type        MaintenanceType
   scheduledDate DateTime
   completedDate DateTime?
-  cost        Float?
+  cost        Decimal?        @db.Decimal(18, 2)
   notes       String?
   nextDueDate DateTime?
   createdAt   DateTime        @default(now())
 
   @@index([vehicleId])
+  @@map("vehicle_maintenances")
 }
 
 model FuelRecord {
@@ -109,11 +141,12 @@ model FuelRecord {
   vehicleId String
   vehicle   Vehicle @relation(fields: [vehicleId], references: [id])
   date      DateTime
-  liters    Float
-  cost      Float
+  liters    Decimal @db.Decimal(15, 3)
+  cost      Decimal @db.Decimal(18, 2)
   odometer  Float?
   createdAt DateTime @default(now())
 
   @@index([vehicleId])
   @@index([date])
+  @@map("fuel_records")
 }

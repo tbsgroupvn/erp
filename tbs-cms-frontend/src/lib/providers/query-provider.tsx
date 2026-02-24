@@ -13,8 +13,12 @@ export function QueryProvider({ children }: { children: ReactNode }) {
             staleTime: 60_000, // 1 minute
             // Keep unused data in cache for 10 minutes
             gcTime: 10 * 60 * 1000, // 10 minutes
-            // Retry failed requests once
-            retry: 1,
+            // Don't retry on auth errors
+            retry: (failureCount, error: unknown) => {
+              const status = (error as { status?: number })?.status;
+              if (status === 401 || status === 403) return false;
+              return failureCount < 3;
+            },
             // Don't refetch on window focus to reduce unnecessary requests
             refetchOnWindowFocus: false,
             // Don't refetch on mount if data is still fresh
@@ -25,8 +29,13 @@ export function QueryProvider({ children }: { children: ReactNode }) {
             refetchOnReconnect: true,
           },
           mutations: {
-            // Retry mutations once on failure
-            retry: 1,
+            // Never retry mutations to avoid duplicate side effects
+            retry: false,
+            onError: (error: unknown) => {
+              // Generic error message, don't leak details
+              const message = (error as { message?: string })?.message || 'Unknown error';
+              console.error('Mutation error:', message);
+            },
           },
         },
       }),

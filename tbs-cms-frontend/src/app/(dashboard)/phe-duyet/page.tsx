@@ -33,11 +33,11 @@ export default function PheDuyetPage() {
   const activeTab = (searchParams.get('tab') as TabKey) || 'pending';
 
   const counts = useApprovalCounts();
-  const pendingQuery = usePendingApprovals();
-  const submittedQuery = useSubmittedApprovals();
-  const processedQuery = useProcessedApprovals();
-  const ccQuery = useCCApprovals();
-  const allQuery = useApprovals();
+  const pendingQuery = usePendingApprovals({ enabled: activeTab === 'pending' });
+  const submittedQuery = useSubmittedApprovals(undefined, { enabled: activeTab === 'submitted' });
+  const processedQuery = useProcessedApprovals(undefined, { enabled: activeTab === 'processed' });
+  const ccQuery = useCCApprovals(undefined, { enabled: activeTab === 'cc' });
+  const allQuery = useApprovals(undefined, { enabled: activeTab === 'all' });
 
   const approveApproval = useApproveApproval();
   const rejectApproval = useRejectApproval();

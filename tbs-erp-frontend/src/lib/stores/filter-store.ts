@@ -50,35 +50,35 @@ export const useFilterStore = create<FilterState>()(
       invoices: defaultInvoiceFilters,
       approvals: defaultApprovalFilters,
 
-      // Actions
+      // Actions — merge incoming filter values with existing state, ensuring page/limit are positive integers
       setOrderFilters: (filters) =>
         set((state) => ({
-          orders: { ...state.orders, ...filters },
+          orders: { ...state.orders, ...filters, page: Math.max(1, filters.page ?? state.orders.page ?? 1), limit: Math.max(1, Math.min(100, filters.limit ?? state.orders.limit ?? 20)) },
         })),
 
       setCustomerFilters: (filters) =>
         set((state) => ({
-          customers: { ...state.customers, ...filters },
+          customers: { ...state.customers, ...filters, page: Math.max(1, filters.page ?? state.customers.page ?? 1), limit: Math.max(1, Math.min(100, filters.limit ?? state.customers.limit ?? 20)) },
         })),
 
       setContainerFilters: (filters) =>
         set((state) => ({
-          containers: { ...state.containers, ...filters },
+          containers: { ...state.containers, ...filters, page: Math.max(1, filters.page ?? state.containers.page ?? 1), limit: Math.max(1, Math.min(100, filters.limit ?? state.containers.limit ?? 20)) },
         })),
 
       setVoucherFilters: (filters) =>
         set((state) => ({
-          vouchers: { ...state.vouchers, ...filters },
+          vouchers: { ...state.vouchers, ...filters, page: Math.max(1, filters.page ?? state.vouchers.page ?? 1), limit: Math.max(1, Math.min(100, filters.limit ?? state.vouchers.limit ?? 20)) },
         })),
 
       setInvoiceFilters: (filters) =>
         set((state) => ({
-          invoices: { ...state.invoices, ...filters },
+          invoices: { ...state.invoices, ...filters, page: Math.max(1, filters.page ?? state.invoices.page ?? 1), limit: Math.max(1, Math.min(100, filters.limit ?? state.invoices.limit ?? 20)) },
         })),
 
       setApprovalFilters: (filters) =>
         set((state) => ({
-          approvals: { ...state.approvals, ...filters },
+          approvals: { ...state.approvals, ...filters, page: Math.max(1, filters.page ?? state.approvals.page ?? 1), limit: Math.max(1, Math.min(100, filters.limit ?? state.approvals.limit ?? 20)) },
         })),
 
       resetOrderFilters: () => set({ orders: defaultOrderFilters }),
@@ -97,6 +97,14 @@ export const useFilterStore = create<FilterState>()(
     }),
     {
       name: 'tbs-filter-storage',
+      partialize: (state) => ({
+        orders: { ...state.orders, page: 1 },
+        customers: { ...state.customers, page: 1 },
+        containers: { ...state.containers, page: 1 },
+        vouchers: { ...state.vouchers, page: 1 },
+        invoices: { ...state.invoices, page: 1 },
+        approvals: { ...state.approvals, page: 1 },
+      }),
     },
   ),
 );

@@ -42,6 +42,12 @@ export {
   NotificationPriority,
   MasterOrderStatus,
   ClearanceType,
+  ContractType,
+  ContractStatus,
+  SupplierOrderStatus,
+  MHHIssueType,
+  MHHIssueStatus,
+  MHHIssueResolution,
 } from './enums';
 
 // Common
@@ -192,7 +198,20 @@ export type {
   CreateQuotationDto,
   CreateQuotationItemDto,
   QuotationQueryParams,
+  QuotationTemplate,
+  CreateTemplateDto,
+  SaveAsTemplateDto,
+  CreateFromTemplateDto,
+  RecentQuotationItem,
 } from './quotation.types';
+
+// Contract
+export type {
+  Contract,
+  CreateContractDto,
+  UpdateContractDto,
+  ContractQueryParams,
+} from './contract.types';
 
 // Document
 export type {
@@ -264,3 +283,38 @@ export type {
   UpdateOrderTemplateDto,
   OrderTemplateQueryParams,
 } from './order-template.types';
+
+// Supplier Order
+export type {
+  SupplierOrder,
+  CreateSupplierOrderDto,
+  UpdateSupplierOrderDto,
+  RecordReceivedDto,
+  SupplierOrderQueryParams,
+} from './supplier-order.types';
+
+// MHH Issue
+export type {
+  MHHIssue,
+  CreateMHHIssueDto,
+  ResolveMHHIssueDto,
+  MHHIssueQueryParams,
+  MHHPriceCalculateDto,
+  MHHPriceResult,
+} from './mhh-issue.types';
+
+// Customs Declaration
+export type {
+  CustomsDeclarationStatus,
+  CustomsChannel,
+  ComplianceStatus,
+  CustomsDeclaration,
+  CustomsDeclarationLine,
+  CustomsLineSourceItem,
+  HSCodeResult,
+  ComplianceAlert,
+  CustomsTaxAllocation,
+  CustomsStatusHistory,
+  GroupingSuggestion,
+  CustomsDeclarationQueryParams,
+} from './customs.types';

@@ -1,0 +1,226 @@
+# ============================================
+# TBS ERP - Prometheus Alert Rules
+# ============================================
+
+groups:
+  # ─── Service Availability Alerts ───
+  - name: service_availability
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute."
+
+      - alert: BackendHighRestartRate
+        expr: changes(process_start_time_seconds{job="tbs-erp-backend"}[30m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backend service restarting frequently"
+          description: "Backend has restarted {{ $value }} times in the last 30 minutes."
+
+  # ─── HTTP Error Rate Alerts ───
+  - name: http_errors
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP 5xx error rate"
+          description: "More than 5% of HTTP requests are returning 5xx errors over the last 5 minutes. Current rate: {{ $value | humanizePercentage }}."
+
+      - alert: High4xxErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"4.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.25
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP 4xx error rate"
+          description: "More than 25% of HTTP requests are returning 4xx errors. Current rate: {{ $value | humanizePercentage }}."
+
+  # ─── Latency Alerts ───
+  - name: latency
+    rules:
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High p95 HTTP latency"
+          description: "95th percentile HTTP latency is above 2 seconds. Current value: {{ $value }}s."
+
+      - alert: HighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p99 HTTP latency"
+          description: "99th percentile HTTP latency is above 5 seconds. Current value: {{ $value }}s."
+
+  # ─── Resource Usage Alerts ───
+  - name: resources
+    rules:
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            nodejs_process_resident_memory_bytes{job="tbs-erp-backend"}
+            /
+            (1024 * 1024 * 1024)
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Node.js memory usage"
+          description: "Backend memory usage exceeds 85% of 1GB limit. Current: {{ $value | humanize }}GB."
+
+      - alert: HighCPUUsage
+        expr: |
+          rate(process_cpu_seconds_total{job="tbs-erp-backend"}[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on backend"
+          description: "Backend CPU usage has been above 80% for 5 minutes."
+
+      - alert: HighDiskUsage
+        expr: |
+          (
+            (node_filesystem_size_bytes{mountpoint="/"} - node_filesystem_avail_bytes{mountpoint="/"})
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk usage above 90%"
+          description: "Disk usage on {{ $labels.instance }} is above 90%. Current usage: {{ $value | humanizePercentage }}."
+
+      - alert: HighEventLoopLag
+        expr: |
+          nodejs_eventloop_lag_seconds{job="tbs-erp-backend"} > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Node.js event loop lag"
+          description: "Event loop lag is above 500ms. Current: {{ $value }}s."
+
+  # ─── Database Alerts ───
+  - name: database
+    rules:
+      - alert: DatabaseConnectionFailure
+        expr: pg_up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is unreachable"
+          description: "The PostgreSQL exporter cannot connect to the database."
+
+      - alert: HighDatabaseQueryDuration
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(database_query_duration_seconds_bucket[5m])) by (le, model)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "95th percentile database query duration for model {{ $labels.model }} exceeds 1 second."
+
+      - alert: PostgresHighConnections
+        expr: |
+          pg_stat_activity_count{job="postgres"} > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of PostgreSQL connections"
+          description: "PostgreSQL has {{ $value }} active connections."
+
+  # ─── Redis Alerts ───
+  - name: redis
+    rules:
+      - alert: RedisDown
+        expr: redis_up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis instance is unreachable."
+
+      - alert: RedisHighMemoryUsage
+        expr: |
+          redis_memory_used_bytes{job="redis"} / redis_memory_max_bytes{job="redis"} > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage above 90%"
+          description: "Redis is using {{ $value | humanizePercentage }} of its max memory."
+
+  # ─── Business Metrics Alerts ───
+  - name: business
+    rules:
+      - alert: HighPendingApprovals
+        expr: approval_pending_count > 100
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of pending approvals"
+          description: "There are {{ $value }} pending approvals that may need attention."
+
+      - alert: LowOrderRate
+        expr: |
+          sum(rate(orders_created_total[1h])) == 0
+        for: 2h
+        labels:
+          severity: info
+        annotations:
+          summary: "No orders created in the last 2 hours"
+          description: "No new orders have been created during business hours."
+
+      - alert: HighLoginFailureRate
+        expr: |
+          (
+            sum(rate(auth_login_attempts_total{status="failure"}[15m]))
+            /
+            sum(rate(auth_login_attempts_total[15m]))
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High login failure rate"
+          description: "More than 50% of login attempts are failing. Possible brute-force attack."

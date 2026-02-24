@@ -1,0 +1,77 @@
+# ============================================
+# Chaos Mesh - CPU Stress Test
+# ============================================
+# Stresses CPU on one backend pod to verify:
+#   1. HPA scales up additional pods
+#   2. Request latency stays within SLO
+#   3. Kubernetes resource limits contain the blast radius
+#
+# SAFETY: Only targets staging namespace.
+# Schedule: Weekly Tuesday 3 AM UTC.
+# ============================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: backend-cpu-stress
+  namespace: tbs-erp-staging
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    chaos-mesh.org/experiment-type: stress
+    tbs.chaos/category: performance
+    tbs.chaos/severity: medium
+  annotations:
+    tbs.chaos/description: "Stress CPU on one backend pod to 80% load"
+    tbs.chaos/owner: "platform-team"
+    tbs.chaos/expected: "HPA scales up within 2 minutes, P99 latency < 5s"
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - tbs-erp-staging
+    labelSelectors:
+      app.kubernetes.io/name: tbs-backend
+      app.kubernetes.io/component: api
+  stressors:
+    cpu:
+      workers: 2
+      load: 80
+  duration: '5m'
+  scheduler:
+    cron: '0 3 * * 2'  # Weekly Tuesday 3 AM UTC
+---
+# ============================================
+# Chaos Mesh - Memory Stress Test
+# ============================================
+# Stresses memory on one backend pod to verify:
+#   1. OOM killer behavior is handled gracefully
+#   2. Other pods continue serving traffic
+#   3. Memory limits are correctly configured
+# ============================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: backend-memory-stress
+  namespace: tbs-erp-staging
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    chaos-mesh.org/experiment-type: stress
+    tbs.chaos/category: performance
+    tbs.chaos/severity: high
+  annotations:
+    tbs.chaos/description: "Stress memory on one backend pod"
+    tbs.chaos/expected: "Pod is OOM-killed and restarted, other pods handle traffic"
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - tbs-erp-staging
+    labelSelectors:
+      app.kubernetes.io/name: tbs-backend
+      app.kubernetes.io/component: api
+  stressors:
+    memory:
+      workers: 1
+      size: '768Mi'
+  duration: '3m'
+  scheduler:
+    cron: '0 3 * * 5'  # Weekly Friday 3 AM UTC

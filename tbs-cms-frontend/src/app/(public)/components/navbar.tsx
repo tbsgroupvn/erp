@@ -20,11 +20,11 @@ export default function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
-              <span className="text-xl font-bold">TBS</span>
+              <span className="text-xl font-bold">{process.env.NEXT_PUBLIC_COMPANY_SHORT_NAME || 'CMS'}</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold text-gray-900">TBS ERP</span>
-              <span className="text-xs text-gray-500">Logistics</span>
+              <span className="text-lg font-bold text-gray-900">{process.env.NEXT_PUBLIC_COMPANY_NAME || 'My ERP'}</span>
+              <span className="text-xs text-gray-500">{process.env.NEXT_PUBLIC_COMPANY_TAGLINE || 'System'}</span>
             </div>
           </Link>
 

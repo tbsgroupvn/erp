@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SupplierOrderStatus, Prisma } from '@prisma/client';
@@ -11,6 +12,7 @@ import {
   SupplierOrderWithRelations,
 } from './supplier-order.repository';
 import { SupplierOrderStatusMachine } from './domain/supplier-order-status.machine';
+import { DepositGateService } from '@modules/order/domain/deposit-gate.service';
 import { CreateSupplierOrderDto } from './dto/create-supplier-order.dto';
 import { UpdateSupplierOrderDto } from './dto/update-supplier-order.dto';
 import { SupplierOrderQueryDto } from './dto/supplier-order-query.dto';
@@ -23,13 +25,22 @@ export class SupplierOrderService {
   constructor(
     private readonly supplierOrderRepo: SupplierOrderRepository,
     private readonly statusMachine: SupplierOrderStatusMachine,
+    private readonly depositGateService: DepositGateService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   /**
    * Creates a new supplier order with auto-generated code.
    */
   async createSupplierOrder(dto: CreateSupplierOrderDto, userId: string) {
+    // Enforce 70% deposit gate
+    const gate = await this.depositGateService.canProcure(dto.orderId);
+    if (!gate.allowed) {
+      throw new ForbiddenException(
+        `Chưa đủ 70% cọc để mua hàng. Hiện tại: ${gate.depositPaidPercent.toFixed(1)}%`,
+      );
+    }
+
     const code = await this.supplierOrderRepo.generateCode();
 
     const data: Prisma.SupplierOrderCreateInput = {
@@ -57,7 +68,7 @@ export class SupplierOrderService {
     }
 
     if (dto.vendorId) {
-      data.vendorId = dto.vendorId;
+      data.vendor = { connect: { id: dto.vendorId } };
     }
 
     const supplierOrder = await this.supplierOrderRepo.create(data, userId);
@@ -68,6 +79,7 @@ export class SupplierOrderService {
       orderId: dto.orderId,
       supplierName: dto.supplierName,
       createdBy: userId,
+      isPriority: gate.isPriority,
     });
 
     this.logger.log(
@@ -152,15 +164,15 @@ export class SupplierOrderService {
       throw new NotFoundException(`Supplier order with ID ${id} not found`);
     }
 
+    // Layer 1C: Immutability after approval — only DRAFT is editable
     const editableStatuses: SupplierOrderStatus[] = [
       SupplierOrderStatus.DRAFT,
-      SupplierOrderStatus.QUOTED,
     ];
 
     if (!editableStatuses.includes(supplierOrder.status)) {
       throw new BadRequestException(
-        `Supplier order in status ${supplierOrder.status} cannot be edited. ` +
-          `Edits are only allowed in: ${editableStatuses.join(', ')}`,
+        `Đơn NCC ${supplierOrder.code} ở trạng thái ${supplierOrder.status} không thể chỉnh sửa. ` +
+        `Chỉ cho phép sửa khi: ${editableStatuses.join(', ')}`,
       );
     }
 
@@ -211,7 +223,7 @@ export class SupplierOrderService {
     }
 
     if (dto.vendorId !== undefined) {
-      updateData.vendorId = dto.vendorId;
+      updateData.vendor = { connect: { id: dto.vendorId } };
     }
 
     if (dto.orderItemId !== undefined) {
@@ -322,6 +334,13 @@ export class SupplierOrderService {
       throw new NotFoundException(`Supplier order with ID ${id} not found`);
     }
 
+    // D4: Mandatory photos when receiving goods from supplier
+    if (!dto.attachments || dto.attachments.length === 0) {
+      throw new BadRequestException(
+        'Bắt buộc đính kèm ảnh khi nhận hàng từ NCC',
+      );
+    }
+
     // Validate that we can transition to RECEIVED_CN from the current status
     const allowedStatuses: SupplierOrderStatus[] = [
       SupplierOrderStatus.SHIPPED_CN,
@@ -333,12 +352,31 @@ export class SupplierOrderService {
     if (!allowedStatuses.includes(supplierOrder.status)) {
       throw new BadRequestException(
         `Cannot record receipt for supplier order in status ${supplierOrder.status}. ` +
-          `Allowed statuses: ${allowedStatuses.join(', ')}`,
+        `Allowed statuses: ${allowedStatuses.join(', ')}`,
       );
     }
 
+    // Validate quantityReceived does not exceed quantityOrdered
+    if (
+      dto.quantityReceived !== undefined &&
+      supplierOrder.quantityOrdered !== null &&
+      dto.quantityReceived > supplierOrder.quantityOrdered
+    ) {
+      throw new BadRequestException(
+        `Quantity received (${dto.quantityReceived}) cannot exceed quantity ordered (${supplierOrder.quantityOrdered})`,
+      );
+    }
+
+    // Determine target status: partial or full receipt
+    const isPartialReceipt =
+      dto.quantityReceived !== undefined &&
+      supplierOrder.quantityOrdered !== null &&
+      dto.quantityReceived < supplierOrder.quantityOrdered;
+
     const updateData: Prisma.SupplierOrderUpdateInput = {
-      status: SupplierOrderStatus.RECEIVED_CN,
+      status: isPartialReceipt
+        ? SupplierOrderStatus.PARTIALLY_SHIPPED
+        : SupplierOrderStatus.RECEIVED_CN,
       receivedAt: new Date(),
       actualDelivery: new Date(),
     };
@@ -364,6 +402,26 @@ export class SupplierOrderService {
 
     const updated = await this.supplierOrderRepo.update(id, updateData);
 
+    // D3: Warn if actual price exceeds quoted price by more than 10%
+    if (
+      dto.actualPriceCNY !== undefined &&
+      supplierOrder.quotedPriceCNY !== null &&
+      Number(supplierOrder.quotedPriceCNY) > 0 &&
+      dto.actualPriceCNY > Number(supplierOrder.quotedPriceCNY) * 1.10
+    ) {
+      this.logger.warn(
+        `Price variance on ${supplierOrder.code}: actual ${dto.actualPriceCNY} CNY > quoted ${supplierOrder.quotedPriceCNY} CNY (+10% threshold)`,
+      );
+      this.eventEmitter.emit('supplier-order.price-variance', {
+        supplierOrderId: id,
+        code: supplierOrder.code,
+        orderId: supplierOrder.orderId,
+        quotedPriceCNY: Number(supplierOrder.quotedPriceCNY),
+        actualPriceCNY: dto.actualPriceCNY,
+        variancePercent: ((dto.actualPriceCNY - Number(supplierOrder.quotedPriceCNY)) / Number(supplierOrder.quotedPriceCNY)) * 100,
+      });
+    }
+
     this.eventEmitter.emit('supplier-order.received', {
       supplierOrderId: id,
       code: supplierOrder.code,
@@ -375,9 +433,9 @@ export class SupplierOrderService {
 
     this.logger.log(
       `Supplier order ${supplierOrder.code} received at CN warehouse by ${userId}` +
-        (dto.quantityReceived !== undefined
-          ? ` (qty: ${dto.quantityReceived})`
-          : ''),
+      (dto.quantityReceived !== undefined
+        ? ` (qty: ${dto.quantityReceived})`
+        : ''),
     );
 
     return updated;

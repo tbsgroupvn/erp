@@ -2,6 +2,38 @@
 // SYSTEM — Approval, Notification, Task
 // ============================================
 
+enum NotificationType {
+  ORDER
+  APPROVAL
+  FINANCE
+  WAREHOUSE
+  SYSTEM
+  PAYMENT
+  ALERT
+}
+
+enum DocumentEntityType {
+  ORDER
+  CUSTOMER
+  CONTAINER
+  PACKAGE
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  DEAD_LETTER
+}
+
+enum ApprovalCategory {
+  SALES
+  FINANCE
+  HR
+  LOGISTICS
+  CUSTOM
+}
+
 // ============================================
 // APPROVAL FLOW DEFINITION — Template quy trình
 // ============================================
@@ -10,7 +42,7 @@ model ApprovalFlowDefinition {
   id          String   @id @default(cuid())
   name        String
   description String?
-  category    String?                   // SALES, FINANCE, HR, LOGISTICS
+  category    ApprovalCategory?
   triggerType String   @map("trigger_type")  // ApprovalType value
   isActive    Boolean  @default(true)   @map("is_active")
   version     Int      @default(1)
@@ -78,6 +110,8 @@ model ApprovalFlowEdge {
   sourceNode          ApprovalFlowNode @relation("EdgeSource", fields: [sourceNodeId], references: [id], onDelete: Cascade)
   targetNode          ApprovalFlowNode @relation("EdgeTarget", fields: [targetNodeId], references: [id], onDelete: Cascade)
 
+  @@index([sourceNodeId])
+  @@index([targetNodeId])
   @@map("approval_flow_edges")
 }
 
@@ -231,7 +265,7 @@ model Notification {
   title       String
   body        String
   channel     NotificationChannel @default(APP_PUSH)
-  type        String?                               // ORDER, APPROVAL, FINANCE, WAREHOUSE, etc.
+  type        NotificationType?
   referenceId String?             @map("reference_id")
   isRead      Boolean             @default(false) @map("is_read")
   isUrgent    Boolean             @default(false) @map("is_urgent")
@@ -241,46 +275,55 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([userId, createdAt])
+  @@index([type])
+  @@index([createdAt])
   @@map("notifications")
 }
 
 model NotificationRecord {
-  id        String              @id @default(cuid())
-  userId    String
-  user      User                @relation(fields: [userId], references: [id])
-  title     String
-  body      String
-  type      String              // ORDER, PAYMENT, APPROVAL, SYSTEM, ALERT
-  channel   NotificationChannel @default(APP_PUSH)
-  priority  NotificationPriority @default(NORMAL)
-  data      Json?
-  isRead    Boolean             @default(false)
-  readAt    DateTime?
-  createdAt DateTime            @default(now())
+  id          String              @id @default(cuid())
+  userId      String
+  user        User                @relation(fields: [userId], references: [id])
+  title       String
+  body        String
+  type        NotificationType
+  channel     NotificationChannel @default(APP_PUSH)
+  priority    NotificationPriority @default(NORMAL)
+  data        Json?
+  referenceId String?
+  isUrgent    Boolean             @default(false)
+  isRead      Boolean             @default(false)
+  readAt      DateTime?
+  createdAt   DateTime            @default(now())
 
   @@index([userId, isRead])
   @@index([createdAt])
+  @@map("notification_records")
 }
 
 model Document {
   id           String           @id @default(cuid())
   name         String
   category     DocumentCategory
-  entityType   String           // ORDER, CUSTOMER, CONTAINER, PACKAGE
+  entityType   DocumentEntityType
   entityId     String
   fileName     String
   fileSize     Int
   mimeType     String
   storageKey   String
   version      Int              @default(1)
+  versionHistory Json?
   tags         String[]
   uploadedBy   String
   isDeleted    Boolean          @default(false)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
+  uploadedByUser User           @relation(fields: [uploadedBy], references: [id])
+
   @@index([entityType, entityId])
   @@index([category])
+  @@map("documents")
 }
 
 model Task {
@@ -306,6 +349,7 @@ model Task {
   @@index([assigneeId])
   @@index([status])
   @@index([dueDate])
+  @@map("tasks")
 }
 
 model TaskComment {
@@ -318,6 +362,7 @@ model TaskComment {
   createdAt DateTime @default(now())
 
   @@index([taskId])
+  @@map("task_comments")
 }
 
 model Vendor {
@@ -330,12 +375,19 @@ model Vendor {
   address       String?
   country       String   @default("CN")
   paymentTerms  String?
+  /// @encrypted
   bankName      String?
+  /// @encrypted
   bankAccount   String?
   isApproved    Boolean  @default(false)
   ratings       VendorRating[]
+  supplierOrders   SupplierOrder[]   @relation("SupplierOrderVendor")
+  purchaseRequests PurchaseRequest[] @relation("PurchaseRequestVendor")
+  purchaseOrders   PurchaseOrder[]   @relation("PurchaseOrderVendor")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@map("vendors")
 }
 
 model VendorRating {
@@ -350,4 +402,100 @@ model VendorRating {
   createdAt DateTime @default(now())
 
   @@index([vendorId])
+  @@map("vendor_ratings")
+}
+
+// ============================================
+// LEGAL DOCUMENT — Quản lý phiên bản tài liệu pháp lý
+// ============================================
+
+model LegalDocument {
+  id          String   @id @default(cuid())
+  type        String   // privacy_policy, terms_of_service, data_processing_agreement
+  version     String   // e.g. "1.0", "2.0"
+  title       String
+  content     String   @db.Text
+  locale      String   @default("vi") // vi, zh, en
+  effectiveAt DateTime @map("effective_at")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([type, version, locale])
+  @@index([type, locale])
+  @@index([isActive])
+  @@map("legal_documents")
+}
+
+// ============================================
+// WEBHOOK ENDPOINT — Integration webhook subscriptions
+// ============================================
+
+model WebhookEndpoint {
+  id          String   @id @default(cuid())
+  url         String
+  events      String[] // Event types to subscribe to (e.g., "order.created", "payment.completed")
+  secret      String   // HMAC-SHA256 signing secret (stored hashed)
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  deliveries  WebhookDelivery[]
+
+  @@index([isActive])
+  @@map("webhook_endpoints")
+}
+
+// ============================================
+// WEBHOOK DELIVERY — Delivery attempt tracking
+// ============================================
+
+model WebhookDelivery {
+  id          String    @id @default(cuid())
+  endpointId  String    @map("endpoint_id")
+  endpoint    WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  event       String    // Event type that triggered this delivery
+  payload     Json      // Full event payload sent to the endpoint
+  statusCode  Int?      @map("status_code")   // HTTP response status code
+  response    String?   @db.Text              // Response body (truncated to 4KB)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5) @map("max_attempts")
+  status      String    @default("pending")   // pending, success, failed, dead_letter
+  errorMessage String?  @map("error_message")
+  nextRetryAt DateTime? @map("next_retry_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@index([endpointId, status])
+  @@index([status, nextRetryAt])
+  @@index([createdAt])
+  @@map("webhook_deliveries")
+}
+
+// ============================================
+// API KEY — Partner integration authentication
+// ============================================
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  /// @encrypted
+  key         String    @unique   // SHA-256 hash of the actual key
+  prefix      String               // First 8 chars of key for identification (e.g., "tbs_pk_ab")
+  name        String               // Partner or integration name
+  permissions String[]             // Allowed endpoint patterns (e.g., ["orders:read", "webhooks:*"])
+  rateLimit   Int       @default(1000) @map("rate_limit") // Requests per hour
+  isActive    Boolean   @default(true) @map("is_active")
+  expiresAt   DateTime? @map("expires_at")
+  lastUsedAt  DateTime? @map("last_used_at")
+  lastUsedIp  String?   @map("last_used_ip")
+  createdBy   String    @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([prefix])
+  @@index([isActive])
+  @@map("api_keys")
 }

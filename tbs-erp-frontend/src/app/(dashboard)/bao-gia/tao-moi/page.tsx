@@ -7,13 +7,20 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Plus, Trash2, Loader2, Search, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Loader2, Search, ExternalLink, ClipboardPaste, LayoutTemplate, X } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
-import { useCreateQuotation, useUpdateQuotation, useQuotation } from '@/lib/hooks/use-quotations';
+import {
+  useCreateQuotation,
+  useUpdateQuotation,
+  useQuotation,
+  useQuotationTemplates,
+  useRecentItemsForCustomer,
+} from '@/lib/hooks/use-quotations';
 import { apiClient } from '@/lib/api/client';
 import { ServiceType, ShippingRoute, Branch } from '@/lib/types';
+import type { QuotationTemplate, RecentQuotationItem } from '@/lib/types';
 import { SERVICE_TYPE_LABELS, SHIPPING_ROUTE_LABELS, BRANCH_LABELS } from '@/lib/utils/constants';
 import { formatCurrency } from '@/lib/utils/format';
 
@@ -48,6 +55,28 @@ interface CustomerOption {
   tier?: string;
 }
 
+const RECENT_CUSTOMERS_KEY = 'recent-quotation-customers';
+const MAX_RECENT_CUSTOMERS = 5;
+
+function getRecentCustomers(): CustomerOption[] {
+  try {
+    const stored = localStorage.getItem(RECENT_CUSTOMERS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentCustomer(customer: CustomerOption) {
+  try {
+    const existing = getRecentCustomers().filter((c) => c.id !== customer.id);
+    const updated = [customer, ...existing].slice(0, MAX_RECENT_CUSTOMERS);
+    localStorage.setItem(RECENT_CUSTOMERS_KEY, JSON.stringify(updated));
+  } catch {
+    // ignore localStorage errors
+  }
+}
+
 export default function TaoMoiBaoGiaPage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-[60vh]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
@@ -65,12 +94,25 @@ function TaoMoiBaoGiaContent() {
   const createQuotation = useCreateQuotation();
   const updateQuotation = useUpdateQuotation();
 
+  // Template
+  const { data: templates } = useQuotationTemplates();
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+
   // Customer search state
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerOption | null>(null);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [searchingCustomer, setSearchingCustomer] = useState(false);
+  const [recentCustomers, setRecentCustomers] = useState<CustomerOption[]>([]);
+
+  // Batch paste modal
+  const [showBatchPaste, setShowBatchPaste] = useState(false);
+  const [batchText, setBatchText] = useState('');
+  const [batchPreview, setBatchPreview] = useState<{ productName: string; quantity: number; unitPrice: number; productUrl?: string }[]>([]);
+
+  // Recent items
+  const { data: recentItems } = useRecentItemsForCustomer(selectedCustomer?.id || '');
 
   const {
     register,
@@ -95,6 +137,11 @@ function TaoMoiBaoGiaContent() {
   const { fields, append, remove, replace } = useFieldArray({ control, name: 'items' });
   const watchItems = watch('items');
   const watchDiscount = watch('discountPercent') || 0;
+
+  // Load recent customers from localStorage
+  useEffect(() => {
+    setRecentCustomers(getRecentCustomers());
+  }, []);
 
   // Pre-fill form data in edit mode
   useEffect(() => {
@@ -170,6 +217,76 @@ function TaoMoiBaoGiaContent() {
     setCustomerSearch('');
   };
 
+  // Apply template
+  const handleApplyTemplate = () => {
+    if (!selectedTemplateId || !templates) return;
+    const tpl = templates.find((t: QuotationTemplate) => t.id === selectedTemplateId);
+    if (!tpl) return;
+
+    setValue('serviceType', tpl.serviceType as ServiceType);
+    setValue('branch', tpl.branch as Branch);
+    if (tpl.shippingRoute) {
+      setValue('shippingRoute', tpl.shippingRoute as ShippingRoute);
+    }
+    if (tpl.items && tpl.items.length > 0) {
+      replace(
+        tpl.items.map((item: any) => ({
+          productName: item.productName,
+          productUrl: item.productUrl || '',
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          note: item.note || '',
+        })),
+      );
+    }
+    toast.success(`Đã áp dụng mẫu "${tpl.name}"`);
+  };
+
+  // Batch paste parsing
+  const handleParseBatch = () => {
+    const lines = batchText.trim().split('\n').filter((l) => l.trim());
+    const parsed = lines.map((line) => {
+      const cols = line.split('\t');
+      return {
+        productName: (cols[0] || '').trim(),
+        quantity: parseInt(cols[1], 10) || 1,
+        unitPrice: parseFloat(cols[2]) || 0,
+        productUrl: (cols[3] || '').trim() || undefined,
+      };
+    }).filter((item) => item.productName.length >= 2);
+
+    setBatchPreview(parsed);
+  };
+
+  const handleConfirmBatch = () => {
+    if (batchPreview.length === 0) return;
+    for (const item of batchPreview) {
+      append({
+        productName: item.productName,
+        productUrl: item.productUrl || '',
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        note: '',
+      });
+    }
+    setShowBatchPaste(false);
+    setBatchText('');
+    setBatchPreview([]);
+    toast.success(`Đã thêm ${batchPreview.length} hàng mục`);
+  };
+
+  // Add recent item to form
+  const handleAddRecentItem = (item: RecentQuotationItem) => {
+    append({
+      productName: item.productName,
+      productUrl: item.productUrl || '',
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      note: item.note || '',
+    });
+    toast.success(`Đã thêm "${item.productName}"`);
+  };
+
   const isPending = isEditMode ? updateQuotation.isPending : createQuotation.isPending;
 
   const onSubmit = (data: CreateQuotationForm) => {
@@ -200,6 +317,10 @@ function TaoMoiBaoGiaContent() {
     } else {
       createQuotation.mutate(cleanData, {
         onSuccess: () => {
+          // Save customer to recents
+          if (selectedCustomer) {
+            saveRecentCustomer(selectedCustomer);
+          }
           toast.success('Tạo báo giá thành công');
           router.push('/bao-gia');
         },
@@ -218,6 +339,38 @@ function TaoMoiBaoGiaContent() {
         </Link>
         <PageHeader title={isEditMode ? 'Sửa báo giá' : 'Tạo báo giá mới'} className="pb-0" />
       </div>
+
+      {/* Template Selector */}
+      {!isEditMode && templates && templates.length > 0 && (
+        <div className="rounded-lg border bg-blue-50/50 p-4 mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <LayoutTemplate className="h-4 w-4 text-blue-600" />
+            <h4 className="text-sm font-medium text-blue-800">Tạo từ mẫu</h4>
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
+              className="flex h-9 flex-1 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Chọn mẫu báo giá...</option>
+              {templates.map((tpl: QuotationTemplate) => (
+                <option key={tpl.id} value={tpl.id}>
+                  {tpl.name} {tpl.isPublic ? '(chia sẻ)' : ''} — đã dùng {tpl.usageCount} lần
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleApplyTemplate}
+              disabled={!selectedTemplateId}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              Áp dụng
+            </button>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Thông tin chung */}
@@ -246,48 +399,66 @@ function TaoMoiBaoGiaContent() {
                   </button>
                 </div>
               ) : (
-                <div className="relative">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="text"
-                      value={customerSearch}
-                      onChange={(e) => {
-                        setCustomerSearch(e.target.value);
-                        setShowCustomerDropdown(true);
-                      }}
-                      onFocus={() => customerSearch && setShowCustomerDropdown(true)}
-                      placeholder="Tìm theo tên, mã, SĐT khách hàng..."
-                      className="flex h-10 w-full rounded-md border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                    {searchingCustomer && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
-                  </div>
-                  {showCustomerDropdown && customerOptions.length > 0 && (
-                    <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md max-h-60 overflow-y-auto">
-                      {customerOptions.map((c) => (
+                <div className="space-y-2">
+                  {/* Recent customers chips */}
+                  {recentCustomers.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className="text-xs text-muted-foreground leading-6">Gần đây:</span>
+                      {recentCustomers.map((c) => (
                         <button
                           key={c.id}
                           type="button"
                           onClick={() => selectCustomer(c)}
-                          className="flex w-full items-start gap-3 px-3 py-2 text-left text-sm hover:bg-accent"
+                          className="inline-flex items-center rounded-full border bg-background px-2.5 py-0.5 text-xs hover:bg-accent transition-colors"
                         >
-                          <div>
-                            <p className="font-medium">{c.fullName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {c.code}
-                              {c.companyName && ` — ${c.companyName}`}
-                              {c.tier && ` (${c.tier})`}
-                            </p>
-                          </div>
+                          {c.fullName}
                         </button>
                       ))}
                     </div>
                   )}
-                  {showCustomerDropdown && customerSearch && !searchingCustomer && customerOptions.length === 0 && (
-                    <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover p-3 text-sm text-muted-foreground shadow-md">
-                      Không tìm thấy khách hàng
+                  <div className="relative">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="text"
+                        value={customerSearch}
+                        onChange={(e) => {
+                          setCustomerSearch(e.target.value);
+                          setShowCustomerDropdown(true);
+                        }}
+                        onFocus={() => customerSearch && setShowCustomerDropdown(true)}
+                        placeholder="Tìm theo tên, mã, SĐT khách hàng..."
+                        className="flex h-10 w-full rounded-md border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      {searchingCustomer && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
                     </div>
-                  )}
+                    {showCustomerDropdown && customerOptions.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md max-h-60 overflow-y-auto">
+                        {customerOptions.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => selectCustomer(c)}
+                            className="flex w-full items-start gap-3 px-3 py-2 text-left text-sm hover:bg-accent"
+                          >
+                            <div>
+                              <p className="font-medium">{c.fullName}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {c.code}
+                                {c.companyName && ` — ${c.companyName}`}
+                                {c.tier && ` (${c.tier})`}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {showCustomerDropdown && customerSearch && !searchingCustomer && customerOptions.length === 0 && (
+                      <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover p-3 text-sm text-muted-foreground shadow-md">
+                        Không tìm thấy khách hàng
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               <input type="hidden" {...register('customerId')} />
@@ -371,6 +542,27 @@ function TaoMoiBaoGiaContent() {
           </div>
         </div>
 
+        {/* Recent items from customer */}
+        {selectedCustomer && recentItems && recentItems.length > 0 && (
+          <div className="rounded-lg border bg-amber-50/50 p-4 space-y-3">
+            <h4 className="text-sm font-medium text-amber-800">Sản phẩm đã báo giá cho {selectedCustomer.fullName}</h4>
+            <div className="flex flex-wrap gap-2">
+              {recentItems.map((item: RecentQuotationItem, idx: number) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleAddRecentItem(item)}
+                  className="inline-flex items-center gap-1.5 rounded-md border bg-white px-2.5 py-1.5 text-xs hover:bg-amber-50 transition-colors"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>{item.productName}</span>
+                  <span className="text-muted-foreground">({formatCurrency(item.unitPrice)})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Hàng mục */}
         <div className="rounded-lg border bg-card p-6 space-y-4">
           <h3 className="text-lg font-semibold">Hàng mục báo giá</h3>
@@ -426,13 +618,22 @@ function TaoMoiBaoGiaContent() {
               </div>
             </div>
           ))}
-          <button
-            type="button"
-            onClick={() => append({ productName: '', productUrl: '', quantity: 1, unitPrice: 0, note: '' })}
-            className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
-          >
-            <Plus className="h-4 w-4" /> Thêm hàng mục
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => append({ productName: '', productUrl: '', quantity: 1, unitPrice: 0, note: '' })}
+              className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
+            >
+              <Plus className="h-4 w-4" /> Thêm hàng mục
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowBatchPaste(true)}
+              className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
+            >
+              <ClipboardPaste className="h-4 w-4" /> Dán từ Excel
+            </button>
+          </div>
 
           {/* Tổng hợp giá */}
           <div className="border-t pt-4 space-y-2 text-sm max-w-xs ml-auto">
@@ -472,6 +673,75 @@ function TaoMoiBaoGiaContent() {
           </button>
         </div>
       </form>
+
+      {/* Batch Paste Modal */}
+      {showBatchPaste && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-2xl rounded-lg bg-background p-6 shadow-xl mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Dán hàng loạt từ Excel</h3>
+              <button type="button" onClick={() => { setShowBatchPaste(false); setBatchText(''); setBatchPreview([]); }} className="h-8 w-8 rounded-md hover:bg-accent flex items-center justify-center">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Copy các dòng từ Excel rồi dán vào ô bên dưới. Mỗi dòng một sản phẩm, các cột cách nhau bằng Tab.
+            </p>
+            <textarea
+              value={batchText}
+              onChange={(e) => { setBatchText(e.target.value); setBatchPreview([]); }}
+              rows={6}
+              placeholder={'Tên SP\tSố lượng\tĐơn giá\tLink SP\nTai nghe Bluetooth\t10\t150000\thttps://...\nÁo thun nam\t50\t200000'}
+              className="flex w-full rounded-md border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <div className="flex gap-2 mt-3">
+              <button
+                type="button"
+                onClick={handleParseBatch}
+                disabled={!batchText.trim()}
+                className="rounded-md border px-4 py-2 text-sm hover:bg-accent disabled:opacity-50"
+              >
+                Xem trước
+              </button>
+            </div>
+
+            {batchPreview.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-medium mb-2">Xem trước ({batchPreview.length} hàng mục):</p>
+                <div className="max-h-48 overflow-y-auto rounded-md border">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="px-2 py-1.5 text-left font-medium">Tên SP</th>
+                        <th className="px-2 py-1.5 text-center font-medium">SL</th>
+                        <th className="px-2 py-1.5 text-right font-medium">Đơn giá</th>
+                        <th className="px-2 py-1.5 text-left font-medium">Link</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {batchPreview.map((item, i) => (
+                        <tr key={i} className="border-b">
+                          <td className="px-2 py-1.5">{item.productName}</td>
+                          <td className="px-2 py-1.5 text-center">{item.quantity}</td>
+                          <td className="px-2 py-1.5 text-right">{formatCurrency(item.unitPrice)}</td>
+                          <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[120px]">{item.productUrl || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleConfirmBatch}
+                  className="mt-3 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Xác nhận thêm {batchPreview.length} hàng mục
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

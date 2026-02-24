@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Branch, Prisma } from '@prisma/client';
+import { Branch, DeliveryStatus, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export interface DeliveryPlan {
@@ -50,7 +50,7 @@ export class DeliveryDispatchService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   /**
    * Creates a delivery plan by grouping orders by their delivery area.
@@ -127,7 +127,7 @@ export class DeliveryDispatchService {
 
     this.logger.log(
       `Delivery plan created for branch ${branch}: ${plans.length} areas, ` +
-        `${pendingDeliveries.length} total deliveries`,
+      `${pendingDeliveries.length} total deliveries`,
     );
 
     return plans;
@@ -135,12 +135,69 @@ export class DeliveryDispatchService {
 
   /**
    * Assigns a driver and vehicle to delivery records.
+   * B1: Validates payment status before dispatch.
    */
   async assignDriver(
     deliveryIds: string[],
     driverId: string,
     vehicleId?: string,
   ): Promise<void> {
+    // B1: Payment validation before driver assignment (dispatch)
+    const deliveries = await this.prisma.delivery.findMany({
+      where: { id: { in: deliveryIds } },
+      select: { id: true, orderId: true },
+    });
+
+    const orderIds = [...new Set(deliveries.map(d => d.orderId))];
+    const ordersWithCustomer = await this.prisma.order.findMany({
+      where: { id: { in: orderIds } },
+      select: {
+        id: true,
+        code: true,
+        totalAmount: true,
+        customer: {
+          select: {
+            id: true,
+            creditLimit: true,
+            currentDebt: true,
+            tempOverdraftLimit: true,
+            tempOverdraftExpiry: true,
+            gracePeriodUntil: true,
+          },
+        },
+      },
+    });
+
+    for (const orderData of ordersWithCustomer) {
+      const paymentAgg = await this.prisma.paymentAllocation.aggregate({
+        where: { orderId: orderData.id, isReversed: false },
+        _sum: { allocatedAmount: true },
+      });
+      const totalPaid = Number(paymentAgg._sum.allocatedAmount ?? 0);
+      const fullyPaid = totalPaid >= Number(orderData.totalAmount);
+
+      const customer = orderData.customer;
+      const creditApproved =
+        Number(customer.creditLimit) > 0 &&
+        Number(customer.currentDebt) <= Number(customer.creditLimit);
+      const tempOverdraft =
+        customer.tempOverdraftLimit !== null &&
+        Number(customer.tempOverdraftLimit) > 0 &&
+        customer.tempOverdraftExpiry !== null &&
+        new Date(customer.tempOverdraftExpiry) > new Date();
+      const gracePeriodActive =
+        customer.gracePeriodUntil !== null &&
+        new Date(customer.gracePeriodUntil) > new Date();
+
+      if (!fullyPaid && !creditApproved && !tempOverdraft && !gracePeriodActive) {
+        throw new BadRequestException(
+          'Payment required before dispatch. Order ' +
+            orderData.code +
+            ' is not fully paid and customer has no credit approval.',
+        );
+      }
+    }
+
     await this.prisma.delivery.updateMany({
       where: { id: { in: deliveryIds } },
       data: {
@@ -188,7 +245,7 @@ export class DeliveryDispatchService {
 
     this.logger.log(
       `Route optimization (STUB): ${deliveries.length} stops, ` +
-        `~${estimatedDistanceKm}km, ~${estimatedTimeMinutes}min`,
+      `~${estimatedDistanceKm}km, ~${estimatedTimeMinutes}min`,
     );
 
     return {
@@ -212,7 +269,7 @@ export class DeliveryDispatchService {
       codCollected?: boolean;
     },
   ): Promise<void> {
-    const updateData: Prisma.DeliveryUpdateInput = { status };
+    const updateData: Prisma.DeliveryUpdateInput = { status: status as DeliveryStatus };
 
     switch (status) {
       case 'PICKED_UP':
@@ -256,6 +313,191 @@ export class DeliveryDispatchService {
     this.logger.log(
       `Delivery ${deliveryId} status updated to ${status}`,
     );
+  }
+
+  /**
+   * B6: Create a delivery with specific packages (split delivery).
+   *
+   * Sets isPartialDelivery=true when not all packages of an order are included.
+   * Does NOT change order status to DELIVERED until ALL packages are delivered.
+   */
+  async createSplitDelivery(
+    orderId: string,
+    packageIds: string[],
+    deliveryData: {
+      recipientName: string;
+      recipientPhone: string;
+      deliveryAddress: string;
+      codAmount?: number;
+      note?: string;
+      driverId?: string;
+      vehicleId?: string;
+      branch: Branch;
+      dispatchedBy: string;
+    },
+  ) {
+    // Validate order
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, code: true, status: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    // Validate packages belong to this order
+    const packages = await this.prisma.package.findMany({
+      where: { id: { in: packageIds }, orderId },
+      select: { id: true, code: true },
+    });
+
+    if (packages.length !== packageIds.length) {
+      throw new BadRequestException(
+        'One or more packages do not belong to this order or do not exist',
+      );
+    }
+
+    // Count total packages for the order
+    const totalPackageCount = await this.prisma.package.count({
+      where: { orderId },
+    });
+    const isPartialDelivery = packageIds.length < totalPackageCount;
+
+    // Generate delivery code
+    const now = new Date();
+    const datePrefix = [
+      String(now.getFullYear()).slice(-2),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('');
+    const prefix = `TBS-DLV-${datePrefix}`;
+    const latest = await this.prisma.delivery.findFirst({
+      where: { code: { startsWith: prefix } },
+      orderBy: { code: 'desc' },
+      select: { code: true },
+    });
+    let sequence = 1;
+    if (latest) {
+      const lastSeq = parseInt(latest.code.split('-').pop() || '0', 10);
+      sequence = lastSeq + 1;
+    }
+    const code = `${prefix}-${String(sequence).padStart(4, '0')}`;
+
+    const delivery = await this.prisma.delivery.create({
+      data: {
+        code,
+        order: { connect: { id: orderId } },
+        branch: deliveryData.branch,
+        recipientName: deliveryData.recipientName,
+        recipientPhone: deliveryData.recipientPhone,
+        deliveryAddress: deliveryData.deliveryAddress,
+        codAmount: new Decimal(deliveryData.codAmount ?? 0),
+        note: deliveryData.note,
+        status: deliveryData.driverId ? 'DISPATCHED' : 'PENDING',
+        driver: deliveryData.driverId
+          ? { connect: { id: deliveryData.driverId } }
+          : undefined,
+        vehicle: deliveryData.vehicleId
+          ? { connect: { id: deliveryData.vehicleId } }
+          : undefined,
+        isPartialDelivery,
+        packageIds,
+        dispatchedBy: deliveryData.dispatchedBy,
+      },
+    });
+
+    this.eventEmitter.emit('delivery.created', {
+      deliveryId: delivery.id,
+      deliveryCode: code,
+      orderId,
+      driverId: deliveryData.driverId,
+      branch: deliveryData.branch,
+      isPartialDelivery,
+      packageIds,
+    });
+
+    this.logger.log(
+      `Split delivery ${code} created for order ${order.code} with ${packageIds.length}/${totalPackageCount} packages` +
+        (isPartialDelivery ? ' (partial)' : ' (full)'),
+    );
+
+    return delivery;
+  }
+
+  /**
+   * B9: Initiate Return to Origin (RTO) for a delivery.
+   */
+  async initiateRTO(deliveryId: string, reason: string) {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id: deliveryId },
+      select: { id: true, status: true, orderId: true, code: true },
+    });
+
+    if (!delivery) {
+      throw new NotFoundException(`Delivery with ID ${deliveryId} not found`);
+    }
+
+    if (!['DISPATCHED', 'PICKED_UP', 'DELIVERING', 'FAILED'].includes(delivery.status)) {
+      throw new BadRequestException(
+        `Delivery ${delivery.code} cannot be returned in status ${delivery.status}`,
+      );
+    }
+
+    const updated = await this.prisma.delivery.update({
+      where: { id: deliveryId },
+      data: {
+        status: 'RETURN_TO_ORIGIN',
+        rtoReason: reason,
+      },
+    });
+
+    this.eventEmitter.emit('delivery.rto.initiated', {
+      deliveryId,
+      orderId: delivery.orderId,
+      reason,
+    });
+
+    this.logger.log(`RTO initiated for delivery ${delivery.code}: ${reason}`);
+
+    return updated;
+  }
+
+  /**
+   * B9: Receive an RTO delivery back at warehouse.
+   */
+  async receiveRTO(deliveryId: string) {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id: deliveryId },
+      select: { id: true, status: true, orderId: true, code: true },
+    });
+
+    if (!delivery) {
+      throw new NotFoundException(`Delivery with ID ${deliveryId} not found`);
+    }
+
+    if (delivery.status !== 'RETURN_TO_ORIGIN') {
+      throw new BadRequestException(
+        `Delivery ${delivery.code} is in status ${delivery.status}. Only RETURN_TO_ORIGIN deliveries can be received.`,
+      );
+    }
+
+    const updated = await this.prisma.delivery.update({
+      where: { id: deliveryId },
+      data: {
+        status: 'RTO_RECEIVED',
+        rtoReceivedAt: new Date(),
+      },
+    });
+
+    this.eventEmitter.emit('delivery.rto.received', {
+      deliveryId,
+      orderId: delivery.orderId,
+    });
+
+    this.logger.log(`RTO received for delivery ${delivery.code}`);
+
+    return updated;
   }
 
   /**

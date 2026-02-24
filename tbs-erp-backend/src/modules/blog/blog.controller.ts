@@ -14,6 +14,7 @@ import {
   UploadedFile,
   BadRequestException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiTags,
   ApiOperation,
@@ -130,6 +131,7 @@ export class BlogController {
   }
 
   @Post('upload-cover')
+  @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 uploads per minute
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))

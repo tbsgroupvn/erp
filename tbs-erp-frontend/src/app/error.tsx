@@ -82,7 +82,7 @@ export default function GlobalError({
               Liên hệ hỗ trợ
             </Link>
             <a
-              href={`mailto:support@nhaphangchinhngach.vn?subject=Báo lỗi&body=Mô tả lỗi: ${encodeURIComponent(error.message)}`}
+              href={`mailto:${process.env.NEXT_PUBLIC_COMPANY_SUPPORT_EMAIL || 'support@localhost'}?subject=Báo lỗi&body=Mô tả lỗi: ${encodeURIComponent(error.message)}`}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
             >
               Gửi email báo lỗi

@@ -28,10 +28,10 @@ import type { Package } from '@/lib/types';
 // ---------------------------------------------------------------------------
 
 const CN_STATUS_LABELS: Record<string, string> = {
-  RECEIVED: '\u0110\u00e3 nh\u1eadn',
-  CHECKED: '\u0110\u00e3 ki\u1ec3m',
-  PACKED: '\u0110\u00e3 \u0111\u00f3ng',
-  SHIPPED: '\u0110\u00e3 g\u1eedi',
+  RECEIVED: 'Đã nhận',
+  CHECKED: 'Đã kiểm',
+  PACKED: 'Đã đóng',
+  SHIPPED: 'Đã gửi',
 };
 
 const CN_STATUS_COLORS: Record<string, string> = {
@@ -48,9 +48,9 @@ const STATUS_FLOW: Record<string, string> = {
 };
 
 const NEXT_STATUS_LABELS: Record<string, string> = {
-  CHECKED: 'X\u00e1c nh\u1eadn ki\u1ec3m',
-  PACKED: '\u0110\u00f3ng g\u00f3i',
-  SHIPPED: 'G\u1eedi h\u00e0ng',
+  CHECKED: 'Xác nhận kiểm',
+  PACKED: 'Đóng gói',
+  SHIPPED: 'Gửi hàng',
 };
 
 const ALL_STATUSES = ['RECEIVED', 'CHECKED', 'PACKED', 'SHIPPED'] as const;
@@ -60,7 +60,7 @@ const ALL_STATUSES = ['RECEIVED', 'CHECKED', 'PACKED', 'SHIPPED'] as const;
 // ---------------------------------------------------------------------------
 
 const receivePackageSchema = z.object({
-  orderId: z.string().min(1, 'M\u00e3 \u0111\u01a1n h\u00e0ng l\u00e0 b\u1eaft bu\u1ed9c'),
+  orderId: z.string().min(1, 'Mã đơn hàng là bắt buộc'),
   trackingNumberCN: z.string().optional(),
   description: z.string().optional(),
   note: z.string().optional(),
@@ -70,17 +70,17 @@ type ReceivePackageFormData = z.infer<typeof receivePackageSchema>;
 
 const measurePackageSchema = z.object({
   actualWeight: z
-    .number({ invalid_type_error: 'Nh\u1eadp s\u1ed1' })
-    .positive('Ph\u1ea3i l\u1edbn h\u01a1n 0'),
+    .number({ invalid_type_error: 'Nhập số' })
+    .positive('Phải lớn hơn 0'),
   length: z
-    .number({ invalid_type_error: 'Nh\u1eadp s\u1ed1' })
-    .positive('Ph\u1ea3i l\u1edbn h\u01a1n 0'),
+    .number({ invalid_type_error: 'Nhập số' })
+    .positive('Phải lớn hơn 0'),
   width: z
-    .number({ invalid_type_error: 'Nh\u1eadp s\u1ed1' })
-    .positive('Ph\u1ea3i l\u1edbn h\u01a1n 0'),
+    .number({ invalid_type_error: 'Nhập số' })
+    .positive('Phải lớn hơn 0'),
   height: z
-    .number({ invalid_type_error: 'Nh\u1eadp s\u1ed1' })
-    .positive('Ph\u1ea3i l\u1edbn h\u01a1n 0'),
+    .number({ invalid_type_error: 'Nhập số' })
+    .positive('Phải lớn hơn 0'),
   note: z.string().optional(),
 });
 
@@ -121,7 +121,7 @@ function ReceivePackageForm({ onClose }: { onClose: () => void }) {
     <Card className="mb-6">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Nh\u1eadn ki\u1ec7n h\u00e0ng m\u1edbi</CardTitle>
+          <CardTitle className="text-lg">Nhận kiện hàng mới</CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -131,10 +131,10 @@ function ReceivePackageForm({ onClose }: { onClose: () => void }) {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="orderId">M\u00e3 \u0111\u01a1n h\u00e0ng *</Label>
+              <Label htmlFor="orderId">Mã đơn hàng *</Label>
               <Input
                 id="orderId"
-                placeholder="Nh\u1eadp m\u00e3 \u0111\u01a1n h\u00e0ng"
+                placeholder="Nhập mã đơn hàng"
                 {...register('orderId')}
               />
               {errors.orderId && (
@@ -147,23 +147,23 @@ function ReceivePackageForm({ onClose }: { onClose: () => void }) {
               <Label htmlFor="trackingNumberCN">Tracking TQ</Label>
               <Input
                 id="trackingNumberCN"
-                placeholder="M\u00e3 v\u1eadn \u0111\u01a1n Trung Qu\u1ed1c"
+                placeholder="Mã vận đơn Trung Quốc"
                 {...register('trackingNumberCN')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">M\u00f4 t\u1ea3</Label>
+              <Label htmlFor="description">Mô tả</Label>
               <Input
                 id="description"
-                placeholder="M\u00f4 t\u1ea3 ki\u1ec7n h\u00e0ng"
+                placeholder="Mô tả kiện hàng"
                 {...register('description')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="note">Ghi ch\u00fa</Label>
+              <Label htmlFor="note">Ghi chú</Label>
               <Input
                 id="note"
-                placeholder="Ghi ch\u00fa th\u00eam"
+                placeholder="Ghi chú thêm"
                 {...register('note')}
               />
             </div>
@@ -173,10 +173,10 @@ function ReceivePackageForm({ onClose }: { onClose: () => void }) {
               {receiveMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Nh\u1eadn ki\u1ec7n
+              Nhận kiện
             </Button>
             <Button type="button" variant="outline" onClick={onClose}>
-              H\u1ee7y
+              Hủy
             </Button>
           </div>
         </form>
@@ -230,7 +230,7 @@ function MeasurePackageForm({
     <Card className="mt-2 mb-2">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">C\u00e2n / \u0110o ki\u1ec7n h\u00e0ng</CardTitle>
+          <CardTitle className="text-base">Cân / Đo kiện hàng</CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -240,7 +240,7 @@ function MeasurePackageForm({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="space-y-2">
-              <Label htmlFor={`weight-${packageId}`}>C\u00e2n n\u1eb7ng (kg) *</Label>
+              <Label htmlFor={`weight-${packageId}`}>Cân nặng (kg) *</Label>
               <Input
                 id={`weight-${packageId}`}
                 type="number"
@@ -255,7 +255,7 @@ function MeasurePackageForm({
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor={`length-${packageId}`}>D\u00e0i (cm) *</Label>
+              <Label htmlFor={`length-${packageId}`}>Dài (cm) *</Label>
               <Input
                 id={`length-${packageId}`}
                 type="number"
@@ -270,7 +270,7 @@ function MeasurePackageForm({
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor={`width-${packageId}`}>R\u1ed9ng (cm) *</Label>
+              <Label htmlFor={`width-${packageId}`}>Rộng (cm) *</Label>
               <Input
                 id={`width-${packageId}`}
                 type="number"
@@ -301,10 +301,10 @@ function MeasurePackageForm({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`measure-note-${packageId}`}>Ghi ch\u00fa</Label>
+            <Label htmlFor={`measure-note-${packageId}`}>Ghi chú</Label>
             <Input
               id={`measure-note-${packageId}`}
-              placeholder="Ghi ch\u00fa th\u00eam"
+              placeholder="Ghi chú thêm"
               {...register('note')}
             />
           </div>
@@ -313,10 +313,10 @@ function MeasurePackageForm({
               {measureMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              L\u01b0u k\u00edch th\u01b0\u1edbc
+              Lưu kích thước
             </Button>
             <Button type="button" variant="outline" onClick={onClose}>
-              H\u1ee7y
+              Hủy
             </Button>
           </div>
         </form>
@@ -356,10 +356,10 @@ function PackageRowActions({ pkg }: { pkg: Package }) {
             variant="ghost"
             size="sm"
             onClick={() => setShowMeasureForm((prev) => !prev)}
-            title="C\u00e2n / \u0110o"
+            title="Cân / Đo"
           >
             <Ruler className="mr-1 h-4 w-4" />
-            C\u00e2n/\u0110o
+            Cân/Đo
           </Button>
         )}
         {nextStatus && (
@@ -406,7 +406,7 @@ export default function KhoTrungQuocPage() {
   const packageCNColumns: ColumnDef<Package>[] = [
     {
       accessorKey: 'code',
-      header: 'M\u00e3 ki\u1ec7n',
+      header: 'Mã kiện',
       cell: ({ row }) => (
         <Link
           href={`/kho-trung-quoc/${row.original.id}`}
@@ -418,7 +418,7 @@ export default function KhoTrungQuocPage() {
     },
     {
       accessorKey: 'orderId',
-      header: '\u0110\u01a1n h\u00e0ng',
+      header: 'Đơn hàng',
     },
     {
       accessorKey: 'trackingNumberCN',
@@ -429,7 +429,7 @@ export default function KhoTrungQuocPage() {
     },
     {
       accessorKey: 'warehouseCNStatus',
-      header: 'Tr\u1ea1ng th\u00e1i',
+      header: 'Trạng thái',
       cell: ({ row }) => {
         const status = row.original.warehouseCNStatus || '';
         return (
@@ -444,21 +444,21 @@ export default function KhoTrungQuocPage() {
     },
     {
       accessorKey: 'actualWeight',
-      header: 'C\u00e2n n\u1eb7ng (kg)',
+      header: 'Cân nặng (kg)',
       cell: ({ row }) => (
         <span>{row.original.actualWeight?.toFixed(2) ?? '---'}</span>
       ),
     },
     {
       accessorKey: 'chargeableWeight',
-      header: 'TL t\u00ednh ph\u00ed (kg)',
+      header: 'TL tính phí (kg)',
       cell: ({ row }) => (
         <span>{row.original.chargeableWeight?.toFixed(2) ?? '---'}</span>
       ),
     },
     {
       accessorKey: 'receivedCNAt',
-      header: 'Ng\u00e0y nh\u1eadn',
+      header: 'Ngày nhận',
       cell: ({ row }) => (
         <span>
           {row.original.receivedCNAt
@@ -469,7 +469,7 @@ export default function KhoTrungQuocPage() {
     },
     {
       id: 'actions',
-      header: 'Thao t\u00e1c',
+      header: 'Thao tác',
       cell: ({ row }) => <PackageRowActions pkg={row.original} />,
     },
   ];
@@ -477,12 +477,12 @@ export default function KhoTrungQuocPage() {
   return (
     <div>
       <PageHeader
-        title="Kho Trung Qu\u1ed1c"
-        description="Qu\u1ea3n l\u00fd ki\u1ec7n h\u00e0ng t\u1ea1i kho TQ"
+        title="Kho Trung Quốc"
+        description="Quản lý kiện hàng tại kho TQ"
       >
         <Button onClick={() => setShowReceiveForm((prev) => !prev)}>
           <PackagePlus className="mr-2 h-4 w-4" />
-          Nh\u1eadn ki\u1ec7n
+          Nhận kiện
         </Button>
       </PageHeader>
 
@@ -493,7 +493,7 @@ export default function KhoTrungQuocPage() {
       {/* Status filter */}
       <div className="mb-4 flex items-center gap-2">
         <Label htmlFor="status-filter" className="whitespace-nowrap">
-          L\u1ecdc tr\u1ea1ng th\u00e1i:
+          Lọc trạng thái:
         </Label>
         <select
           id="status-filter"
@@ -504,7 +504,7 @@ export default function KhoTrungQuocPage() {
           }}
           className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          <option value="">T\u1ea5t c\u1ea3</option>
+          <option value="">Tất cả</option>
           {ALL_STATUSES.map((s) => (
             <option key={s} value={s}>
               {CN_STATUS_LABELS[s]}

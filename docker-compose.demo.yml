@@ -1,0 +1,57 @@
+# ============================================
+# Demo ERP - Docker Compose
+# Extends selfhost with demo-specific config:
+#   - Demo mode enabled
+#   - Auto-reset cron (resets data every 24h)
+#   - Pre-seeded demo data
+# Usage: docker compose -f docker-compose.selfhost.yml -f docker-compose.demo.yml up -d
+# ============================================
+
+services:
+  backend:
+    environment:
+      DEMO_MODE: "true"
+      APP_ENV: demo
+
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_DEMO_MODE: "true"
+
+  cms:
+    build:
+      args:
+        NEXT_PUBLIC_DEMO_MODE: "true"
+
+  # ============================================
+  # DEMO RESET CRON
+  # Resets the database every 24 hours
+  # ============================================
+  demo-reset:
+    image: postgres:16-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_demo_reset
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: ${POSTGRES_USER:-erp_user}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-erp_db}
+    entrypoint: >
+      /bin/sh -c '
+        echo "Demo reset cron started. Will reset database every 24 hours."
+        while true; do
+          sleep 86400
+          echo "[$(date)] Resetting demo database..."
+          psql -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+          echo "[$(date)] Schema reset. Backend will auto-migrate on next request."
+          # Trigger backend restart to re-run migrations
+          wget -q --spider http://backend:3000/api/v1/health || true
+          echo "[$(date)] Demo reset complete."
+        done
+      '
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app_network

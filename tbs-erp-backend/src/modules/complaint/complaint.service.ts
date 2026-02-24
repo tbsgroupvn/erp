@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import {
@@ -14,22 +15,34 @@ import {
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
+import { ComplaintStatusMachine } from './domain/complaint-status.machine';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
 import { ComplaintQueryDto } from './dto/complaint-query.dto';
-
-/** Compensation thresholds for approval requirements */
-const COMPENSATION_GD_KD_THRESHOLD = 5_000_000; // 5M VND - requires GD KD approval
-const COMPENSATION_BGD_THRESHOLD = 20_000_000; // 20M VND - requires BGD approval
 
 @Injectable()
 export class ComplaintService {
   private readonly logger = new Logger(ComplaintService.name);
 
+  /** Compensation thresholds for approval requirements (from config) */
+  private readonly compensationGdKdThreshold: number;
+  private readonly compensationBgdThreshold: number;
+
   constructor(
     private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+    private readonly statusMachine: ComplaintStatusMachine,
+  ) {
+    this.compensationGdKdThreshold = this.configService.get<number>(
+      'business.complaint.compensationGdKdThreshold',
+      5_000_000,
+    );
+    this.compensationBgdThreshold = this.configService.get<number>(
+      'business.complaint.compensationBgdThreshold',
+      20_000_000,
+    );
+  }
 
   /**
    * Generates the next complaint code in the format QMS-YYYYMM-XXXX.
@@ -65,6 +78,7 @@ export class ComplaintService {
    * - Emits 'complaint.created' event
    */
   async createComplaint(userId: string, dto: CreateComplaintDto) {
+    // TODO: Add @Throttle({ default: { limit: 5, ttl: 3600000 } }) in controller
     // Validate order exists
     const order = await this.prisma.order.findUnique({
       where: { id: dto.orderId },
@@ -87,39 +101,76 @@ export class ComplaintService {
       );
     }
 
-    // Generate complaint code
-    const code = await this.generateComplaintCode();
+    // Generate complaint code and create with retry for unique constraint violations
+    let complaint: Prisma.ComplaintGetPayload<{
+      include: { order: { select: { id: true; code: true } }; customer: { select: { id: true; code: true; fullName: true; companyName: true; phone: true } } };
+    }> | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        complaint = await this.prisma.executeInTransaction(async (tx) => {
+          const now = new Date();
+          const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+          const prefix = `QMS-${yearMonth}`;
 
-    // Create the complaint
-    const complaint = await this.prisma.complaint.create({
-      data: {
-        code,
-        orderId: dto.orderId,
-        customerId: dto.customerId,
-        packageId: dto.packageId,
-        type: dto.type,
-        severity: dto.severity,
-        status: ComplaintStatus.OPEN,
-        description: dto.description,
-        attachments: dto.attachments || [],
-        note: dto.note,
-        createdBy: userId,
-      },
-      include: {
-        order: {
-          select: { id: true, code: true },
-        },
-        customer: {
-          select: {
-            id: true,
-            code: true,
-            fullName: true,
-            companyName: true,
-            phone: true,
-          },
-        },
-      },
-    });
+          const latestComplaint = await tx.complaint.findFirst({
+            where: { code: { startsWith: prefix } },
+            orderBy: { code: 'desc' },
+            select: { code: true },
+          });
+
+          let sequence = 1;
+          if (latestComplaint) {
+            const lastSequence = parseInt(
+              latestComplaint.code.split('-').pop() || '0',
+              10,
+            );
+            sequence = lastSequence + 1;
+          }
+
+          const code = `${prefix}-${String(sequence).padStart(4, '0')}`;
+
+          return tx.complaint.create({
+            data: {
+              code,
+              orderId: dto.orderId,
+              customerId: dto.customerId,
+              packageId: dto.packageId,
+              type: dto.type,
+              severity: dto.severity,
+              status: ComplaintStatus.OPEN,
+              description: dto.description,
+              attachments: dto.attachments || [],
+              note: dto.note,
+              createdBy: userId,
+            },
+            include: {
+              order: {
+                select: { id: true, code: true },
+              },
+              customer: {
+                select: {
+                  id: true,
+                  code: true,
+                  fullName: true,
+                  companyName: true,
+                  phone: true,
+                },
+              },
+            },
+          });
+        });
+        break;
+      } catch (error) {
+        if (error.code === 'P2002' && attempt < 2) {
+          this.logger.warn(`Complaint code conflict on attempt ${attempt + 1}, retrying...`);
+          continue;
+        }
+        throw error;
+      }
+    }
+    if (!complaint) {
+      throw new Error('Failed to create complaint after multiple attempts');
+    }
 
     // Emit event
     this.eventEmitter.emit('complaint.created', {
@@ -147,12 +198,12 @@ export class ComplaintService {
       });
 
       this.logger.warn(
-        `CRITICAL complaint ${code} created - auto-notifying GD KD + BGD`,
+        `CRITICAL complaint ${complaint.code} created - auto-notifying GD KD + BGD`,
       );
     }
 
     this.logger.log(
-      `Complaint ${code} created for order ${order.code} by user ${userId}`,
+      `Complaint ${complaint.code} created for order ${order.code} by user ${userId}`,
     );
 
     return complaint;
@@ -170,9 +221,9 @@ export class ComplaintService {
       throw new NotFoundException(`Complaint with ID ${id} not found`);
     }
 
-    if (complaint.status === ComplaintStatus.CLOSED) {
+    if (this.statusMachine.isTerminal(complaint.status)) {
       throw new BadRequestException(
-        'Closed complaints cannot be updated',
+        `${complaint.status} complaints cannot be updated`,
       );
     }
 
@@ -207,8 +258,8 @@ export class ComplaintService {
       });
       updateData.investigationNotes = existingNotes;
 
-      // Automatically transition to INVESTIGATING if currently OPEN
-      if (complaint.status === ComplaintStatus.OPEN) {
+      // Automatically transition to INVESTIGATING if currently OPEN (validated by FSM)
+      if (complaint.status === ComplaintStatus.OPEN && this.statusMachine.validateTransition(complaint.status, ComplaintStatus.INVESTIGATING)) {
         updateData.status = ComplaintStatus.INVESTIGATING;
       }
     }
@@ -369,7 +420,7 @@ export class ComplaintService {
       throw new NotFoundException(`Complaint with ID ${id} not found`);
     }
 
-    if (complaint.status === ComplaintStatus.CLOSED || complaint.status === ComplaintStatus.RESOLVED) {
+    if (this.statusMachine.isTerminal(complaint.status) || complaint.status === ComplaintStatus.RESOLVED) {
       throw new BadRequestException(
         `Cannot assign handler to a ${complaint.status} complaint`,
       );
@@ -438,10 +489,8 @@ export class ComplaintService {
       throw new NotFoundException(`Complaint with ID ${id} not found`);
     }
 
-    if (
-      complaint.status === ComplaintStatus.CLOSED ||
-      complaint.status === ComplaintStatus.RESOLVED
-    ) {
+    if (!this.statusMachine.validateTransition(complaint.status, ComplaintStatus.RESOLVED) &&
+        !this.statusMachine.validateTransition(complaint.status, ComplaintStatus.PENDING_RESOLUTION)) {
       throw new BadRequestException(
         `Complaint is already ${complaint.status}`,
       );
@@ -450,11 +499,27 @@ export class ComplaintService {
     const compensationAmount = resolution.amount || 0;
 
     // Check if approval is needed for compensation
-    if (compensationAmount > COMPENSATION_BGD_THRESHOLD) {
+    if (compensationAmount > this.compensationBgdThreshold) {
       // Requires BGD approval (> 20M VND)
+      // Idempotency check: prevent duplicate approval workflows
+      const existingApproval = await this.prisma.approval.findFirst({
+        where: {
+          referenceId: id,
+          type: 'CUSTOM',
+          status: { in: ['PENDING', 'APPROVED'] },
+        },
+      });
+      if (existingApproval) {
+        return {
+          status: 'PENDING_APPROVAL',
+          approvalId: existingApproval.id,
+          message: `An approval workflow already exists for this complaint.`,
+        };
+      }
+
       const approval = await this.prisma.approval.create({
         data: {
-          type: 'DISCOUNT', // Using DISCOUNT as closest approval type available
+          type: 'CUSTOM', // Complaint compensation - no dedicated ApprovalType exists
           referenceId: id,
           referenceCode: complaint.code,
           requestedBy: complaint.handlerId || complaint.createdBy,
@@ -496,8 +561,24 @@ export class ComplaintService {
       };
     }
 
-    if (compensationAmount > COMPENSATION_GD_KD_THRESHOLD) {
+    if (compensationAmount > this.compensationGdKdThreshold) {
       // Requires GD KD approval (> 5M VND)
+      // Idempotency check: prevent duplicate approval workflows
+      const existingApproval = await this.prisma.approval.findFirst({
+        where: {
+          referenceId: id,
+          type: 'DISCOUNT',
+          status: { in: ['PENDING', 'APPROVED'] },
+        },
+      });
+      if (existingApproval) {
+        return {
+          status: 'PENDING_APPROVAL',
+          approvalId: existingApproval.id,
+          message: `An approval workflow already exists for this complaint.`,
+        };
+      }
+
       const approval = await this.prisma.approval.create({
         data: {
           type: 'DISCOUNT',
@@ -576,7 +657,7 @@ export class ComplaintService {
 
     this.logger.log(
       `Complaint ${complaint.code} resolved with ${resolution.type}` +
-        (compensationAmount > 0 ? ` (${compensationAmount} VND)` : ''),
+      (compensationAmount > 0 ? ` (${compensationAmount} VND)` : ''),
     );
 
     return { status: 'RESOLVED', complaint: updated };
@@ -597,10 +678,7 @@ export class ComplaintService {
       throw new NotFoundException(`Complaint with ID ${id} not found`);
     }
 
-    if (
-      complaint.status === ComplaintStatus.CLOSED ||
-      complaint.status === ComplaintStatus.RESOLVED
-    ) {
+    if (this.statusMachine.isTerminal(complaint.status) || complaint.status === ComplaintStatus.RESOLVED) {
       throw new BadRequestException(
         `Cannot escalate a ${complaint.status} complaint`,
       );

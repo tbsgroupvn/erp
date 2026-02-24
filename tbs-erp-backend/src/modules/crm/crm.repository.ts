@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@core/database/prisma.service';
 import { Customer, CustomerTier, Prisma } from '@prisma/client';
 import { CustomerQueryDto } from './dto/customer-query.dto';
@@ -6,11 +7,17 @@ import { CustomerQueryDto } from './dto/customer-query.dto';
 @Injectable()
 export class CrmRepository {
   private readonly logger = new Logger(CrmRepository.name);
+  private readonly customerCodePrefix: string;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {
+    this.customerCodePrefix = this.configService.get<string>('branding.customerCodePrefix') || 'ERP-KH-';
+  }
 
   /**
-   * Generate a unique customer code: TBS-KH-000001
+   * Generate a unique customer code with configurable prefix.
    */
   async generateCode(): Promise<string> {
     const lastCustomer = await this.prisma.customer.findFirst({
@@ -20,13 +27,14 @@ export class CrmRepository {
 
     let nextNumber = 1;
     if (lastCustomer?.code) {
-      const match = lastCustomer.code.match(/TBS-KH-(\d+)/);
+      const prefix = this.customerCodePrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const match = lastCustomer.code.match(new RegExp(`${prefix}(\\d+)`));
       if (match) {
         nextNumber = parseInt(match[1], 10) + 1;
       }
     }
 
-    return `TBS-KH-${String(nextNumber).padStart(6, '0')}`;
+    return `${this.customerCodePrefix}${String(nextNumber).padStart(6, '0')}`;
   }
 
   /**

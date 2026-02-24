@@ -18,6 +18,9 @@ import { PrismaService } from '@core/database/prisma.service';
  */
 const CUD_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
+const SENSITIVE_FIELDS = ['password', 'currentPassword', 'newPassword', 'passwordHash', 'token', 'refreshToken', 'resetToken', 'apiKey', 'clientSecret', 'secret', 'accessToken', 'creditCard', 'cardNumber', 'cvv', 'bankAccount', 'taxId', 'insuranceId', 'twoFactorSecret'];
+const EXCLUDED_PATHS = ['/auth/login', '/auth/register', '/auth/change-password', '/auth/reset-password', '/auth/forgot-password'];
+
 /**
  * Maps HTTP methods to audit log action strings.
  */
@@ -58,8 +61,17 @@ function extractEntityFromUrl(url: string): string {
 
   // Take the first non-ID segment as the entity name
   const resource = resourceSegments[0];
-  // Convert to PascalCase singular (simple heuristic: remove trailing 's')
-  const singular = resource.endsWith('s') ? resource.slice(0, -1) : resource;
+  // Simple pluralization handling
+  let singular: string;
+  if (resource.endsWith('ies')) {
+    singular = resource.slice(0, -3) + 'y';
+  } else if (resource.endsWith('ses') || resource.endsWith('xes')) {
+    singular = resource.slice(0, -2);
+  } else if (resource.endsWith('s') && !resource.endsWith('ss') && !resource.endsWith('us')) {
+    singular = resource.slice(0, -1);
+  } else {
+    singular = resource;
+  }
   return singular.charAt(0).toUpperCase() + singular.slice(1);
 }
 
@@ -97,6 +109,12 @@ export class AuditLogInterceptor implements NestInterceptor {
       return next.handle();
     }
 
+    // Skip audit logging for sensitive auth routes
+    const path = url.split('?')[0];
+    if (EXCLUDED_PATHS.some((excluded) => path.endsWith(excluded))) {
+      return next.handle();
+    }
+
     // Type-safe access to authenticated user
     const authenticatedRequest = request as AuthenticatedRequest;
     const user = authenticatedRequest.user;
@@ -111,8 +129,21 @@ export class AuditLogInterceptor implements NestInterceptor {
     const entity = extractEntityFromUrl(url);
     const entityId = extractEntityIdFromUrl(url);
 
-    // Capture the request body as "newData" for create/update
-    const newData = method.toUpperCase() === 'DELETE' ? null : body || null;
+    // Layer 2C: Capture userAgent and sessionId for enhanced audit trail
+    const userAgent = request.headers['user-agent'] ?? null;
+    const sessionId = (user as any)?.sessionId ?? null;
+
+    // Check for impersonation metadata on the user object
+    const impersonatedBy = (user as any)?.impersonatedBy;
+
+    // Capture the request body as "newData" for create/update, stripping sensitive fields
+    const sanitizedBody = body ? { ...body } : null;
+    if (sanitizedBody) {
+      for (const field of SENSITIVE_FIELDS) {
+        delete sanitizedBody[field];
+      }
+    }
+    const newData = method.toUpperCase() === 'DELETE' ? null : sanitizedBody;
 
     return next.handle().pipe(
       tap({
@@ -131,15 +162,24 @@ export class AuditLogInterceptor implements NestInterceptor {
                 ? String((responseData as { id: unknown }).id)
                 : undefined);
 
+            // Build newData with impersonation info if applicable
+            const auditNewData = newData ? JSON.parse(JSON.stringify(newData)) : {};
+            if (impersonatedBy) {
+              auditNewData._impersonatedBy = impersonatedBy;
+              auditNewData._isImpersonation = true;
+            }
+
             await this.prisma.auditLog.create({
               data: {
-                userId,
+                userId: impersonatedBy || userId,
                 action,
                 entity,
                 entityId: resolvedEntityId || null,
                 oldData: oldData ? JSON.parse(JSON.stringify(oldData)) : null,
-                newData: newData ? JSON.parse(JSON.stringify(newData)) : null,
+                newData: Object.keys(auditNewData).length > 0 ? auditNewData : null,
                 ipAddress: ip || null,
+                userAgent: userAgent || null,
+                sessionId: sessionId || null,
               },
             });
           } catch (error) {

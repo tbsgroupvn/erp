@@ -3,15 +3,24 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { QuotationStatus, OrderStatus, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
+import { ContractService } from '@modules/contract/contract.service';
+import { QuotationStatusMachine } from './domain/quotation-status.machine';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { UpdateQuotationDto } from './dto/update-quotation.dto';
 import { QuotationQueryDto } from './dto/quotation-query.dto';
+import {
+  CreateTemplateDto,
+  SaveAsTemplateDto,
+  CreateFromTemplateDto,
+} from './dto/quotation-template.dto';
 
 const TAX_RATE = 0.1; // 10% VAT
 
@@ -22,6 +31,8 @@ export class QuotationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly contractService: ContractService,
+    private readonly statusMachine: QuotationStatusMachine,
   ) {}
 
   /**
@@ -188,11 +199,12 @@ export class QuotationService {
       throw new NotFoundException(`Quotation with ID ${id} not found`);
     }
 
-    const editableStatuses: QuotationStatus[] = [QuotationStatus.DRAFT, QuotationStatus.REJECTED];
-    if (!editableStatuses.includes(quotation.status)) {
+    // Only DRAFT and REJECTED can transition (i.e. are editable)
+    if (this.statusMachine.isTerminal(quotation.status) ||
+        (quotation.status !== QuotationStatus.DRAFT && quotation.status !== QuotationStatus.REJECTED)) {
       throw new BadRequestException(
         `Quotation in status ${quotation.status} cannot be edited. ` +
-          `Edits are only allowed in: ${editableStatuses.join(', ')}`,
+          `Edits are only allowed in: DRAFT, REJECTED`,
       );
     }
 
@@ -222,9 +234,10 @@ export class QuotationService {
 
     // If items are provided, replace all items and recalculate totals
     if (dto.items && dto.items.length > 0) {
-      // Delete existing items then create new ones
-      await this.prisma.quotationItem.deleteMany({
-        where: { quotationId: id },
+      // Layer 2A: Soft delete existing items instead of hard delete
+      await this.prisma.quotationItem.updateMany({
+        where: { quotationId: id, deletedAt: null },
+        data: { deletedAt: new Date() },
       });
 
       const newItems = dto.items.map((item) => ({
@@ -371,8 +384,8 @@ export class QuotationService {
               phone: true,
             },
           },
-          items: true,
-          _count: { select: { items: true } },
+          items: { where: { deletedAt: null } },
+          _count: { select: { items: { where: { deletedAt: null } } } },
         },
       }),
       this.prisma.quotation.count({ where }),
@@ -399,7 +412,7 @@ export class QuotationService {
             email: true,
           },
         },
-        items: true,
+        items: { where: { deletedAt: null } },
       },
     });
 
@@ -422,12 +435,7 @@ export class QuotationService {
       throw new NotFoundException(`Quotation with ID ${id} not found`);
     }
 
-    if (quotation.status !== QuotationStatus.PENDING_APPROVAL) {
-      throw new BadRequestException(
-        `Quotation in status ${quotation.status} cannot be approved. ` +
-          `Only PENDING_APPROVAL quotations can be approved.`,
-      );
-    }
+    this.statusMachine.assertTransition(quotation.status, QuotationStatus.APPROVED);
 
     const updated = await this.prisma.quotation.update({
       where: { id },
@@ -460,7 +468,24 @@ export class QuotationService {
       `Quotation ${quotation.code} approved by user ${userId}`,
     );
 
-    return updated;
+    // Auto-create contract appendix from the approved quotation
+    let contractAppendix: { id: string; code: string } | null = null;
+    try {
+      contractAppendix = await this.contractService.createContractFromQuotation(id, userId);
+      this.logger.log(
+        `Contract appendix ${contractAppendix.code} auto-created from quotation ${quotation.code}`,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Failed to auto-create contract appendix from quotation ${quotation.code}: ${err.message}`,
+      );
+    }
+
+    return {
+      ...updated,
+      contractAppendixId: contractAppendix?.id ?? null,
+      contractAppendixCode: contractAppendix?.code ?? null,
+    };
   }
 
   /**
@@ -475,12 +500,7 @@ export class QuotationService {
       throw new NotFoundException(`Quotation with ID ${id} not found`);
     }
 
-    if (quotation.status !== QuotationStatus.PENDING_APPROVAL) {
-      throw new BadRequestException(
-        `Quotation in status ${quotation.status} cannot be rejected. ` +
-          `Only PENDING_APPROVAL quotations can be rejected.`,
-      );
-    }
+    this.statusMachine.assertTransition(quotation.status, QuotationStatus.REJECTED);
 
     if (!reason || reason.trim().length < 5) {
       throw new BadRequestException(
@@ -538,11 +558,7 @@ export class QuotationService {
       throw new NotFoundException(`Quotation with ID ${id} not found`);
     }
 
-    if (quotation.status !== QuotationStatus.APPROVED) {
-      throw new BadRequestException(
-        `Only APPROVED quotations can be converted to orders. Current status: ${quotation.status}`,
-      );
-    }
+    this.statusMachine.assertTransition(quotation.status, QuotationStatus.CONVERTED);
 
     // Generate order code
     const now = new Date();
@@ -595,7 +611,9 @@ export class QuotationService {
           totalAmount: quotation.totalAmount,
           discountPercent: quotation.discountPercent,
           discountAmount: quotation.discountAmount,
-          note: `Created from quotation ${quotation.code}`,
+          note: quotation.note
+            ? `${quotation.note}\n---\nTạo từ báo giá ${quotation.code}`
+            : `Tạo từ báo giá ${quotation.code}`,
           items: {
             create: orderItems,
           },
@@ -776,5 +794,222 @@ export class QuotationService {
     });
 
     return allVersions;
+  }
+
+  // =========================================================================
+  // TEMPLATES
+  // =========================================================================
+
+  async createTemplate(userId: string, dto: CreateTemplateDto) {
+    const template = await this.prisma.quotationTemplate.create({
+      data: {
+        name: dto.name,
+        description: dto.description,
+        serviceType: dto.serviceType,
+        branch: dto.branch,
+        shippingRoute: dto.shippingRoute,
+        items: dto.items as any,
+        isPublic: dto.isPublic ?? false,
+        createdBy: userId,
+      },
+    });
+
+    this.logger.log(`Template "${dto.name}" created by user ${userId}`);
+    return template;
+  }
+
+  async listTemplates(userId: string) {
+    const templates = await this.prisma.quotationTemplate.findMany({
+      where: {
+        OR: [{ createdBy: userId }, { isPublic: true }],
+      },
+      orderBy: { usageCount: 'desc' },
+    });
+    return templates;
+  }
+
+  async deleteTemplate(id: string, userId: string) {
+    const template = await this.prisma.quotationTemplate.findUnique({
+      where: { id },
+    });
+
+    if (!template) {
+      throw new NotFoundException(`Template with ID ${id} not found`);
+    }
+
+    if (template.createdBy !== userId) {
+      throw new ForbiddenException('Only the template owner can delete it');
+    }
+
+    await this.prisma.quotationTemplate.delete({ where: { id } });
+    this.logger.log(`Template "${template.name}" deleted by user ${userId}`);
+  }
+
+  async saveAsTemplate(
+    quotationId: string,
+    userId: string,
+    dto: SaveAsTemplateDto,
+  ) {
+    const quotation = await this.prisma.quotation.findUnique({
+      where: { id: quotationId },
+      include: { items: true },
+    });
+
+    if (!quotation) {
+      throw new NotFoundException(
+        `Quotation with ID ${quotationId} not found`,
+      );
+    }
+
+    const items = quotation.items.map((item) => ({
+      productName: item.productName,
+      productUrl: item.productUrl,
+      quantity: item.quantity,
+      unitPrice: Number(item.unitPrice),
+      currency: item.currency,
+      note: item.note,
+    }));
+
+    const template = await this.prisma.quotationTemplate.create({
+      data: {
+        name: dto.name,
+        description: dto.description,
+        serviceType: quotation.serviceType,
+        branch: quotation.branch,
+        shippingRoute: quotation.shippingRoute,
+        items: items as any,
+        isPublic: dto.isPublic ?? false,
+        createdBy: userId,
+      },
+    });
+
+    this.logger.log(
+      `Quotation ${quotation.code} saved as template "${dto.name}" by user ${userId}`,
+    );
+    return template;
+  }
+
+  async createFromTemplate(
+    templateId: string,
+    userId: string,
+    dto: CreateFromTemplateDto,
+  ) {
+    const template = await this.prisma.quotationTemplate.findUnique({
+      where: { id: templateId },
+    });
+
+    if (!template) {
+      throw new NotFoundException(`Template with ID ${templateId} not found`);
+    }
+
+    // Increment usage count
+    await this.prisma.quotationTemplate.update({
+      where: { id: templateId },
+      data: { usageCount: { increment: 1 } },
+    });
+
+    const templateItems = template.items as any[];
+
+    // Create quotation using the existing createQuotation method
+    const createDto: CreateQuotationDto = {
+      customerId: dto.customerId,
+      serviceType: template.serviceType,
+      branch: template.branch,
+      shippingRoute: template.shippingRoute || undefined,
+      discountPercent: dto.discountPercent,
+      validityDays: dto.validityDays,
+      note: dto.note || `T\u1EA1o t\u1EEB m\u1EABu: ${template.name}`,
+      items: templateItems.map((item: any) => ({
+        productName: item.productName,
+        productUrl: item.productUrl,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        currency: item.currency,
+        note: item.note,
+      })),
+    };
+
+    return this.createQuotation(userId, createDto);
+  }
+
+  // =========================================================================
+  // RECENT ITEMS FOR CUSTOMER
+  // =========================================================================
+
+  async getRecentItemsForCustomer(customerId: string) {
+    const recentQuotations = await this.prisma.quotation.findMany({
+      where: { customerId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      include: {
+        items: {
+          select: {
+            productName: true,
+            productUrl: true,
+            quantity: true,
+            unitPrice: true,
+            currency: true,
+            note: true,
+          },
+        },
+      },
+    });
+
+    // Flatten all items and dedupe by productName
+    const seen = new Set<string>();
+    const recentItems: any[] = [];
+
+    for (const q of recentQuotations) {
+      for (const item of q.items) {
+        const key = item.productName.toLowerCase().trim();
+        if (!seen.has(key) && recentItems.length < 20) {
+          seen.add(key);
+          recentItems.push({
+            productName: item.productName,
+            productUrl: item.productUrl,
+            quantity: item.quantity,
+            unitPrice: Number(item.unitPrice),
+            currency: item.currency,
+            note: item.note,
+          });
+        }
+      }
+    }
+
+    return recentItems;
+  }
+
+  // =========================================================================
+  // CRON: AUTO-EXPIRE QUOTATIONS
+  // =========================================================================
+
+  @Cron('0 9 * * *')
+  async handleExpiredQuotations() {
+    const now = new Date();
+    const expirableStatuses: QuotationStatus[] = [
+      QuotationStatus.DRAFT,
+      QuotationStatus.APPROVED,
+      QuotationStatus.PENDING_APPROVAL,
+    ];
+
+    const expired = await this.prisma.quotation.updateMany({
+      where: {
+        validUntil: { lt: now },
+        status: { in: expirableStatuses },
+      },
+      data: {
+        status: QuotationStatus.EXPIRED,
+      },
+    });
+
+    if (expired.count > 0) {
+      this.logger.log(
+        `Auto-expired ${expired.count} quotation(s) past their validity date`,
+      );
+      this.eventEmitter.emit('quotation.expired', {
+        count: expired.count,
+        expiredAt: now,
+      });
+    }
   }
 }

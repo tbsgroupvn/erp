@@ -7,7 +7,12 @@ import { Button } from '@/components/ui/button';
 import axios from 'axios';
 import TrackingResult from './tracking-result';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+
+/** Strip HTML tags and trim whitespace from input */
+function sanitizeInput(input: string): string {
+  return input.replace(/<[^>]*>/g, '').trim();
+}
 
 export interface TrackingData {
   type: 'order' | 'container';
@@ -50,8 +55,15 @@ export default function TrackingSearch() {
   const [trackingData, setTrackingData] = useState<TrackingData | null>(null);
 
   const handleSearch = async () => {
-    if (!code.trim()) {
+    const sanitizedCode = sanitizeInput(code);
+    if (!sanitizedCode) {
       setError('Vui lòng nhập mã đơn hàng hoặc mã container');
+      return;
+    }
+
+    // Validate format: only allow alphanumeric, dashes, and underscores
+    if (!/^[a-zA-Z0-9\-_]+$/.test(sanitizedCode)) {
+      setError('Mã tra cứu chỉ được chứa chữ, số và dấu gạch ngang');
       return;
     }
 
@@ -64,7 +76,7 @@ export default function TrackingSearch() {
         success: boolean;
         data: TrackingData;
         message: string;
-      }>(`${API_BASE_URL}/public/tracking/${encodeURIComponent(code.trim())}`);
+      }>(`${API_BASE_URL}/public/tracking/${encodeURIComponent(sanitizedCode)}`);
 
       if (response.data.success) {
         setTrackingData(response.data.data);
@@ -74,7 +86,7 @@ export default function TrackingSearch() {
     } catch (err: any) {
       if (err.response?.status === 404) {
         setError(
-          `Không tìm thấy đơn hàng hoặc container với mã: ${code.trim()}`
+          'Không tìm thấy đơn hàng hoặc container với mã đã nhập'
         );
       } else {
         setError(
@@ -107,7 +119,7 @@ export default function TrackingSearch() {
               placeholder="Nhập mã đơn hàng hoặc mã container..."
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyPress}
               className="flex-1"
               disabled={loading}
             />

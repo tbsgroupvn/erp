@@ -1,6 +1,15 @@
 import { apiClient } from './client';
 import type { BaseResponse, PaginatedResponse } from '@/lib/types';
-import type { Quotation, CreateQuotationDto, QuotationQueryParams } from '@/lib/types';
+import type {
+  Quotation,
+  CreateQuotationDto,
+  QuotationQueryParams,
+  QuotationTemplate,
+  CreateTemplateDto,
+  SaveAsTemplateDto,
+  CreateFromTemplateDto,
+  RecentQuotationItem,
+} from '@/lib/types';
 
 export const quotationsApi = {
   /** GET /quotations */
@@ -36,7 +45,7 @@ export const quotationsApi = {
   /** POST /quotations/:id/approve */
   approve: (id: string) =>
     apiClient
-      .post<BaseResponse<Quotation>>(`/quotations/${id}/approve`)
+      .post<BaseResponse<Quotation & { contractAppendixId?: string; contractAppendixCode?: string }>>(`/quotations/${id}/approve`)
       .then((r) => r.data.data),
 
   /** POST /quotations/:id/reject */
@@ -68,4 +77,48 @@ export const quotationsApi = {
     apiClient
       .get(`/quotations/${id}/export/excel`, { responseType: 'blob' })
       .then((r) => r.data),
+
+  // =========================================================================
+  // TEMPLATES
+  // =========================================================================
+
+  /** GET /quotations/templates */
+  listTemplates: () =>
+    apiClient
+      .get<BaseResponse<QuotationTemplate[]>>('/quotations/templates')
+      .then((r) => r.data.data),
+
+  /** POST /quotations/templates */
+  createTemplate: (data: CreateTemplateDto) =>
+    apiClient
+      .post<BaseResponse<QuotationTemplate>>('/quotations/templates', data)
+      .then((r) => r.data.data),
+
+  /** DELETE /quotations/templates/:id */
+  deleteTemplate: (id: string) =>
+    apiClient
+      .delete<BaseResponse<null>>(`/quotations/templates/${id}`)
+      .then((r) => r.data),
+
+  /** POST /quotations/:id/save-as-template */
+  saveAsTemplate: (id: string, data: SaveAsTemplateDto) =>
+    apiClient
+      .post<BaseResponse<QuotationTemplate>>(`/quotations/${id}/save-as-template`, data)
+      .then((r) => r.data.data),
+
+  /** POST /quotations/from-template/:templateId */
+  createFromTemplate: (templateId: string, data: CreateFromTemplateDto) =>
+    apiClient
+      .post<BaseResponse<Quotation>>(`/quotations/from-template/${templateId}`, data)
+      .then((r) => r.data.data),
+
+  // =========================================================================
+  // RECENT ITEMS
+  // =========================================================================
+
+  /** GET /quotations/customer/:customerId/recent-items */
+  getRecentItems: (customerId: string) =>
+    apiClient
+      .get<BaseResponse<RecentQuotationItem[]>>(`/quotations/customer/${customerId}/recent-items`)
+      .then((r) => r.data.data),
 };

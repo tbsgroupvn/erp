@@ -1,46 +1,54 @@
 import { apiClient } from './client';
-import type { BaseResponse, PaginatedResponse } from '@/lib/types';
+import type {
+  BaseResponse,
+  PaginatedResponse,
+  Employee,
+  CreateEmployeeDto,
+  UpdateEmployeeDto,
+  EmployeeQueryParams,
+  Headcount,
+} from '@/lib/types';
 
 export const employeesApi = {
   /** GET /employees */
-  list: (params?: Record<string, unknown>) =>
+  list: (params?: EmployeeQueryParams) =>
     apiClient
-      .get<PaginatedResponse<unknown>>('/employees', { params })
+      .get<PaginatedResponse<Employee>>('/employees', { params })
       .then((r) => r.data),
 
   /** GET /employees/:id */
   getById: (id: string) =>
     apiClient
-      .get<BaseResponse<unknown>>(`/employees/${id}`)
+      .get<BaseResponse<Employee>>(`/employees/${id}`)
       .then((r) => r.data.data),
 
   /** POST /employees */
-  create: (data: Record<string, unknown>) =>
+  create: (data: CreateEmployeeDto) =>
     apiClient
-      .post<BaseResponse<unknown>>('/employees', data)
+      .post<BaseResponse<Employee>>('/employees', data)
       .then((r) => r.data.data),
 
   /** PATCH /employees/:id */
-  update: (id: string, data: Record<string, unknown>) =>
+  update: (id: string, data: UpdateEmployeeDto) =>
     apiClient
-      .patch<BaseResponse<unknown>>(`/employees/${id}`, data)
+      .patch<BaseResponse<Employee>>(`/employees/${id}`, data)
       .then((r) => r.data.data),
 
   /** GET /employees/headcount */
   getHeadcount: (branch?: string) =>
     apiClient
-      .get<BaseResponse<unknown>>('/employees/headcount', { params: { branch } })
+      .get<BaseResponse<Headcount>>('/employees/headcount', { params: { branch } })
       .then((r) => r.data.data),
 
   /** GET /employees/department/:deptCode */
   getByDepartment: (deptCode: string) =>
     apiClient
-      .get<BaseResponse<unknown[]>>(`/employees/department/${deptCode}`)
+      .get<BaseResponse<Employee[]>>(`/employees/department/${deptCode}`)
       .then((r) => r.data.data),
 
   /** POST /employees/:id/deactivate */
-  deactivate: (id: string, data: Record<string, unknown>) =>
+  deactivate: (id: string, data: { reason?: string }) =>
     apiClient
-      .post<BaseResponse<unknown>>(`/employees/${id}/deactivate`, data)
+      .post<BaseResponse<Employee>>(`/employees/${id}/deactivate`, data)
       .then((r) => r.data.data),
 };

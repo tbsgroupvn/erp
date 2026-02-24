@@ -2,11 +2,21 @@
 // CONTAINER — Container, Shipment
 // ============================================
 
+enum ContainerStatus {
+  PLANNING
+  LOADING
+  IN_TRANSIT
+  ARRIVED
+  CUSTOMS
+  COMPLETED
+  ON_HOLD_BORDER
+}
+
 model Container {
   id              String        @id @default(cuid())
   code            String        @unique            // Mã cont: TBS-CNT-240101-01
   shippingRoute   ShippingRoute @map("shipping_route")
-  status          String        @default("PLANNING") // PLANNING, LOADING, IN_TRANSIT, ARRIVED, CUSTOMS, COMPLETED
+  status          ContainerStatus @default(PLANNING)
   origin          String?                           // Kho TQ
   destination     String?                           // Kho VN
 
@@ -29,17 +39,21 @@ model Container {
   actualArrivalAt      DateTime? @map("actual_arrival_at")
   customsClearedAt     DateTime? @map("customs_cleared_at")
 
+  allocationMethod String       @default("WEIGHT") @map("allocation_method") // WEIGHT | VOLUME | EVEN
+
   createdBy       String        @map("created_by")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
   // Relations
-  orders          Order[]
-  packages        Package[]
-  trackingEvents  TrackingEvent[]
-  operationCosts  OperationCost[]
+  orders               Order[]
+  packages             Package[]
+  trackingEvents       TrackingEvent[]
+  operationCosts       OperationCost[]
+  customsDeclarations  CustomsDeclaration[]
 
   @@index([status])
   @@index([createdAt])
+  @@index([estimatedArrivalAt])
   @@map("containers")
 }

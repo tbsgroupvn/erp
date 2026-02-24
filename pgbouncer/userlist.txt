@@ -1,0 +1,15 @@
+; ============================================
+; TBS ERP - PgBouncer User List
+; Format: "username" "password_or_md5hash"
+;
+; IMPORTANT: Replace with actual credentials.
+; For md5 hash: echo -n "password+username" | md5sum
+; Then prefix with "md5": "md5<hash>"
+;
+; In production, use the PGBOUNCER_AUTH_FILE env var
+; or mount this file with proper secrets management.
+; ============================================
+
+; auth_query is used instead of static credentials in this file.
+; PgBouncer authenticates users by querying pg_shadow via the auth_user
+; defined in pgbouncer.ini. No static credentials are needed here.

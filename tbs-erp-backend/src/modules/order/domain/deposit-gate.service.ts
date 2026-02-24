@@ -3,11 +3,25 @@ import {
   CustomerTier,
   ServiceType,
   OrderStatus,
-  Order,
-  Customer,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { DEPOSIT_RATE } from '@common/constants';
+import { PrismaService } from '@core/database/prisma.service';
+
+export interface ProcurementGateResult {
+  /** Whether procurement (creating supplier orders) is allowed */
+  allowed: boolean;
+  /** Current deposit paid percentage (0-100) */
+  depositPaidPercent: number;
+  /** Whether this order should get priority treatment (100% deposit) */
+  isPriority: boolean;
+  /** Total deposit paid */
+  depositPaid: number;
+  /** Total order amount */
+  totalAmount: number;
+  /** Minimum percent required to unlock procurement */
+  requiredPercent: number;
+}
 
 export interface DepositRequirement {
   /** Whether a deposit is required for this order */
@@ -47,6 +61,70 @@ export interface DepositSatisfactionResult {
 @Injectable()
 export class DepositGateService {
   private readonly logger = new Logger(DepositGateService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Hard rule: checks if procurement (creating supplier orders) is allowed.
+   * Requires at least 70% of total order amount paid as deposit.
+   * If 100% is paid, the order gets priority treatment.
+   */
+  async canProcure(orderId: string): Promise<ProcurementGateResult> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        totalAmount: true,
+        depositPaid: true,
+        isDepositPaid: true,
+      },
+    });
+
+    if (!order) {
+      return {
+        allowed: false,
+        depositPaidPercent: 0,
+        isPriority: false,
+        depositPaid: 0,
+        totalAmount: 0,
+        requiredPercent: 70,
+      };
+    }
+
+    const totalAmount = Number(order.totalAmount);
+    const depositPaid = Number(order.depositPaid);
+    const depositPaidPercent = totalAmount > 0
+      ? (depositPaid / totalAmount) * 100
+      : 0;
+
+    const allowed = depositPaidPercent >= 70;
+    const isPriority = depositPaidPercent >= 100;
+
+    return {
+      allowed,
+      depositPaidPercent: Math.round(depositPaidPercent * 100) / 100,
+      isPriority,
+      depositPaid,
+      totalAmount,
+      requiredPercent: 70,
+    };
+  }
+
+  /**
+   * Returns detailed procurement gate status for frontend display.
+   */
+  async getProcurementGateStatus(orderId: string) {
+    const gate = await this.canProcure(orderId);
+
+    return {
+      ...gate,
+      message: !gate.allowed
+        ? `Cần cọc tối thiểu 70% để mua hàng. Hiện tại: ${gate.depositPaidPercent.toFixed(1)}%`
+        : gate.isPriority
+          ? 'Đã cọc 100% - Đơn hàng ưu tiên'
+          : `Đủ điều kiện mua hàng (${gate.depositPaidPercent.toFixed(1)}%)`,
+    };
+  }
 
   /**
    * Calculates the deposit requirement for an order based on customer tier

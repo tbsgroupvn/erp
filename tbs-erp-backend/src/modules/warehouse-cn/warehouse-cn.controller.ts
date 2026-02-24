@@ -157,6 +157,91 @@ export class WarehouseCNController {
     );
   }
 
+  @Get('scan/:trackingNumber')
+  @ApiOperation({
+    summary: 'Scan barcode to look up package',
+    description:
+      'Looks up a package by tracking number CN. Uses Redis cache with 300s TTL for fast repeated scans.',
+  })
+  @ApiParam({ name: 'trackingNumber', description: 'CN tracking number / barcode' })
+  @ApiResponse({ status: 200, description: 'Package found' })
+  @ApiResponse({ status: 404, description: 'Package not found' })
+  async scanBarcode(@Param('trackingNumber') trackingNumber: string) {
+    const pkg = await this.warehouseCNService.scanBarcode(trackingNumber);
+    if (!pkg) {
+      return BaseResponse.ok(null, 'No package found for this tracking number');
+    }
+    return BaseResponse.ok(pkg, 'Package found');
+  }
+
+  @Patch('packages/:id/independent-status')
+  @Roles(UserRole.WAREHOUSE_CN_AGENT, UserRole.XNK_MANAGER)
+  @ApiOperation({
+    summary: 'Set package independent status',
+    description:
+      'Sets the independent status of a package: NORMAL, CONFISCATED_BY_CUSTOMS, HIGH_RISK_HOLD. ' +
+      'CONFISCATED also sets the order to ISSUE status.',
+  })
+  @ApiParam({ name: 'id', description: 'Package ID' })
+  @ApiResponse({ status: 200, description: 'Status set' })
+  @ApiResponse({ status: 400, description: 'Invalid status' })
+  @ApiResponse({ status: 404, description: 'Package not found' })
+  async setPackageIndependentStatus(
+    @Param('id') id: string,
+    @Body('status') status: string,
+    @Body('reason') reason: string,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const pkg = await this.warehouseCNService.setPackageIndependentStatus(
+      id,
+      status,
+      reason,
+      user.id,
+    );
+    return BaseResponse.ok(pkg, `Independent status set to ${status}`);
+  }
+
+  @Patch('packages/:id/high-risk')
+  @Roles(UserRole.WAREHOUSE_CN_AGENT, UserRole.XNK_MANAGER)
+  @ApiOperation({
+    summary: 'Mark package as high risk',
+    description: 'Marks a package as high risk goods.',
+  })
+  @ApiParam({ name: 'id', description: 'Package ID' })
+  @ApiResponse({ status: 200, description: 'Package marked as high risk' })
+  @ApiResponse({ status: 404, description: 'Package not found' })
+  async markHighRisk(
+    @Param('id') id: string,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const pkg = await this.warehouseCNService.markHighRisk(id, user.id);
+    return BaseResponse.ok(pkg, 'Package marked as high risk');
+  }
+
+  @Patch('packages/:id/accept-disclaimer')
+  @Roles(
+    UserRole.WAREHOUSE_CN_AGENT,
+    UserRole.XNK_MANAGER,
+    UserRole.SALE,
+    UserRole.SALES_LEADER,
+  )
+  @ApiOperation({
+    summary: 'Accept high risk disclaimer',
+    description:
+      'Accepts the high risk disclaimer for a package, allowing it to be dispatched.',
+  })
+  @ApiParam({ name: 'id', description: 'Package ID' })
+  @ApiResponse({ status: 200, description: 'Disclaimer accepted' })
+  @ApiResponse({ status: 400, description: 'Package is not high risk' })
+  @ApiResponse({ status: 404, description: 'Package not found' })
+  async acceptDisclaimer(
+    @Param('id') id: string,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const pkg = await this.warehouseCNService.acceptDisclaimer(id, user.id);
+    return BaseResponse.ok(pkg, 'High risk disclaimer accepted');
+  }
+
   @Get('packages/:id')
   @ApiOperation({
     summary: 'Get package detail',

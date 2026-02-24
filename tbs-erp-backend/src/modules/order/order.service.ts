@@ -14,6 +14,7 @@ import {
   Prisma,
   CustomerTier,
   UserRole,
+  Currency,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
@@ -21,6 +22,7 @@ import { DataScopeFilter } from '@common/guards/data-scope.guard';
 import { OrderRepository, OrderWithRelations } from './order.repository';
 import { OrderStatusMachine } from './domain/order-status.machine';
 import { DepositGateService } from './domain/deposit-gate.service';
+import { ExchangeRateService } from '@modules/exchange-rate/exchange-rate.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderQueryDto } from './dto/order-query.dto';
@@ -35,6 +37,7 @@ export class OrderService {
     private readonly statusMachine: OrderStatusMachine,
     private readonly depositGate: DepositGateService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly exchangeRateService: ExchangeRateService,
   ) {}
 
   /**
@@ -55,6 +58,7 @@ export class OrderService {
         tier: true,
         depositRate: true,
         isActive: true,
+        exchangeRateMode: true,
       },
     });
 
@@ -99,6 +103,28 @@ export class OrderService {
       }),
     );
 
+    // Resolve exchange rate mode from customer settings
+    let baseExchangeRate: Decimal | null = null;
+    let exchangeRateMode: string = 'FLOATING';
+
+    if (customer.exchangeRateMode === 'FIXED') {
+      exchangeRateMode = 'FIXED';
+      try {
+        const currentRate = await this.exchangeRateService.getCurrentRate(
+          Currency.CNY,
+          Currency.VND,
+        );
+        baseExchangeRate = new Decimal(Number(currentRate.rate));
+        this.logger.log(
+          `Order ${code}: FIXED exchange rate locked at CNY/VND = ${currentRate.rate}`,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Order ${code}: Could not fetch CNY/VND rate for FIXED mode, proceeding without locked rate. Error: ${error.message}`,
+        );
+      }
+    }
+
     // Create the order
     const order = await this.orderRepo.create(
       {
@@ -112,6 +138,8 @@ export class OrderService {
         totalAmount: new Decimal(totalAmount),
         depositRequired: new Decimal(depositReq.depositAmount),
         note: dto.note,
+        exchangeRateMode,
+        ...(baseExchangeRate !== null && { baseExchangeRate }),
       },
       items,
     );
@@ -134,10 +162,12 @@ export class OrderService {
       totalAmount,
       depositRequired: depositReq.depositAmount,
       createdBy: currentUser.id,
+      exchangeRateMode,
+      baseExchangeRate: baseExchangeRate ? Number(baseExchangeRate) : null,
     });
 
     this.logger.log(
-      `Order ${code} created for customer ${customer.code} by user ${currentUser.id}`,
+      `Order ${code} created for customer ${customer.code} by user ${currentUser.id} (exchangeRateMode=${exchangeRateMode})`,
     );
 
     return order;
@@ -703,6 +733,72 @@ export class OrderService {
     );
 
     return { orderId, depositPaid: newDepositPaid, isDepositPaid };
+  }
+
+  /**
+   * B6: Updates the fulfillment status of an order based on delivered packages.
+   *
+   * - FULL: all packages have deliveredAt set
+   * - PARTIAL: some packages delivered, but not all
+   * - NONE: no packages delivered
+   *
+   * Falls back to item-based fulfillment if no packages exist.
+   */
+  async updateFulfillmentStatus(orderId: string) {
+    // B6: Package-based fulfillment
+    const totalPackages = await this.prisma.package.count({
+      where: { orderId },
+    });
+
+    const deliveredPackages = await this.prisma.package.count({
+      where: { orderId, deliveredAt: { not: null } },
+    });
+
+    let fulfillmentStatus: string;
+
+    if (totalPackages === 0) {
+      // Fall back to item-based fulfillment if no packages exist
+      const items = await this.prisma.orderItem.findMany({
+        where: { orderId },
+        select: { quantity: true, fulfilledQuantity: true },
+      });
+
+      if (items.length === 0) return;
+
+      const totalOrdered = items.reduce((sum, i) => sum + i.quantity, 0);
+      const totalFulfilled = items.reduce(
+        (sum, i) => sum + i.fulfilledQuantity,
+        0,
+      );
+
+      if (totalFulfilled === 0) {
+        fulfillmentStatus = 'NONE';
+      } else if (totalFulfilled >= totalOrdered) {
+        fulfillmentStatus = 'FULL';
+      } else {
+        fulfillmentStatus = 'PARTIAL';
+      }
+    } else {
+      if (deliveredPackages === 0) {
+        fulfillmentStatus = 'NONE';
+      } else if (deliveredPackages >= totalPackages) {
+        fulfillmentStatus = 'FULL';
+      } else {
+        fulfillmentStatus = 'PARTIAL';
+      }
+    }
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { fulfillmentStatus },
+    });
+
+    this.logger.log(
+      `Order ${orderId}: fulfillment status updated to ${fulfillmentStatus} ` +
+        `(${deliveredPackages}/${totalPackages} packages delivered)`,
+    );
+
+    return { orderId, fulfillmentStatus, totalPackages, deliveredPackages };
   }
 
   /**

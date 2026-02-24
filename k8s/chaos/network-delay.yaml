@@ -1,0 +1,79 @@
+# ============================================
+# Chaos Mesh - Network Delay Experiment
+# ============================================
+# Injects 200ms network latency (with jitter) into backend pods
+# to test resilience of frontend/API consumers to slow responses.
+#
+# SAFETY: Only targets staging namespace by default.
+# Schedule: Daily at 2 AM UTC (off-peak for Vietnam timezone).
+# Duration: 5 minutes per experiment.
+# ============================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: backend-network-delay
+  namespace: tbs-erp-staging
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    chaos-mesh.org/experiment-type: network
+    tbs.chaos/category: resilience
+    tbs.chaos/severity: low
+  annotations:
+    tbs.chaos/description: "Inject network latency into backend pods"
+    tbs.chaos/owner: "platform-team"
+    tbs.chaos/runbook: "https://wiki.tbslogistics.com/chaos/network-delay"
+spec:
+  action: delay
+  mode: one
+  selector:
+    namespaces:
+      - tbs-erp-staging
+    labelSelectors:
+      app.kubernetes.io/name: tbs-backend
+      app.kubernetes.io/component: api
+  delay:
+    latency: '200ms'
+    jitter: '50ms'
+    correlation: '50'
+  duration: '5m'
+  scheduler:
+    cron: '0 2 * * *'
+---
+# ============================================
+# Chaos Mesh - Network Partition (Backend <-> Redis)
+# ============================================
+# Simulates network partition between backend and Redis
+# to verify graceful degradation when cache is unavailable.
+# ============================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: backend-redis-partition
+  namespace: tbs-erp-staging
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    chaos-mesh.org/experiment-type: network
+    tbs.chaos/category: resilience
+    tbs.chaos/severity: medium
+  annotations:
+    tbs.chaos/description: "Partition backend from Redis cache"
+    tbs.chaos/expected: "Backend should serve requests from DB, degraded but functional"
+spec:
+  action: partition
+  mode: all
+  selector:
+    namespaces:
+      - tbs-erp-staging
+    labelSelectors:
+      app.kubernetes.io/name: tbs-backend
+  direction: both
+  target:
+    selector:
+      namespaces:
+        - tbs-erp-staging
+      labelSelectors:
+        app.kubernetes.io/name: tbs-redis
+    mode: all
+  duration: '3m'
+  scheduler:
+    cron: '0 3 * * 3'  # Weekly Wednesday 3 AM

@@ -1,0 +1,100 @@
+# ============================================
+# Chaos Mesh - Pod Kill Experiment
+# ============================================
+# Randomly kills one backend pod to verify that:
+#   1. Kubernetes restarts the pod automatically
+#   2. Other replicas handle traffic during recovery
+#   3. No user-facing errors during pod restart
+#
+# SAFETY: Only targets staging namespace.
+# Schedule: Weekly Monday 3 AM UTC.
+# ============================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: backend-pod-kill
+  namespace: tbs-erp-staging
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    chaos-mesh.org/experiment-type: pod
+    tbs.chaos/category: availability
+    tbs.chaos/severity: medium
+  annotations:
+    tbs.chaos/description: "Kill one backend pod to test auto-recovery"
+    tbs.chaos/owner: "platform-team"
+    tbs.chaos/expected: "Pod restarts within 60s, zero dropped requests"
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - tbs-erp-staging
+    labelSelectors:
+      app.kubernetes.io/name: tbs-backend
+      app.kubernetes.io/component: api
+  gracePeriod: 0
+  scheduler:
+    cron: '0 3 * * 1'  # Weekly Monday 3 AM UTC
+---
+# ============================================
+# Chaos Mesh - Frontend Pod Kill
+# ============================================
+# Kills one frontend pod to verify Next.js container resilience.
+# ============================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: frontend-pod-kill
+  namespace: tbs-erp-staging
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    chaos-mesh.org/experiment-type: pod
+    tbs.chaos/category: availability
+    tbs.chaos/severity: low
+  annotations:
+    tbs.chaos/description: "Kill one frontend pod to test auto-recovery"
+    tbs.chaos/expected: "Pod restarts within 30s, users may see brief 502"
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - tbs-erp-staging
+    labelSelectors:
+      app.kubernetes.io/name: tbs-erp-frontend
+      app.kubernetes.io/component: frontend
+  gracePeriod: 0
+  scheduler:
+    cron: '0 3 * * 4'  # Weekly Thursday 3 AM UTC
+---
+# ============================================
+# Chaos Mesh - Pod Failure (Backend)
+# ============================================
+# Makes a pod fail (but not restart) to test how the system
+# handles a consistently unhealthy pod.
+# ============================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: backend-pod-failure
+  namespace: tbs-erp-staging
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    chaos-mesh.org/experiment-type: pod
+    tbs.chaos/category: availability
+    tbs.chaos/severity: medium
+  annotations:
+    tbs.chaos/description: "Make backend pod fail for 2 minutes"
+    tbs.chaos/expected: "Other replicas handle all traffic, liveness probe triggers restart"
+spec:
+  action: pod-failure
+  mode: one
+  selector:
+    namespaces:
+      - tbs-erp-staging
+    labelSelectors:
+      app.kubernetes.io/name: tbs-backend
+      app.kubernetes.io/component: api
+  duration: '2m'
+  scheduler:
+    cron: '30 3 * * 2'  # Weekly Tuesday 3:30 AM UTC

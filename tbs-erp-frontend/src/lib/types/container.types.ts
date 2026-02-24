@@ -14,6 +14,7 @@ export interface Container {
     | 'PLANNING'
     | 'LOADING'
     | 'IN_TRANSIT'
+    | 'ON_HOLD_BORDER'
     | 'ARRIVED'
     | 'CUSTOMS'
     | 'COMPLETED';

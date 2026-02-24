@@ -22,29 +22,54 @@ export class TaskService {
 
   /**
    * Creates a new task with auto-generated code TSK-YYYYMM-XXXX.
+   * Includes retry logic for unique constraint violations on code generation.
    */
   async createTask(userId: string, dto: CreateTaskDto) {
-    const code = await this.generateTaskCode();
+    // Validate deadline is in the future when provided
+    if (dto.dueDate) {
+      const dueDate = new Date(dto.dueDate);
+      if (isNaN(dueDate.getTime())) {
+        throw new BadRequestException('Invalid dueDate format');
+      }
+      if (dueDate <= new Date()) {
+        throw new BadRequestException('Task deadline must be in the future');
+      }
+    }
 
-    const task = await this.prisma.task.create({
-      data: {
-        code,
-        title: dto.title,
-        description: dto.description,
-        assigneeId: dto.assigneeId,
-        priority: dto.priority || TaskPriority.MEDIUM,
-        status: TaskStatus.OPEN,
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
-        entityType: dto.entityType,
-        entityId: dto.entityId,
-        tags: dto.tags || [],
-        createdBy: userId,
-      },
-      include: {
-        assignee: { select: { id: true, fullName: true, email: true } },
-        createdByUser: { select: { id: true, fullName: true } },
-      },
-    });
+    let task: any;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const code = await this.generateTaskCode();
+
+        task = await this.prisma.task.create({
+          data: {
+            code,
+            title: dto.title,
+            description: dto.description,
+            assigneeId: dto.assigneeId,
+            priority: dto.priority || TaskPriority.MEDIUM,
+            status: TaskStatus.OPEN,
+            dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+            entityType: dto.entityType,
+            entityId: dto.entityId,
+            tags: dto.tags || [],
+            createdBy: userId,
+          },
+          include: {
+            assignee: { select: { id: true, fullName: true, email: true } },
+            createdByUser: { select: { id: true, fullName: true } },
+          },
+        });
+        break;
+      } catch (error) {
+        if (error.code === 'P2002' && attempt < 2) {
+          this.logger.warn(`Task code conflict on attempt ${attempt + 1}, retrying...`);
+          continue;
+        }
+        throw error;
+      }
+    }
 
     this.eventEmitter.emit('task.created', {
       taskId: task.id,
@@ -53,7 +78,7 @@ export class TaskService {
       createdBy: userId,
     });
 
-    this.logger.log(`Task ${code} created by ${userId}`);
+    this.logger.log(`Task ${task.code} created by ${userId}`);
     return task;
   }
 
@@ -64,6 +89,17 @@ export class TaskService {
     const task = await this.prisma.task.findUnique({ where: { id } });
     if (!task) {
       throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+
+    // Validate deadline is in the future when updating
+    if (dto.dueDate !== undefined) {
+      const dueDate = new Date(dto.dueDate);
+      if (isNaN(dueDate.getTime())) {
+        throw new BadRequestException('Invalid dueDate format');
+      }
+      if (dueDate <= new Date()) {
+        throw new BadRequestException('Task deadline must be in the future');
+      }
     }
 
     const updateData: Prisma.TaskUpdateInput = {};

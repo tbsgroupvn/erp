@@ -27,10 +27,10 @@ import type { Package } from '@/lib/types';
 // ---------------------------------------------------------------------------
 
 const VN_STATUS_LABELS: Record<string, string> = {
-  RECEIVED: '\u0110\u00e3 nh\u1eadn',
-  SORTED: '\u0110\u00e3 ph\u00e2n lo\u1ea1i',
-  READY: 'S\u1eb5n s\u00e0ng giao',
-  DELIVERED: '\u0110\u00e3 giao',
+  RECEIVED: 'Đã nhận',
+  SORTED: 'Đã phân loại',
+  READY: 'Sẵn sàng giao',
+  DELIVERED: 'Đã giao',
 };
 
 const VN_STATUS_COLORS: Record<string, string> = {
@@ -45,11 +45,11 @@ const VN_STATUS_COLORS: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 const STATUS_FILTER_OPTIONS = [
-  { value: '', label: 'T\u1ea5t c\u1ea3 tr\u1ea1ng th\u00e1i' },
-  { value: 'RECEIVED', label: '\u0110\u00e3 nh\u1eadn' },
-  { value: 'SORTED', label: '\u0110\u00e3 ph\u00e2n lo\u1ea1i' },
-  { value: 'READY', label: 'S\u1eb5n s\u00e0ng giao' },
-  { value: 'DELIVERED', label: '\u0110\u00e3 giao' },
+  { value: '', label: 'Tất cả trạng thái' },
+  { value: 'RECEIVED', label: 'Đã nhận' },
+  { value: 'SORTED', label: 'Đã phân loại' },
+  { value: 'READY', label: 'Sẵn sàng giao' },
+  { value: 'DELIVERED', label: 'Đã giao' },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -57,8 +57,8 @@ const STATUS_FILTER_OPTIONS = [
 // ---------------------------------------------------------------------------
 
 const receiveFromContainerSchema = z.object({
-  containerId: z.string().min(1, 'M\u00e3 container kh\u00f4ng \u0111\u01b0\u1ee3c \u0111\u1ec3 tr\u1ed1ng'),
-  packageIdsRaw: z.string().min(1, 'Danh s\u00e1ch m\u00e3 ki\u1ec7n kh\u00f4ng \u0111\u01b0\u1ee3c \u0111\u1ec3 tr\u1ed1ng'),
+  containerId: z.string().min(1, 'Mã container không được để trống'),
+  packageIdsRaw: z.string().min(1, 'Danh sách mã kiện không được để trống'),
   notes: z.string().optional(),
 });
 
@@ -230,7 +230,7 @@ export default function KhoVietNamPage() {
       // Package code — clickable link to detail page
       {
         accessorKey: 'code',
-        header: 'M\u00e3 ki\u1ec7n',
+        header: 'Mã kiện',
         cell: ({ row }) => (
           <Link
             href={`/kho-viet-nam/${row.original.id}`}
@@ -242,11 +242,11 @@ export default function KhoVietNamPage() {
       },
       {
         accessorKey: 'orderId',
-        header: '\u0110\u01a1n h\u00e0ng',
+        header: 'Đơn hàng',
       },
       {
         accessorKey: 'warehouseVNStatus',
-        header: 'Tr\u1ea1ng th\u00e1i',
+        header: 'Trạng thái',
         cell: ({ row }) => {
           const status = row.original.warehouseVNStatus || '';
           return (
@@ -259,14 +259,14 @@ export default function KhoVietNamPage() {
       },
       {
         accessorKey: 'actualWeight',
-        header: 'C\u00e2n n\u1eb7ng (kg)',
+        header: 'Cân nặng (kg)',
         cell: ({ row }) => (
           <span>{row.original.actualWeight?.toFixed(2) ?? '---'}</span>
         ),
       },
       {
         accessorKey: 'chargeableWeight',
-        header: 'TL t\u00ednh ph\u00ed (kg)',
+        header: 'TL tính phí (kg)',
         cell: ({ row }) => (
           <span>{row.original.chargeableWeight?.toFixed(2) ?? '---'}</span>
         ),
@@ -278,7 +278,7 @@ export default function KhoVietNamPage() {
       },
       {
         accessorKey: 'receivedVNAt',
-        header: 'Ng\u00e0y nh\u1eadn VN',
+        header: 'Ngày nhận VN',
         cell: ({ row }) => (
           <span>
             {row.original.receivedVNAt
@@ -290,7 +290,7 @@ export default function KhoVietNamPage() {
       // Per-row actions column
       {
         id: 'actions',
-        header: 'Thao t\u00e1c',
+        header: 'Thao tác',
         cell: ({ row }) => {
           const status = row.original.warehouseVNStatus;
           return (
@@ -303,7 +303,7 @@ export default function KhoVietNamPage() {
                   disabled={sortPackagesVN.isPending}
                 >
                   <ArrowRightLeft className="mr-1 h-3.5 w-3.5" />
-                  Ph\u00e2n lo\u1ea1i
+                  Phân loại
                 </Button>
               )}
               {status === 'SORTED' && (
@@ -314,7 +314,7 @@ export default function KhoVietNamPage() {
                   disabled={sortPackagesVN.isPending}
                 >
                   <CheckCircle className="mr-1 h-3.5 w-3.5" />
-                  S\u1eb5n s\u00e0ng
+                  Sẵn sàng
                 </Button>
               )}
             </div>
@@ -341,15 +341,15 @@ export default function KhoVietNamPage() {
     <div className="space-y-4">
       {/* Header with receive button */}
       <PageHeader
-        title="Kho Vi\u1ec7t Nam"
-        description="Qu\u1ea3n l\u00fd ki\u1ec7n h\u00e0ng t\u1ea1i kho VN v\u00e0 giao h\u00e0ng"
+        title="Kho Việt Nam"
+        description="Quản lý kiện hàng tại kho VN và giao hàng"
       >
         <Button
           variant={showReceiveForm ? 'secondary' : 'default'}
           onClick={() => setShowReceiveForm((v) => !v)}
         >
           <PackageOpen className="mr-2 h-4 w-4" />
-          Nh\u1eadn t\u1eeb container
+          Nhận từ container
         </Button>
       </PageHeader>
 
@@ -358,7 +358,7 @@ export default function KhoVietNamPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">
-              Nh\u1eadn ki\u1ec7n t\u1eeb container
+              Nhận kiện từ container
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -368,7 +368,7 @@ export default function KhoVietNamPage() {
             >
               {/* Container ID */}
               <div className="space-y-2">
-                <Label htmlFor="containerId">M\u00e3 container *</Label>
+                <Label htmlFor="containerId">Mã container *</Label>
                 <Input
                   id="containerId"
                   placeholder="VD: CNT-2024-001"
@@ -384,7 +384,7 @@ export default function KhoVietNamPage() {
               {/* Package IDs */}
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="packageIdsRaw">
-                  Danh s\u00e1ch m\u00e3 ki\u1ec7n * (ph\u00e2n t\u00e1ch b\u1eb1ng d\u1ea5u ph\u1ea9y)
+                  Danh sách mã kiện * (phân tách bằng dấu phẩy)
                 </Label>
                 <Input
                   id="packageIdsRaw"
@@ -400,10 +400,10 @@ export default function KhoVietNamPage() {
 
               {/* Notes */}
               <div className="space-y-2">
-                <Label htmlFor="notes">Ghi ch\u00fa</Label>
+                <Label htmlFor="notes">Ghi chú</Label>
                 <Input
                   id="notes"
-                  placeholder="Ghi ch\u00fa (kh\u00f4ng b\u1eaft bu\u1ed9c)"
+                  placeholder="Ghi chú (không bắt buộc)"
                   {...receiveForm.register('notes')}
                 />
               </div>
@@ -417,7 +417,7 @@ export default function KhoVietNamPage() {
                   {receiveFromContainer.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Nh\u1eadn h\u00e0ng
+                  Nhận hàng
                 </Button>
                 <Button
                   type="button"
@@ -428,7 +428,7 @@ export default function KhoVietNamPage() {
                     setShowReceiveForm(false);
                   }}
                 >
-                  H\u1ee7y
+                  Hủy
                 </Button>
               </div>
             </form>
@@ -441,7 +441,7 @@ export default function KhoVietNamPage() {
         {/* Status filter dropdown */}
         <div className="flex items-center gap-2">
           <Label htmlFor="statusFilter" className="whitespace-nowrap">
-            Tr\u1ea1ng th\u00e1i:
+            Trạng thái:
           </Label>
           <select
             id="statusFilter"
@@ -465,7 +465,7 @@ export default function KhoVietNamPage() {
         {selectedIds.size > 0 && (
           <div className="flex items-center gap-2 border-l pl-3">
             <span className="text-sm text-muted-foreground">
-              \u0110\u00e3 ch\u1ecdn {selectedIds.size} ki\u1ec7n
+              Đã chọn {selectedIds.size} kiện
             </span>
 
             <Button
@@ -477,7 +477,7 @@ export default function KhoVietNamPage() {
               {sortPackagesVN.isPending && (
                 <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
               )}
-              Ph\u00e2n lo\u1ea1i \u2192 \u0110\u00e3 ph\u00e2n lo\u1ea1i
+              Phân loại → Đã phân loại
             </Button>
 
             <Button
@@ -489,7 +489,7 @@ export default function KhoVietNamPage() {
               {sortPackagesVN.isPending && (
                 <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
               )}
-              S\u1eb5n s\u00e0ng giao
+              Sẵn sàng giao
             </Button>
           </div>
         )}

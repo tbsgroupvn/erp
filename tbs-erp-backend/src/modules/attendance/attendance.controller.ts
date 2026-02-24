@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Body,
   Query,
@@ -23,6 +24,7 @@ import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse } from '@common/dto/base-response.dto';
 import { AttendanceService } from './attendance.service';
 import { CheckInDto, CheckOutDto } from './dto/check-in.dto';
+import { ManualCheckInDto, ReviewManualCheckInDto } from './dto/manual-check-in.dto';
 import { RequestLeaveDto, RejectLeaveDto } from './dto/leave-request.dto';
 import { RequestOvertimeDto } from './dto/overtime-request.dto';
 
@@ -88,6 +90,37 @@ export class AttendanceController {
   ) {
     const result = await this.attendanceService.getMonthlySummary(user.id, +month, +year);
     return BaseResponse.ok(result);
+  }
+
+  @Post('manual-check-in')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Record manual check-in with selfie' })
+  @ApiResponse({ status: 200, description: 'Manual check-in recorded, pending HR review' })
+  async manualCheckIn(@Body() dto: ManualCheckInDto, @CurrentUser() user: ICurrentUser) {
+    const result = await this.attendanceService.manualCheckIn(user.id, dto);
+    return BaseResponse.ok(result, 'Manual check-in recorded, pending HR review');
+  }
+
+  @Get('pending-reviews')
+  @ApiOperation({ summary: 'Get all manual check-ins pending HR review' })
+  @ApiResponse({ status: 200, description: 'List of pending manual check-in reviews' })
+  async getPendingReviews() {
+    const result = await this.attendanceService.getPendingManualCheckIns();
+    return BaseResponse.ok(result);
+  }
+
+  @Patch(':id/review')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Review a manual check-in (approve or reject)' })
+  @ApiParam({ name: 'id', description: 'Attendance record ID' })
+  @ApiResponse({ status: 200, description: 'Manual check-in reviewed' })
+  async reviewManualCheckIn(
+    @Param('id') id: string,
+    @Body() dto: ReviewManualCheckInDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const result = await this.attendanceService.reviewManualCheckIn(id, dto.approved, user.id);
+    return BaseResponse.ok(result, `Manual check-in ${dto.approved ? 'approved' : 'rejected'}`);
   }
 
   @Post('leave')

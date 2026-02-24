@@ -74,6 +74,11 @@ enum ApprovalType {
   QUOTATION_SPECIAL  // Báo giá đặc biệt
   EXPENSE_CLAIM      // Hoàn ứng chi phí
   SALARY_ADJUSTMENT  // Điều chỉnh lương
+  GRACE_PERIOD_REQUEST // Xin ân hạn
+  EXTRA_CHARGE_APPROVAL // Phụ phí phát sinh
+  CREDIT_OVERDRAFT   // Thấu chi tạm thời
+  PROCUREMENT_PAYMENT // Duyệt chi mua hàng NCC
+  CUSTOMS_DECLARATION // Tờ khai hải quan
   CUSTOM             // Admin tự định nghĩa
 }
 
@@ -325,15 +330,17 @@ enum MasterOrderStatus {
 // ============================================
 
 enum SupplierOrderStatus {
-  DRAFT            // Nháp, chưa gửi NCC
-  QUOTED           // Đã báo giá từ NCC
-  ORDERED          // Đã đặt hàng NCC
-  CONFIRMED        // NCC xác nhận đơn
-  PARTIALLY_SHIPPED // NCC gửi một phần
-  SHIPPED_CN       // NCC đã gửi hàng (có tracking nội địa TQ)
-  RECEIVED_CN      // Kho TQ đã nhận hàng từ NCC
-  CANCELLED        // Đã hủy đơn NCC
-  ISSUE            // Có vấn đề với NCC
+  DRAFT              // Nháp, chưa gửi NCC
+  QUOTED             // Đã báo giá từ NCC
+  ORDERED            // Đã đặt hàng NCC
+  CONFIRMED          // NCC xác nhận đơn
+  PARTIALLY_SHIPPED  // NCC gửi một phần
+  SHIPPED_CN         // NCC đã gửi hàng (có tracking nội địa TQ)
+  RECEIVED_CN        // Kho TQ đã nhận hàng từ NCC
+  RETURN_IN_PROGRESS // Đang trả hàng cho NCC
+  REFUNDED           // NCC đã hoàn tiền
+  CANCELLED          // Đã hủy đơn NCC
+  ISSUE              // Có vấn đề với NCC
 }
 
 enum QCStatus {

@@ -7,9 +7,13 @@ on:
     branches: [main, staging]
 
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '20.x'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   # ============================================
@@ -23,9 +27,9 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: tbs_erp_test
+          POSTGRES_USER: ${{ secrets.TEST_DB_USER || 'test_user' }}
+          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'test_password_ci' }}
+          POSTGRES_DB: ${{ secrets.TEST_DB_NAME || 'tbs_erp_test' }}
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -56,14 +60,14 @@ jobs:
       - name: Run database migrations
         working-directory: ./tbs-erp-backend
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tbs_erp_test
+          DATABASE_URL: ${{ secrets.TEST_DB_URL || format('postgresql://{0}:{1}@localhost:5432/{2}', secrets.TEST_DB_USER || 'test_user', secrets.TEST_DB_PASSWORD || 'test_password_ci', secrets.TEST_DB_NAME || 'tbs_erp_test') }}
         run: npx prisma migrate deploy
 
       - name: Run tests
         working-directory: ./tbs-erp-backend
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tbs_erp_test
-          JWT_SECRET: test-secret
+          DATABASE_URL: ${{ secrets.TEST_DB_URL || format('postgresql://{0}:{1}@localhost:5432/{2}', secrets.TEST_DB_USER || 'test_user', secrets.TEST_DB_PASSWORD || 'test_password_ci', secrets.TEST_DB_NAME || 'tbs_erp_test') }}
+          JWT_SECRET: ${{ secrets.TEST_JWT_SECRET || 'ci-test-secret-not-for-production' }}
         run: npm test -- --coverage
 
       - name: Upload coverage reports
@@ -123,7 +127,7 @@ jobs:
         run: npm run build
 
   # ============================================
-  # SECURITY SCAN
+  # SECURITY SCAN - Filesystem Vulnerability Scan
   # ============================================
   security-scan:
     name: Security Scan
@@ -134,7 +138,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner (filesystem)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -144,17 +148,92 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v2
+        if: always()
         with:
           sarif_file: 'trivy-results.sarif'
 
   # ============================================
-  # BUILD DOCKER IMAGES
+  # SAST - Static Application Security Testing
+  # ============================================
+  sast-scan:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep SAST
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/owasp-top-ten
+            p/nodejs
+            p/typescript
+            p/sql-injection
+            p/xss
+          generateSarif: true
+
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+
+  # ============================================
+  # DEPENDENCY SCAN - npm audit + Snyk
+  # ============================================
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run npm audit (Backend)
+        working-directory: ./tbs-erp-backend
+        run: |
+          npm ci --ignore-scripts
+          npm audit --production --audit-level=critical
+
+      - name: Run npm audit (Frontend)
+        working-directory: ./tbs-erp-frontend
+        run: |
+          npm ci --ignore-scripts
+          npm audit --production --audit-level=critical
+
+      - name: Run Snyk Security Scan
+        if: env.SNYK_TOKEN != ''
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --all-projects
+
+  # ============================================
+  # BUILD & TAG DOCKER IMAGES
   # ============================================
   build-docker:
     name: Build Docker Images
     runs-on: ubuntu-latest
-    needs: [backend-test, frontend-test, security-scan]
+    needs: [backend-test, frontend-test, security-scan, sast-scan, dependency-scan]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    outputs:
+      backend-image: ${{ steps.meta-backend.outputs.tags }}
+      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
+      image-tag: ${{ steps.vars.outputs.sha_short }}
 
     permissions:
       contents: read
@@ -163,6 +242,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set build variables
+        id: vars
+        run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -174,11 +257,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
+      - name: Extract metadata (Backend)
         id: meta-backend
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and push Backend image
         uses: docker/build-push-action@v5
@@ -189,12 +276,18 @@ jobs:
           labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            GIT_SHA=${{ github.sha }}
 
       - name: Extract metadata (Frontend)
         id: meta-frontend
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and push Frontend image
         uses: docker/build-push-action@v5
@@ -206,23 +299,140 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign Backend container image
+        run: |
+          cosign sign --yes \
+            --key env://COSIGN_PRIVATE_KEY \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend@${{ steps.meta-backend.outputs.digest || steps.vars.outputs.sha_short }}
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+
+      - name: Sign Frontend container image
+        run: |
+          cosign sign --yes \
+            --key env://COSIGN_PRIVATE_KEY \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend@${{ steps.meta-frontend.outputs.digest || steps.vars.outputs.sha_short }}
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+
   # ============================================
-  # DEPLOY TO STAGING
+  # CONTAINER IMAGE SCAN
   # ============================================
-  deploy-staging:
-    name: Deploy to Staging
+  container-scan:
+    name: Container Image Scan
+    runs-on: ubuntu-latest
+    needs: build-docker
+
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan Backend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.ref_name }}
+          format: 'sarif'
+          output: 'trivy-backend-image.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Scan Frontend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.ref_name }}
+          format: 'sarif'
+          output: 'trivy-frontend-image.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Upload Container Scan Results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-backend-image.sarif'
+          category: 'container-backend'
+
+  # ============================================
+  # DEPLOY TO STAGING (Canary -> Full)
+  # ============================================
+  deploy-staging-canary:
+    name: Deploy Staging (Canary)
     runs-on: ubuntu-latest
     needs: build-docker
     if: github.ref == 'refs/heads/staging'
     environment:
-      name: staging
+      name: staging-canary
       url: https://staging.tbslogistics.com
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to Staging Server
+      - name: Deploy canary (10% traffic)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          envs: GITHUB_SHA
+          script: |
+            set -euo pipefail
+            cd /var/www/tbs-erp
+
+            # Tag for this deployment
+            export DEPLOY_TAG="${GITHUB_SHA:0:7}"
+            export GIT_SHA="$GITHUB_SHA"
+
+            echo "Deploying canary with tag: $DEPLOY_TAG"
+
+            # Pull new images
+            docker-compose -f docker-compose.staging.yml pull
+
+            # Start new backend alongside existing (canary pattern)
+            # Scale to add 1 canary instance alongside existing
+            docker-compose -f docker-compose.staging.yml up -d --no-deps --scale backend=2 backend
+
+            # Run migrations on the canary
+            docker-compose -f docker-compose.staging.yml exec -T backend npx prisma migrate deploy
+
+      - name: Canary smoke tests
+        run: |
+          echo "Running smoke tests against staging canary..."
+          sleep 15
+
+          # Health check
+          for i in {1..6}; do
+            if curl -sf --max-time 10 "https://staging-api.tbslogistics.com/api/v1/health/ready"; then
+              echo "Health check passed (attempt $i)"
+              break
+            fi
+            echo "Health check failed (attempt $i/6), retrying..."
+            sleep 10
+          done
+
+          # Verify key endpoints
+          curl -sf --max-time 10 "https://staging-api.tbslogistics.com/api/v1/health" || exit 1
+          echo "Canary smoke tests passed"
+
+      - name: Promote canary to full deployment
+        if: success()
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.STAGING_HOST }}
@@ -230,20 +440,102 @@ jobs:
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
             cd /var/www/tbs-erp
-            docker-compose -f docker-compose.staging.yml pull
+            # Full deployment - replace all instances
             docker-compose -f docker-compose.staging.yml up -d
-            docker-compose -f docker-compose.staging.yml exec -T backend npx prisma migrate deploy
+            echo "Canary promoted to full staging deployment"
 
-      - name: Health Check
-        run: |
-          sleep 10
-          curl -f https://staging-api.tbslogistics.com/health || exit 1
+      - name: Rollback canary on failure
+        if: failure()
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /var/www/tbs-erp
+            echo "Canary failed! Rolling back staging..."
+            # Restart with previous images
+            docker-compose -f docker-compose.staging.yml down
+            docker-compose -f docker-compose.staging.yml up -d
+            echo "Staging rollback complete"
 
   # ============================================
-  # DEPLOY TO PRODUCTION
+  # STAGING HEALTH VERIFICATION
+  # ============================================
+  verify-staging:
+    name: Verify Staging Health
+    runs-on: ubuntu-latest
+    needs: deploy-staging-canary
+    if: github.ref == 'refs/heads/staging'
+
+    steps:
+      - name: Comprehensive health checks
+        run: |
+          echo "Running comprehensive staging verification..."
+          sleep 30
+
+          FAILURES=0
+
+          # Backend health
+          if ! curl -sf --max-time 15 "https://staging-api.tbslogistics.com/api/v1/health"; then
+            echo "FAIL: Backend health endpoint"
+            FAILURES=$((FAILURES + 1))
+          fi
+
+          # Backend readiness
+          if ! curl -sf --max-time 15 "https://staging-api.tbslogistics.com/api/v1/health/ready"; then
+            echo "FAIL: Backend readiness endpoint"
+            FAILURES=$((FAILURES + 1))
+          fi
+
+          # Frontend accessibility
+          if ! curl -sf --max-time 15 "https://staging.tbslogistics.com" -o /dev/null; then
+            echo "FAIL: Frontend not accessible"
+            FAILURES=$((FAILURES + 1))
+          fi
+
+          if [ $FAILURES -gt 0 ]; then
+            echo "Staging verification failed with $FAILURES errors"
+            exit 1
+          fi
+
+          echo "All staging health checks passed"
+
+  # ============================================
+  # DAST - Dynamic Application Security Testing
+  # ============================================
+  dast-scan:
+    name: DAST (OWASP ZAP)
+    runs-on: ubuntu-latest
+    needs: verify-staging
+    if: github.ref == 'refs/heads/staging'
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: https://staging-api.tbslogistics.com
+          rules_file_name: '.zap-rules.tsv'
+          fail_action: warn_new
+          allow_issue_writing: false
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: report_html.html
+          retention-days: 30
+
+  # ============================================
+  # DEPLOY TO PRODUCTION (Blue/Green)
   # ============================================
   deploy-production:
-    name: Deploy to Production
+    name: Deploy Production (Blue/Green)
     runs-on: ubuntu-latest
     needs: build-docker
     if: github.ref == 'refs/heads/main'
@@ -264,7 +556,99 @@ jobs:
         with:
           environment: production
 
-      - name: Deploy to Production Server
+      - name: Blue/Green Deploy to Production
+        id: deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          envs: GITHUB_SHA
+          script: |
+            set -euo pipefail
+            cd /var/www/tbs-erp
+
+            export GIT_SHA="$GITHUB_SHA"
+            export DEPLOY_TAG="${GITHUB_SHA:0:7}"
+
+            echo "Starting blue/green deployment (tag: $DEPLOY_TAG)..."
+
+            # Run blue/green deployment script
+            bash scripts/blue-green-deploy.sh --skip-old-teardown
+
+      - name: Run production smoke tests
+        id: smoke-tests
+        run: |
+          echo "Running production smoke tests..."
+          sleep 15
+
+          FAILURES=0
+
+          # Backend health
+          for i in {1..12}; do
+            if curl -sf --max-time 10 "https://api.nhaphangchinhngach.vn/api/v1/health/ready"; then
+              echo "Backend health check passed (attempt $i)"
+              break
+            fi
+            if [ $i -eq 12 ]; then
+              echo "FAIL: Backend health check timed out"
+              FAILURES=$((FAILURES + 1))
+            fi
+            sleep 10
+          done
+
+          # Core API endpoint
+          if ! curl -sf --max-time 15 "https://api.nhaphangchinhngach.vn/api/v1/health"; then
+            echo "FAIL: Core health endpoint"
+            FAILURES=$((FAILURES + 1))
+          fi
+
+          # Frontend
+          if ! curl -sf --max-time 15 "https://erp.nhaphangchinhngach.vn" -o /dev/null; then
+            echo "FAIL: ERP frontend"
+            FAILURES=$((FAILURES + 1))
+          fi
+
+          # CMS
+          if ! curl -sf --max-time 15 "https://nhaphangchinhngach.vn" -o /dev/null; then
+            echo "FAIL: CMS frontend"
+            FAILURES=$((FAILURES + 1))
+          fi
+
+          if [ $FAILURES -gt 0 ]; then
+            echo "smoke_test_failed=true" >> $GITHUB_OUTPUT
+            echo "Production smoke tests failed with $FAILURES errors"
+            exit 1
+          fi
+
+          echo "smoke_test_failed=false" >> $GITHUB_OUTPUT
+          echo "All production smoke tests passed"
+
+      - name: Monitor production for 5 minutes
+        if: success()
+        run: |
+          echo "Monitoring production for 5 minutes post-deploy..."
+          FAIL_COUNT=0
+
+          for i in {1..10}; do
+            sleep 30
+            if ! curl -sf --max-time 10 "https://api.nhaphangchinhngach.vn/api/v1/health/ready" > /dev/null 2>&1; then
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+              echo "Health check failed at minute $((i / 2)) (failures: $FAIL_COUNT)"
+            else
+              echo "Health check OK at interval $i/10"
+            fi
+
+            if [ $FAIL_COUNT -ge 3 ]; then
+              echo "Too many health check failures during monitoring window!"
+              exit 1
+            fi
+          done
+
+          echo "5-minute monitoring window passed successfully"
+
+      - name: Auto-rollback on failure
+        if: failure()
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.PRODUCTION_HOST }}
@@ -272,19 +656,107 @@ jobs:
           key: ${{ secrets.PRODUCTION_SSH_KEY }}
           script: |
             cd /var/www/tbs-erp
-            docker-compose pull
-            docker-compose up -d
-            docker-compose exec -T backend npx prisma migrate deploy
+            echo "Production deployment failed! Triggering auto-rollback..."
+            bash scripts/rollback.sh --docker
+            echo "Auto-rollback complete"
 
-      - name: Health Check
-        run: |
-          sleep 10
-          curl -f https://api.tbslogistics.com/health || exit 1
+      - name: Start health monitor
+        if: success()
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /var/www/tbs-erp
+            # Stop existing monitor if running
+            bash scripts/health-monitor.sh --stop 2>/dev/null || true
+            # Start new health monitor daemon
+            SLACK_WEBHOOK="${SLACK_WEBHOOK:-}" bash scripts/health-monitor.sh --daemon --threshold 3 --interval 30
+            echo "Health monitor started"
+
+      - name: Teardown old environment
+        if: success()
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /var/www/tbs-erp
+            STATE_DIR="${TBS_STATE_DIR:-/opt/tbs-erp}"
+            CURRENT_ENV=$(cat "${STATE_DIR}/current-env" 2>/dev/null || echo "blue")
+            OLD_ENV=$([[ "$CURRENT_ENV" == "blue" ]] && echo "green" || echo "blue")
+
+            echo "Scheduling teardown of old environment ($OLD_ENV) in 10 minutes..."
+            (sleep 600 && docker-compose -f docker-compose.${OLD_ENV}.yml down 2>/dev/null) &
+            disown
+            echo "Old environment ($OLD_ENV) will be stopped in 10 minutes"
 
       - name: Notify Slack
         if: always()
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
-          text: 'Production deployment ${{ job.status }}'
+          fields: repo,message,commit,author,action,eventName,workflow
+          text: |
+            Production Blue/Green Deployment: ${{ job.status }}
+            Commit: ${{ github.sha }}
           webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ============================================
+  # GITOPS SYNC (K8s environments)
+  # ============================================
+  gitops-sync:
+    name: GitOps Image Update
+    runs-on: ubuntu-latest
+    needs: build-docker
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Kustomize image tags
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          BRANCH="${{ github.ref_name }}"
+
+          if [ "$BRANCH" = "main" ]; then
+            OVERLAY_PATH="k8s/overlays/production"
+          elif [ "$BRANCH" = "staging" ]; then
+            OVERLAY_PATH="k8s/overlays/staging"
+          else
+            echo "No K8s overlay for branch: $BRANCH"
+            exit 0
+          fi
+
+          echo "Updating image tags in $OVERLAY_PATH to $SHORT_SHA..."
+
+          # Install kustomize
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+          cd "$OVERLAY_PATH"
+          kustomize edit set image \
+            ghcr.io/tbs-logistics/tbs-erp-backend=ghcr.io/tbs-logistics/tbs-erp-backend:$SHORT_SHA \
+            ghcr.io/tbs-logistics/tbs-erp-frontend=ghcr.io/tbs-logistics/tbs-erp-frontend:$SHORT_SHA
+
+          echo "Image tags updated. ArgoCD will detect the change and sync."
+
+      - name: Commit image tag updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          git add k8s/
+          git commit -m "chore(k8s): update image tags to ${SHORT_SHA} [skip ci]"
+          git push

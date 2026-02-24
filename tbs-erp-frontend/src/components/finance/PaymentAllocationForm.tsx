@@ -12,8 +12,9 @@
  * - Responsive design with Tailwind CSS
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Search, Plus, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -166,7 +167,6 @@ export const PaymentAllocationForm: React.FC = () => {
 
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [searchQuery, setSearchQuery] = useState<{ [key: string]: string }>({});
 
   // Calculate total allocated
   const totalAllocated = formData.allocations.reduce(
@@ -175,7 +175,7 @@ export const PaymentAllocationForm: React.FC = () => {
   );
 
   const totalAmount = parseCurrency(formData.amount);
-  const allocationComplete = totalAllocated === totalAmount && totalAmount > 0;
+  const allocationComplete = Math.abs(totalAllocated - totalAmount) < 0.01 && totalAmount > 0;
 
   // ============================================
   // VALIDATION
@@ -218,7 +218,7 @@ export const PaymentAllocationForm: React.FC = () => {
     }
 
     // Total mismatch
-    if (totalAllocated !== totalAmount) {
+    if (Math.abs(totalAllocated - totalAmount) >= 0.01) {
       newErrors.totalMismatch = `Tổng phân bổ (${formatCurrency(totalAllocated)}) phải bằng số tiền thu (${formatCurrency(totalAmount)})`;
     }
 
@@ -265,7 +265,7 @@ export const PaymentAllocationForm: React.FC = () => {
   const updateAllocationRow = (
     id: string,
     field: keyof AllocationRow,
-    value: any
+    value: string
   ) => {
     setFormData({
       ...formData,
@@ -286,14 +286,20 @@ export const PaymentAllocationForm: React.FC = () => {
         : mockOrders.find((o) => o.id === selectedId);
 
     if (target) {
-      updateAllocationRow(rowId, 'targetType', targetType);
-      updateAllocationRow(rowId, 'targetId', selectedId);
-      updateAllocationRow(rowId, 'targetCode', target.code);
-      updateAllocationRow(
-        rowId,
-        'targetName',
-        'title' in target ? target.title : `Đơn hàng ${target.code}`
-      );
+      setFormData(prev => ({
+        ...prev,
+        allocations: prev.allocations.map(row =>
+          row.id === rowId
+            ? {
+                ...row,
+                targetType,
+                targetId: selectedId,
+                targetCode: target.code,
+                targetName: 'title' in target ? target.title : `Đơn hàng ${target.code}`,
+              }
+            : row
+        ),
+      }));
     }
   };
 
@@ -308,15 +314,14 @@ export const PaymentAllocationForm: React.FC = () => {
 
     try {
       // API call here
-      console.log('Submitting payment voucher:', formData);
-
       // Simulate API delay
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      alert('✅ Phiếu thu đã được tạo thành công!');
+      toast.success('Phieu thu da duoc tao thanh cong!');
       // Reset form or redirect
     } catch (error) {
-      alert('❌ Có lỗi xảy ra khi tạo phiếu thu');
+      console.error('Payment error:', (error as Error)?.message);
+      toast.error('Co loi xay ra khi tao phieu thu');
     } finally {
       setIsSubmitting(false);
     }
@@ -598,7 +603,7 @@ export const PaymentAllocationForm: React.FC = () => {
 interface AllocationRowProps {
   row: AllocationRow;
   index: number;
-  onUpdate: (id: string, field: keyof AllocationRow, value: any) => void;
+  onUpdate: (id: string, field: keyof AllocationRow, value: string) => void;
   onRemove: (id: string) => void;
   onTargetSelect: (rowId: string, targetType: TargetType, targetId: string) => void;
   canRemove: boolean;

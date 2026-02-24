@@ -79,6 +79,21 @@ export interface OrderItem {
   unitPrice: number;
   currency: Currency;
   totalPrice: number;
+
+  // MHH: Product variant
+  color: string | null;
+  size: string | null;
+  specification: string | null;
+
+  // MHH: Cost breakdown
+  serviceFeePercent: number | null;
+  serviceFeeAmount: number | null;
+  domesticShippingCN: number | null;
+  exchangeRateUsed: number | null;
+  actualSupplierPrice: number | null;
+  totalCostCNY: number | null;
+  totalCostVND: number | null;
+
   note: string | null;
   createdAt: string;
 }
@@ -127,6 +142,12 @@ export interface CreateOrderItemDto {
   quantity: number;
   unitPrice: number;
   currency?: Currency;
+  // MHH variant fields
+  color?: string;
+  size?: string;
+  specification?: string;
+  // MHH cost fields (optional, can be auto-calculated)
+  domesticShippingCN?: number;
   note?: string;
 }
 

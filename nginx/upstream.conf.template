@@ -1,0 +1,66 @@
+# ============================================
+# TBS ERP - Blue/Green Upstream Configuration
+# ============================================
+# This file is managed by scripts/blue-green-deploy.sh
+# Do NOT edit manually during deployments.
+#
+# Blue environment ports:  backend=3010, erp-frontend=3011, cms-frontend=3012
+# Green environment ports: backend=3020, erp-frontend=3021, cms-frontend=3022
+# ============================================
+
+# ============================================
+# Blue Environment Upstreams
+# ============================================
+upstream backend_blue {
+    server backend-blue:3000;
+    keepalive 64;
+}
+
+upstream erp_frontend_blue {
+    server erp-frontend-blue:3000;
+    keepalive 32;
+}
+
+upstream cms_frontend_blue {
+    server cms-frontend-blue:3000;
+    keepalive 32;
+}
+
+# ============================================
+# Green Environment Upstreams
+# ============================================
+upstream backend_green {
+    server backend-green:3000;
+    keepalive 64;
+}
+
+upstream erp_frontend_green {
+    server erp-frontend-green:3000;
+    keepalive 32;
+}
+
+upstream cms_frontend_green {
+    server cms-frontend-green:3000;
+    keepalive 32;
+}
+
+# ============================================
+# Active Environment (Switched by blue-green-deploy.sh)
+# ============================================
+# The deployment script uses sed to replace these references.
+# On deploy, "backend_blue" becomes "backend_green" or vice versa.
+
+upstream backend_active {
+    server backend-blue:3000;  # ACTIVE: updated by blue-green-deploy.sh
+    keepalive 64;
+}
+
+upstream erp_frontend_active {
+    server erp-frontend-blue:3000;  # ACTIVE: updated by blue-green-deploy.sh
+    keepalive 32;
+}
+
+upstream cms_frontend_active {
+    server cms-frontend-blue:3000;  # ACTIVE: updated by blue-green-deploy.sh
+    keepalive 32;
+}

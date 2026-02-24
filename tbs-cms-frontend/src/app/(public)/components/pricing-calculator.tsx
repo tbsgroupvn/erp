@@ -83,8 +83,16 @@ export default function PricingCalculator() {
     const w = parseFloat(width);
     const h = parseFloat(height);
 
-    if (isNaN(actualWeight) || actualWeight <= 0) {
-      alert('Vui lòng nhập trọng lượng hợp lệ');
+    if (isNaN(actualWeight) || actualWeight <= 0 || actualWeight > 100000) {
+      toast.error('Vui lòng nhập trọng lượng hợp lệ (0 - 100,000 kg)');
+      return;
+    }
+
+    // Validate dimensions if provided
+    if ((length && (isNaN(l) || l < 0 || l > 10000)) ||
+        (width && (isNaN(w) || w < 0 || w > 10000)) ||
+        (height && (isNaN(h) || h < 0 || h > 10000))) {
+      toast.error('Kích thước không hợp lệ (0 - 10,000 cm)');
       return;
     }
 
@@ -142,7 +150,7 @@ export default function PricingCalculator() {
     setIsSendingEmail(true);
 
     try {
-      const response = await fetch('/api/public/send-quote', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/send-quote`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

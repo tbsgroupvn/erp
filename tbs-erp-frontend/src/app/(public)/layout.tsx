@@ -9,58 +9,54 @@ import { ServiceWorkerRegistration } from '@/components/shared/sw-registration';
 
 const inter = Inter({ subsets: ['latin', 'vietnamese'] });
 
+const companyName = process.env.NEXT_PUBLIC_COMPANY_NAME || 'My ERP';
+const appTitle = process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System';
+const appDescription = process.env.NEXT_PUBLIC_APP_DESCRIPTION || 'Enterprise Resource Planning System';
+const domain = process.env.NEXT_PUBLIC_DOMAIN || 'localhost';
+const baseUrl = domain === 'localhost' ? 'http://localhost:3000' : `https://${domain}`;
+const twitterHandle = process.env.NEXT_PUBLIC_TWITTER_HANDLE || '';
+
 export const metadata: Metadata = {
-  metadataBase: new URL('https://nhaphangchinhngach.vn'),
+  metadataBase: new URL(baseUrl),
   title: {
-    default: 'TBS ERP - Hệ thống quản lý vận chuyển Trung Quốc - Việt Nam',
-    template: '%s | TBS ERP',
+    default: `${appTitle} - ${appDescription}`,
+    template: `%s | ${appTitle}`,
   },
-  description:
-    'Vận chuyển hàng Trung Quốc chuyên nghiệp, giá tốt. Order hàng Taobao, 1688. Ủy thác xuất nhập khẩu chính ngạch. Giao hàng 5-7 ngày. Đăng ký ngay!',
+  description: appDescription,
   keywords: [
-    'TBS ERP',
-    'vận chuyển Trung Quốc Việt Nam',
-    'order hàng Trung Quốc',
+    appTitle,
+    companyName,
     'logistics',
-    'hải quan',
-    'giao nhận',
     'ERP',
   ],
-  authors: [{ name: 'TBS Logistics' }],
-  creator: 'TBS Logistics',
-  publisher: 'TBS Logistics',
+  authors: [{ name: companyName }],
+  creator: companyName,
+  publisher: companyName,
   alternates: {
-    canonical: 'https://nhaphangchinhngach.vn',
-    languages: {
-      'vi': 'https://nhaphangchinhngach.vn',
-      'en': 'https://nhaphangchinhngach.vn/en',
-      'x-default': 'https://nhaphangchinhngach.vn',
-    },
+    canonical: baseUrl,
   },
   openGraph: {
     type: 'website',
     locale: 'vi_VN',
-    url: 'https://nhaphangchinhngach.vn',
-    title: 'TBS ERP - Hệ thống quản lý vận chuyển Trung Quốc - Việt Nam',
-    description:
-      'Giải pháp vận chuyển & logistics chuyên nghiệp từ Trung Quốc về Việt Nam',
-    siteName: 'TBS ERP',
+    url: baseUrl,
+    title: `${appTitle} - ${appDescription}`,
+    description: appDescription,
+    siteName: appTitle,
     images: [
       {
         url: '/og-image.svg',
         width: 1200,
         height: 630,
-        alt: 'TBS ERP',
+        alt: appTitle,
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TBS ERP - Hệ thống quản lý vận chuyển Trung Quốc - Việt Nam',
-    description:
-      'Giải pháp vận chuyển & logistics chuyên nghiệp từ Trung Quốc về Việt Nam',
+    title: `${appTitle} - ${appDescription}`,
+    description: appDescription,
     images: ['/twitter-image.svg'],
-    creator: '@tbslogistics',
+    ...(twitterHandle ? { creator: twitterHandle } : {}),
   },
   robots: {
     index: true,
@@ -74,7 +70,7 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: 'your-google-verification-code',
+    google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
   },
 };
 
@@ -83,62 +79,69 @@ export default function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const supportPhone = process.env.NEXT_PUBLIC_COMPANY_PHONE || '';
+  const supportEmail = process.env.NEXT_PUBLIC_COMPANY_EMAIL || '';
+  const companyAddress = process.env.NEXT_PUBLIC_COMPANY_ADDRESS || '';
+  const facebookUrl = process.env.NEXT_PUBLIC_FACEBOOK_URL || '';
+  const linkedinUrl = process.env.NEXT_PUBLIC_LINKEDIN_URL || '';
+  const zaloUrl = process.env.NEXT_PUBLIC_ZALO_URL || '';
+  const lat = parseFloat(process.env.NEXT_PUBLIC_LATITUDE || '0');
+  const lng = parseFloat(process.env.NEXT_PUBLIC_LONGITUDE || '0');
+  const locality = process.env.NEXT_PUBLIC_ADDRESS_LOCALITY || '';
+  const region = process.env.NEXT_PUBLIC_ADDRESS_REGION || '';
+
+  const sameAs = [facebookUrl, linkedinUrl, zaloUrl].filter(Boolean);
+
   const organizationSchema = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'TBS Logistics',
-    description:
-      'Công ty vận chuyển và logistics chuyên nghiệp từ Trung Quốc về Việt Nam',
-    url: 'https://nhaphangchinhngach.vn',
-    logo: 'https://nhaphangchinhngach.vn/logo.svg',
-    contactPoint: {
-      '@type': 'ContactPoint',
-      telephone: '+84-xxx-xxx-xxx',
-      contactType: 'Customer Service',
-      areaServed: 'VN',
-      availableLanguage: ['vi', 'zh'],
-    },
-    sameAs: [
-      'https://facebook.com/tbslogistics',
-      'https://linkedin.com/company/tbs-logistics',
-      'https://zalo.me/tbslogistics',
-    ],
-    address: {
-      '@type': 'PostalAddress',
-      addressCountry: 'VN',
-      addressLocality: 'Hà Nội',
-    },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '5.0',
-      reviewCount: '10',
-      bestRating: '5',
-      worstRating: '1',
-    },
+    name: companyName,
+    description: appDescription,
+    url: baseUrl,
+    logo: `${baseUrl}/logo.svg`,
+    ...(supportPhone ? {
+      contactPoint: {
+        '@type': 'ContactPoint',
+        telephone: supportPhone,
+        contactType: 'Customer Service',
+        areaServed: 'VN',
+        availableLanguage: ['vi', 'zh'],
+      },
+    } : {}),
+    ...(sameAs.length > 0 ? { sameAs } : {}),
+    ...(locality ? {
+      address: {
+        '@type': 'PostalAddress',
+        addressCountry: 'VN',
+        addressLocality: locality,
+      },
+    } : {}),
   };
 
   const localBusinessSchema = {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    '@id': 'https://nhaphangchinhngach.vn',
-    name: 'TBS Logistics',
-    image: 'https://nhaphangchinhngach.vn/logo.svg',
-    telephone: process.env.NEXT_PUBLIC_COMPANY_PHONE || '+84-xxx-xxx-xxx',
-    email: process.env.NEXT_PUBLIC_COMPANY_EMAIL || 'info@nhaphangchinhngach.vn',
+    '@id': baseUrl,
+    name: companyName,
+    image: `${baseUrl}/logo.svg`,
+    ...(supportPhone ? { telephone: supportPhone } : {}),
+    ...(supportEmail ? { email: supportEmail } : {}),
     address: {
       '@type': 'PostalAddress',
-      streetAddress: process.env.NEXT_PUBLIC_COMPANY_ADDRESS || 'Đang cập nhật',
-      addressLocality: 'Hà Nội',
-      addressRegion: 'Hà Nội',
+      ...(companyAddress ? { streetAddress: companyAddress } : {}),
+      ...(locality ? { addressLocality: locality } : {}),
+      ...(region ? { addressRegion: region } : {}),
       postalCode: '100000',
       addressCountry: 'VN',
     },
-    geo: {
-      '@type': 'GeoCoordinates',
-      latitude: 21.028511,
-      longitude: 105.804817,
-    },
-    url: 'https://nhaphangchinhngach.vn',
+    ...(lat && lng ? {
+      geo: {
+        '@type': 'GeoCoordinates',
+        latitude: lat,
+        longitude: lng,
+      },
+    } : {}),
+    url: baseUrl,
     priceRange: '$$',
     openingHoursSpecification: [
       {
@@ -155,18 +158,7 @@ export default function PublicLayout({
         closes: '18:00',
       },
     ],
-    sameAs: [
-      'https://facebook.com/tbslogistics',
-      'https://linkedin.com/company/tbs-logistics',
-      'https://zalo.me/tbslogistics',
-    ],
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '5.0',
-      reviewCount: '10',
-      bestRating: '5',
-      worstRating: '1',
-    },
+    ...(sameAs.length > 0 ? { sameAs } : {}),
   };
 
   return (

@@ -22,7 +22,7 @@ export class PurchaseService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   /**
    * Creates a purchase request with items.
@@ -85,7 +85,7 @@ export class PurchaseService {
     }
 
     // High-value check
-    if (pr.totalAmount > HIGH_VALUE_THRESHOLD && !pr.approvedBy) {
+    if (Number(pr.totalAmount) > HIGH_VALUE_THRESHOLD && !pr.approvedBy) {
       this.logger.log(
         `PR ${pr.code} exceeds ${HIGH_VALUE_THRESHOLD} VND — flagged for additional approval`,
       );

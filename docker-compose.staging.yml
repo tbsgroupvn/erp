@@ -15,6 +15,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata_staging:/var/lib/postgresql/data
+    command: postgres -c password_encryption=scram-sha-256
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 10s
@@ -22,20 +23,31 @@ services:
       retries: 5
     networks:
       - tbs_network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
 
   redis:
     image: redis:7-alpine
     container_name: tbs_erp_redis_staging
     restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redisdata_staging:/data
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - tbs_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
 
   backend:
     image: ghcr.io/${GITHUB_REPOSITORY}-backend:staging
@@ -47,18 +59,38 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRES_IN: 7d
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      CORS_ORIGINS: https://staging.tbslogistics.com
       FRONTEND_URL: https://staging.tbslogistics.com
-      SENTRY_DSN: ${SENTRY_DSN}
+      # REQUIRED: Sentry DSN for error tracking
+      SENTRY_DSN: ${SENTRY_DSN:?SENTRY_DSN is required for staging deployment}
+      SENTRY_TRACES_SAMPLE_RATE: '1.0'
+      SENTRY_PROFILES_SAMPLE_RATE: '0.5'
+      APP_ENV: staging
+      GIT_SHA: ${GIT_SHA:-}
       LOG_LEVEL: debug
+      # BullMQ (uses same Redis instance)
+      BULLMQ_REDIS_HOST: redis
+      BULLMQ_REDIS_PORT: 6379
+      BULLMQ_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # GraphQL (enabled in staging for testing)
+      GRAPHQL_PLAYGROUND: 'true'
+      GRAPHQL_INTROSPECTION: 'true'
+      # Field-Level Encryption
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
+      FIELD_ENCRYPTION_KEY_VERSION: ${FIELD_ENCRYPTION_KEY_VERSION:-v1}
+      TWO_FA_ENCRYPTION_KEY: ${TWO_FA_ENCRYPTION_KEY}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/health']
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/api/v1/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -67,6 +99,11 @@ services:
       - tbs_network
     volumes:
       - ./logs/backend:/app/logs
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend-staging.rule=Host(`staging-api.tbslogistics.com`)"
@@ -80,7 +117,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: https://staging-api.tbslogistics.com
+      NEXT_PUBLIC_API_URL: https://staging-api.tbslogistics.com/api/v1
       NEXT_TELEMETRY_DISABLED: 1
     depends_on:
       backend:
@@ -93,6 +130,11 @@ services:
       start_period: 40s
     networks:
       - tbs_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend-staging.rule=Host(`staging.tbslogistics.com`)"

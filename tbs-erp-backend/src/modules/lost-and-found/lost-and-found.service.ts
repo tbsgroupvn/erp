@@ -176,6 +176,135 @@ export class LostAndFoundService {
   }
 
   /**
+   * B7: Receive an orphan package (lost and found).
+   * Creates a LostAndFound record with status=UNIDENTIFIED.
+   */
+  async receiveOrphan(
+    trackingNumber: string,
+    weight: number,
+    imageUrls: string[],
+    warehouse: string,
+    userId: string,
+  ) {
+    const code = await this.generateCode();
+
+    const item = await this.prisma.lostAndFound.create({
+      data: {
+        code,
+        trackingNumber,
+        weight: weight ? new Decimal(weight) : null,
+        imageUrls: imageUrls ?? [],
+        warehouse,
+        status: 'UNIDENTIFIED',
+        receivedBy: userId,
+      },
+    });
+
+    this.eventEmitter.emit('lost-and-found.created', {
+      itemId: item.id,
+      code: item.code,
+      trackingNumber,
+      warehouse,
+    });
+
+    this.logger.log(
+      `Orphan package ${code} received at warehouse ${warehouse} by ${userId}`,
+    );
+
+    return item;
+  }
+
+  /**
+   * B7: Claim an orphan package and link it to an order.
+   * Creates a Package record from the LostAndFound data and sets status=CLAIMED.
+   */
+  async claimOrphan(
+    lostAndFoundId: string,
+    saleId: string,
+    orderId: string,
+  ) {
+    const item = await this.prisma.lostAndFound.findUnique({
+      where: { id: lostAndFoundId },
+    });
+
+    if (!item) {
+      throw new NotFoundException(`Lost item ${lostAndFoundId} not found.`);
+    }
+
+    if (item.status !== 'UNIDENTIFIED') {
+      throw new BadRequestException(
+        `Item is in status ${item.status}. Only UNIDENTIFIED items can be claimed.`,
+      );
+    }
+
+    // Validate the order exists
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, code: true, customerId: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    // Generate a package code
+    const latest = await this.prisma.package.findFirst({
+      orderBy: { createdAt: 'desc' },
+      select: { code: true },
+    });
+    let sequence = 1;
+    if (latest) {
+      const match = latest.code.match(/TBS-PKG-(\d+)/);
+      if (match) {
+        sequence = parseInt(match[1], 10) + 1;
+      }
+    }
+    const pkgCode = `TBS-PKG-${String(sequence).padStart(6, '0')}`;
+
+    // Create a Package record from the LostAndFound data
+    const pkg = await this.prisma.package.create({
+      data: {
+        code: pkgCode,
+        orderId,
+        trackingNumberCN: item.trackingNumber,
+        description: item.description,
+        imageUrls: item.imageUrls ?? [],
+        actualWeight: item.weight,
+        cnWeight: item.weight,
+        warehouseCNStatus: 'RECEIVED',
+        receivedCNAt: item.createdAt,
+        receivedCNBy: item.receivedBy,
+        note: `Created from Lost & Found item ${item.code}`,
+      },
+    });
+
+    // Update the LostAndFound record
+    const updated = await this.prisma.lostAndFound.update({
+      where: { id: lostAndFoundId },
+      data: {
+        status: 'CLAIMED',
+        claimedBy: order.customerId,
+        claimedAt: new Date(),
+      },
+    });
+
+    this.eventEmitter.emit('lost-and-found.claimed', {
+      itemId: lostAndFoundId,
+      code: item.code,
+      customerId: order.customerId,
+      orderId,
+      packageId: pkg.id,
+      claimedBySaleId: saleId,
+    });
+
+    this.logger.log(
+      `Orphan ${item.code} claimed by sale ${saleId}, linked to order ${order.code} as package ${pkgCode}`,
+    );
+
+    return { lostAndFound: updated, package: pkg };
+  }
+
+  /**
    * Customer claims the lost item.
    */
   async claimItem(id: string, customerId: string, orderId?: string) {

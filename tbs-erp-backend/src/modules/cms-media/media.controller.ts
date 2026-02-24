@@ -14,6 +14,7 @@ import {
   UploadedFiles,
   BadRequestException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { MediaService } from './media.service';
@@ -30,6 +31,7 @@ export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
   @Post('upload')
+  @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 uploads per minute
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CEO', 'COO', 'MARKETING_STAFF')
   @UseInterceptors(FileInterceptor('file'))
@@ -48,6 +50,7 @@ export class MediaController {
   }
 
   @Post('upload-multiple')
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 batch uploads per minute
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CEO', 'COO', 'MARKETING_STAFF')
   @UseInterceptors(FilesInterceptor('files', 10))

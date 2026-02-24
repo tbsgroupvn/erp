@@ -1,0 +1,18 @@
+# Note: The PVC is managed via volumeClaimTemplates in statefulset.yaml.
+# This standalone PVC is provided for backup volumes only.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tbs-postgres-backup
+  namespace: tbs-erp
+  labels:
+    app.kubernetes.io/name: tbs-postgres
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: tbs-erp-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard

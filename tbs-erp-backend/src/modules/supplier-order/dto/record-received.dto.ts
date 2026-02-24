@@ -1,5 +1,5 @@
-import { IsOptional, IsInt, IsString, IsNumber, IsArray } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsInt, IsString, IsNumber, IsArray, IsOptional, ArrayMinSize } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RecordReceivedDto {
   @ApiPropertyOptional({ description: 'Quantity actually received at CN warehouse' })
@@ -17,8 +17,8 @@ export class RecordReceivedDto {
   @IsString()
   note?: string;
 
-  @ApiPropertyOptional({ description: 'Array of attachment URLs (photos of received goods)', type: [String] })
-  @IsOptional()
+  @ApiProperty({ description: 'Array of attachment URLs (photos of received goods) — mandatory', type: [String] })
   @IsArray()
-  attachments?: string[];
+  @ArrayMinSize(1)
+  attachments: string[];
 }

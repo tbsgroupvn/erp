@@ -1,0 +1,179 @@
+# ============================================
+# ArgoCD Notifications Configuration
+# ============================================
+# Configures Slack and email notifications for ArgoCD events.
+# Applied as a ConfigMap in the argocd namespace.
+#
+# Prerequisites:
+#   - argocd-notifications-controller installed
+#   - Slack app with incoming webhooks
+#   - SMTP server for email notifications
+# ============================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    app.kubernetes.io/managed-by: argocd
+data:
+  # ============================================
+  # Service Configuration
+  # ============================================
+  service.slack: |
+    token: $slack-token
+    signingSecret: $slack-signing-secret
+
+  service.email: |
+    host: $email-smtp-host
+    port: 587
+    from: $email-from-address
+    username: $email-username
+    password: $email-password
+
+  # ============================================
+  # Notification Templates
+  # ============================================
+
+  # Sync succeeded
+  template.app-sync-succeeded: |
+    slack:
+      attachments: |
+        [{
+          "color": "#18be52",
+          "title": "{{.app.metadata.name}} - Sync Succeeded",
+          "text": "Application {{.app.metadata.name}} has been successfully synced.",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Environment", "value": "{{.app.metadata.labels.environment}}", "short": true},
+            {"title": "Revision", "value": "{{.app.status.sync.revision | trunc 7}}", "short": true},
+            {"title": "Sync Status", "value": "{{.app.status.sync.status}}", "short": true},
+            {"title": "Health", "value": "{{.app.status.health.status}}", "short": true},
+            {"title": "Synced At", "value": "{{.app.status.operationState.finishedAt}}", "short": true}
+          ],
+          "footer": "ArgoCD | TBS ERP Platform"
+        }]
+    email:
+      subject: "[ArgoCD] {{.app.metadata.name}} sync succeeded"
+      body: |
+        Application: {{.app.metadata.name}}
+        Environment: {{.app.metadata.labels.environment}}
+        Revision: {{.app.status.sync.revision}}
+        Status: Sync Succeeded
+        Time: {{.app.status.operationState.finishedAt}}
+
+  # Sync failed
+  template.app-sync-failed: |
+    slack:
+      attachments: |
+        [{
+          "color": "#e8001c",
+          "title": "[ALERT] {{.app.metadata.name}} - Sync Failed",
+          "text": "Application {{.app.metadata.name}} sync has FAILED.\n\nError: {{.app.status.operationState.message}}",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Environment", "value": "{{.app.metadata.labels.environment}}", "short": true},
+            {"title": "Revision", "value": "{{.app.status.sync.revision | trunc 7}}", "short": true},
+            {"title": "Phase", "value": "{{.app.status.operationState.phase}}", "short": true}
+          ],
+          "footer": "ArgoCD | TBS ERP Platform | Action Required"
+        }]
+    email:
+      subject: "[ALERT] ArgoCD sync failed: {{.app.metadata.name}}"
+      body: |
+        SYNC FAILED
+
+        Application: {{.app.metadata.name}}
+        Environment: {{.app.metadata.labels.environment}}
+        Revision: {{.app.status.sync.revision}}
+        Error: {{.app.status.operationState.message}}
+
+        Please investigate immediately.
+
+  # Health degraded
+  template.app-health-degraded: |
+    slack:
+      attachments: |
+        [{
+          "color": "#f4c030",
+          "title": "[WARNING] {{.app.metadata.name}} - Health Degraded",
+          "text": "Application {{.app.metadata.name}} health status is DEGRADED.",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Environment", "value": "{{.app.metadata.labels.environment}}", "short": true},
+            {"title": "Health Status", "value": "{{.app.status.health.status}}", "short": true},
+            {"title": "Sync Status", "value": "{{.app.status.sync.status}}", "short": true}
+          ],
+          "footer": "ArgoCD | TBS ERP Platform | Health Alert"
+        }]
+    email:
+      subject: "[WARNING] ArgoCD health degraded: {{.app.metadata.name}}"
+      body: |
+        HEALTH DEGRADED
+
+        Application: {{.app.metadata.name}}
+        Environment: {{.app.metadata.labels.environment}}
+        Health: {{.app.status.health.status}}
+
+        Please investigate.
+
+  # Sync running (for production deployments)
+  template.app-sync-running: |
+    slack:
+      attachments: |
+        [{
+          "color": "#0dadea",
+          "title": "{{.app.metadata.name}} - Sync In Progress",
+          "text": "Deployment to {{.app.metadata.labels.environment}} has started.",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Environment", "value": "{{.app.metadata.labels.environment}}", "short": true},
+            {"title": "Revision", "value": "{{.app.status.sync.revision | trunc 7}}", "short": true}
+          ],
+          "footer": "ArgoCD | TBS ERP Platform"
+        }]
+
+  # ============================================
+  # Triggers
+  # ============================================
+  trigger.on-sync-succeeded: |
+    - when: app.status.operationState.phase in ['Succeeded']
+      send: [app-sync-succeeded]
+
+  trigger.on-sync-failed: |
+    - when: app.status.operationState.phase in ['Error', 'Failed']
+      send: [app-sync-failed]
+
+  trigger.on-health-degraded: |
+    - when: app.status.health.status == 'Degraded'
+      send: [app-health-degraded]
+
+  trigger.on-sync-running: |
+    - when: app.status.operationState.phase in ['Running'] and app.metadata.labels.environment == 'production'
+      send: [app-sync-running]
+
+---
+# ============================================
+# ArgoCD Notifications Secrets
+# ============================================
+# Store sensitive credentials for notification services.
+# Values should be populated via sealed-secrets or external-secrets.
+# ============================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-notifications-secret
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+type: Opaque
+stringData:
+  # Slack Bot Token (replace with actual token via sealed-secrets)
+  slack-token: "xoxb-PLACEHOLDER-REPLACE-ME"
+  slack-signing-secret: "PLACEHOLDER-REPLACE-ME"
+  # Email SMTP credentials
+  email-smtp-host: "smtp.gmail.com"
+  email-from-address: "devops@tbslogistics.com"
+  email-username: "devops@tbslogistics.com"
+  email-password: "PLACEHOLDER-REPLACE-ME"

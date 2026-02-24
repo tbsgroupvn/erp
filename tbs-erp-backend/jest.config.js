@@ -15,6 +15,9 @@ module.exports = {
   ],
   coverageDirectory: './coverage',
   testEnvironment: 'node',
+  transformIgnorePatterns: [
+    'node_modules/(?!(otplib|@otplib|@noble|@scure)/)',
+  ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@core/(.*)$': '<rootDir>/src/core/$1',

@@ -41,6 +41,56 @@ export interface OrderWithRelations extends Order {
     amount: unknown;
     status: string;
   }>;
+  complaints?: Array<{
+    id: string;
+    code: string;
+    type: string;
+    severity: string;
+    status: string;
+    createdAt: Date;
+  }>;
+  deliveries?: Array<{
+    id: string;
+    code: string;
+    status: string;
+    recipientName: string;
+    createdAt: Date;
+  }>;
+  qcInspections?: Array<{
+    id: string;
+    code: string;
+    status: string;
+    passedQuantity: number | null;
+    failedQuantity: number | null;
+    createdAt: Date;
+  }>;
+  supplierOrders?: Array<{
+    id: string;
+    code: string;
+    status: string;
+    supplierName: string;
+    quotedPriceCNY: unknown;
+    actualPriceCNY: unknown;
+    createdAt: Date;
+  }>;
+  mhhIssues?: Array<{
+    id: string;
+    type: string;
+    status: string;
+    createdAt: Date;
+  }>;
+  costAllocations?: Array<{
+    id: string;
+    costType: string;
+    allocatedAmount: unknown;
+    method: string;
+  }>;
+  extraCharges?: Array<{
+    id: string;
+    chargeType: string;
+    amount: unknown;
+    status: string;
+  }>;
 }
 
 @Injectable()
@@ -51,32 +101,50 @@ export class OrderRepository {
 
   /**
    * Creates a new order with its items in a single transaction.
+   * Includes retry logic for unique constraint violations on code generation.
    */
   async create(
     data: Prisma.OrderCreateInput,
     items: Prisma.OrderItemCreateWithoutOrderInput[],
   ): Promise<Order> {
-    return this.prisma.order.create({
-      data: {
-        ...data,
-        items: {
-          create: items,
-        },
-      },
-      include: {
-        items: true,
-        customer: {
-          select: {
-            id: true,
-            code: true,
-            fullName: true,
-            companyName: true,
-            tier: true,
-            phone: true,
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        // Re-generate code on retry to avoid duplicate
+        const orderData = attempt > 0
+          ? { ...data, code: await this.generateOrderCode() }
+          : data;
+
+        return await this.prisma.order.create({
+          data: {
+            ...orderData,
+            items: {
+              create: items,
+            },
           },
-        },
-      },
-    });
+          include: {
+            items: true,
+            customer: {
+              select: {
+                id: true,
+                code: true,
+                fullName: true,
+                companyName: true,
+                tier: true,
+                phone: true,
+              },
+            },
+          },
+        });
+      } catch (error) {
+        if (error.code === 'P2002' && attempt < 2) {
+          this.logger.warn(`Order code conflict on attempt ${attempt + 1}, retrying...`);
+          continue;
+        }
+        throw error;
+      }
+    }
+    // Unreachable, but TypeScript needs it
+    throw new Error('Failed to create order after 3 attempts');
   }
 
   /**
@@ -115,7 +183,15 @@ export class OrderRepository {
               overallStatus: true,
             },
           },
-          items: true,
+          items: {
+            select: {
+              id: true,
+              productName: true,
+              quantity: true,
+              unitPrice: true,
+              totalPrice: true,
+            },
+          },
           _count: {
             select: { packages: true },
           },
@@ -174,6 +250,82 @@ export class OrderRepository {
             amount: true,
             status: true,
           },
+        },
+        complaints: {
+          select: {
+            id: true,
+            code: true,
+            type: true,
+            severity: true,
+            status: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' as const },
+          take: 20,
+        },
+        deliveries: {
+          select: {
+            id: true,
+            code: true,
+            status: true,
+            recipientName: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' as const },
+          take: 20,
+        },
+        qcInspections: {
+          select: {
+            id: true,
+            code: true,
+            status: true,
+            passedQuantity: true,
+            failedQuantity: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' as const },
+          take: 10,
+        },
+        supplierOrders: {
+          select: {
+            id: true,
+            code: true,
+            status: true,
+            supplierName: true,
+            quotedPriceCNY: true,
+            actualPriceCNY: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' as const },
+          take: 20,
+        },
+        mhhIssues: {
+          select: {
+            id: true,
+            type: true,
+            status: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' as const },
+          take: 20,
+        },
+        costAllocations: {
+          select: {
+            id: true,
+            costType: true,
+            allocatedAmount: true,
+            method: true,
+          },
+          take: 50,
+        },
+        extraCharges: {
+          select: {
+            id: true,
+            chargeType: true,
+            amount: true,
+            status: true,
+          },
+          take: 20,
         },
       },
     }) as unknown as OrderWithRelations | null;
@@ -259,8 +411,11 @@ export class OrderRepository {
     items: Prisma.OrderItemCreateWithoutOrderInput[],
   ): Promise<OrderItem[]> {
     return this.prisma.executeInTransaction(async (tx) => {
-      // Delete existing items
-      await tx.orderItem.deleteMany({ where: { orderId } });
+      // Layer 2A: Soft delete existing items instead of hard delete
+      await tx.orderItem.updateMany({
+        where: { orderId, deletedAt: null },
+        data: { deletedAt: new Date() },
+      });
 
       // Create new items
       await tx.orderItem.createMany({

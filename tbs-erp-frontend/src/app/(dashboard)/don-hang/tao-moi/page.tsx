@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Plus, Trash2, Loader2, Search, X, AlertCircle, Save, Check, BookTemplate } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Loader2, Search, X, AlertCircle, Save, Check, BookTemplate, ClipboardPaste } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { MHHPriceCalculator } from '@/features/orders/mhh-price-calculator';
 import { useCreateMasterOrder } from '@/lib/hooks/use-orders';
 import { useCustomers, useCustomer } from '@/lib/hooks/use-customers';
 import { useDraft } from '@/lib/hooks/use-draft';
@@ -195,13 +196,15 @@ function TaoMoiDonHangContent() {
       const templateData = sessionStorage.getItem('orderTemplateData');
       if (templateData) {
         const parsed = JSON.parse(templateData);
-        // Validate structure
-        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.subOrders)) {
+        // Validate structure using the Zod schema (partial, since customerId is not in template)
+        const templateSchema = createMasterOrderSchema.pick({ branch: true, subOrders: true }).partial({ branch: true });
+        const validated = templateSchema.safeParse(parsed);
+        if (validated.success) {
           reset({
             customerId: '',
-            branch: parsed.branch || Branch.HN,
+            branch: validated.data.branch || Branch.HN,
             note: '',
-            subOrders: parsed.subOrders || [],
+            subOrders: validated.data.subOrders,
           });
           sessionStorage.removeItem('orderTemplateData');
           toast.success('Đã áp dụng template');
@@ -298,7 +301,6 @@ function TaoMoiDonHangContent() {
   const handleApplyTemplate = useCallback(
     (template: any) => {
       const currentCustomerId = watch('customerId');
-      const currentCustomer = selectedCustomer;
 
       setValue('subOrders', template.subOrders);
       if (template.branch) {
@@ -313,7 +315,7 @@ function TaoMoiDonHangContent() {
       setShowTemplateSelector(false);
       toast.success(`Đã áp dụng template "${template.name}"`);
     },
-    [setValue, watch, selectedCustomer]
+    [setValue, watch]
   );
 
   const onSubmit = (data: CreateMasterOrderForm) => {
@@ -780,6 +782,14 @@ function TaoMoiDonHangContent() {
                   {/* Items */}
                   <SubOrderItems control={control} register={register} errors={errors} subOrderIndex={idx} quickMode={quickMode} />
 
+                  {/* MHH Price Calculator — visible when service type is MHH */}
+                  {watchedSubOrders?.[idx]?.serviceType === ServiceType.MHH && (
+                    <MHHPriceCalculator
+                      defaultRoute={watchedSubOrders[idx]?.shippingRoute}
+                      defaultCustomerTier={selectedCustomer?.tier}
+                    />
+                  )}
+
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Ghi chú đơn con</label>
                     <textarea
@@ -912,6 +922,42 @@ function SubOrderItems({
     name: `subOrders.${subOrderIndex}.items`,
   });
 
+  // Batch paste state
+  const [showBatchPaste, setShowBatchPaste] = useState(false);
+  const [batchText, setBatchText] = useState('');
+  const [batchPreview, setBatchPreview] = useState<{ productName: string; quantity: number; unitPrice: number; productUrl?: string }[]>([]);
+
+  const handleParseBatch = () => {
+    const lines = batchText.trim().split('\n').filter((l) => l.trim());
+    const parsed = lines.map((line) => {
+      const cols = line.split('\t');
+      return {
+        productName: (cols[0] || '').trim(),
+        quantity: parseInt(cols[1], 10) || 1,
+        unitPrice: parseFloat(cols[2]) || 0,
+        productUrl: (cols[3] || '').trim() || undefined,
+      };
+    }).filter((item) => item.productName.length >= 1);
+
+    setBatchPreview(parsed);
+  };
+
+  const handleConfirmBatch = () => {
+    if (batchPreview.length === 0) return;
+    for (const item of batchPreview) {
+      append({
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        note: '',
+      });
+    }
+    setShowBatchPaste(false);
+    setBatchText('');
+    setBatchPreview([]);
+    toast.success(`Đã thêm ${batchPreview.length} sản phẩm`);
+  };
+
   return (
     <div className="space-y-3">
       <label className="text-sm font-medium">Hàng hóa</label>
@@ -958,13 +1004,94 @@ function SubOrderItems({
       {errors.subOrders?.[subOrderIndex]?.items?.message && (
         <p className="text-xs text-destructive">{errors.subOrders[subOrderIndex].items.message}</p>
       )}
-      <button
-        type="button"
-        onClick={() => append({ productName: '', quantity: 1, unitPrice: 0 })}
-        className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
-      >
-        <Plus className="h-4 w-4" /> Thêm sản phẩm
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => append({ productName: '', quantity: 1, unitPrice: 0 })}
+          className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
+        >
+          <Plus className="h-4 w-4" /> Thêm sản phẩm
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowBatchPaste(true)}
+          className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
+        >
+          <ClipboardPaste className="h-4 w-4" /> Dán từ Excel
+        </button>
+      </div>
+
+      {/* Batch Paste Modal */}
+      {showBatchPaste && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-2xl rounded-lg bg-background p-6 shadow-xl mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Dán hàng loạt từ Excel</h3>
+              <button type="button" onClick={() => { setShowBatchPaste(false); setBatchText(''); setBatchPreview([]); }} className="h-8 w-8 rounded-md hover:bg-accent flex items-center justify-center">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Copy các dòng từ Excel rồi dán vào ô bên dưới. Mỗi dòng một sản phẩm, các cột cách nhau bằng Tab.
+            </p>
+            <p className="text-xs text-muted-foreground mb-2">
+              Thứ tự cột: <span className="font-medium">Tên SP</span> | <span className="font-medium">Số lượng</span> | <span className="font-medium">Đơn giá</span> | <span className="font-medium">Link SP (tùy chọn)</span>
+            </p>
+            <textarea
+              value={batchText}
+              onChange={(e) => { setBatchText(e.target.value); setBatchPreview([]); }}
+              rows={6}
+              placeholder={'Tên SP\tSố lượng\tĐơn giá\tLink SP\nTai nghe Bluetooth\t10\t150000\thttps://...\nÁo thun nam\t50\t200000'}
+              className="flex w-full rounded-md border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <div className="flex gap-2 mt-3">
+              <button
+                type="button"
+                onClick={handleParseBatch}
+                disabled={!batchText.trim()}
+                className="rounded-md border px-4 py-2 text-sm hover:bg-accent disabled:opacity-50"
+              >
+                Xem trước
+              </button>
+            </div>
+
+            {batchPreview.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-medium mb-2">Xem trước ({batchPreview.length} sản phẩm):</p>
+                <div className="max-h-48 overflow-y-auto rounded-md border">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="px-2 py-1.5 text-left font-medium">Tên SP</th>
+                        <th className="px-2 py-1.5 text-center font-medium">SL</th>
+                        <th className="px-2 py-1.5 text-right font-medium">Đơn giá</th>
+                        <th className="px-2 py-1.5 text-left font-medium">Link</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {batchPreview.map((item, i) => (
+                        <tr key={i} className="border-b">
+                          <td className="px-2 py-1.5">{item.productName}</td>
+                          <td className="px-2 py-1.5 text-center">{item.quantity}</td>
+                          <td className="px-2 py-1.5 text-right">{item.unitPrice.toLocaleString('vi-VN')}</td>
+                          <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[120px]">{item.productUrl || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleConfirmBatch}
+                  className="mt-3 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Xác nhận thêm {batchPreview.length} sản phẩm
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

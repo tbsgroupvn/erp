@@ -53,8 +53,8 @@ const contactInfo = [
   {
     icon: Mail,
     title: 'Email',
-    content: process.env.NEXT_PUBLIC_COMPANY_EMAIL || 'info@nhaphangchinhngach.vn',
-    subContent: process.env.NEXT_PUBLIC_COMPANY_SUPPORT_EMAIL || 'support@nhaphangchinhngach.vn',
+    content: process.env.NEXT_PUBLIC_COMPANY_EMAIL || '',
+    subContent: process.env.NEXT_PUBLIC_COMPANY_SUPPORT_EMAIL || '',
   },
   {
     icon: MapPin,

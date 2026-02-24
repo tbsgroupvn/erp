@@ -1,0 +1,151 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+"""High-level dashboard overview metrics"""
+type DashboardOverviewType {
+  """Completed orders in period"""
+  completedOrders: Int!
+
+  """Period end"""
+  end: DateTime!
+
+  """New customers in period"""
+  newCustomers: Int!
+
+  """Period start"""
+  start: DateTime!
+
+  """Total orders in period"""
+  totalOrders: Int!
+
+  """Total revenue (VND)"""
+  totalRevenue: Float!
+}
+
+"""Full dashboard summary combining all sections"""
+type DashboardSummaryType {
+  """Order statistics"""
+  orderStats: OrderStatsType!
+
+  """Overview metrics"""
+  overview: DashboardOverviewType!
+
+  """Warehouse pipeline"""
+  warehouseStats: WarehouseStatsType!
+}
+
+"""Real-time dashboard update payload"""
+type DashboardUpdateType {
+  """Type of update event"""
+  eventType: String!
+
+  """JSON-serialized payload of the change"""
+  payload: String!
+
+  """Timestamp of the update"""
+  timestamp: DateTime!
+}
+
+"""DateTime custom scalar type (ISO 8601)"""
+scalar DateTime
+
+"""Decimal custom scalar type for monetary values"""
+scalar Decimal
+
+"""Order statistics for the dashboard"""
+type OrderStatsType {
+  """Active (in-progress) orders"""
+  activeOrders: Int!
+
+  """Orders grouped by service type"""
+  byServiceType: [ServiceTypeBreakdownType!]!
+
+  """Orders grouped by status"""
+  byStatus: [StatusBreakdownType!]!
+
+  """Orders pending deposit"""
+  pendingDeposit: Int!
+}
+
+type Query {
+  """Fetch only the dashboard overview metrics"""
+  dashboardOverview(
+    """Filter by branch"""
+    branch: String
+
+    """End of the date range"""
+    endDate: DateTime
+
+    """Start of the date range"""
+    startDate: DateTime
+  ): DashboardOverviewType!
+
+  """Fetch the full dashboard summary (overview + orders + warehouse)"""
+  dashboardSummary(
+    """Filter by branch"""
+    branch: String
+
+    """End of the date range"""
+    endDate: DateTime
+
+    """Start of the date range"""
+    startDate: DateTime
+  ): DashboardSummaryType!
+
+  """Fetch warehouse pipeline statistics"""
+  warehouseStats(
+    """Filter by branch"""
+    branch: String
+
+    """End of the date range"""
+    endDate: DateTime
+
+    """Start of the date range"""
+    startDate: DateTime
+  ): WarehouseStatsType!
+}
+
+"""Service type breakdown item"""
+type ServiceTypeBreakdownType {
+  """Count of orders"""
+  count: Int!
+
+  """Service type name"""
+  serviceType: String!
+
+  """Total amount"""
+  totalAmount: Float!
+}
+
+"""Status breakdown item"""
+type StatusBreakdownType {
+  """Count of orders"""
+  count: Int!
+
+  """Status name"""
+  status: String!
+
+  """Total amount"""
+  totalAmount: Float!
+}
+
+type Subscription {
+  """Subscribe to real-time dashboard metric updates"""
+  dashboardUpdates: DashboardUpdateType!
+}
+
+"""Warehouse pipeline metrics"""
+type WarehouseStatsType {
+  atCustoms: Int!
+  consolidation: Int!
+  delivering: Int!
+  inTransit: Int!
+  packing: Int!
+  pendingDelivery: Int!
+
+  """Total packages in the pipeline"""
+  pipelineTotal: Int!
+  warehouseCN: Int!
+  warehouseVN: Int!
+}

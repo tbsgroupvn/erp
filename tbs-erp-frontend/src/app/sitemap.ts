@@ -2,7 +2,8 @@ import { MetadataRoute } from 'next';
 import { blogApi } from '@/lib/api/blog';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://nhaphangchinhngach.vn';
+  const domain = process.env.NEXT_PUBLIC_DOMAIN || 'localhost';
+  const baseUrl = domain === 'localhost' ? 'http://localhost:3000' : `https://${domain}`;
 
   // Static routes with specific priorities and change frequencies
   const staticRoutes: MetadataRoute.Sitemap = [

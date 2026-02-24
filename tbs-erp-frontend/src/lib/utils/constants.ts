@@ -3,9 +3,12 @@ import {
   ApprovalType,
   Branch,
   ClearanceType,
+  CODStatus,
   ComplaintSeverity,
   ComplaintStatus,
   ComplaintType,
+  ContractStatus,
+  ContractType,
   Currency,
   CustomerTier,
   DocumentCategory,
@@ -13,7 +16,13 @@ import {
   EmployeeStatus,
   LeaveStatus,
   LeaveType,
+  MaintenanceType,
   MasterOrderStatus,
+  MHHIssueResolution,
+  MHHIssueStatus,
+  MHHIssueType,
+  NettingStatus,
+  NotificationPriority,
   OrderStatus,
   ResolutionType,
   PaymentMethod,
@@ -22,6 +31,7 @@ import {
   ServiceType,
   ShippingRoute,
   StockMovementType,
+  SupplierOrderStatus,
   TaskPriority,
   TaskStatus,
   TrackingEventType,
@@ -271,6 +281,46 @@ export const QUOTATION_STATUS_COLORS: Record<QuotationStatus, string> = {
 };
 
 // ============================================
+// CONTRACT STATUS
+// ============================================
+
+export const CONTRACT_STATUS_LABELS: Record<ContractStatus, string> = {
+  [ContractStatus.DRAFT]: 'Nháp',
+  [ContractStatus.PENDING_SIGNATURE]: 'Chờ ký',
+  [ContractStatus.SIGNED]: 'Đã ký',
+  [ContractStatus.ACTIVE]: 'Đang thực hiện',
+  [ContractStatus.SETTLED]: 'Đã thanh lý',
+  [ContractStatus.COMPLETED]: 'Hoàn thành',
+  [ContractStatus.CANCELLED]: 'Đã hủy',
+  [ContractStatus.SUSPENDED]: 'Tạm dừng',
+};
+
+export const CONTRACT_STATUS_COLORS: Record<ContractStatus, string> = {
+  [ContractStatus.DRAFT]: 'bg-gray-100 text-gray-700',
+  [ContractStatus.PENDING_SIGNATURE]: 'bg-yellow-100 text-yellow-700',
+  [ContractStatus.SIGNED]: 'bg-blue-100 text-blue-700',
+  [ContractStatus.ACTIVE]: 'bg-green-100 text-green-700',
+  [ContractStatus.SETTLED]: 'bg-orange-100 text-orange-700',
+  [ContractStatus.COMPLETED]: 'bg-emerald-100 text-emerald-700',
+  [ContractStatus.CANCELLED]: 'bg-red-100 text-red-700',
+  [ContractStatus.SUSPENDED]: 'bg-purple-100 text-purple-700',
+};
+
+// ============================================
+// CONTRACT TYPE
+// ============================================
+
+export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
+  [ContractType.MASTER]: 'Hợp đồng chính',
+  [ContractType.APPENDIX]: 'Phụ lục',
+};
+
+export const CONTRACT_TYPE_COLORS: Record<ContractType, string> = {
+  [ContractType.MASTER]: 'bg-indigo-100 text-indigo-700',
+  [ContractType.APPENDIX]: 'bg-teal-100 text-teal-700',
+};
+
+// ============================================
 // COMPLAINT
 // ============================================
 
@@ -508,6 +558,7 @@ export const PATH_LABELS: Record<string, string> = {
   'tong-quan': 'Tổng quan',
   'don-hang': 'Đơn hàng',
   'bao-gia': 'Báo giá',
+  'hop-dong': 'Hợp đồng',
   'khach-hang': 'Khách hàng',
   'tai-chinh': 'Tài chính',
   'cong-no-phai-thu': 'Công nợ phải thu',
@@ -541,4 +592,274 @@ export const PATH_LABELS: Record<string, string> = {
   'nhap-excel': 'Nhập từ Excel',
   'ho-so': 'Hồ sơ',
   'doi-mat-khau': 'Đổi mật khẩu',
+  'dat-hang-ncc': 'Đặt hàng NCC',
+  'van-de-mhh': 'Vấn đề MHH',
+  'ty-gia': 'Tỷ giá',
+  'bu-tru-cong-no': 'Bù trừ công nợ',
+  'chua-phan-bo': 'Chưa phân bổ',
+  'hoa-hong': 'Hoa hồng',
+  'so-cai': 'Sổ cái',
+  'tai-san': 'Tài sản',
+  'ngan-sach': 'Ngân sách',
+};
+
+// ============================================
+// SUPPLIER ORDER STATUS
+// ============================================
+
+export const SUPPLIER_ORDER_STATUS_LABELS: Record<SupplierOrderStatus, string> = {
+  [SupplierOrderStatus.DRAFT]: 'Nháp',
+  [SupplierOrderStatus.QUOTED]: 'Đã báo giá',
+  [SupplierOrderStatus.ORDERED]: 'Đã đặt hàng',
+  [SupplierOrderStatus.CONFIRMED]: 'NCC xác nhận',
+  [SupplierOrderStatus.PARTIALLY_SHIPPED]: 'Giao 1 phần',
+  [SupplierOrderStatus.SHIPPED_CN]: 'Đã gửi về kho TQ',
+  [SupplierOrderStatus.RECEIVED_CN]: 'Kho TQ đã nhận',
+  [SupplierOrderStatus.RETURN_IN_PROGRESS]: 'Đang trả hàng',
+  [SupplierOrderStatus.REFUNDED]: 'Đã hoàn tiền',
+  [SupplierOrderStatus.CANCELLED]: 'Đã hủy',
+  [SupplierOrderStatus.ISSUE]: 'Có vấn đề',
+};
+
+export const SUPPLIER_ORDER_STATUS_COLORS: Record<SupplierOrderStatus, string> = {
+  [SupplierOrderStatus.DRAFT]: 'bg-gray-100 text-gray-700',
+  [SupplierOrderStatus.QUOTED]: 'bg-blue-100 text-blue-700',
+  [SupplierOrderStatus.ORDERED]: 'bg-indigo-100 text-indigo-700',
+  [SupplierOrderStatus.CONFIRMED]: 'bg-purple-100 text-purple-700',
+  [SupplierOrderStatus.PARTIALLY_SHIPPED]: 'bg-amber-100 text-amber-700',
+  [SupplierOrderStatus.SHIPPED_CN]: 'bg-cyan-100 text-cyan-700',
+  [SupplierOrderStatus.RECEIVED_CN]: 'bg-green-100 text-green-700',
+  [SupplierOrderStatus.RETURN_IN_PROGRESS]: 'bg-orange-100 text-orange-700',
+  [SupplierOrderStatus.REFUNDED]: 'bg-teal-100 text-teal-700',
+  [SupplierOrderStatus.CANCELLED]: 'bg-red-100 text-red-700',
+  [SupplierOrderStatus.ISSUE]: 'bg-destructive/10 text-destructive',
+};
+
+// ============================================
+// MHH ISSUE TYPE
+// ============================================
+
+export const MHH_ISSUE_TYPE_LABELS: Record<MHHIssueType, string> = {
+  [MHHIssueType.OUT_OF_STOCK]: 'Hết hàng',
+  [MHHIssueType.WRONG_ITEM]: 'Sai hàng',
+  [MHHIssueType.DAMAGED]: 'Hư hỏng',
+  [MHHIssueType.INCOMPLETE]: 'Thiếu hàng',
+  [MHHIssueType.QUALITY]: 'Chất lượng',
+  [MHHIssueType.PRICE_CHANGE]: 'Thay đổi giá',
+  [MHHIssueType.DELAY]: 'Chậm trễ',
+  [MHHIssueType.OTHER]: 'Khác',
+};
+
+// ============================================
+// MHH ISSUE STATUS
+// ============================================
+
+export const MHH_ISSUE_STATUS_LABELS: Record<MHHIssueStatus, string> = {
+  [MHHIssueStatus.OPEN]: 'Mở',
+  [MHHIssueStatus.INVESTIGATING]: 'Đang điều tra',
+  [MHHIssueStatus.WAITING_SUPPLIER]: 'Chờ NCC',
+  [MHHIssueStatus.WAITING_CUSTOMER]: 'Chờ KH',
+  [MHHIssueStatus.RESOLVED]: 'Đã giải quyết',
+  [MHHIssueStatus.CLOSED]: 'Đã đóng',
+};
+
+export const MHH_ISSUE_STATUS_COLORS: Record<MHHIssueStatus, string> = {
+  [MHHIssueStatus.OPEN]: 'bg-blue-100 text-blue-700',
+  [MHHIssueStatus.INVESTIGATING]: 'bg-yellow-100 text-yellow-700',
+  [MHHIssueStatus.WAITING_SUPPLIER]: 'bg-orange-100 text-orange-700',
+  [MHHIssueStatus.WAITING_CUSTOMER]: 'bg-amber-100 text-amber-700',
+  [MHHIssueStatus.RESOLVED]: 'bg-green-100 text-green-700',
+  [MHHIssueStatus.CLOSED]: 'bg-gray-100 text-gray-500',
+};
+
+// ============================================
+// MHH ISSUE RESOLUTION
+// ============================================
+
+export const MHH_ISSUE_RESOLUTION_LABELS: Record<MHHIssueResolution, string> = {
+  [MHHIssueResolution.REFUND]: 'Hoàn tiền',
+  [MHHIssueResolution.REPLACE]: 'Đổi hàng',
+  [MHHIssueResolution.SUPPLEMENT]: 'Bổ sung hàng',
+  [MHHIssueResolution.PRICE_ADJUST]: 'Điều chỉnh giá',
+  [MHHIssueResolution.ACCEPT]: 'Chấp nhận',
+  [MHHIssueResolution.RETURN_SUPPLIER]: 'Trả NCC',
+  [MHHIssueResolution.CANCEL_ITEM]: 'Hủy sản phẩm',
+};
+
+// ============================================
+// NETTING STATUS
+// ============================================
+
+export const NETTING_STATUS_LABELS: Record<NettingStatus, string> = {
+  [NettingStatus.DRAFT]: 'Nháp',
+  [NettingStatus.SUBMITTED]: 'Đã gửi',
+  [NettingStatus.APPROVED]: 'Đã duyệt',
+  [NettingStatus.EXECUTED]: 'Đã thực hiện',
+  [NettingStatus.REJECTED]: 'Từ chối',
+};
+
+export const NETTING_STATUS_COLORS: Record<NettingStatus, string> = {
+  [NettingStatus.DRAFT]: 'bg-gray-100 text-gray-700',
+  [NettingStatus.SUBMITTED]: 'bg-blue-100 text-blue-700',
+  [NettingStatus.APPROVED]: 'bg-green-100 text-green-700',
+  [NettingStatus.EXECUTED]: 'bg-emerald-100 text-emerald-700',
+  [NettingStatus.REJECTED]: 'bg-red-100 text-red-700',
+};
+
+// ============================================
+// COD STATUS
+// ============================================
+
+export const COD_STATUS_LABELS: Record<CODStatus, string> = {
+  [CODStatus.PENDING]: 'Chờ thu',
+  [CODStatus.COLLECTED]: 'Đã thu',
+  [CODStatus.REMITTED]: 'Đã nộp',
+  [CODStatus.RECONCILED]: 'Đã đối soát',
+  [CODStatus.SHORTAGE]: 'Thiếu hụt',
+};
+
+export const COD_STATUS_COLORS: Record<CODStatus, string> = {
+  [CODStatus.PENDING]: 'bg-yellow-100 text-yellow-700',
+  [CODStatus.COLLECTED]: 'bg-blue-100 text-blue-700',
+  [CODStatus.REMITTED]: 'bg-purple-100 text-purple-700',
+  [CODStatus.RECONCILED]: 'bg-green-100 text-green-700',
+  [CODStatus.SHORTAGE]: 'bg-red-100 text-red-700',
+};
+
+// ============================================
+// NOTIFICATION PRIORITY
+// ============================================
+
+export const NOTIFICATION_PRIORITY_LABELS: Record<NotificationPriority, string> = {
+  [NotificationPriority.LOW]: 'Thấp',
+  [NotificationPriority.NORMAL]: 'Bình thường',
+  [NotificationPriority.HIGH]: 'Cao',
+  [NotificationPriority.CRITICAL]: 'Khẩn cấp',
+};
+
+export const NOTIFICATION_PRIORITY_COLORS: Record<NotificationPriority, string> = {
+  [NotificationPriority.LOW]: 'bg-gray-100 text-gray-700',
+  [NotificationPriority.NORMAL]: 'bg-blue-100 text-blue-700',
+  [NotificationPriority.HIGH]: 'bg-orange-100 text-orange-700',
+  [NotificationPriority.CRITICAL]: 'bg-red-100 text-red-700',
+};
+
+// ============================================
+// MAINTENANCE TYPE
+// ============================================
+
+export const MAINTENANCE_TYPE_LABELS: Record<MaintenanceType, string> = {
+  [MaintenanceType.ROUTINE]: 'Bảo dưỡng định kỳ',
+  [MaintenanceType.REPAIR]: 'Sửa chữa',
+  [MaintenanceType.INSPECTION]: 'Kiểm tra',
+};
+
+// ============================================
+// COMMISSION STATUS
+// ============================================
+
+export enum CommissionStatus {
+  DRAFT = 'DRAFT',
+  CALCULATED = 'CALCULATED',
+  ON_HOLD = 'ON_HOLD',
+  APPROVED = 'APPROVED',
+  PAID = 'PAID',
+  CANCELLED = 'CANCELLED',
+}
+
+export const COMMISSION_STATUS_LABELS: Record<CommissionStatus, string> = {
+  [CommissionStatus.DRAFT]: 'Nháp',
+  [CommissionStatus.CALCULATED]: 'Đã tính',
+  [CommissionStatus.ON_HOLD]: 'Tạm giữ',
+  [CommissionStatus.APPROVED]: 'Đã duyệt',
+  [CommissionStatus.PAID]: 'Đã chi',
+  [CommissionStatus.CANCELLED]: 'Đã hủy',
+};
+
+export const COMMISSION_STATUS_COLORS: Record<CommissionStatus, string> = {
+  [CommissionStatus.DRAFT]: 'bg-gray-100 text-gray-700',
+  [CommissionStatus.CALCULATED]: 'bg-blue-100 text-blue-700',
+  [CommissionStatus.ON_HOLD]: 'bg-amber-100 text-amber-700',
+  [CommissionStatus.APPROVED]: 'bg-green-100 text-green-700',
+  [CommissionStatus.PAID]: 'bg-emerald-100 text-emerald-700',
+  [CommissionStatus.CANCELLED]: 'bg-red-100 text-red-700',
+};
+
+// ============================================
+// EXCHANGE RATE MODE
+// ============================================
+
+export enum ExchangeRateMode {
+  FLOATING = 'FLOATING',
+  FIXED = 'FIXED',
+}
+
+export const EXCHANGE_RATE_MODE_LABELS: Record<ExchangeRateMode, string> = {
+  [ExchangeRateMode.FLOATING]: 'Thả nổi',
+  [ExchangeRateMode.FIXED]: 'Chốt cứng',
+};
+
+export const EXCHANGE_RATE_MODE_COLORS: Record<ExchangeRateMode, string> = {
+  [ExchangeRateMode.FLOATING]: 'bg-blue-100 text-blue-700',
+  [ExchangeRateMode.FIXED]: 'bg-purple-100 text-purple-700',
+};
+
+// ============================================
+// GRACE PERIOD STATUS
+// ============================================
+
+export enum GracePeriodStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  EXPIRED = 'EXPIRED',
+  ACTIVE = 'ACTIVE',
+}
+
+export const GRACE_PERIOD_STATUS_LABELS: Record<GracePeriodStatus, string> = {
+  [GracePeriodStatus.PENDING]: 'Chờ duyệt',
+  [GracePeriodStatus.APPROVED]: 'Đã duyệt',
+  [GracePeriodStatus.REJECTED]: 'Từ chối',
+  [GracePeriodStatus.EXPIRED]: 'Hết hạn',
+  [GracePeriodStatus.ACTIVE]: 'Đang hiệu lực',
+};
+
+export const GRACE_PERIOD_STATUS_COLORS: Record<GracePeriodStatus, string> = {
+  [GracePeriodStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
+  [GracePeriodStatus.APPROVED]: 'bg-green-100 text-green-700',
+  [GracePeriodStatus.REJECTED]: 'bg-red-100 text-red-700',
+  [GracePeriodStatus.EXPIRED]: 'bg-gray-100 text-gray-500',
+  [GracePeriodStatus.ACTIVE]: 'bg-emerald-100 text-emerald-700',
+};
+
+// ============================================
+// UNALLOCATED CLAIM STATUS
+// ============================================
+
+export enum UnallocatedClaimStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+}
+
+export const UNALLOCATED_CLAIM_STATUS_LABELS: Record<UnallocatedClaimStatus, string> = {
+  [UnallocatedClaimStatus.PENDING]: 'Chờ duyệt',
+  [UnallocatedClaimStatus.APPROVED]: 'Đã duyệt',
+  [UnallocatedClaimStatus.REJECTED]: 'Từ chối',
+};
+
+export const UNALLOCATED_CLAIM_STATUS_COLORS: Record<UnallocatedClaimStatus, string> = {
+  [UnallocatedClaimStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
+  [UnallocatedClaimStatus.APPROVED]: 'bg-green-100 text-green-700',
+  [UnallocatedClaimStatus.REJECTED]: 'bg-red-100 text-red-700',
+};
+
+// ============================================
+// EXCHANGE RATE SOURCE
+// ============================================
+
+export const EXCHANGE_RATE_SOURCE_LABELS: Record<string, string> = {
+  VIETCOMBANK: 'Vietcombank',
+  MANUAL: 'Thủ công',
+  API: 'API',
 };

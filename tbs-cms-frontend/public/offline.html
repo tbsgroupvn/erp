@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TBS CMS - Offline</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0f6ff;
+      color: #1a2744;
+      padding: 2rem;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: #0c1222; color: #e2e8f0; }
+      .card { background: #1a2744; border-color: #2d3f5e; }
+    }
+    .card {
+      text-align: center;
+      max-width: 480px;
+      padding: 3rem 2rem;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 1rem;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    .icon {
+      font-size: 4rem;
+      margin-bottom: 1.5rem;
+      display: block;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.75rem; }
+    p { font-size: 1rem; opacity: 0.8; line-height: 1.6; margin-bottom: 1.5rem; }
+    button {
+      padding: 0.75rem 2rem;
+      font-size: 1rem;
+      font-weight: 500;
+      border: none;
+      border-radius: 0.5rem;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #2563eb; }
+    button:focus-visible {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <span class="icon" aria-hidden="true">&#9888;&#65039;</span>
+    <h1>Ban dang offline</h1>
+    <p>Vui long kiem tra ket noi mang cua ban va thu lai.</p>
+    <button onclick="window.location.reload()" type="button">
+      Thu lai
+    </button>
+  </main>
+</body>
+</html>

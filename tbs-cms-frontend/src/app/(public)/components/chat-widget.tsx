@@ -11,10 +11,11 @@ export function ChatWidget() {
   const [message, setMessage] = useState('');
 
   const handleSendMessage = () => {
-    if (message.trim()) {
+    const sanitized = message.trim().replace(/<[^>]*>/g, '');
+    if (sanitized) {
       // Open Zalo chat with pre-filled message
-      const zaloUrl = `https://zalo.me/${process.env.NEXT_PUBLIC_ZALO_ID || '0123456789'}?text=${encodeURIComponent(message)}`;
-      window.open(zaloUrl, '_blank');
+      const zaloUrl = `https://zalo.me/${process.env.NEXT_PUBLIC_ZALO_ID || '0123456789'}?text=${encodeURIComponent(sanitized)}`;
+      window.open(zaloUrl, '_blank', 'noopener,noreferrer');
       setMessage('');
       setIsOpen(false);
     }
@@ -91,7 +92,7 @@ export function ChatWidget() {
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Nhập tin nhắn..."
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                     />
                     <Button
                       onClick={handleSendMessage}

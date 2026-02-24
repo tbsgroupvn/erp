@@ -3,6 +3,7 @@ import { WarehouseVNController } from './warehouse-vn.controller';
 import { WarehouseVNService } from './warehouse-vn.service';
 import { WarehouseVNRepository } from './warehouse-vn.repository';
 import { DeliveryDispatchService } from './domain/delivery-dispatch.service';
+import { WarehouseVNStatusMachine } from './domain/warehouse-vn-status.machine';
 import { ContainerArrivalListener } from './listeners/container-arrival.listener';
 
 @Module({
@@ -11,6 +12,7 @@ import { ContainerArrivalListener } from './listeners/container-arrival.listener
     WarehouseVNService,
     WarehouseVNRepository,
     DeliveryDispatchService,
+    WarehouseVNStatusMachine,
     ContainerArrivalListener,
   ],
   exports: [WarehouseVNService, DeliveryDispatchService],

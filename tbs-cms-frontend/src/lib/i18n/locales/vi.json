@@ -1,0 +1,83 @@
+{
+  "common": {
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "edit": "Chỉnh sửa",
+    "search": "Tìm kiếm",
+    "filter": "Lọc",
+    "export": "Xuất",
+    "import": "Nhập",
+    "loading": "Đang tải...",
+    "noData": "Không có dữ liệu",
+    "confirm": "Xác nhận",
+    "back": "Quay lại",
+    "next": "Tiếp theo",
+    "submit": "Gửi",
+    "status": "Trạng thái",
+    "action": "Thao tác",
+    "total": "Tổng",
+    "date": "Ngày",
+    "from": "Từ",
+    "to": "Đến",
+    "all": "Tất cả",
+    "yes": "Có",
+    "no": "Không",
+    "success": "Thành công",
+    "error": "Lỗi",
+    "warning": "Cảnh báo",
+    "info": "Thông tin"
+  },
+  "auth": {
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất",
+    "register": "Đăng ký",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "forgotPassword": "Quên mật khẩu?",
+    "rememberMe": "Ghi nhớ đăng nhập",
+    "loginSuccess": "Đăng nhập thành công",
+    "loginFailed": "Đăng nhập thất bại",
+    "sessionExpired": "Phiên đăng nhập đã hết hạn"
+  },
+  "cms": {
+    "home": "Trang chủ",
+    "services": "Dịch vụ",
+    "pricing": "Bảng giá",
+    "news": "Tin tức",
+    "contact": "Liên hệ",
+    "tracking": "Tra cứu đơn hàng",
+    "register": "Đăng ký"
+  },
+  "contact": {
+    "title": "Liên hệ với chúng tôi",
+    "name": "Họ tên",
+    "email": "Email",
+    "phone": "Số điện thoại",
+    "message": "Nội dung",
+    "send": "Gửi tin nhắn"
+  },
+  "nav": {
+    "dashboard": "Tổng quan",
+    "orders": "Đơn hàng",
+    "customers": "Khách hàng",
+    "approvals": "Phê duyệt",
+    "settings": "Cài đặt"
+  },
+  "table": {
+    "rowsPerPage": "Dòng mỗi trang",
+    "showing": "Hiển thị",
+    "of": "trong",
+    "results": "kết quả",
+    "noResults": "Không tìm thấy kết quả",
+    "previous": "Trang trước",
+    "next": "Trang sau"
+  },
+  "validation": {
+    "required": "Trường này là bắt buộc",
+    "invalidEmail": "Email không hợp lệ",
+    "minLength": "Tối thiểu {{min}} ký tự",
+    "maxLength": "Tối đa {{max}} ký tự",
+    "invalidPhone": "Số điện thoại không hợp lệ"
+  }
+}

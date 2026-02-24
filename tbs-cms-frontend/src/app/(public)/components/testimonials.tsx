@@ -148,7 +148,7 @@ export function Testimonials() {
       worstRating: '1',
     },
     reviewBody: testimonial.text,
-    datePublished: '2024-01-15',
+    datePublished: new Date().toISOString().split('T')[0],
     itemReviewed: {
       '@type': 'Organization',
       name: 'TBS Logistics',
@@ -185,7 +185,7 @@ export function Testimonials() {
         <script
           key={`review-schema-${index}`}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, '\\u003c') }}
         />
       ))}
 

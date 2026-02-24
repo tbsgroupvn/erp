@@ -4,8 +4,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { ApiKeyRotationService } from './api-key-rotation.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
+import { SmsModule } from '@core/sms/sms.module';
 
 @Module({
   imports: [
@@ -20,9 +22,15 @@ import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
         },
       }),
     }),
+    SmsModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, RefreshTokenStrategy],
-  exports: [AuthService, JwtModule, PassportModule],
+  providers: [
+    AuthService,
+    ApiKeyRotationService,
+    JwtStrategy,
+    RefreshTokenStrategy,
+  ],
+  exports: [AuthService, ApiKeyRotationService, JwtModule, PassportModule],
 })
 export class AuthModule {}

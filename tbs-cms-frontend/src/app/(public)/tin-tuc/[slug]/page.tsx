@@ -130,17 +130,17 @@ export default function BlogDetailPage() {
     },
     publisher: {
       '@type': 'Organization',
-      name: 'TBS Logistics',
+      name: process.env.NEXT_PUBLIC_COMPANY_NAME || 'My Company',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://nhaphangchinhngach.vn/logo.svg',
+        url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://localhost'}/logo.svg`,
         width: 600,
         height: 60,
       },
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `https://nhaphangchinhngach.vn/tin-tuc/${slug}`,
+      '@id': `${process.env.NEXT_PUBLIC_SITE_URL || 'https://localhost'}/tin-tuc/${slug}`,
     },
   };
 
@@ -148,7 +148,7 @@ export default function BlogDetailPage() {
     <article className="bg-white">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema).replace(/</g, '\\u003c') }}
       />
 
       {/* Header */}

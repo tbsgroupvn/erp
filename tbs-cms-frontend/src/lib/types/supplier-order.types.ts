@@ -12,6 +12,8 @@ export type SupplierOrderStatus =
   | 'PARTIALLY_SHIPPED'
   | 'SHIPPED_CN'
   | 'RECEIVED_CN'
+  | 'RETURN_IN_PROGRESS'
+  | 'REFUNDED'
   | 'CANCELLED'
   | 'ISSUE';
 

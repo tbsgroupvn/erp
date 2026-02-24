@@ -12,38 +12,48 @@ import type {
 } from '@/lib/types';
 import type { VoucherQueryParams, InvoiceQueryParams } from '@/lib/types/finance.types';
 
+/** Log and re-throw API errors */
+function handleApiError(error: unknown): never {
+  console.error('Finance API error:', (error as Error)?.message || error);
+  throw error;
+}
+
 // ---------------------------------------------------------------------------
 // Accounts Receivable
 // ---------------------------------------------------------------------------
 export const arApi = {
-  /** GET /finance/receivables */
+  /** GET /ar */
   list: (params?: QueryParams) =>
     apiClient
-      .get<PaginatedResponse<AccountReceivable>>('/finance/receivables', { params })
-      .then((r) => r.data),
+      .get<PaginatedResponse<AccountReceivable>>('/ar', { params })
+      .then((r) => r.data)
+      .catch(handleApiError),
 
-  /** GET /finance/receivables/:id */
+  /** GET /ar/:id */
   getById: (id: string) =>
     apiClient
-      .get<BaseResponse<AccountReceivable>>(`/finance/receivables/${id}`)
-      .then((r) => r.data.data),
+      .get<BaseResponse<AccountReceivable>>(`/ar/${encodeURIComponent(id)}`)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 
-  /** POST /finance/receivables/:id/payment */
+  /** PATCH /ar/:id/payment */
   recordPayment: (
     id: string,
     data: { amount: number; paymentMethod: string; reference?: string; notes?: string },
   ) =>
     apiClient
-      .post<BaseResponse<AccountReceivable>>(`/finance/receivables/${id}/payment`, data)
-      .then((r) => r.data.data),
+      .patch<BaseResponse<AccountReceivable>>(`/ar/${encodeURIComponent(id)}/payment`, data)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 
-  /** GET /finance/receivables/overdue */
+  /** GET /ar/overdue */
   getOverdue: () =>
     apiClient
-      .get<BaseResponse<AccountReceivable[]>>('/finance/receivables/overdue')
-      .then((r) => r.data.data),
+      .get<BaseResponse<AccountReceivable[]>>('/ar/overdue')
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 
-  /** GET /finance/receivables/aging */
+  /** GET /ar/aging */
   getAging: () =>
     apiClient
       .get<
@@ -55,117 +65,130 @@ export const arApi = {
           over90: number;
           total: number;
         }>
-      >('/finance/receivables/aging')
-      .then((r) => r.data.data),
+      >('/ar/aging')
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 
-  /** GET /finance/receivables/customer-debt?customerId=:id */
+  /** GET /ar/by-customer/:customerId */
   getCustomerDebt: (customerId: string) =>
     apiClient
-      .get<BaseResponse<AccountReceivable[]>>('/finance/receivables/customer-debt', {
-        params: { customerId },
-      })
-      .then((r) => r.data.data),
+      .get<BaseResponse<AccountReceivable[]>>(`/ar/by-customer/${encodeURIComponent(customerId)}`)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 };
 
 // ---------------------------------------------------------------------------
 // Accounts Payable
 // ---------------------------------------------------------------------------
 export const apApi = {
-  /** GET /finance/payables */
+  /** GET /ap */
   list: (params?: QueryParams) =>
     apiClient
-      .get<PaginatedResponse<AccountPayable>>('/finance/payables', { params })
-      .then((r) => r.data),
+      .get<PaginatedResponse<AccountPayable>>('/ap', { params })
+      .then((r) => r.data)
+      .catch(handleApiError),
 
-  /** GET /finance/payables/:id */
+  /** GET /ap/:id */
   getById: (id: string) =>
     apiClient
-      .get<BaseResponse<AccountPayable>>(`/finance/payables/${id}`)
-      .then((r) => r.data.data),
+      .get<BaseResponse<AccountPayable>>(`/ap/${encodeURIComponent(id)}`)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 
-  /** POST /finance/payables/:id/payment */
+  /** PATCH /ap/:id/payment */
   recordPayment: (
     id: string,
     data: { amount: number; paymentMethod: string; reference?: string; notes?: string },
   ) =>
     apiClient
-      .post<BaseResponse<AccountPayable>>(`/finance/payables/${id}/payment`, data)
-      .then((r) => r.data.data),
+      .patch<BaseResponse<AccountPayable>>(`/ap/${encodeURIComponent(id)}/payment`, data)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 };
 
 // ---------------------------------------------------------------------------
 // Vouchers
 // ---------------------------------------------------------------------------
 export const vouchersApi = {
-  /** GET /finance/vouchers */
+  /** GET /cash/vouchers */
   list: (params?: VoucherQueryParams) =>
     apiClient
-      .get<PaginatedResponse<PaymentVoucher>>('/finance/vouchers', { params })
-      .then((r) => r.data),
+      .get<PaginatedResponse<PaymentVoucher>>('/cash/vouchers', { params })
+      .then((r) => r.data)
+      .catch(handleApiError),
 
-  /** POST /finance/vouchers */
+  /** POST /cash/vouchers */
   create: (data: CreateVoucherDto) =>
     apiClient
-      .post<BaseResponse<PaymentVoucher>>('/finance/vouchers', data)
-      .then((r) => r.data.data),
+      .post<BaseResponse<PaymentVoucher>>('/cash/vouchers', data)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 
-  /** PATCH /finance/vouchers/:id/approve */
+  /** PATCH /cash/vouchers/:id/approve */
   approve: (id: string) =>
     apiClient
-      .patch<BaseResponse<PaymentVoucher>>(`/finance/vouchers/${id}/approve`)
-      .then((r) => r.data.data),
+      .patch<BaseResponse<PaymentVoucher>>(`/cash/vouchers/${encodeURIComponent(id)}/approve`)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 
-  /** PATCH /finance/vouchers/:id/reject */
+  /** PATCH /cash/vouchers/:id/reject */
   reject: (id: string, reason?: string) =>
     apiClient
-      .patch<BaseResponse<PaymentVoucher>>(`/finance/vouchers/${id}/reject`, { reason })
-      .then((r) => r.data.data),
+      .patch<BaseResponse<PaymentVoucher>>(`/cash/vouchers/${encodeURIComponent(id)}/reject`, { reason })
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 
-  /** GET /finance/vouchers/cash-flow */
+  /** GET /cash/flow */
   getCashFlow: (params?: { dateFrom?: string; dateTo?: string }) =>
     apiClient
       .get<
         BaseResponse<
           { period: string; inflow: number; outflow: number; net: number; balance: number }[]
         >
-      >('/finance/vouchers/cash-flow', { params })
-      .then((r) => r.data.data),
+      >('/cash/flow', { params })
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 };
 
 // ---------------------------------------------------------------------------
 // Invoices
 // ---------------------------------------------------------------------------
 export const invoicesApi = {
-  /** GET /finance/invoices */
+  /** GET /invoices */
   list: (params?: InvoiceQueryParams) =>
     apiClient
-      .get<PaginatedResponse<Invoice>>('/finance/invoices', { params })
-      .then((r) => r.data),
+      .get<PaginatedResponse<Invoice>>('/invoices', { params })
+      .then((r) => r.data)
+      .catch(handleApiError),
 
-  /** POST /finance/invoices */
+  /** POST /invoices */
   create: (data: CreateInvoiceDto) =>
     apiClient
-      .post<BaseResponse<Invoice>>('/finance/invoices', data)
-      .then((r) => r.data.data),
+      .post<BaseResponse<Invoice>>('/invoices', data)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 
-  /** PATCH /finance/invoices/:id/issue */
+  /** PATCH /invoices/:id/issue */
   issue: (id: string) =>
     apiClient
-      .patch<BaseResponse<Invoice>>(`/finance/invoices/${id}/issue`)
-      .then((r) => r.data.data),
+      .patch<BaseResponse<Invoice>>(`/invoices/${encodeURIComponent(id)}/issue`)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 
-  /** PATCH /finance/invoices/:id/cancel */
+  /** PATCH /invoices/:id/cancel */
   cancel: (id: string) =>
     apiClient
-      .patch<BaseResponse<Invoice>>(`/finance/invoices/${id}/cancel`)
-      .then((r) => r.data.data),
+      .patch<BaseResponse<Invoice>>(`/invoices/${encodeURIComponent(id)}/cancel`)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 
-  /** PATCH /finance/invoices/:id/adjust */
+  /** POST /invoices/:id/adjust */
   adjust: (
     id: string,
     data: { reason: string; adjustments: { itemId: string; newAmount: number }[] },
   ) =>
     apiClient
-      .patch<BaseResponse<Invoice>>(`/finance/invoices/${id}/adjust`, data)
-      .then((r) => r.data.data),
+      .post<BaseResponse<Invoice>>(`/invoices/${encodeURIComponent(id)}/adjust`, data)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
 };

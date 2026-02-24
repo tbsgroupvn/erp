@@ -3,7 +3,7 @@
 # Blog CMS Endpoints Test Script
 # This script tests all blog endpoints
 
-BASE_URL="http://localhost:3000/api"
+BASE_URL="http://localhost:3000/api/v1"
 TOKEN=""  # Add JWT token here for protected endpoints
 
 echo "======================================"

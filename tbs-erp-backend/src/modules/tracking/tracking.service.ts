@@ -97,6 +97,10 @@ export class TrackingService {
       ? new Date(dto.eventTimestamp)
       : new Date();
 
+    if (eventTimestamp > new Date()) {
+      throw new BadRequestException('Tracking event timestamp cannot be in the future');
+    }
+
     const trackingEvent = await this.prisma.trackingEvent.create({
       data: {
         packageId: dto.packageId,
@@ -460,8 +464,13 @@ export class TrackingService {
       };
     }
 
-    // Calculate remaining days
+    // Calculate remaining days, subtracting time already spent in current stage
     let remainingDays = 0;
+    const currentStageDuration = STAGE_DURATION_DAYS[currentStage] || 1;
+    const elapsedMs = Date.now() - new Date(latestEvent.eventTimestamp).getTime();
+    const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+    const remainingInCurrentStage = Math.max(0, currentStageDuration - elapsedDays);
+    remainingDays += remainingInCurrentStage;
     for (let i = currentIndex + 1; i < EVENT_SEQUENCE.length; i++) {
       remainingDays += STAGE_DURATION_DAYS[EVENT_SEQUENCE[i]] || 1;
     }
@@ -482,9 +491,8 @@ export class TrackingService {
       }
     }
 
-    const estimatedDeliveryDate = new Date(latestEvent.eventTimestamp);
-    estimatedDeliveryDate.setDate(
-      estimatedDeliveryDate.getDate() + remainingDays,
+    const estimatedDeliveryDate = new Date(
+      Date.now() + remainingDays * 24 * 60 * 60 * 1000,
     );
 
     // Determine confidence based on how far along the tracking is

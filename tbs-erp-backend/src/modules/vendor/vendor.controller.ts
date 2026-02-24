@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
+import { DataScopeGuard } from '@common/guards/data-scope.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
@@ -30,7 +31,7 @@ import { VendorQueryDto } from './dto/vendor-query.dto';
 
 @ApiTags('Vendor')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, DataScopeGuard)
 @Controller('vendors')
 export class VendorController {
   constructor(private readonly vendorService: VendorService) {}

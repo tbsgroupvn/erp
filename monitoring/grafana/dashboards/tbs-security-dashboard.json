@@ -1,0 +1,446 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "TBS ERP Security Monitoring Dashboard - Authentication, WAF, Rate Limiting, and Threat Detection",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Authentication Overview",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "title": "Failed Logins (Last 1h)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "increase(http_requests_total{path=\"/api/v1/auth/login\",status=\"401\"}[1h])",
+          "legendFormat": "Failed Logins"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "red", "value": 30 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 1 },
+      "id": 2,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "title": "Failed 2FA Attempts (Last 1h)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "increase(http_requests_total{path=\"/api/v1/auth/2fa/verify\",status=\"401\"}[1h])",
+          "legendFormat": "Failed 2FA"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 1 },
+      "id": 3,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "title": "Successful Logins (Last 1h)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "increase(http_requests_total{path=\"/api/v1/auth/login\",status=\"200\"}[1h])",
+          "legendFormat": "Successful Logins"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.1 },
+              { "color": "red", "value": 0.3 }
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
+      "id": 4,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "title": "Login Failure Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "increase(http_requests_total{path=\"/api/v1/auth/login\",status=\"401\"}[1h]) / (increase(http_requests_total{path=\"/api/v1/auth/login\",status=\"200\"}[1h]) + increase(http_requests_total{path=\"/api/v1/auth/login\",status=\"401\"}[1h]) + 0.001)",
+          "legendFormat": "Failure Rate"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+      "id": 5,
+      "title": "Authentication Attempts Over Time",
+      "type": "timeseries",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "showPoints": "never"
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{path=\"/api/v1/auth/login\",status=\"200\"}[5m]) * 60",
+          "legendFormat": "Successful Logins/min"
+        },
+        {
+          "expr": "rate(http_requests_total{path=\"/api/v1/auth/login\",status=\"401\"}[5m]) * 60",
+          "legendFormat": "Failed Logins/min"
+        },
+        {
+          "expr": "rate(http_requests_total{path=\"/api/v1/auth/2fa/verify\",status=\"401\"}[5m]) * 60",
+          "legendFormat": "Failed 2FA/min"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
+      "id": 6,
+      "title": "Password Reset Requests",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{path=\"/api/v1/auth/forgot-password\"}[5m]) * 60",
+          "legendFormat": "Forgot Password/min"
+        },
+        {
+          "expr": "rate(http_requests_total{path=\"/api/v1/auth/reset-password\",status=\"200\"}[5m]) * 60",
+          "legendFormat": "Reset Success/min"
+        },
+        {
+          "expr": "rate(http_requests_total{path=\"/api/v1/auth/reset-password\",status=~\"4..\"}[5m]) * 60",
+          "legendFormat": "Reset Failure/min"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "id": 200,
+      "title": "Rate Limiting & WAF",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "red", "value": 50 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 16 },
+      "id": 7,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      },
+      "title": "Rate Limited Requests (Last 1h)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "increase(http_requests_total{status=\"429\"}[1h])",
+          "legendFormat": "Rate Limited"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 16 },
+      "id": 8,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      },
+      "title": "WAF Blocked Requests (Last 1h)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "increase(http_requests_total{status=\"403\"}[1h])",
+          "legendFormat": "WAF Blocked"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 16 },
+      "id": 9,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      },
+      "title": "Suspicious Requests (5xx, Last 1h)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "increase(http_requests_total{status=~\"5..\"}[1h])",
+          "legendFormat": "Server Errors"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+      "id": 10,
+      "title": "Rate Limited & Blocked Over Time",
+      "type": "timeseries",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "showPoints": "never"
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{status=\"429\"}[5m]) * 60",
+          "legendFormat": "Rate Limited/min"
+        },
+        {
+          "expr": "rate(http_requests_total{status=\"403\"}[5m]) * 60",
+          "legendFormat": "WAF Blocked/min"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+      "id": 11,
+      "title": "Response Status Distribution",
+      "type": "piechart",
+      "targets": [
+        {
+          "expr": "sum(increase(http_requests_total{status=~\"2..\"}[1h]))",
+          "legendFormat": "2xx Success"
+        },
+        {
+          "expr": "sum(increase(http_requests_total{status=~\"3..\"}[1h]))",
+          "legendFormat": "3xx Redirect"
+        },
+        {
+          "expr": "sum(increase(http_requests_total{status=~\"4..\"}[1h]))",
+          "legendFormat": "4xx Client Error"
+        },
+        {
+          "expr": "sum(increase(http_requests_total{status=~\"5..\"}[1h]))",
+          "legendFormat": "5xx Server Error"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+      "id": 300,
+      "title": "Suspicious Activity & Alerts",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+      "id": 12,
+      "title": "Failed Logins by Endpoint",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "topk(10, sum by(path) (rate(http_requests_total{status=\"401\"}[5m]) * 60))",
+          "legendFormat": "{{path}}"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+      "id": 13,
+      "title": "Top Blocked IPs (Nginx)",
+      "type": "table",
+      "targets": [
+        {
+          "expr": "topk(20, sum by(remote_addr) (increase(nginx_http_requests_total{status=~\"403|429\"}[1h])))",
+          "legendFormat": "{{remote_addr}}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Value" },
+            "properties": [
+              { "id": "displayName", "value": "Blocked Count" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 5 },
+                    { "color": "red", "value": 20 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 39 },
+      "id": 14,
+      "title": "Security Alert Log",
+      "description": "Shows recent security-relevant events based on anomalous patterns",
+      "type": "timeseries",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "thresholds": {
+            "steps": [
+              { "color": "transparent", "value": null },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{path=\"/api/v1/auth/login\",status=\"401\"}[1m]) * 60",
+          "legendFormat": "Login Failures/min (ALERT > 5)"
+        },
+        {
+          "expr": "rate(http_requests_total{status=\"429\"}[1m]) * 60",
+          "legendFormat": "Rate Limited/min"
+        },
+        {
+          "expr": "rate(http_requests_total{status=\"403\"}[1m]) * 60",
+          "legendFormat": "Forbidden/min"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["security", "tbs-erp", "authentication", "waf"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "Asia/Ho_Chi_Minh",
+  "title": "TBS ERP - Security Dashboard",
+  "uid": "tbs-erp-security",
+  "version": 1
+}

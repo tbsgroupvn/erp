@@ -16,7 +16,7 @@ export class CommissionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly calculator: CommissionCalculatorService,
-  ) {}
+  ) { }
 
   /**
    * Creates a commission rule.
@@ -151,7 +151,7 @@ export class CommissionService {
       orderBy: { createdAt: 'desc' },
     });
 
-    const total = records.reduce((sum, r) => sum + r.commissionAmount, 0);
+    const total = records.reduce((sum, r) => sum + Number(r.commissionAmount), 0);
 
     return { records, total };
   }
@@ -193,7 +193,7 @@ export class CommissionService {
     for (const record of records) {
       const key = record.saleId;
       const current = byMember.get(key) ?? { name: record.sale.fullName, total: 0, count: 0 };
-      current.total += record.commissionAmount;
+      current.total += Number(record.commissionAmount);
       current.count += 1;
       byMember.set(key, current);
     }
@@ -204,7 +204,7 @@ export class CommissionService {
         ...data,
       })),
       totalRecords: records.length,
-      totalCommission: records.reduce((sum, r) => sum + r.commissionAmount, 0),
+      totalCommission: records.reduce((sum, r) => sum + Number(r.commissionAmount), 0),
     };
   }
 
@@ -241,6 +241,66 @@ export class CommissionService {
   }
 
   /**
+   * Claws back a commission due to a complaint resolution (REFUND/CREDIT).
+   *
+   * - PAID: Set status=ON_HOLD, save clawback fields
+   * - APPROVED (not yet paid): Set status=ON_HOLD, save clawback fields
+   * - PENDING: Delete the record (cancel it)
+   */
+  async clawbackCommission(orderId: string, complaintId: string, reason: string) {
+    const record = await this.prisma.commissionRecord.findFirst({
+      where: { orderId },
+    });
+
+    if (!record) {
+      this.logger.warn(
+        `No commission record found for order ${orderId} — skipping clawback`,
+      );
+      return null;
+    }
+
+    if (record.status === 'PENDING') {
+      // Cancel the record entirely — commission was never approved or paid
+      await this.prisma.commissionRecord.delete({
+        where: { id: record.id },
+      });
+
+      this.logger.log(
+        `Commission ${record.id} for order ${orderId} deleted (was PENDING). Complaint: ${complaintId}`,
+      );
+
+      return { action: 'DELETED', commissionId: record.id };
+    }
+
+    if (record.status === 'APPROVED' || record.status === 'PAID') {
+      const updated = await this.prisma.commissionRecord.update({
+        where: { id: record.id },
+        data: {
+          status: 'ON_HOLD',
+          clawbackAmount: record.commissionAmount,
+          clawbackReason: reason,
+          clawbackComplaintId: complaintId,
+          clawbackAt: new Date(),
+        },
+      });
+
+      this.logger.log(
+        `Commission ${record.id} for order ${orderId} set to ON_HOLD (was ${record.status}). ` +
+          `Clawback amount: ${record.commissionAmount}. Complaint: ${complaintId}`,
+      );
+
+      return { action: 'ON_HOLD', commissionId: record.id, previousStatus: record.status, clawbackAmount: Number(record.commissionAmount) };
+    }
+
+    // Status is already ON_HOLD or unknown — no action needed
+    this.logger.warn(
+      `Commission ${record.id} for order ${orderId} is already in status ${record.status} — skipping clawback`,
+    );
+
+    return { action: 'SKIPPED', commissionId: record.id, currentStatus: record.status };
+  }
+
+  /**
    * Gets monthly commission report.
    */
   async getMonthlyReport(year: number, month: number) {
@@ -264,9 +324,9 @@ export class CommissionService {
     const summary = {
       period: `${year}-${String(month).padStart(2, '0')}`,
       totalRecords: records.length,
-      totalCommission: records.reduce((sum, r) => sum + r.commissionAmount, 0),
-      totalRevenue: records.reduce((sum, r) => sum + r.orderRevenue, 0),
-      totalProfit: records.reduce((sum, r) => sum + r.netProfit, 0),
+      totalCommission: records.reduce((sum, r) => sum + Number(r.commissionAmount), 0),
+      totalRevenue: records.reduce((sum, r) => sum + Number(r.orderRevenue), 0),
+      totalProfit: records.reduce((sum, r) => sum + Number(r.netProfit), 0),
       byStatus: {
         pending: records.filter((r) => r.status === 'PENDING').length,
         approved: records.filter((r) => r.status === 'APPROVED').length,

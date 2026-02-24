@@ -8,6 +8,7 @@ import { DOCUMENT_CATEGORY_LABELS } from '@/lib/utils/constants';
 import { formatDate } from '@/lib/utils/format';
 import { documentsApi } from '@/lib/api/documents.api';
 import { MoreHorizontal, Download, Trash2, FileText, FileImage, File } from 'lucide-react';
+import { toast } from 'sonner';
 
 function getFileIcon(mimeType: string) {
   if (mimeType.startsWith('image/')) return <FileImage className="h-4 w-4 text-blue-500" />;
@@ -90,7 +91,10 @@ export const documentColumns: ColumnDef<Document>[] = [
           >
             <Download className="h-4 w-4" /> Tải xuống
           </a>
-          <button className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-accent">
+          <button
+            onClick={() => toast.info('Tính năng đang phát triển')}
+            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-accent"
+          >
             <Trash2 className="h-4 w-4" /> Xóa
           </button>
         </div>

@@ -97,8 +97,14 @@ export class CsrfGuard implements CanActivate {
   }
 
   private isAllowedOrigin(origin: string): boolean {
-    return this.allowedOrigins.some(
-      (allowed) => allowed === origin || origin.endsWith(`.${new URL(allowed).hostname}`),
-    );
+    return this.allowedOrigins.some((allowed) => {
+      try {
+        const allowedUrl = new URL(allowed);
+        const originUrl = new URL(origin);
+        return originUrl.hostname === allowedUrl.hostname && originUrl.protocol === allowedUrl.protocol;
+      } catch {
+        return false;
+      }
+    });
   }
 }

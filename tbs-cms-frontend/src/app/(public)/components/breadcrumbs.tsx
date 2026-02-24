@@ -42,13 +42,13 @@ export function BreadcrumbSchema({ items }: BreadcrumbsProps) {
         '@type': 'ListItem',
         position: 1,
         name: 'Trang chu',
-        item: 'https://nhaphangchinhngach.vn'
+        item: process.env.NEXT_PUBLIC_SITE_URL || 'https://localhost'
       },
       ...items.map((item, index) => ({
         '@type': 'ListItem',
         position: index + 2,
         name: item.label,
-        ...(item.href && { item: `https://nhaphangchinhngach.vn${item.href}` })
+        ...(item.href && { item: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://localhost'}${item.href}` })
       }))
     ]
   };
@@ -56,7 +56,7 @@ export function BreadcrumbSchema({ items }: BreadcrumbsProps) {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, '\\u003c') }}
     />
   );
 }

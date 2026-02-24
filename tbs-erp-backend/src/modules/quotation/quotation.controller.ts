@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -11,6 +12,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import {
   ApiTags,
@@ -21,6 +23,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
+import { DataScopeGuard } from '@common/guards/data-scope.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginated } from '@common/decorators/api-paginated.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
@@ -30,10 +33,15 @@ import { QuotationExportService } from './quotation-export.service';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { UpdateQuotationDto } from './dto/update-quotation.dto';
 import { QuotationQueryDto } from './dto/quotation-query.dto';
+import {
+  CreateTemplateDto,
+  SaveAsTemplateDto,
+  CreateFromTemplateDto,
+} from './dto/quotation-template.dto';
 
 @ApiTags('Quotations')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, DataScopeGuard)
 @Controller('quotations')
 export class QuotationController {
   constructor(
@@ -78,6 +86,77 @@ export class QuotationController {
       result.page,
       result.limit,
     );
+  }
+
+  // =========================================================================
+  // TEMPLATE ENDPOINTS (must be before :id routes)
+  // =========================================================================
+
+  @Post('templates')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a quotation template' })
+  @ApiResponse({ status: 201, description: 'Template created successfully' })
+  async createTemplate(
+    @Body() dto: CreateTemplateDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const template = await this.quotationService.createTemplate(user.id, dto);
+    return BaseResponse.ok(template, 'Template created successfully');
+  }
+
+  @Get('templates')
+  @ApiOperation({ summary: 'List quotation templates' })
+  @ApiResponse({ status: 200, description: 'Templates retrieved successfully' })
+  async listTemplates(@CurrentUser() user: ICurrentUser) {
+    const templates = await this.quotationService.listTemplates(user.id);
+    return BaseResponse.ok(templates);
+  }
+
+  @Delete('templates/:id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete a quotation template' })
+  @ApiParam({ name: 'id', description: 'Template ID' })
+  @ApiResponse({ status: 200, description: 'Template deleted' })
+  @ApiResponse({ status: 403, description: 'Not the owner' })
+  @ApiResponse({ status: 404, description: 'Template not found' })
+  async deleteTemplate(
+    @Param('id') id: string,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    await this.quotationService.deleteTemplate(id, user.id);
+    return BaseResponse.ok(null, 'Template deleted successfully');
+  }
+
+  @Post('from-template/:templateId')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create quotation from template' })
+  @ApiParam({ name: 'templateId', description: 'Template ID' })
+  @ApiResponse({ status: 201, description: 'Quotation created from template' })
+  @ApiResponse({ status: 404, description: 'Template not found' })
+  async createFromTemplate(
+    @Param('templateId') templateId: string,
+    @Body() dto: CreateFromTemplateDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const quotation = await this.quotationService.createFromTemplate(
+      templateId,
+      user.id,
+      dto,
+    );
+    return BaseResponse.ok(quotation, 'Quotation created from template');
+  }
+
+  @Get('customer/:customerId/recent-items')
+  @ApiOperation({ summary: 'Get recent quotation items for a customer' })
+  @ApiParam({ name: 'customerId', description: 'Customer ID' })
+  @ApiResponse({ status: 200, description: 'Recent items retrieved' })
+  async getRecentItemsForCustomer(
+    @Param('customerId') customerId: string,
+  ) {
+    const items = await this.quotationService.getRecentItemsForCustomer(
+      customerId,
+    );
+    return BaseResponse.ok(items);
   }
 
   @Get(':id')
@@ -198,6 +277,28 @@ export class QuotationController {
     return BaseResponse.ok(quotation, 'Quotation duplicated successfully');
   }
 
+  @Post(':id/save-as-template')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Save quotation as template',
+    description: 'Saves the current quotation items and settings as a reusable template.',
+  })
+  @ApiParam({ name: 'id', description: 'Quotation ID' })
+  @ApiResponse({ status: 201, description: 'Template saved' })
+  @ApiResponse({ status: 404, description: 'Quotation not found' })
+  async saveAsTemplate(
+    @Param('id') id: string,
+    @Body() dto: SaveAsTemplateDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const template = await this.quotationService.saveAsTemplate(
+      id,
+      user.id,
+      dto,
+    );
+    return BaseResponse.ok(template, 'Template saved successfully');
+  }
+
   @Get(':id/versions')
   @ApiOperation({
     summary: 'Get quotation version history',
@@ -213,6 +314,7 @@ export class QuotationController {
   }
 
   @Get(':id/export/excel')
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 exports per minute
   @ApiOperation({ summary: 'Export quotation as Excel file' })
   @ApiParam({ name: 'id', description: 'Quotation ID' })
   @ApiResponse({ status: 200, description: 'Excel file downloaded' })
@@ -234,6 +336,7 @@ export class QuotationController {
   }
 
   @Get(':id/export/pdf')
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 exports per minute
   @ApiOperation({ summary: 'Export quotation as PDF file' })
   @ApiParam({ name: 'id', description: 'Quotation ID' })
   @ApiResponse({ status: 200, description: 'PDF file downloaded' })

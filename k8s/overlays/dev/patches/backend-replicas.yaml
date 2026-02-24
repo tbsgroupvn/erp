@@ -1,0 +1,46 @@
+# Scale down all deployments to 1 replica for dev
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tbs-backend
+spec:
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tbs-erp-frontend
+spec:
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tbs-cms-frontend
+spec:
+  replicas: 1
+---
+# Scale down HPA to minimum 1 for dev
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: tbs-backend-hpa
+spec:
+  minReplicas: 1
+  maxReplicas: 2
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: tbs-erp-frontend-hpa
+spec:
+  minReplicas: 1
+  maxReplicas: 2
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: tbs-cms-frontend-hpa
+spec:
+  minReplicas: 1
+  maxReplicas: 2

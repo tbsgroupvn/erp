@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { UserRole, Branch } from '@prisma/client';
 import { PrismaService } from '@core/database/prisma.service';
+import { CacheService } from '@core/cache/cache.service';
 import { isExecutive } from './roles.enum';
+
+/** Cache TTL for data scope filters (10 minutes in milliseconds). */
+const DATA_SCOPE_CACHE_TTL_MS = 10 * 60 * 1000;
 
 /**
  * Represents the authenticated user context needed for data scoping.
@@ -22,7 +26,10 @@ export type DataScopeFilter = Record<string, any>;
 export class DataScopeService {
   private readonly logger = new Logger(DataScopeService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   /**
    * Returns a Prisma WHERE clause that restricts data access based on
@@ -131,15 +138,40 @@ export class DataScopeService {
   /**
    * Get the list of team member IDs for a sales leader.
    * Used to scope data to the leader's team.
+   * Results are cached for 10 minutes since team composition rarely changes.
    */
   async getTeamMemberIds(leaderId: string): Promise<string[]> {
-    const teamMembers = await this.prisma.user.findMany({
-      where: { leaderId },
-      select: { id: true },
-    });
+    return this.cacheService.getOrSet(
+      `data-scope:${leaderId}:team-members`,
+      async () => {
+        const teamMembers = await this.prisma.user.findMany({
+          where: { leaderId },
+          select: { id: true },
+        });
 
-    // Include the leader themselves
-    return [leaderId, ...teamMembers.map((m) => m.id)];
+        // Include the leader themselves
+        return [leaderId, ...teamMembers.map((m) => m.id)];
+      },
+      DATA_SCOPE_CACHE_TTL_MS,
+    );
+  }
+
+  /**
+   * Invalidate cached data scope for a specific user.
+   * Call this when a user's role or team assignment changes.
+   */
+  async invalidateUserScope(userId: string): Promise<void> {
+    await this.cacheService.invalidateByPrefix(`data-scope:${userId}:`);
+    this.logger.debug(`Data scope cache invalidated for user ${userId}`);
+  }
+
+  /**
+   * Invalidate all data scope caches.
+   * Call this during bulk role/team reassignments.
+   */
+  async invalidateAllScopes(): Promise<void> {
+    await this.cacheService.invalidateByPrefix('data-scope:');
+    this.logger.debug('All data scope caches invalidated');
   }
 
   // ---------------------------------------------------------------------------
@@ -204,14 +236,16 @@ export class DataScopeService {
 
   /**
    * Build filter for branch-scoped roles.
-   * If the user has no branch assigned, returns no additional filter.
+   * If the user has no branch assigned, returns a filter that matches nothing
+   * to prevent privilege escalation (seeing all data).
    */
   private buildBranchFilter(
     branch?: Branch | null,
     entityType?: string,
   ): DataScopeFilter {
     if (!branch) {
-      return {};
+      // If branch is required but not set, match nothing for safety
+      return { branch: 'NO_BRANCH_ASSIGNED' as Branch };
     }
 
     // For entities that have a direct branch field

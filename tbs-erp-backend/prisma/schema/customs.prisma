@@ -1,0 +1,297 @@
+// ============================================
+// CUSTOMS DECLARATION — Thông quan thông minh
+// ============================================
+
+enum CustomsDeclarationStatus {
+  DRAFT
+  READY
+  SUBMITTED
+  CHANNEL_ASSIGNED
+  INSPECTING
+  CLEARED
+  REJECTED
+  CANCELLED
+}
+
+enum CustomsChannel {
+  GREEN
+  YELLOW
+  RED
+}
+
+enum ComplianceStatus {
+  CLEAR
+  WARNING
+  BLOCKED
+}
+
+model CustomsDeclaration {
+  id                    String                    @id @default(cuid())
+  code                  String                    @unique // CD-YYYYMM-XXXX
+  containerId           String                    @map("container_id")
+
+  // Declaration metadata
+  declarationType       String                    @default("IMPORT") @map("declaration_type")
+  customsOfficeCode     String?                   @map("customs_office_code")
+
+  // Company info
+  importerTaxCode       String                    @map("importer_tax_code")
+  importerName          String                    @map("importer_name")
+  importerAddress       String?                   @map("importer_address")
+
+  // Shipping info (from Container)
+  shippingMethod        String?                   @map("shipping_method") // SEA/ROAD/AIR
+  blAwbNumber           String?                   @map("bl_awb_number")
+  portOfLoading         String?                   @map("port_of_loading")
+  portOfDischarge       String?                   @map("port_of_discharge")
+  vesselName            String?                   @map("vessel_name")
+
+  // Declared financials (customs-facing)
+  declaredCurrency      Currency                  @default(USD) @map("declared_currency")
+  declaredTotalValue    Decimal                   @default(0) @map("declared_total_value") @db.Decimal(18, 2)
+  declaredFreight       Decimal                   @default(0) @map("declared_freight") @db.Decimal(18, 2)
+  declaredInsurance     Decimal                   @default(0) @map("declared_insurance") @db.Decimal(18, 2)
+
+  // Calculated taxes
+  totalImportDuty       Decimal                   @default(0) @map("total_import_duty") @db.Decimal(18, 2)
+  totalVat              Decimal                   @default(0) @map("total_vat") @db.Decimal(18, 2)
+  totalSpecialTax       Decimal                   @default(0) @map("total_special_tax") @db.Decimal(18, 2)
+  totalEnvironmentalTax Decimal                   @default(0) @map("total_environmental_tax") @db.Decimal(18, 2)
+  totalAntiDumpingDuty  Decimal                   @default(0) @map("total_anti_dumping_duty") @db.Decimal(18, 2)
+  totalPayable          Decimal                   @default(0) @map("total_payable") @db.Decimal(18, 2)
+
+  // Internal financials (real total)
+  internalTotalValue    Decimal                   @default(0) @map("internal_total_value") @db.Decimal(18, 2)
+  exchangeRateUsed      Decimal?                  @map("exchange_rate_used") @db.Decimal(18, 4)
+
+  // Status & channel
+  status                CustomsDeclarationStatus  @default(DRAFT)
+  channel               CustomsChannel?
+  complianceStatus      ComplianceStatus          @default(CLEAR) @map("compliance_status")
+
+  // ECUS tracking
+  ecusDeclarationNumber String?                   @map("ecus_declaration_number")
+  ecusSubmittedAt       DateTime?                 @map("ecus_submitted_at")
+  ecusResponseData      Json?                     @map("ecus_response_data")
+
+  // Channel dates
+  channelAssignedAt     DateTime?                 @map("channel_assigned_at")
+  inspectionStartedAt   DateTime?                 @map("inspection_started_at")
+  clearedAt             DateTime?                 @map("cleared_at")
+
+  // Tax allocation
+  taxAllocated          Boolean                   @default(false) @map("tax_allocated")
+  taxAllocatedAt        DateTime?                 @map("tax_allocated_at")
+
+  note                  String?
+  createdBy             String                    @map("created_by")
+  createdAt             DateTime                  @default(now()) @map("created_at")
+  updatedAt             DateTime                  @updatedAt @map("updated_at")
+
+  // Relations
+  container             Container                 @relation(fields: [containerId], references: [id])
+  lines                 CustomsDeclarationLine[]
+  complianceAlerts      ComplianceAlert[]
+  taxAllocations        CustomsTaxAllocation[]
+  statusHistory         CustomsStatusHistory[]
+
+  @@index([containerId])
+  @@index([status])
+  @@index([channel])
+  @@index([createdAt])
+  @@map("customs_declarations")
+}
+
+model CustomsDeclarationLine {
+  id                    String                  @id @default(cuid())
+  declarationId         String                  @map("declaration_id")
+  lineNumber            Int                     @map("line_number")
+
+  // === DECLARED DATA (customs-facing) ===
+  declaredHsCode        String                  @map("declared_hs_code")
+  declaredDescription   String                  @map("declared_description")
+  declaredQuantity      Decimal                 @map("declared_quantity") @db.Decimal(15, 3)
+  declaredUnit          String                  @map("declared_unit")
+  declaredUnitPrice     Decimal                 @map("declared_unit_price") @db.Decimal(18, 4)
+  declaredTotalValue    Decimal                 @map("declared_total_value") @db.Decimal(18, 2)
+  declaredCountryOrigin String                  @default("CN") @map("declared_country_origin")
+  declaredNetWeight     Decimal?                @map("declared_net_weight") @db.Decimal(10, 2)
+  declaredGrossWeight   Decimal?                @map("declared_gross_weight") @db.Decimal(10, 2)
+
+  // === INTERNAL DATA (real values) ===
+  internalDescription   String                  @map("internal_description")
+  internalQuantity      Decimal                 @map("internal_quantity") @db.Decimal(15, 3)
+  internalUnitPrice     Decimal                 @map("internal_unit_price") @db.Decimal(18, 4)
+  internalTotalValue    Decimal                 @map("internal_total_value") @db.Decimal(18, 2)
+
+  // === TAX CALCULATION ===
+  importDutyRate        Decimal                 @default(0) @map("import_duty_rate") @db.Decimal(5, 4)
+  importDutyAmount      Decimal                 @default(0) @map("import_duty_amount") @db.Decimal(18, 2)
+  vatRate               Decimal                 @default(0.1) @map("vat_rate") @db.Decimal(5, 4)
+  vatAmount             Decimal                 @default(0) @map("vat_amount") @db.Decimal(18, 2)
+  specialTaxRate        Decimal                 @default(0) @map("special_tax_rate") @db.Decimal(5, 4)
+  specialTaxAmount      Decimal                 @default(0) @map("special_tax_amount") @db.Decimal(18, 2)
+  environmentalTax      Decimal                 @default(0) @map("environmental_tax") @db.Decimal(18, 2)
+  antiDumpingDuty       Decimal                 @default(0) @map("anti_dumping_duty") @db.Decimal(18, 2)
+  lineTotalTax          Decimal                 @default(0) @map("line_total_tax") @db.Decimal(18, 2)
+
+  // Compliance
+  complianceStatus      ComplianceStatus        @default(CLEAR) @map("compliance_status")
+  requiresPermit        Boolean                 @default(false) @map("requires_permit")
+  permitType            String?                 @map("permit_type")
+
+  deletedAt             DateTime?               @map("deleted_at")
+  createdAt             DateTime                @default(now()) @map("created_at")
+  updatedAt             DateTime                @updatedAt @map("updated_at")
+
+  // Relations
+  declaration           CustomsDeclaration      @relation(fields: [declarationId], references: [id], onDelete: Cascade)
+  sourceItems           CustomsLineSourceItem[]
+
+  @@index([declarationId])
+  @@index([declaredHsCode])
+  @@map("customs_declaration_lines")
+}
+
+model CustomsLineSourceItem {
+  id                  String                    @id @default(cuid())
+  lineId              String                    @map("line_id")
+  orderItemId         String                    @map("order_item_id")
+  orderId             String                    @map("order_id")
+  packageId           String?                   @map("package_id")
+
+  contributedQuantity Decimal                   @map("contributed_quantity") @db.Decimal(15, 3)
+  contributedValue    Decimal                   @map("contributed_value") @db.Decimal(18, 2)
+
+  line                CustomsDeclarationLine    @relation(fields: [lineId], references: [id], onDelete: Cascade)
+
+  @@index([lineId])
+  @@index([orderItemId])
+  @@index([orderId])
+  @@map("customs_line_source_items")
+}
+
+model HSCodeLibrary {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  descriptionVi   String    @map("description_vi")
+  descriptionEn   String?   @map("description_en")
+  chapter         Int?
+  heading         String?
+
+  importDutyRate  Decimal   @default(0) @map("import_duty_rate") @db.Decimal(5, 4)
+  vatRate         Decimal   @default(0.1) @map("vat_rate") @db.Decimal(5, 4)
+  specialTaxRate  Decimal   @default(0) @map("special_tax_rate") @db.Decimal(5, 4)
+
+  requiresPermit  Boolean   @default(false) @map("requires_permit")
+  permitType      String?   @map("permit_type")
+  isRestricted    Boolean   @default(false) @map("is_restricted")
+  isProhibited    Boolean   @default(false) @map("is_prohibited")
+  restrictionNote String?   @map("restriction_note")
+
+  unit            String    @default("KG")
+  usageCount      Int       @default(0) @map("usage_count")
+  lastUsedAt      DateTime? @map("last_used_at")
+
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  keywords        HSCodeKeyword[]
+
+  @@index([code])
+  @@index([chapter])
+  @@map("hs_code_library")
+}
+
+model HSCodeKeyword {
+  id          String        @id @default(cuid())
+  hsCodeId    String        @map("hs_code_id")
+  keyword     String
+  score       Int           @default(1)
+  source      String        @default("MANUAL") // MANUAL, AUTO_LEARNED
+
+  hsCode      HSCodeLibrary @relation(fields: [hsCodeId], references: [id], onDelete: Cascade)
+
+  @@unique([hsCodeId, keyword])
+  @@index([keyword])
+  @@map("hs_code_keywords")
+}
+
+model ComplianceAlert {
+  id                String                @id @default(cuid())
+  declarationId     String                @map("declaration_id")
+  lineId            String?               @map("line_id")
+
+  alertType         String                @map("alert_type") // RESTRICTED, PROHIBITED, PERMIT_REQUIRED, VALUE_ANOMALY
+  severity          String                @default("WARNING") // WARNING, CRITICAL
+  message           String
+  hsCode            String?               @map("hs_code")
+
+  isAcknowledged    Boolean               @default(false) @map("is_acknowledged")
+  acknowledgedBy    String?               @map("acknowledged_by")
+  acknowledgedAt    DateTime?             @map("acknowledged_at")
+
+  createdAt         DateTime              @default(now()) @map("created_at")
+
+  declaration       CustomsDeclaration    @relation(fields: [declarationId], references: [id], onDelete: Cascade)
+
+  @@index([declarationId])
+  @@map("compliance_alerts")
+}
+
+model CustomsTaxAllocation {
+  id                String              @id @default(cuid())
+  declarationId     String              @map("declaration_id")
+  orderId           String              @map("order_id")
+
+  importDuty        Decimal             @default(0) @map("import_duty") @db.Decimal(18, 2)
+  vat               Decimal             @default(0) @db.Decimal(18, 2)
+  specialTax        Decimal             @default(0) @map("special_tax") @db.Decimal(18, 2)
+  otherTax          Decimal             @default(0) @map("other_tax") @db.Decimal(18, 2)
+  totalAllocated    Decimal             @default(0) @map("total_allocated") @db.Decimal(18, 2)
+
+  method            String              @default("VALUE")
+  proportion        Decimal             @default(0) @db.Decimal(10, 6)
+
+  createdAt         DateTime            @default(now()) @map("created_at")
+
+  declaration       CustomsDeclaration  @relation(fields: [declarationId], references: [id], onDelete: Cascade)
+
+  @@unique([declarationId, orderId])
+  @@index([orderId])
+  @@map("customs_tax_allocations")
+}
+
+model CustomsStatusHistory {
+  id              String                    @id @default(cuid())
+  declarationId   String                    @map("declaration_id")
+  fromStatus      String?                   @map("from_status")
+  toStatus        String                    @map("to_status")
+  channel         CustomsChannel?
+  note            String?
+  changedBy       String                    @map("changed_by")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+
+  declaration     CustomsDeclaration        @relation(fields: [declarationId], references: [id], onDelete: Cascade)
+
+  @@index([declarationId, createdAt])
+  @@map("customs_status_history")
+}
+
+model ComplianceRule {
+  id              String    @id @default(cuid())
+  hsCodePattern   String    @map("hs_code_pattern")
+  ruleType        String    @map("rule_type") // RESTRICTED, PROHIBITED, PERMIT_REQUIRED
+  permitType      String?   @map("permit_type")
+  message         String
+  authority       String?
+  isActive        Boolean   @default(true) @map("is_active")
+  createdBy       String    @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([hsCodePattern])
+  @@index([isActive])
+  @@map("compliance_rules")
+}

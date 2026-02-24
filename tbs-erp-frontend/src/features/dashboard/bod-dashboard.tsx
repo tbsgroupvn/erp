@@ -38,9 +38,38 @@ const PIE_COLORS = [
   '#06b6d4', '#f97316', '#ec4899', '#6366f1',
 ];
 
+function getDateRange(period: string): { dateFrom?: string; dateTo?: string } {
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  switch (period) {
+    case 'today': return { dateFrom: today, dateTo: today };
+    case 'week': {
+      const weekAgo = new Date(now);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return { dateFrom: weekAgo.toISOString().split('T')[0], dateTo: today };
+    }
+    case 'month': {
+      const monthAgo = new Date(now);
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      return { dateFrom: monthAgo.toISOString().split('T')[0], dateTo: today };
+    }
+    case 'quarter': {
+      const quarterAgo = new Date(now);
+      quarterAgo.setMonth(quarterAgo.getMonth() - 3);
+      return { dateFrom: quarterAgo.toISOString().split('T')[0], dateTo: today };
+    }
+    case 'year': {
+      const yearAgo = new Date(now);
+      yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+      return { dateFrom: yearAgo.toISOString().split('T')[0], dateTo: today };
+    }
+    default: return {};
+  }
+}
+
 export function BodDashboard() {
   const [period, setPeriod] = useState<string>('month');
-  const { data, isLoading } = useDashboardOverview({ dateFrom: period });
+  const { data, isLoading } = useDashboardOverview(getDateRange(period));
   const { data: recentOrdersData } = useMasterOrders({ limit: 5 });
 
   const stats = data?.orders;
@@ -198,7 +227,7 @@ export function BodDashboard() {
                         colorClass={MASTER_ORDER_STATUS_COLORS[status] || 'bg-gray-100 text-gray-700'}
                       />
                     </td>
-                    <td className="py-2.5 text-right">{order.branch ? BRANCH_LABELS[order.branch] : '---'}</td>
+                    <td className="py-2.5 text-right">{formatCurrency(order.subOrders?.reduce((sum, sub) => sum + (sub.totalAmount ?? 0), 0) ?? 0)}</td>
                     <td className="py-2.5 text-right text-muted-foreground">{formatDate(order.createdAt)}</td>
                   </tr>
                 );

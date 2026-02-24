@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ApprovalCategory } from '@prisma/client';
 
 /**
  * Seed 15 default approval flow definitions.
@@ -47,7 +47,7 @@ export async function seedApprovalFlows(prisma: PrismaClient) {
       data: {
         name: flow.name,
         description: flow.description,
-        category: flow.category,
+        category: flow.category as ApprovalCategory,
         triggerType: flow.triggerType,
         isActive: true,
         version: 1,
@@ -416,6 +416,71 @@ export async function seedApprovalFlows(prisma: PrismaClient) {
     ],
   });
 
+  // ==========================================
+  // PRE-GO-LIVE FLOWS (16-18)
+  // ==========================================
+
+  // 16. Ân hạn (Grace Period)
+  await createFlow({
+    name: 'Xin ân hạn',
+    description: 'Quy trình duyệt xin ân hạn cho khách hàng VIP',
+    category: 'SALES',
+    triggerType: 'GRACE_PERIOD_REQUEST',
+    nodes: [
+      { nodeKey: 'start', nodeType: 'START', label: 'Bắt đầu', positionX: 250, positionY: 0 },
+      { nodeKey: 'sale', nodeType: 'APPROVER', label: 'Sale', approverType: 'ROLE', approverRole: 'SALE', deadlineHours: 12, positionX: 250, positionY: 100 },
+      { nodeKey: 'cfo', nodeType: 'APPROVER', label: 'CFO', approverType: 'ROLE', approverRole: 'CFO', deadlineHours: 24, positionX: 250, positionY: 200 },
+      { nodeKey: 'ceo', nodeType: 'APPROVER', label: 'CEO', approverType: 'ROLE', approverRole: 'CEO', deadlineHours: 48, positionX: 250, positionY: 300 },
+      { nodeKey: 'end', nodeType: 'END', label: 'Kết thúc', positionX: 250, positionY: 400 },
+    ],
+    edges: [
+      { sourceKey: 'start', targetKey: 'sale' },
+      { sourceKey: 'sale', targetKey: 'cfo' },
+      { sourceKey: 'cfo', targetKey: 'ceo' },
+      { sourceKey: 'ceo', targetKey: 'end' },
+    ],
+  });
+
+  // 17. Phụ phí phát sinh (Extra Charge Approval)
+  await createFlow({
+    name: 'Phụ phí phát sinh',
+    description: 'Quy trình duyệt phụ phí phát sinh trên đơn hàng',
+    category: 'LOGISTICS',
+    triggerType: 'EXTRA_CHARGE_APPROVAL',
+    nodes: [
+      { nodeKey: 'start', nodeType: 'START', label: 'Bắt đầu', positionX: 250, positionY: 0 },
+      { nodeKey: 'wh_manager', nodeType: 'APPROVER', label: 'Trưởng kho', approverType: 'ROLE', approverRole: 'WAREHOUSE_VN_MANAGER', deadlineHours: 24, positionX: 250, positionY: 100 },
+      { nodeKey: 'chief_accountant', nodeType: 'APPROVER', label: 'Kế toán trưởng', approverType: 'ROLE', approverRole: 'CHIEF_ACCOUNTANT', deadlineHours: 24, positionX: 250, positionY: 200 },
+      { nodeKey: 'end', nodeType: 'END', label: 'Kết thúc', positionX: 250, positionY: 300 },
+    ],
+    edges: [
+      { sourceKey: 'start', targetKey: 'wh_manager' },
+      { sourceKey: 'wh_manager', targetKey: 'chief_accountant' },
+      { sourceKey: 'chief_accountant', targetKey: 'end' },
+    ],
+  });
+
+  // 18. Thấu chi tạm thời (Credit Overdraft)
+  await createFlow({
+    name: 'Thấu chi tạm thời',
+    description: 'Quy trình duyệt thấu chi tạm thời cho khách hàng',
+    category: 'SALES',
+    triggerType: 'CREDIT_OVERDRAFT',
+    nodes: [
+      { nodeKey: 'start', nodeType: 'START', label: 'Bắt đầu', positionX: 250, positionY: 0 },
+      { nodeKey: 'sales_leader', nodeType: 'APPROVER', label: 'Trưởng nhóm KD', approverType: 'ROLE', approverRole: 'SALES_LEADER', deadlineHours: 12, positionX: 250, positionY: 100 },
+      { nodeKey: 'chief_accountant', nodeType: 'APPROVER', label: 'Kế toán trưởng', approverType: 'ROLE', approverRole: 'CHIEF_ACCOUNTANT', deadlineHours: 24, positionX: 250, positionY: 200 },
+      { nodeKey: 'coo', nodeType: 'APPROVER', label: 'COO', approverType: 'ROLE', approverRole: 'COO', deadlineHours: 24, positionX: 250, positionY: 300 },
+      { nodeKey: 'end', nodeType: 'END', label: 'Kết thúc', positionX: 250, positionY: 400 },
+    ],
+    edges: [
+      { sourceKey: 'start', targetKey: 'sales_leader' },
+      { sourceKey: 'sales_leader', targetKey: 'chief_accountant' },
+      { sourceKey: 'chief_accountant', targetKey: 'coo' },
+      { sourceKey: 'coo', targetKey: 'end' },
+    ],
+  });
+
   // 15. Custom template (trống)
   await createFlow({
     name: 'Quy trình tùy chỉnh',
@@ -433,5 +498,26 @@ export async function seedApprovalFlows(prisma: PrismaClient) {
     ],
   });
 
-  console.log('  ✅ All 15 approval flows seeded successfully');
+  // 19. Duyệt chi mua hàng NCC (Procurement Payment)
+  await createFlow({
+    name: 'Duyệt chi mua hàng NCC',
+    description: 'Quy trình duyệt chi tiền mua hàng NCC 4 cấp: Sale tạo → Trưởng nhóm KD → Kế toán trưởng → COO',
+    category: 'FINANCE',
+    triggerType: 'PROCUREMENT_PAYMENT',
+    nodes: [
+      { nodeKey: 'start', nodeType: 'START', label: 'Sale tạo phiếu', positionX: 250, positionY: 0 },
+      { nodeKey: 'sales_leader', nodeType: 'APPROVER', label: 'Duyệt nghiệp vụ', approverType: 'ROLE', approverRole: 'SALES_LEADER', deadlineHours: 24, positionX: 250, positionY: 100 },
+      { nodeKey: 'chief_accountant', nodeType: 'APPROVER', label: 'Duyệt số dư/Tỷ giá', approverType: 'ROLE', approverRole: 'CHIEF_ACCOUNTANT', deadlineHours: 24, positionX: 250, positionY: 200 },
+      { nodeKey: 'coo', nodeType: 'APPROVER', label: 'Duyệt chi cuối cùng', approverType: 'ROLE', approverRole: 'COO', deadlineHours: 48, positionX: 250, positionY: 300 },
+      { nodeKey: 'end', nodeType: 'END', label: 'Hoàn thành', positionX: 250, positionY: 400 },
+    ],
+    edges: [
+      { sourceKey: 'start', targetKey: 'sales_leader' },
+      { sourceKey: 'sales_leader', targetKey: 'chief_accountant' },
+      { sourceKey: 'chief_accountant', targetKey: 'coo' },
+      { sourceKey: 'coo', targetKey: 'end' },
+    ],
+  });
+
+  console.log('  ✅ All 19 approval flows seeded successfully');
 }

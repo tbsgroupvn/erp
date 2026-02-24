@@ -1,0 +1,78 @@
+# ============================================
+# Chaos Mesh - I/O Fault Injection
+# ============================================
+# Injects disk I/O delays on database pods to simulate:
+#   1. Slow disk performance (e.g., noisy neighbor in cloud)
+#   2. Storage system degradation
+#   3. Impact on query performance and timeouts
+#
+# SAFETY: Only targets staging namespace.
+# Schedule: Weekly Wednesday 3 AM UTC.
+# ============================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: IOChaos
+metadata:
+  name: postgres-io-delay
+  namespace: tbs-erp-staging
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    chaos-mesh.org/experiment-type: io
+    tbs.chaos/category: performance
+    tbs.chaos/severity: medium
+  annotations:
+    tbs.chaos/description: "Inject I/O latency on PostgreSQL data directory"
+    tbs.chaos/owner: "platform-team"
+    tbs.chaos/expected: "Queries slow down but don't timeout, connection pool manages backpressure"
+spec:
+  action: latency
+  mode: one
+  selector:
+    namespaces:
+      - tbs-erp-staging
+    labelSelectors:
+      app.kubernetes.io/name: tbs-postgres
+      app.kubernetes.io/component: database
+  # Delay all read/write operations on the data directory
+  delay: '100ms'
+  path: '/var/lib/postgresql/data'
+  percent: 50
+  volumePath: '/var/lib/postgresql/data'
+  duration: '5m'
+  scheduler:
+    cron: '0 3 * * 3'  # Weekly Wednesday 3 AM UTC
+---
+# ============================================
+# Chaos Mesh - I/O Error Injection
+# ============================================
+# Injects I/O errors on a percentage of operations to test
+# error handling in the application layer.
+# ============================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: IOChaos
+metadata:
+  name: backend-io-error
+  namespace: tbs-erp-staging
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    chaos-mesh.org/experiment-type: io
+    tbs.chaos/category: resilience
+    tbs.chaos/severity: high
+  annotations:
+    tbs.chaos/description: "Inject I/O errors on backend log writes"
+    tbs.chaos/expected: "Backend handles log write failures gracefully, requests still served"
+spec:
+  action: fault
+  mode: one
+  selector:
+    namespaces:
+      - tbs-erp-staging
+    labelSelectors:
+      app.kubernetes.io/name: tbs-backend
+      app.kubernetes.io/component: api
+  errno: 5  # EIO - Input/output error
+  path: '/app/logs'
+  percent: 50
+  volumePath: '/app/logs'
+  duration: '3m'
+  scheduler:
+    cron: '30 3 * * 3'  # Weekly Wednesday 3:30 AM UTC

@@ -17,11 +17,16 @@ model Employee {
   manager         Employee?      @relation("EmployeeManager", fields: [managerId], references: [id])
   subordinates    Employee[]     @relation("EmployeeManager")
   joinDate        DateTime
-  salary          Float?
-  bankAccount     String?
+  salary          Decimal?       @db.Decimal(18, 2)
+  /// @encrypted
   bankName        String?
+  /// @encrypted
+  bankAccount     String?
+  /// @encrypted
   taxCode         String?
+  /// @encrypted
   insuranceId     String?
+  numberOfDependents Int        @default(0)
   status          EmployeeStatus @default(ACTIVE)
   attendances     Attendance[]
   leaveRequests   LeaveRequest[]
@@ -33,13 +38,14 @@ model Employee {
   @@index([departmentCode])
   @@index([branch])
   @@index([status])
+  @@index([email])
   @@map("employees")
 }
 
 model Attendance {
   id          String   @id @default(cuid())
   employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id])
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   date        DateTime @db.Date
   checkIn     DateTime?
   checkOut    DateTime?
@@ -47,22 +53,33 @@ model Attendance {
   checkInLng  Float?
   checkOutLat Float?
   checkOutLng Float?
-  type        String   @default("OFFICE") // OFFICE, REMOTE, FIELD
+  type        AttendanceType @default(OFFICE)
   workHours   Float?
   overtimeHours Float? @default(0)
   isLate      Boolean  @default(false)
   notes       String?
+
+  // Manual check-in fields
+  selfieUrl         String?  @map("selfie_url")
+  manualReason      String?  @map("manual_reason")
+  isManualCheckIn   Boolean  @default(false) @map("is_manual_check_in")
+  hrReviewStatus    String?  @map("hr_review_status") // PENDING_REVIEW | APPROVED | REJECTED
+  hrReviewedBy      String?  @map("hr_reviewed_by")
+  hrReviewedAt      DateTime? @map("hr_reviewed_at")
+
   createdAt   DateTime @default(now())
 
   @@unique([employeeId, date])
   @@index([employeeId])
   @@index([date])
+  @@index([employeeId, date])
+  @@map("attendances")
 }
 
 model LeaveRequest {
   id          String      @id @default(cuid())
   employeeId  String
-  employee    Employee    @relation(fields: [employeeId], references: [id])
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   type        LeaveType
   status      LeaveStatus @default(PENDING)
   startDate   DateTime    @db.Date
@@ -77,6 +94,8 @@ model LeaveRequest {
 
   @@index([employeeId])
   @@index([status])
+  @@index([employeeId, status])
+  @@map("leave_requests")
 }
 
 model OvertimeRequest {
@@ -94,23 +113,24 @@ model OvertimeRequest {
 
   @@index([employeeId])
   @@index([date])
+  @@map("overtime_requests")
 }
 
 model PayrollRecord {
   id           String   @id @default(cuid())
   employeeId   String
-  employee     Employee @relation(fields: [employeeId], references: [id])
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   month        Int
   year         Int
-  baseSalary   Float
-  overtimePay  Float    @default(0)
-  allowances   Float    @default(0)
-  grossSalary  Float
-  taxDeduction Float    @default(0)
-  insuranceDeduction Float @default(0)
-  otherDeductions Float @default(0)
-  netSalary    Float
-  status       String   @default("DRAFT") // DRAFT, APPROVED, PAID
+  baseSalary         Decimal  @db.Decimal(18, 2)
+  overtimePay        Decimal  @default(0) @db.Decimal(18, 2)
+  allowances         Decimal  @default(0) @db.Decimal(18, 2)
+  grossSalary        Decimal  @db.Decimal(18, 2)
+  taxDeduction       Decimal  @default(0) @db.Decimal(18, 2)
+  insuranceDeduction Decimal  @default(0) @db.Decimal(18, 2)
+  otherDeductions    Decimal  @default(0) @db.Decimal(18, 2)
+  netSalary          Decimal  @db.Decimal(18, 2)
+  status       PayrollStatus @default(DRAFT)
   approvedBy   String?
   approvedAt   DateTime?
   paidAt       DateTime?
@@ -119,4 +139,22 @@ model PayrollRecord {
   @@unique([employeeId, month, year])
   @@index([employeeId])
   @@index([month, year])
+  @@index([employeeId, month, year])
+  @@map("payroll_records")
+}
+
+// ============================================
+// HR ENUMS
+// ============================================
+
+enum AttendanceType {
+  OFFICE
+  REMOTE
+  FIELD
+}
+
+enum PayrollStatus {
+  DRAFT
+  APPROVED
+  PAID
 }

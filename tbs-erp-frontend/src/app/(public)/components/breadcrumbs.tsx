@@ -34,6 +34,8 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
 }
 
 export function BreadcrumbSchema({ items }: BreadcrumbsProps) {
+  const domain = process.env.NEXT_PUBLIC_DOMAIN || 'localhost';
+  const baseUrl = domain === 'localhost' ? 'http://localhost:3000' : `https://${domain}`;
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -42,13 +44,13 @@ export function BreadcrumbSchema({ items }: BreadcrumbsProps) {
         '@type': 'ListItem',
         position: 1,
         name: 'Trang chu',
-        item: 'https://nhaphangchinhngach.vn'
+        item: baseUrl
       },
       ...items.map((item, index) => ({
         '@type': 'ListItem',
         position: index + 2,
         name: item.label,
-        ...(item.href && { item: `https://nhaphangchinhngach.vn${item.href}` })
+        ...(item.href && { item: `${baseUrl}${item.href}` })
       }))
     ]
   };

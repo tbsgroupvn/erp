@@ -1,0 +1,140 @@
+# ============================================
+# TBS ERP - Blue Environment (Blue/Green Deployment)
+# ============================================
+# This file defines the "blue" slice of the application.
+# Shared infrastructure (postgres, redis, prometheus, etc.) lives in
+# docker-compose.production.yml and is NOT duplicated here.
+# Only backend + frontend are duplicated for zero-downtime switching.
+# ============================================
+
+version: '3.8'
+
+services:
+  # ============================================
+  # BACKEND - Blue
+  # ============================================
+  backend-blue:
+    image: ghcr.io/${GITHUB_REPOSITORY}-backend:${DEPLOY_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB}?pgbouncer=true
+      DIRECT_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://app.tbslogistics.com,https://nhaphangchinhngach.vn}
+      FRONTEND_URL: ${FRONTEND_URL:-https://app.tbslogistics.com}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: '0.2'
+      SENTRY_PROFILES_SAMPLE_RATE: '0.1'
+      GIT_SHA: ${GIT_SHA:-}
+      LOG_LEVEL: info
+      RATE_LIMIT_TTL: 60
+      RATE_LIMIT_MAX: 100
+      DEPLOY_ENV: blue
+      ELK_ENABLED: 'true'
+      LOGSTASH_HOST: logstash
+      LOGSTASH_PORT: 5000
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/api/v1/health']
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - tbs_network
+    volumes:
+      - ./logs/backend-blue:/app/logs
+    ports:
+      - "3010:3000"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '1'
+          memory: 512M
+      replicas: 2
+    labels:
+      - "tbs.environment=blue"
+      - "tbs.component=backend"
+
+  # ============================================
+  # ERP FRONTEND - Blue
+  # ============================================
+  erp-frontend-blue:
+    image: ghcr.io/${GITHUB_REPOSITORY}-frontend:${DEPLOY_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.tbslogistics.com/api/v1}
+      NEXT_TELEMETRY_DISABLED: 1
+      DEPLOY_ENV: blue
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000']
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - tbs_network
+    ports:
+      - "3011:3000"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+      replicas: 2
+    labels:
+      - "tbs.environment=blue"
+      - "tbs.component=erp-frontend"
+
+  # ============================================
+  # CMS FRONTEND - Blue
+  # ============================================
+  cms-frontend-blue:
+    image: ghcr.io/${GITHUB_REPOSITORY}-cms-frontend:${DEPLOY_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_CMS_API_URL:-https://api.tbslogistics.com/api/v1}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-TBS ERP}
+      NEXT_TELEMETRY_DISABLED: 1
+      DEPLOY_ENV: blue
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000']
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - tbs_network
+    ports:
+      - "3012:3000"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+      replicas: 2
+    labels:
+      - "tbs.environment=blue"
+      - "tbs.component=cms-frontend"
+
+networks:
+  tbs_network:
+    external: true
+    name: tbs_erp_tbs_network

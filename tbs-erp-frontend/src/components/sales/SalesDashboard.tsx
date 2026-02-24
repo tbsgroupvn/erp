@@ -12,7 +12,7 @@
  * - Responsive design với Tailwind + shadcn/ui
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Filter,
   Download,
@@ -26,6 +26,7 @@ import {
   Search,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from 'lucide-react';
 import {
   BarChart,
@@ -40,6 +41,9 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
+import { toast } from 'sonner';
+import { useOrders } from '@/lib/hooks/use-orders';
+import type { Order as ApiOrder } from '@/lib/types';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -85,81 +89,43 @@ interface FilterState {
 }
 
 // ============================================
-// MOCK DATA
+// API DATA MAPPING
 // ============================================
 
-const mockOrders: Order[] = [
-  {
-    id: '1',
-    code: 'TBS-ORD-250101-0001',
-    customerName: 'Công ty TNHH ABC',
-    totalAmount: 50000000,
-    paidAmount: 15000000,
-    outstandingAmount: 35000000,
-    status: 'SOURCING',
-    dueDate: '2025-02-05',
-    daysOverdue: 6,
-    createdAt: '2025-01-15',
+/**
+ * Maps an API Order to the dashboard's local Order shape.
+ * Fields not available from the API (paidAmount, outstandingAmount,
+ * daysOverdue, commission) are derived from available data.
+ */
+function mapApiOrderToDashboardOrder(apiOrder: ApiOrder): Order {
+  const depositPaid = apiOrder.depositPaid ?? 0;
+  const totalAmount = apiOrder.totalAmount ?? 0;
+  const outstandingAmount = Math.max(0, totalAmount - depositPaid);
+  const createdDate = new Date(apiOrder.createdAt);
+  const now = new Date();
+  const daysSinceCreated = Math.max(
+    0,
+    Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)),
+  );
+  // Consider overdue only if the order is not completed and outstanding > 0
+  const isCompleted = apiOrder.status === 'COMPLETED' || apiOrder.status === 'CANCELLED';
+  const daysOverdue = !isCompleted && outstandingAmount > 0 ? daysSinceCreated : 0;
+
+  return {
+    id: apiOrder.id,
+    code: apiOrder.code,
+    customerName: apiOrder.customer?.fullName || apiOrder.customer?.companyName || apiOrder.customerId,
+    totalAmount,
+    paidAmount: depositPaid,
+    outstandingAmount,
+    status: apiOrder.status,
+    dueDate: apiOrder.createdAt, // No explicit dueDate in API, use createdAt as fallback
+    daysOverdue,
+    createdAt: apiOrder.createdAt,
     commissionStatus: 'PENDING',
-    commissionAmount: 2500000,
-  },
-  {
-    id: '2',
-    code: 'TBS-ORD-250101-0002',
-    customerName: 'Công ty CP XYZ',
-    totalAmount: 80000000,
-    paidAmount: 80000000,
-    outstandingAmount: 0,
-    status: 'COMPLETED',
-    dueDate: '2025-01-25',
-    daysOverdue: 0,
-    createdAt: '2025-01-10',
-    commissionStatus: 'APPROVED',
-    commissionAmount: 4000000,
-  },
-  {
-    id: '3',
-    code: 'TBS-ORD-250102-0003',
-    customerName: 'Công ty TNHH DEF',
-    totalAmount: 120000000,
-    paidAmount: 50000000,
-    outstandingAmount: 70000000,
-    status: 'IN_TRANSIT',
-    dueDate: '2025-01-10',
-    daysOverdue: 32,
-    createdAt: '2024-12-20',
-    commissionStatus: 'PENDING',
-    commissionAmount: 6000000,
-  },
-  {
-    id: '4',
-    code: 'TBS-ORD-250102-0004',
-    customerName: 'Công ty TNHH GHI',
-    totalAmount: 45000000,
-    paidAmount: 30000000,
-    outstandingAmount: 15000000,
-    status: 'SETTLEMENT',
-    dueDate: '2025-02-01',
-    daysOverdue: 10,
-    createdAt: '2025-01-05',
-    commissionStatus: 'PENDING',
-    commissionAmount: 2250000,
-  },
-  {
-    id: '5',
-    code: 'TBS-ORD-250103-0005',
-    customerName: 'Công ty CP JKL',
-    totalAmount: 95000000,
-    paidAmount: 70000000,
-    outstandingAmount: 25000000,
-    status: 'WAREHOUSE_VN',
-    dueDate: '2025-02-08',
-    daysOverdue: 3,
-    createdAt: '2025-01-20',
-    commissionStatus: 'PENDING',
-    commissionAmount: 4750000,
-  },
-];
+    commissionAmount: 0,
+  };
+}
 
 // ============================================
 // UTILITY FUNCTIONS
@@ -207,7 +173,12 @@ const calculateAgingBuckets = (orders: Order[]): AgingBucket[] => {
 // ============================================
 
 export const SalesDashboard: React.FC = () => {
-  const [orders] = useState<Order[]>(mockOrders);
+  const { data: ordersResponse, isLoading, isError } = useOrders();
+  const orders: Order[] = useMemo(() => {
+    const apiOrders = ordersResponse?.data ?? [];
+    return apiOrders.map(mapApiOrderToDashboardOrder);
+  }, [ordersResponse]);
+
   const [filters, setFilters] = useState<FilterState>({
     dateRange: { from: '', to: '' },
     customer: '',
@@ -289,49 +260,80 @@ export const SalesDashboard: React.FC = () => {
   // EVENT HANDLERS
   // ============================================
 
-  const handleSort = (field: keyof Order) => {
+  const handleSort = useCallback((field: keyof Order) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
       setSortDirection('desc');
     }
-  };
+  }, [sortField]);
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
+    const escapeCSV = (value: string | number): string => {
+      let str = String(value);
+      // Prevent CSV injection: prefix formula-triggering characters with a single quote
+      if (/^[=+\-@\t\r]/.test(str)) {
+        str = "'" + str;
+      }
+      if (/[,"\n\r]/.test(str)) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
     // Convert to CSV
     const headers = ['Mã đơn', 'Khách hàng', 'Tổng tiền', 'Đã thanh toán', 'Còn nợ', 'Trạng thái', 'Hạn thanh toán', 'Quá hạn', 'Hoa hồng'];
     const rows = sortedOrders.map((order) => [
-      order.code,
-      order.customerName,
-      order.totalAmount,
-      order.paidAmount,
-      order.outstandingAmount,
-      order.status,
-      formatDate(order.dueDate),
-      `${order.daysOverdue} ngày`,
-      order.commissionAmount,
+      escapeCSV(order.code),
+      escapeCSV(order.customerName),
+      escapeCSV(order.totalAmount),
+      escapeCSV(order.paidAmount),
+      escapeCSV(order.outstandingAmount),
+      escapeCSV(order.status),
+      escapeCSV(formatDate(order.dueDate)),
+      escapeCSV(`${order.daysOverdue} ngày`),
+      escapeCSV(order.commissionAmount),
     ]);
 
-    const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
+    const csv = [headers.map(escapeCSV), ...rows].map((row) => row.join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `sales-dashboard-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
-  };
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }, [sortedOrders]);
 
-  const handleRequestPayment = (orderId: string) => {
-    alert(`Gửi yêu cầu thanh toán cho đơn hàng ${orderId}`);
-  };
+  const handleRequestPayment = useCallback((orderId: string) => {
+    toast.info('Tính năng đang phát triển');
+  }, []);
 
-  const handleViewDebt = (orderId: string) => {
-    alert(`Xem chi tiết công nợ đơn hàng ${orderId}`);
-  };
+  const handleViewDebt = useCallback((orderId: string) => {
+    toast.info('Tính năng đang phát triển');
+  }, []);
 
   // ============================================
   // RENDER
   // ============================================
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-2 text-slate-600">Đang tải dữ liệu...</span>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <AlertTriangle className="h-8 w-8 text-red-500" />
+        <span className="ml-2 text-slate-600">Không thể tải dữ liệu. Vui lòng thử lại sau.</span>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
@@ -644,6 +646,7 @@ export const SalesDashboard: React.FC = () => {
                           onClick={() => handleRequestPayment(order.id)}
                           className="rounded-md p-1.5 text-blue-600 transition-colors hover:bg-blue-50"
                           title="Gửi yêu cầu thanh toán"
+                          aria-label="Gui yeu cau thanh toan"
                         >
                           <Send className="h-4 w-4" />
                         </button>
@@ -651,6 +654,7 @@ export const SalesDashboard: React.FC = () => {
                           onClick={() => handleViewDebt(order.id)}
                           className="rounded-md p-1.5 text-slate-600 transition-colors hover:bg-slate-100"
                           title="Xem công nợ"
+                          aria-label="Xem cong no"
                         >
                           <Eye className="h-4 w-4" />
                         </button>

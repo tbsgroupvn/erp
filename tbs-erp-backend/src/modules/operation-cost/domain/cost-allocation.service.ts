@@ -40,9 +40,12 @@ export class CostAllocationService {
       );
     }
 
-    // Calculate total chargeable weight
+    // Calculate total chargeable weight using rounded values to avoid floating-point drift
     const totalWeight = orders.reduce(
-      (sum, o) => sum + (o.totalChargeableWeight ? Number(o.totalChargeableWeight) : 0),
+      (sum, o) => {
+        const weight = o.totalChargeableWeight ? Number(o.totalChargeableWeight) : 0;
+        return sum + Math.round(weight * 10000) / 10000;
+      },
       0,
     );
 
@@ -53,12 +56,21 @@ export class CostAllocationService {
       );
     }
 
-    const allocations: AllocationResult[] = orders.map((order) => {
+    let sumAllocated = 0;
+    const allocations: AllocationResult[] = orders.map((order, index) => {
       const weight = order.totalChargeableWeight
         ? Number(order.totalChargeableWeight)
         : 0;
       const proportion = weight / totalWeight;
-      const allocatedAmount = Math.round(totalCost * proportion);
+      let allocatedAmount: number;
+
+      if (index === orders.length - 1) {
+        // Give remainder to the last order to avoid rounding differences
+        allocatedAmount = totalCost - sumAllocated;
+      } else {
+        allocatedAmount = Math.round(totalCost * proportion);
+        sumAllocated += allocatedAmount;
+      }
 
       return {
         orderId: order.id,
@@ -107,7 +119,9 @@ export class CostAllocationService {
           const l = pkg.length ? Number(pkg.length) : 0;
           const w = pkg.width ? Number(pkg.width) : 0;
           const h = pkg.height ? Number(pkg.height) : 0;
-          return sum + (l * w * h) / 1_000_000; // Convert cm^3 to m^3
+          // Round to 4 decimal places to avoid floating-point drift in volume calculations
+          const volumeM3 = Math.round((l * w * h) / 1_000_000 * 10000) / 10000;
+          return sum + volumeM3;
         }, 0);
 
         return { orderId: order.id, orderCode: order.code, volume };
@@ -123,9 +137,18 @@ export class CostAllocationService {
       );
     }
 
-    const allocations: AllocationResult[] = orderVolumes.map((ov) => {
+    let sumAllocated = 0;
+    const allocations: AllocationResult[] = orderVolumes.map((ov, index) => {
       const proportion = ov.volume / totalVolume;
-      const allocatedAmount = Math.round(totalCost * proportion);
+      let allocatedAmount: number;
+
+      if (index === orderVolumes.length - 1) {
+        // Give remainder to the last order to avoid rounding differences
+        allocatedAmount = totalCost - sumAllocated;
+      } else {
+        allocatedAmount = Math.round(totalCost * proportion);
+        sumAllocated += allocatedAmount;
+      }
 
       return {
         orderId: ov.orderId,

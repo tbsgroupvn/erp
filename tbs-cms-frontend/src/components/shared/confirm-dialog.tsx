@@ -34,6 +34,9 @@ export function ConfirmDialog({
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <AlertDialog.Content
+          aria-modal="true"
+          aria-labelledby="confirm-dialog-title"
+          aria-describedby="confirm-dialog-description"
           className={cn(
             'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
@@ -45,10 +48,10 @@ export function ConfirmDialog({
           )}
         >
           <div className="flex flex-col space-y-2 text-center sm:text-left">
-            <AlertDialog.Title className="text-lg font-semibold">
+            <AlertDialog.Title id="confirm-dialog-title" className="text-lg font-semibold">
               {title}
             </AlertDialog.Title>
-            <AlertDialog.Description className="text-sm text-muted-foreground">
+            <AlertDialog.Description id="confirm-dialog-description" className="text-sm text-muted-foreground">
               {description}
             </AlertDialog.Description>
           </div>
@@ -63,8 +66,9 @@ export function ConfirmDialog({
                 variant={variant === 'destructive' ? 'destructive' : 'default'}
                 onClick={onConfirm}
                 disabled={loading}
+                aria-busy={loading}
               >
-                {loading ? 'Đang xử lý...' : confirmText}
+                {loading ? 'Dang xu ly...' : confirmText}
               </Button>
             </AlertDialog.Action>
           </div>

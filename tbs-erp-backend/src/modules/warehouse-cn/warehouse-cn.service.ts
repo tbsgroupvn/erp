@@ -7,10 +7,13 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
+import { CacheService } from '@core/cache/cache.service';
 import { Prisma, ShippingRoute } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { WarehouseCNRepository } from './warehouse-cn.repository';
 import { ChargeableWeightService } from './domain/chargeable-weight.service';
 import { PreAlertMatchingService } from './domain/pre-alert-matching.service';
+import { WarehouseCNStatusMachine } from './domain/warehouse-cn-status.machine';
 import { ReceivePackageDto } from './dto/receive-package.dto';
 import { MeasurePackageDto } from './dto/measure-package.dto';
 
@@ -22,8 +25,10 @@ export class WarehouseCNService {
     private readonly warehouseRepo: WarehouseCNRepository,
     private readonly chargeableWeight: ChargeableWeightService,
     private readonly preAlertMatching: PreAlertMatchingService,
+    private readonly statusMachine: WarehouseCNStatusMachine,
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly cacheService: CacheService,
   ) {}
 
   /**
@@ -52,6 +57,20 @@ export class WarehouseCNService {
     if (!order) {
       throw new NotFoundException(
         `Order with ID ${dto.orderId} not found`,
+      );
+    }
+
+    // Layer 4A: Mandatory photo validation (defense-in-depth, DTO also validates)
+    if (!dto.imageUrls || dto.imageUrls.length === 0) {
+      throw new BadRequestException(
+        'Bắt buộc chụp ảnh kiện hàng khi nhận tại kho TQ',
+      );
+    }
+
+    // Layer 1A: Check order status — cannot receive packages for closed orders
+    if (['CANCELLED', 'COMPLETED'].includes(order.status)) {
+      throw new BadRequestException(
+        `Đơn hàng ${order.code} đã đóng (${order.status}), không thể nhận kiện`,
       );
     }
 
@@ -135,6 +154,20 @@ export class WarehouseCNService {
       );
     }
 
+    // Layer 1B: Weight lock — cannot re-measure after container assignment
+    if (pkg.containerId) {
+      throw new BadRequestException(
+        `Kiện ${pkg.code} đã gán container, không thể cân lại`,
+      );
+    }
+
+    // Layer 1B: Weight lock — cannot re-measure after weight confirmation
+    if (pkg.weightConfirmedAt) {
+      throw new BadRequestException(
+        `Cân nặng kiện ${pkg.code} đã được xác nhận, không thể cân lại`,
+      );
+    }
+
     // Determine shipping route (from order, or default to SEA)
     const route: ShippingRoute =
       pkg.order?.shippingRoute ?? ShippingRoute.SEA;
@@ -148,7 +181,7 @@ export class WarehouseCNService {
       route,
     );
 
-    // Update the package with measurements
+    // Update the package with measurements (B4: also save cnWeight)
     const updatedPackage = await this.warehouseRepo.updateMeasurements(
       packageId,
       {
@@ -160,6 +193,12 @@ export class WarehouseCNService {
         chargeableWeight: weightResult.chargeableWeight,
       },
     );
+
+    // B4: Save cnWeight = actualWeight at CN warehouse
+    await this.prisma.package.update({
+      where: { id: packageId },
+      data: { cnWeight: new Decimal(dto.actualWeight) },
+    });
 
     // Emit measurement event
     this.eventEmitter.emit('warehouse.package.measured', {
@@ -253,22 +292,8 @@ export class WarehouseCNService {
       );
     }
 
-    const validTransitions: Record<string, string[]> = {
-      RECEIVED: ['CHECKED'],
-      CHECKED: ['PACKED'],
-      PACKED: ['SHIPPED'],
-      SHIPPED: [],
-    };
-
     const currentStatus = pkg.warehouseCNStatus ?? 'RECEIVED';
-    const allowed = validTransitions[currentStatus] ?? [];
-
-    if (!allowed.includes(newStatus)) {
-      throw new BadRequestException(
-        `Invalid status transition from ${currentStatus} to ${newStatus}. ` +
-          `Allowed transitions: ${allowed.join(', ') || 'none'}`,
-      );
-    }
+    this.statusMachine.assertTransition(currentStatus, newStatus);
 
     const updated = await this.warehouseRepo.updateStatus(
       packageId,
@@ -297,6 +322,169 @@ export class WarehouseCNService {
 
     this.logger.log(
       `Package ${pkg.code} CN status changed: ${currentStatus} -> ${newStatus}`,
+    );
+
+    return updated;
+  }
+
+  /**
+   * B3: Scan barcode to look up a package by tracking number with Redis cache.
+   */
+  async scanBarcode(trackingNumber: string) {
+    return this.cacheService.getOrSet(
+      `barcode:${trackingNumber}`,
+      async () => {
+        const pkg = await this.prisma.package.findFirst({
+          where: {
+            trackingNumberCN: {
+              equals: trackingNumber,
+              mode: 'insensitive',
+            },
+          },
+          include: {
+            order: {
+              select: {
+                id: true,
+                code: true,
+                customerId: true,
+                status: true,
+                customer: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    code: true,
+                    phone: true,
+                  },
+                },
+              },
+            },
+            container: {
+              select: { id: true, code: true, status: true },
+            },
+          },
+        });
+
+        if (!pkg) {
+          return null;
+        }
+
+        return pkg;
+      },
+      300_000, // TTL 300 seconds
+    );
+  }
+
+  /**
+   * B5: Set independent status for a package.
+   * Valid statuses: NORMAL, CONFISCATED_BY_CUSTOMS, HIGH_RISK_HOLD
+   */
+  async setPackageIndependentStatus(
+    packageId: string,
+    status: string,
+    reason: string,
+    userId: string,
+  ) {
+    const validStatuses = ['NORMAL', 'CONFISCATED_BY_CUSTOMS', 'HIGH_RISK_HOLD'];
+
+    if (!validStatuses.includes(status)) {
+      throw new BadRequestException(
+        `Invalid independent status: ${status}. Valid values: ${validStatuses.join(', ')}`,
+      );
+    }
+
+    const pkg = await this.warehouseRepo.findById(packageId);
+    if (!pkg) {
+      throw new NotFoundException(`Package with ID ${packageId} not found`);
+    }
+
+    const updateData: Prisma.PackageUpdateInput = {
+      independentStatus: status,
+    };
+
+    const updated = await this.prisma.package.update({
+      where: { id: packageId },
+      data: updateData,
+    });
+
+    // If confiscated, also update the order status to ISSUE and emit event
+    if (status === 'CONFISCATED_BY_CUSTOMS') {
+      await this.prisma.order.update({
+        where: { id: pkg.orderId },
+        data: { status: 'ISSUE' as any },
+      });
+
+      this.eventEmitter.emit('package.confiscated', {
+        packageId,
+        packageCode: pkg.code,
+        orderId: pkg.orderId,
+        reason,
+        setBy: userId,
+      });
+
+      this.logger.warn(
+        `Package ${pkg.code} confiscated by customs. Order ${pkg.orderId} set to ISSUE. Reason: ${reason}`,
+      );
+    }
+
+    this.logger.log(
+      `Package ${pkg.code} independent status set to ${status} by ${userId}`,
+    );
+
+    return updated;
+  }
+
+  /**
+   * B10: Mark a package as high risk.
+   */
+  async markHighRisk(packageId: string, userId: string) {
+    const pkg = await this.warehouseRepo.findById(packageId);
+    if (!pkg) {
+      throw new NotFoundException(`Package with ID ${packageId} not found`);
+    }
+
+    const updated = await this.prisma.package.update({
+      where: { id: packageId },
+      data: { isHighRisk: true },
+    });
+
+    this.eventEmitter.emit('package.marked_high_risk', {
+      packageId,
+      packageCode: pkg.code,
+      orderId: pkg.orderId,
+      markedBy: userId,
+    });
+
+    this.logger.log(`Package ${pkg.code} marked as high risk by ${userId}`);
+
+    return updated;
+  }
+
+  /**
+   * B10: Accept high risk disclaimer for a package.
+   */
+  async acceptDisclaimer(packageId: string, userId: string) {
+    const pkg = await this.warehouseRepo.findById(packageId);
+    if (!pkg) {
+      throw new NotFoundException(`Package with ID ${packageId} not found`);
+    }
+
+    if (!pkg.isHighRisk) {
+      throw new BadRequestException(
+        `Package ${pkg.code} is not marked as high risk`,
+      );
+    }
+
+    const updated = await this.prisma.package.update({
+      where: { id: packageId },
+      data: {
+        highRiskDisclaimerAccepted: true,
+        highRiskAcceptedAt: new Date(),
+        highRiskAcceptedBy: userId,
+      },
+    });
+
+    this.logger.log(
+      `High risk disclaimer accepted for package ${pkg.code} by ${userId}`,
     );
 
     return updated;

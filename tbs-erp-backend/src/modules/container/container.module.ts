@@ -3,6 +3,7 @@ import { ContainerController } from './container.controller';
 import { ContainerService } from './container.service';
 import { ContainerRepository } from './container.repository';
 import { ConsolidationService } from './domain/consolidation.service';
+import { ContainerStatusMachine } from './domain/container-status.machine';
 import { PackageEventListener } from './listeners/package-event.listener';
 
 @Module({
@@ -11,6 +12,7 @@ import { PackageEventListener } from './listeners/package-event.listener';
     ContainerService,
     ContainerRepository,
     ConsolidationService,
+    ContainerStatusMachine,
     PackageEventListener,
   ],
   exports: [ContainerService, ConsolidationService],

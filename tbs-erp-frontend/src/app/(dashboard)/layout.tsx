@@ -7,6 +7,7 @@ import { AppSidebar } from '@/components/layout/app-sidebar';
 import { Topbar } from '@/components/layout/topbar';
 import { LoadingOverlay } from '@/components/shared/loading-overlay';
 import { ErrorBoundary } from '@/components/shared/error-boundary';
+import { DemoBanner } from '@/components/shared/demo-banner';
 
 export default function DashboardLayout({
   children,
@@ -46,15 +47,24 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <AppSidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Topbar />
-        <main className="flex-1 overflow-y-auto p-6">
+    <div className="flex h-screen flex-col overflow-hidden">
+      <DemoBanner />
+      <div className="flex flex-1 overflow-hidden">
+        <AppSidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Topbar />
+        <main
+          id="main-content"
+          role="main"
+          aria-label="Noi dung chinh"
+          className="flex-1 overflow-y-auto p-6"
+          tabIndex={-1}
+        >
           <ErrorBoundary>
             {children}
           </ErrorBoundary>
         </main>
+        </div>
       </div>
     </div>
   );

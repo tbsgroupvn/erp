@@ -1,0 +1,208 @@
+name: Load Test
+
+on:
+  # Manual trigger with environment selection
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+      test_type:
+        description: 'Test type to run'
+        required: true
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - stress
+          - spike
+          - soak
+          - dashboard-concurrent
+          - order-flow
+          - finance-flow
+          - warehouse-flow
+          - all-scenarios
+
+  # Run smoke test on release tags
+  push:
+    tags:
+      - 'v*'
+
+env:
+  K6_VERSION: '0.49.0'
+
+jobs:
+  # ============================================
+  # LOAD TEST - k6
+  # ============================================
+  load-test:
+    name: Load Test (${{ github.event.inputs.test_type || 'smoke' }})
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.environment || 'staging' }}
+
+    # Never run against production
+    if: ${{ github.event.inputs.environment != 'production' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6=${{ env.K6_VERSION }}
+
+      - name: Set test parameters
+        id: params
+        run: |
+          TEST_TYPE="${{ github.event.inputs.test_type || 'smoke' }}"
+          ENV="${{ github.event.inputs.environment || 'staging' }}"
+
+          if [ "$ENV" = "staging" ]; then
+            echo "base_url=https://staging-api.tbslogistics.com" >> $GITHUB_OUTPUT
+          fi
+
+          # Map test type to script path
+          case "$TEST_TYPE" in
+            smoke)
+              echo "script=tests/load/smoke.js" >> $GITHUB_OUTPUT
+              ;;
+            stress)
+              echo "script=tests/load/stress.js" >> $GITHUB_OUTPUT
+              ;;
+            spike)
+              echo "script=tests/load/spike.js" >> $GITHUB_OUTPUT
+              ;;
+            soak)
+              echo "script=tests/load/soak.js" >> $GITHUB_OUTPUT
+              ;;
+            dashboard-concurrent)
+              echo "script=tests/load/scenarios/dashboard-concurrent.js" >> $GITHUB_OUTPUT
+              ;;
+            order-flow)
+              echo "script=tests/load/scenarios/order-flow.js" >> $GITHUB_OUTPUT
+              ;;
+            finance-flow)
+              echo "script=tests/load/scenarios/finance-flow.js" >> $GITHUB_OUTPUT
+              ;;
+            warehouse-flow)
+              echo "script=tests/load/scenarios/warehouse-flow.js" >> $GITHUB_OUTPUT
+              ;;
+            all-scenarios)
+              echo "script=all" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+          echo "test_type=$TEST_TYPE" >> $GITHUB_OUTPUT
+
+      - name: Verify staging is healthy
+        run: |
+          for i in $(seq 1 3); do
+            if curl -sf "${{ steps.params.outputs.base_url }}/api/v1/health" > /dev/null; then
+              echo "Staging is healthy"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "Staging is not healthy, aborting load test"
+          exit 1
+
+      - name: Run load test (single script)
+        if: steps.params.outputs.script != 'all'
+        run: |
+          k6 run \
+            --env BASE_URL=${{ steps.params.outputs.base_url }} \
+            --env TEST_EMAIL=${{ secrets.LOAD_TEST_EMAIL }} \
+            --env TEST_PASSWORD=${{ secrets.LOAD_TEST_PASSWORD }} \
+            --out json=results.json \
+            --summary-export=summary.json \
+            ${{ steps.params.outputs.script }}
+
+      - name: Run all scenarios
+        if: steps.params.outputs.script == 'all'
+        run: |
+          SCRIPTS=(
+            "tests/load/scenarios/order-flow.js"
+            "tests/load/scenarios/finance-flow.js"
+            "tests/load/scenarios/warehouse-flow.js"
+            "tests/load/scenarios/dashboard-concurrent.js"
+          )
+
+          EXIT_CODE=0
+          for script in "${SCRIPTS[@]}"; do
+            echo "==============================="
+            echo "Running: $script"
+            echo "==============================="
+
+            k6 run \
+              --env BASE_URL=${{ steps.params.outputs.base_url }} \
+              --env TEST_EMAIL=${{ secrets.LOAD_TEST_EMAIL }} \
+              --env TEST_PASSWORD=${{ secrets.LOAD_TEST_PASSWORD }} \
+              --summary-export="summary-$(basename $script .js).json" \
+              "$script" || EXIT_CODE=$?
+
+            echo ""
+            sleep 10  # Brief pause between tests
+          done
+
+          exit $EXIT_CODE
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-results-${{ steps.params.outputs.test_type }}
+          path: |
+            results.json
+            summary*.json
+          retention-days: 30
+
+      - name: Post results to PR (if applicable)
+        if: always() && github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let summary = 'Load test results not available';
+            try {
+              const data = JSON.parse(fs.readFileSync('summary.json', 'utf8'));
+              const p95 = data.metrics?.http_req_duration?.values?.['p(95)'] || 'N/A';
+              const errorRate = data.metrics?.http_req_failed?.values?.rate || 0;
+              const totalReqs = data.metrics?.http_reqs?.values?.count || 0;
+
+              summary = [
+                '## Load Test Results',
+                '',
+                `| Metric | Value |`,
+                `|--------|-------|`,
+                `| Test Type | ${process.env.TEST_TYPE || 'smoke'} |`,
+                `| Total Requests | ${totalReqs} |`,
+                `| P95 Response Time | ${typeof p95 === 'number' ? p95.toFixed(0) + 'ms' : p95} |`,
+                `| Error Rate | ${(errorRate * 100).toFixed(2)}% |`,
+                `| Status | ${errorRate < 0.05 ? 'PASS' : 'FAIL'} |`,
+              ].join('\n');
+            } catch (e) {
+              console.log('Could not parse summary:', e.message);
+            }
+
+            console.log(summary);
+
+      - name: Notify on failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: |
+            Load test FAILED (${{ steps.params.outputs.test_type }}) on ${{ github.event.inputs.environment || 'staging' }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}

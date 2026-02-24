@@ -24,4 +24,9 @@ export class SetRateDto {
   @IsOptional()
   @IsString()
   source?: string;
+
+  @ApiPropertyOptional({ description: 'User ID who sets the rate (for audit trail)' })
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }

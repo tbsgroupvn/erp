@@ -6,7 +6,7 @@ model Complaint {
   id                String            @id @default(cuid())
   code              String            @unique           // Mã: QMS-202501-0001
   orderId           String?           @map("order_id")
-  order             Order?            @relation(fields: [orderId], references: [id])
+  order             Order?            @relation(fields: [orderId], references: [id], onDelete: Cascade)
   customerId        String            @map("customer_id")
   customer          Customer          @relation(fields: [customerId], references: [id])
   packageId         String?           @map("package_id")
@@ -26,7 +26,7 @@ model Complaint {
 
   // Resolution
   resolutionType    ResolutionType?   @map("resolution_type")
-  compensationAmount Decimal?         @map("compensation_amount") @db.Decimal(15, 2)
+  compensationAmount Decimal?         @map("compensation_amount") @db.Decimal(18, 2)
   resolutionNotes   String?           @map("resolution_notes")
   resolvedAt        DateTime?         @map("resolved_at")
 

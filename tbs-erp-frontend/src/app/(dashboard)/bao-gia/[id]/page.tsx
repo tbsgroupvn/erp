@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, FileSpreadsheet, FileText, Download, Pencil } from 'lucide-react';
+import { ArrowLeft, Loader2, FileSpreadsheet, FileText, Download, Pencil, BookmarkPlus } from 'lucide-react';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { LoadingOverlay } from '@/components/shared/loading-overlay';
 import {
@@ -14,6 +14,7 @@ import {
   useRejectQuotation,
   useConvertQuotationToOrder,
   useDuplicateQuotation,
+  useSaveAsTemplate,
 } from '@/lib/hooks/use-quotations';
 import { quotationsApi } from '@/lib/api/quotations.api';
 import {
@@ -28,8 +29,8 @@ import { toast } from 'sonner';
 import { saveAs } from 'file-saver';
 
 const BRANCH_LABELS: Record<string, string> = {
-  HN: 'Ha\u0300 No\u0323i',
-  HCM: 'TP. Ho\u0300 Chi\u0301 Minh',
+  HN: 'Hà Nội',
+  HCM: 'TP. Hồ Chí Minh',
 };
 
 export default function QuotationDetailPage() {
@@ -41,8 +42,12 @@ export default function QuotationDetailPage() {
   const rejectQuotation = useRejectQuotation();
   const convertToOrder = useConvertQuotationToOrder();
   const duplicateQuotation = useDuplicateQuotation();
+  const saveAsTemplate = useSaveAsTemplate();
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templatePublic, setTemplatePublic] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
 
@@ -50,9 +55,9 @@ export default function QuotationDetailPage() {
   if (!quotation) {
     return (
       <div className="text-center py-20">
-        <p className="text-muted-foreground">Kh\u00F4ng t\u00ECm th\u1EA5y b\u00E1o gi\u00E1</p>
+        <p className="text-muted-foreground">Không tìm thấy báo giá</p>
         <Link href="/bao-gia" className="text-primary hover:underline mt-2 inline-block">
-          Quay l\u1EA1i danh s\u00E1ch
+          Quay lại danh sách
         </Link>
       </div>
     );
@@ -63,39 +68,54 @@ export default function QuotationDetailPage() {
 
   const handleApprove = () => {
     approveQuotation.mutate(id, {
-      onSuccess: () => toast.success('\u0110\u00E3 duy\u1EC7t b\u00E1o gi\u00E1'),
-      onError: (err: any) => toast.error(err.response?.data?.message || 'L\u1ED7i duy\u1EC7t b\u00E1o gi\u00E1'),
+      onSuccess: (data: any) => {
+        toast.success('Đã duyệt báo giá');
+        if (data?.contractAppendixId) {
+          toast.success('Đã tạo phụ lục hợp đồng tự động');
+          router.push(`/hop-dong/${data.contractAppendixId}`);
+        }
+      },
+      onError: (err: any) => toast.error(err.response?.data?.message || 'Lỗi duyệt báo giá'),
     });
   };
 
   const handleReject = () => {
     if (!rejectReason.trim() || rejectReason.trim().length < 5) {
-      toast.error('L\u00FD do t\u1EEB ch\u1ED1i ph\u1EA3i \u00EDt nh\u1EA5t 5 k\u00FD t\u1EF1');
+      toast.error('Lý do từ chối phải ít nhất 5 ký tự');
       return;
     }
     rejectQuotation.mutate({ id, reason: rejectReason }, {
       onSuccess: () => {
-        toast.success('\u0110\u00E3 t\u1EEB ch\u1ED1i b\u00E1o gi\u00E1');
+        toast.success('Đã từ chối báo giá');
         setShowRejectForm(false);
       },
-      onError: (err: any) => toast.error(err.response?.data?.message || 'L\u1ED7i t\u1EEB ch\u1ED1i b\u00E1o gi\u00E1'),
+      onError: (err: any) => toast.error(err.response?.data?.message || 'Lỗi từ chối báo giá'),
     });
   };
 
   const handleConvert = () => {
     convertToOrder.mutate(id, {
-      onSuccess: () => {
-        toast.success('\u0110\u00E3 chuy\u1EC3n th\u00E0nh \u0111\u01A1n h\u00E0ng');
-        router.push('/don-hang');
+      onSuccess: (data: any) => {
+        const orderId = data?.order?.id;
+        toast.success('Da chuyen thanh don hang', {
+          action: orderId
+            ? { label: 'Xem don hang', onClick: () => router.push(`/don-hang/${orderId}`) }
+            : undefined,
+        });
+        if (orderId) {
+          router.push(`/don-hang/${orderId}`);
+        } else {
+          router.push('/don-hang');
+        }
       },
-      onError: (err: any) => toast.error(err.response?.data?.message || 'L\u1ED7i chuy\u1EC3n \u0111\u1ED5i'),
+      onError: (err: any) => toast.error(err.response?.data?.message || 'Lỗi chuyển đổi'),
     });
   };
 
   const handleDuplicate = () => {
     duplicateQuotation.mutate(id, {
-      onSuccess: () => toast.success('\u0110\u00E3 sao ch\u00E9p b\u00E1o gi\u00E1'),
-      onError: (err: any) => toast.error(err.response?.data?.message || 'L\u1ED7i sao ch\u00E9p'),
+      onSuccess: () => toast.success('Đã sao chép báo giá'),
+      onError: (err: any) => toast.error(err.response?.data?.message || 'Lỗi sao chép'),
     });
   };
 
@@ -104,9 +124,9 @@ export default function QuotationDetailPage() {
     try {
       const blob = await quotationsApi.exportPdf(id);
       saveAs(blob, `bao-gia-${q.code}.pdf`);
-      toast.success('\u0110\u00E3 t\u1EA3i PDF');
+      toast.success('Đã tải PDF');
     } catch {
-      toast.error('L\u1ED7i xu\u1EA5t PDF');
+      toast.error('Lỗi xuất PDF');
     } finally {
       setExportingPdf(false);
     }
@@ -117,12 +137,29 @@ export default function QuotationDetailPage() {
     try {
       const blob = await quotationsApi.exportExcel(id);
       saveAs(blob, `bao-gia-${q.code}.xlsx`);
-      toast.success('\u0110\u00E3 t\u1EA3i Excel');
+      toast.success('Đã tải Excel');
     } catch {
-      toast.error('L\u1ED7i xu\u1EA5t Excel');
+      toast.error('Lỗi xuất Excel');
     } finally {
       setExportingExcel(false);
     }
+  };
+
+  const handleSaveAsTemplate = () => {
+    if (!templateName.trim()) {
+      toast.error('Vui lòng nhập tên mẫu');
+      return;
+    }
+    saveAsTemplate.mutate(
+      { id, data: { name: templateName, isPublic: templatePublic } },
+      {
+        onSuccess: () => {
+          setShowSaveTemplate(false);
+          setTemplateName('');
+          setTemplatePublic(false);
+        },
+      },
+    );
   };
 
   return (
@@ -146,7 +183,7 @@ export default function QuotationDetailPage() {
             )}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            T\u1EA1o l\u00FAc {formatDate(q.createdAt)}
+            Tạo lúc {formatDate(q.createdAt)}
           </p>
         </div>
       </div>
@@ -167,11 +204,11 @@ export default function QuotationDetailPage() {
             <button onClick={handleApprove} disabled={approveQuotation.isPending}
               className="inline-flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">
               {approveQuotation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              Duy\u1EC7t
+              Duyệt
             </button>
             <button onClick={() => setShowRejectForm(!showRejectForm)}
               className="rounded-md border border-destructive px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10">
-              T\u1EEB ch\u1ED1i
+              Từ chối
             </button>
           </>
         )}
@@ -179,23 +216,30 @@ export default function QuotationDetailPage() {
           <button onClick={handleConvert} disabled={convertToOrder.isPending}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
             {convertToOrder.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Chuy\u1EC3n th\u00E0nh \u0111\u01A1n h\u00E0ng
+            Chuyển thành đơn hàng
           </button>
         )}
         <button onClick={handleDuplicate} disabled={duplicateQuotation.isPending}
           className="rounded-md border px-4 py-2 text-sm hover:bg-accent">
-          Sao ch\u00E9p
+          Sao chép
+        </button>
+        <button
+          onClick={() => setShowSaveTemplate(true)}
+          className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm hover:bg-accent"
+        >
+          <BookmarkPlus className="h-4 w-4" />
+          Lưu làm mẫu
         </button>
         <div className="ml-auto flex gap-2">
           <button onClick={handleExportExcel} disabled={exportingExcel}
             className="inline-flex items-center gap-2 rounded-md border border-green-600 px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-50 disabled:opacity-50">
             {exportingExcel ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
-            Xu\u1EA5t Excel
+            Xuất Excel
           </button>
           <button onClick={handleExportPdf} disabled={exportingPdf}
             className="inline-flex items-center gap-2 rounded-md border border-red-600 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50">
             {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-            Xu\u1EA5t PDF
+            Xuất PDF
           </button>
         </div>
       </div>
@@ -203,18 +247,18 @@ export default function QuotationDetailPage() {
       {/* Reject Form */}
       {showRejectForm && (
         <div className="rounded-lg border bg-card p-4 space-y-3">
-          <label className="text-sm font-medium">L\u00FD do t\u1EEB ch\u1ED1i *</label>
+          <label className="text-sm font-medium">Lý do từ chối *</label>
           <textarea
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             rows={2}
-            placeholder="Nh\u1EADp l\u00FD do t\u1EEB ch\u1ED1i (t\u1ED1i thi\u1EC3u 5 k\u00FD t\u1EF1)..."
+            placeholder="Nhập lý do từ chối (tối thiểu 5 ký tự)..."
             className="flex w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <button onClick={handleReject} disabled={rejectQuotation.isPending || rejectReason.trim().length < 5}
             className="inline-flex items-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50">
             {rejectQuotation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            X\u00E1c nh\u1EADn t\u1EEB ch\u1ED1i
+            Xác nhận từ chối
           </button>
         </div>
       )}
@@ -222,7 +266,7 @@ export default function QuotationDetailPage() {
       {/* Rejection Reason */}
       {q.rejectionReason && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-          <p className="text-sm font-medium text-destructive mb-1">L\u00FD do t\u1EEB ch\u1ED1i</p>
+          <p className="text-sm font-medium text-destructive mb-1">Lý do từ chối</p>
           <p className="text-sm">{q.rejectionReason}</p>
         </div>
       )}
@@ -230,31 +274,31 @@ export default function QuotationDetailPage() {
       {/* Info Cards */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-lg border bg-card p-6">
-          <h3 className="text-lg font-semibold mb-4">Th\u00F4ng tin b\u00E1o gi\u00E1</h3>
+          <h3 className="text-lg font-semibold mb-4">Thông tin báo giá</h3>
           <dl className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Lo\u1EA1i d\u1ECBch v\u1EE5</dt>
+              <dt className="text-muted-foreground">Loại dịch vụ</dt>
               <dd>{SERVICE_TYPE_LABELS[q.serviceType as ServiceType] || q.serviceType}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Chi nh\u00E1nh</dt>
+              <dt className="text-muted-foreground">Chi nhánh</dt>
               <dd>{BRANCH_LABELS[q.branch] || q.branch}</dd>
             </div>
             {q.shippingRoute && (
               <div className="flex justify-between">
-                <dt className="text-muted-foreground">Tuy\u1EBFn v\u1EADn chuy\u1EC3n</dt>
+                <dt className="text-muted-foreground">Tuyến vận chuyển</dt>
                 <dd>{SHIPPING_ROUTE_LABELS[q.shippingRoute as ShippingRoute] || q.shippingRoute}</dd>
               </div>
             )}
             {q.validUntil && (
               <div className="flex justify-between">
-                <dt className="text-muted-foreground">Hi\u1EC7u l\u1EF1c \u0111\u1EBFn</dt>
+                <dt className="text-muted-foreground">Hiệu lực đến</dt>
                 <dd>{formatDate(q.validUntil, 'dd/MM/yyyy')}</dd>
               </div>
             )}
             {q.note && (
               <div>
-                <dt className="text-muted-foreground mb-1">Ghi ch\u00FA</dt>
+                <dt className="text-muted-foreground mb-1">Ghi chú</dt>
                 <dd>{q.note}</dd>
               </div>
             )}
@@ -262,11 +306,11 @@ export default function QuotationDetailPage() {
         </div>
 
         <div className="rounded-lg border bg-card p-6">
-          <h3 className="text-lg font-semibold mb-4">Kh\u00E1ch h\u00E0ng</h3>
+          <h3 className="text-lg font-semibold mb-4">Khách hàng</h3>
           {q.customer ? (
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <dt className="text-muted-foreground">M\u00E3 KH</dt>
+                <dt className="text-muted-foreground">Mã KH</dt>
                 <dd>
                   <Link href={`/khach-hang/${q.customer.id}`} className="text-primary hover:underline">
                     {q.customer.code}
@@ -274,18 +318,18 @@ export default function QuotationDetailPage() {
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-muted-foreground">T\u00EAn</dt>
+                <dt className="text-muted-foreground">Tên</dt>
                 <dd>{q.customer.fullName}</dd>
               </div>
               {q.customer.companyName && (
                 <div className="flex justify-between">
-                  <dt className="text-muted-foreground">C\u00F4ng ty</dt>
+                  <dt className="text-muted-foreground">Công ty</dt>
                   <dd>{q.customer.companyName}</dd>
                 </div>
               )}
               {q.customer.phone && (
                 <div className="flex justify-between">
-                  <dt className="text-muted-foreground">\u0110i\u1EC7n tho\u1EA1i</dt>
+                  <dt className="text-muted-foreground">Điện thoại</dt>
                   <dd>{q.customer.phone}</dd>
                 </div>
               )}
@@ -297,28 +341,28 @@ export default function QuotationDetailPage() {
               )}
             </dl>
           ) : (
-            <p className="text-sm text-muted-foreground">Kh\u00F4ng c\u00F3 th\u00F4ng tin</p>
+            <p className="text-sm text-muted-foreground">Không có thông tin</p>
           )}
         </div>
 
         {/* Price Summary */}
         <div className="rounded-lg border bg-card p-6 lg:col-span-2">
-          <h3 className="text-lg font-semibold mb-4">T\u1ED5ng h\u1EE3p gi\u00E1</h3>
+          <h3 className="text-lg font-semibold mb-4">Tổng hợp giá</h3>
           <dl className="space-y-3 text-sm max-w-sm ml-auto">
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">T\u1EA1m t\u00EDnh</dt>
+              <dt className="text-muted-foreground">Tạm tính</dt>
               <dd>{formatCurrency(q.subtotal)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Gi\u1EA3m gi\u00E1 ({Number(q.discountPercent)}%)</dt>
+              <dt className="text-muted-foreground">Giảm giá ({Number(q.discountPercent)}%)</dt>
               <dd className="text-destructive">-{formatCurrency(q.discountAmount)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Thu\u1EBF ({(Number(q.taxRate) * 100).toFixed(0)}%)</dt>
+              <dt className="text-muted-foreground">Thuế ({(Number(q.taxRate) * 100).toFixed(0)}%)</dt>
               <dd>{formatCurrency(q.taxAmount)}</dd>
             </div>
             <div className="flex justify-between border-t pt-3 font-semibold text-base">
-              <dt>T\u1ED5ng c\u1ED9ng</dt>
+              <dt>Tổng cộng</dt>
               <dd>{formatCurrency(q.totalAmount)}</dd>
             </div>
           </dl>
@@ -328,16 +372,16 @@ export default function QuotationDetailPage() {
       {/* Items Table */}
       {q.items && q.items.length > 0 && (
         <div className="rounded-lg border bg-card p-6">
-          <h3 className="text-lg font-semibold mb-4">Chi ti\u1EBFt h\u00E0ng m\u1EE5c</h3>
+          <h3 className="text-lg font-semibold mb-4">Chi tiết hàng mục</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
                   <th className="pb-2 font-medium w-10">STT</th>
-                  <th className="pb-2 font-medium">T\u00EAn s\u1EA3n ph\u1EA9m</th>
+                  <th className="pb-2 font-medium">Tên sản phẩm</th>
                   <th className="pb-2 font-medium w-16 text-center">SL</th>
-                  <th className="pb-2 font-medium text-right">\u0110\u01A1n gi\u00E1</th>
-                  <th className="pb-2 font-medium text-right">Th\u00E0nh ti\u1EC1n</th>
+                  <th className="pb-2 font-medium text-right">Đơn giá</th>
+                  <th className="pb-2 font-medium text-right">Thành tiền</th>
                 </tr>
               </thead>
               <tbody>
@@ -363,6 +407,54 @@ export default function QuotationDetailPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Save as Template Dialog */}
+      {showSaveTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-lg bg-background p-6 shadow-xl mx-4">
+            <h3 className="text-lg font-semibold mb-4">Lưu làm mẫu báo giá</h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tên mẫu *</label>
+                <input
+                  type="text"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="VD: Mẫu BG vận chuyển đường biển"
+                  className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={templatePublic}
+                  onChange={(e) => setTemplatePublic(e.target.checked)}
+                  className="h-4 w-4 rounded border"
+                />
+                <span className="text-sm">Chia sẻ cho team</span>
+              </label>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowSaveTemplate(false); setTemplateName(''); setTemplatePublic(false); }}
+                  className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAsTemplate}
+                  disabled={saveAsTemplate.isPending || !templateName.trim()}
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {saveAsTemplate.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Lưu mẫu
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

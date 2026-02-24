@@ -4,6 +4,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { DebtNettingItemType, Prisma } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { CreateNettingRequestDto } from './dto/create-netting-request.dto';
@@ -16,7 +17,7 @@ export class DebtNettingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   /**
    * Finds counterparties with both AR and AP balances (netting opportunities).
@@ -39,10 +40,11 @@ export class DebtNettingService {
     const opportunities = [];
 
     for (const ar of arByPartner) {
-      const arBalance =
-        Number(ar._sum.amount ?? 0) -
-        Number(ar._sum.paidAmount ?? 0) -
-        Number(ar._sum.nettedAmount ?? 0);
+      const arBalance = parseFloat(
+        (Number(ar._sum.amount ?? 0) -
+          Number(ar._sum.paidAmount ?? 0) -
+          Number(ar._sum.nettedAmount ?? 0)).toFixed(2),
+      );
 
       if (arBalance <= 0) continue;
 
@@ -50,10 +52,11 @@ export class DebtNettingService {
       for (const ap of apByVendor) {
         if (!ap.vendorId) continue;
 
-        const apBalance =
-          Number(ap._sum.amount ?? 0) -
-          Number(ap._sum.paidAmount ?? 0) -
-          Number(ap._sum.nettedAmount ?? 0);
+        const apBalance = parseFloat(
+          (Number(ap._sum.amount ?? 0) -
+            Number(ap._sum.paidAmount ?? 0) -
+            Number(ap._sum.nettedAmount ?? 0)).toFixed(2),
+        );
 
         if (apBalance <= 0) continue;
 
@@ -84,9 +87,11 @@ export class DebtNettingService {
       throw new BadRequestException('Some AR records not found or not in OPEN/PARTIAL status.');
     }
 
-    const totalAR = arRecords.reduce(
-      (sum, ar) => sum + Number(ar.amount) - Number(ar.paidAmount) - Number(ar.nettedAmount),
-      0,
+    const totalAR = parseFloat(
+      arRecords.reduce(
+        (sum, ar) => sum + Number(ar.amount) - Number(ar.paidAmount) - Number(ar.nettedAmount),
+        0,
+      ).toFixed(2),
     );
 
     // Validate AP records exist and sum up
@@ -98,9 +103,11 @@ export class DebtNettingService {
       throw new BadRequestException('Some AP records not found or not in OPEN/PARTIAL status.');
     }
 
-    const totalAP = apRecords.reduce(
-      (sum, ap) => sum + Number(ap.amount) - Number(ap.paidAmount) - Number(ap.nettedAmount),
-      0,
+    const totalAP = parseFloat(
+      apRecords.reduce(
+        (sum, ap) => sum + Number(ap.amount) - Number(ap.paidAmount) - Number(ap.nettedAmount),
+        0,
+      ).toFixed(2),
     );
 
     // Validate netting amount
@@ -132,13 +139,13 @@ export class DebtNettingService {
     const nettingItems = [
       ...dto.arIds.map((id) => ({
         nettingId: netting.id,
-        type: 'AR',
+        type: 'AR' as DebtNettingItemType,
         referenceId: id,
         amount: 0, // Will be allocated during execution
       })),
       ...dto.apIds.map((id) => ({
         nettingId: netting.id,
-        type: 'AP',
+        type: 'AP' as DebtNettingItemType,
         referenceId: id,
         amount: 0,
       })),
@@ -202,18 +209,23 @@ export class DebtNettingService {
       );
     }
 
+    if (netting.executedAt) {
+      throw new BadRequestException('Already executed');
+    }
+
     const nettingItems = await this.prisma.debtNettingItem.findMany({
       where: { nettingId: id },
     });
 
     await this.prisma.executeInTransaction(async (tx) => {
-      const netAmount = Number(netting.netAmount);
-      let remaining = netAmount;
+      // Use integer-based arithmetic (cents) to avoid floating-point precision issues
+      const netAmountCents = Math.round(Number(netting.netAmount) * 100);
+      let remainingCents = netAmountCents;
 
       // Update AR records
       const arItems = nettingItems.filter((item) => item.type === 'AR');
       for (const item of arItems) {
-        if (remaining <= 0) break;
+        if (remainingCents <= 0) break;
 
         const ar = await tx.accountReceivable.findUnique({
           where: { id: item.referenceId },
@@ -221,18 +233,18 @@ export class DebtNettingService {
 
         if (!ar) continue;
 
-        const arBalance = Number(ar.amount) - Number(ar.paidAmount) - Number(ar.nettedAmount);
-        const nettedHere = Math.min(remaining, arBalance);
+        const arBalanceCents = Math.round(Number(ar.amount) * 100) - Math.round(Number(ar.paidAmount) * 100) - Math.round(Number(ar.nettedAmount) * 100);
+        const nettedHereCents = Math.min(remainingCents, arBalanceCents);
+        const nettedHere = nettedHereCents / 100;
+
+        const totalSettledCents = Math.round(Number(ar.paidAmount) * 100) + Math.round(Number(ar.nettedAmount) * 100) + nettedHereCents;
+        const amountCents = Math.round(Number(ar.amount) * 100);
 
         await tx.accountReceivable.update({
           where: { id: item.referenceId },
           data: {
             nettedAmount: { increment: nettedHere },
-            status:
-              Number(ar.paidAmount) + Number(ar.nettedAmount) + nettedHere >=
-              Number(ar.amount)
-                ? 'NETTED'
-                : 'PARTIAL',
+            status: totalSettledCents >= amountCents ? 'NETTED' : 'PARTIAL',
           },
         });
 
@@ -241,14 +253,14 @@ export class DebtNettingService {
           data: { amount: nettedHere },
         });
 
-        remaining -= nettedHere;
+        remainingCents -= nettedHereCents;
       }
 
       // Update AP records
-      remaining = netAmount;
+      remainingCents = netAmountCents;
       const apItems = nettingItems.filter((item) => item.type === 'AP');
       for (const item of apItems) {
-        if (remaining <= 0) break;
+        if (remainingCents <= 0) break;
 
         const ap = await tx.accountPayable.findUnique({
           where: { id: item.referenceId },
@@ -256,18 +268,18 @@ export class DebtNettingService {
 
         if (!ap) continue;
 
-        const apBalance = Number(ap.amount) - Number(ap.paidAmount) - Number(ap.nettedAmount);
-        const nettedHere = Math.min(remaining, apBalance);
+        const apBalanceCents = Math.round(Number(ap.amount) * 100) - Math.round(Number(ap.paidAmount) * 100) - Math.round(Number(ap.nettedAmount) * 100);
+        const nettedHereCents = Math.min(remainingCents, apBalanceCents);
+        const nettedHere = nettedHereCents / 100;
+
+        const totalSettledCents = Math.round(Number(ap.paidAmount) * 100) + Math.round(Number(ap.nettedAmount) * 100) + nettedHereCents;
+        const amountCents = Math.round(Number(ap.amount) * 100);
 
         await tx.accountPayable.update({
           where: { id: item.referenceId },
           data: {
             nettedAmount: { increment: nettedHere },
-            status:
-              Number(ap.paidAmount) + Number(ap.nettedAmount) + nettedHere >=
-              Number(ap.amount)
-                ? 'NETTED'
-                : 'PARTIAL',
+            status: totalSettledCents >= amountCents ? 'NETTED' : 'PARTIAL',
           },
         });
 
@@ -276,13 +288,13 @@ export class DebtNettingService {
           data: { amount: nettedHere },
         });
 
-        remaining -= nettedHere;
+        remainingCents -= nettedHereCents;
       }
 
-      // Update netting status
+      // Update netting with execution timestamp
       await tx.debtNetting.update({
         where: { id },
-        data: { status: 'APPROVED' }, // Keep as APPROVED; the Prisma enum is ApprovalStatus
+        data: { executedAt: new Date(), executedBy: userId },
       });
     });
 

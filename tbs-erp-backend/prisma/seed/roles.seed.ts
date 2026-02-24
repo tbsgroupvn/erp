@@ -4,14 +4,16 @@ import * as bcrypt from 'bcrypt';
 export async function seedRoles(prisma: PrismaClient) {
   console.log('  → Seeding default admin user...');
 
+  const emailDomain = process.env.SEED_EMAIL_DOMAIN || 'example.com';
+  const companyName = process.env.COMPANY_NAME || 'ERP';
   const passwordHash = await bcrypt.hash('Admin@123', 10);
 
   await prisma.user.upsert({
-    where: { email: 'admin@tbs.vn' },
+    where: { email: `admin@${emailDomain}` },
     update: {},
     create: {
-      email: 'admin@tbs.vn',
-      fullName: 'Admin TBS',
+      email: `admin@${emailDomain}`,
+      fullName: `Admin ${companyName}`,
       passwordHash,
       role: 'COO',
       branch: 'HN',
@@ -21,10 +23,10 @@ export async function seedRoles(prisma: PrismaClient) {
 
   // Seed KT Tổng hợp
   await prisma.user.upsert({
-    where: { email: 'ketoan@tbs.vn' },
+    where: { email: `ketoan@${emailDomain}` },
     update: {},
     create: {
-      email: 'ketoan@tbs.vn',
+      email: `ketoan@${emailDomain}`,
       fullName: 'Kế toán Tổng hợp',
       passwordHash,
       role: 'CHIEF_ACCOUNTANT',
@@ -35,10 +37,10 @@ export async function seedRoles(prisma: PrismaClient) {
 
   // Seed GĐ Kinh doanh
   await prisma.user.upsert({
-    where: { email: 'gdkd@tbs.vn' },
+    where: { email: `gdkd@${emailDomain}` },
     update: {},
     create: {
-      email: 'gdkd@tbs.vn',
+      email: `gdkd@${emailDomain}`,
       fullName: 'GĐ Kinh doanh',
       passwordHash,
       role: 'SALES_DIRECTOR',

@@ -88,6 +88,53 @@ export class CacheService {
   }
 
   /**
+   * Get multiple values from cache in a single round-trip.
+   * Uses Promise.all to parallelize individual GET calls, reducing overall latency
+   * compared to sequential fetches.
+   *
+   * @param keys Array of cache keys to fetch
+   * @returns Map of key to cached value (or null if not found)
+   */
+  async getMany<T>(keys: string[]): Promise<Map<string, T | null>> {
+    const result = new Map<string, T | null>();
+
+    try {
+      const values = await Promise.all(
+        keys.map((key) => this.cacheManager.get<T>(key)),
+      );
+
+      keys.forEach((key, index) => {
+        result.set(key, values[index] ?? null);
+      });
+    } catch (error) {
+      this.logger.warn(`Cache getMany error: ${error.message}`);
+      keys.forEach((key) => result.set(key, null));
+    }
+
+    return result;
+  }
+
+  /**
+   * Set multiple values in cache in parallel.
+   * Uses Promise.all to send all SET operations concurrently.
+   *
+   * @param entries Array of { key, value, ttl? } objects to cache
+   */
+  async setMany<T>(
+    entries: Array<{ key: string; value: T; ttl?: number }>,
+  ): Promise<void> {
+    try {
+      await Promise.all(
+        entries.map(({ key, value, ttl }) =>
+          this.cacheManager.set(key, value, ttl ?? 3600000),
+        ),
+      );
+    } catch (error) {
+      this.logger.warn(`Cache setMany error: ${error.message}`);
+    }
+  }
+
+  /**
    * Delete multiple keys matching a pattern prefix.
    * Useful for invalidating related cache entries.
    *
@@ -111,5 +158,21 @@ export class CacheService {
         `Cache DEL by prefix "${prefix}" failed: ${error.message}`,
       );
     }
+  }
+
+  /**
+   * Alias for `del` - invalidate a single cache key.
+   * @param key The cache key to invalidate
+   */
+  async invalidate(key: string): Promise<void> {
+    return this.del(key);
+  }
+
+  /**
+   * Alias for `delByPrefix` - invalidate all cache keys matching a prefix.
+   * @param prefix The key prefix to match
+   */
+  async invalidateByPrefix(prefix: string): Promise<void> {
+    return this.delByPrefix(prefix);
   }
 }

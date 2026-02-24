@@ -42,7 +42,7 @@ export function useEmployee(id: string) {
 export function useCreateEmployee() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateEmployeeDto) => employeesApi.create(data as unknown as Record<string, unknown>),
+    mutationFn: (data: CreateEmployeeDto) => employeesApi.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: employeeKeys.lists() });
       toast.success('Tạo nhân viên thành công');

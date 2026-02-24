@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { CircuitBreaker } from '@common/utils/circuit-breaker.util';
+import { withRetry } from '@common/utils/retry.util';
 
 /**
  * Interface representing a tracking event from an external provider.
@@ -21,8 +23,23 @@ export interface ITrackingEvent {
 export class TrackingProviderService {
   private readonly logger = new Logger(TrackingProviderService.name);
 
+  /** Circuit breaker for Kuaidi100 external API. */
+  private readonly kuaidi100Circuit = new CircuitBreaker({
+    name: 'kuaidi100',
+    failureThreshold: 5,
+    resetTimeoutMs: 60_000,
+  });
+
+  /** Circuit breaker for 17Track external API. */
+  private readonly seventeenTrackCircuit = new CircuitBreaker({
+    name: '17track',
+    failureThreshold: 5,
+    resetTimeoutMs: 60_000,
+  });
+
   /**
    * Fetches tracking events from Kuaidi100 API.
+   * Protected by circuit breaker and retry with exponential backoff.
    *
    * Kuaidi100 (快递100) is one of the most popular logistics tracking
    * aggregators in China, supporting 1000+ carriers.
@@ -32,6 +49,22 @@ export class TrackingProviderService {
    * @returns Array of tracking events from the carrier
    */
   async fetchFromKuaidi100(
+    trackingNumber: string,
+    carrier: string,
+  ): Promise<ITrackingEvent[]> {
+    return this.kuaidi100Circuit.execute(() =>
+      withRetry(
+        () => this.callKuaidi100API(trackingNumber, carrier),
+        { maxRetries: 3, baseDelayMs: 1000, maxDelayMs: 15_000 },
+        this.logger,
+      ),
+    );
+  }
+
+  /**
+   * Internal method performing the actual Kuaidi100 API call.
+   */
+  private async callKuaidi100API(
     trackingNumber: string,
     carrier: string,
   ): Promise<ITrackingEvent[]> {
@@ -57,6 +90,7 @@ export class TrackingProviderService {
 
   /**
    * Fetches tracking events from 17Track API.
+   * Protected by circuit breaker and retry with exponential backoff.
    *
    * 17Track is a global package tracking platform supporting
    * carriers from 220+ countries.
@@ -65,6 +99,21 @@ export class TrackingProviderService {
    * @returns Array of tracking events from the carrier
    */
   async fetch17Track(trackingNumber: string): Promise<ITrackingEvent[]> {
+    return this.seventeenTrackCircuit.execute(() =>
+      withRetry(
+        () => this.call17TrackAPI(trackingNumber),
+        { maxRetries: 3, baseDelayMs: 1000, maxDelayMs: 15_000 },
+        this.logger,
+      ),
+    );
+  }
+
+  /**
+   * Internal method performing the actual 17Track API call.
+   */
+  private async call17TrackAPI(
+    trackingNumber: string,
+  ): Promise<ITrackingEvent[]> {
     this.logger.log(
       `[STUB] Fetching from 17Track: ${trackingNumber}`,
     );

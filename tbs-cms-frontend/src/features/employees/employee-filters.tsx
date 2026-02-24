@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import { EmployeeStatus, Branch } from '@/lib/types';
 import { EMPLOYEE_STATUS_LABELS, BRANCH_LABELS } from '@/lib/utils/constants';
+import { useDebounce } from '@/lib/hooks/use-debounce';
 
 interface EmployeeFiltersProps {
   onFilterChange: (filters: {
@@ -19,6 +20,16 @@ export function EmployeeFilters({ onFilterChange }: EmployeeFiltersProps) {
   const [branch, setBranch] = useState<Branch | undefined>();
   const [departmentCode, setDepartmentCode] = useState('');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    applyFilters({ search: debouncedSearch });
+  }, [debouncedSearch]);
 
   const applyFilters = (overrides: Partial<{
     status: EmployeeStatus | undefined;
@@ -46,7 +57,6 @@ export function EmployeeFilters({ onFilterChange }: EmployeeFiltersProps) {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            applyFilters({ search: e.target.value });
           }}
           className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         />

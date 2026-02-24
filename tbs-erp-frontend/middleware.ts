@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const AUTH_COOKIE = process.env.NEXT_PUBLIC_AUTH_COOKIE || 'erp-auth';
+
 const publicPaths = [
-  '/',
   '/login',
   '/doi-mat-khau',
   '/dang-ky',
@@ -16,19 +17,47 @@ const publicPaths = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (publicPaths.some((path) => pathname.startsWith(path))) {
+  // Exact match for root path, startsWith for other public paths
+  if (pathname === '/' || publicPaths.some((path) => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get('tbs-auth')?.value;
+  const token = request.cookies.get(AUTH_COOKIE)?.value;
 
-  if (!token) {
+  if (!token || token.trim() === '' || token === 'undefined' || token === 'null') {
     const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('callbackUrl', pathname);
+    // Sanitize callbackUrl to only allow relative paths
+    if (pathname.startsWith('/') && !pathname.startsWith('//') && !pathname.includes('://')) {
+      loginUrl.searchParams.set('callbackUrl', pathname);
+    }
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  // Validate JWT structure
+  const parts = token.split('.');
+  if (parts.length !== 3) {
+    const response = NextResponse.redirect(new URL('/login', request.url));
+    response.cookies.delete(AUTH_COOKIE);
+    return response;
+  }
+  try {
+    const payload = JSON.parse(atob(parts[1]));
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete(AUTH_COOKIE);
+      return response;
+    }
+  } catch {
+    const response = NextResponse.redirect(new URL('/login', request.url));
+    response.cookies.delete(AUTH_COOKIE);
+    return response;
+  }
+
+  // Add security headers to all responses
+  const response = NextResponse.next();
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  return response;
 }
 
 export const config = {

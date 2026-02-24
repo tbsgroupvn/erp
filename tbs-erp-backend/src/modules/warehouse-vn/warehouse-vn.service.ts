@@ -3,13 +3,16 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '@core/database/prisma.service';
 import { Branch, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { WarehouseVNRepository } from './warehouse-vn.repository';
 import { DeliveryDispatchService } from './domain/delivery-dispatch.service';
+import { WarehouseVNStatusMachine } from './domain/warehouse-vn-status.machine';
 import { ReceiveVNDto } from './dto/receive-vn.dto';
 import { DispatchDto } from './dto/dispatch.dto';
 
@@ -20,6 +23,7 @@ export class WarehouseVNService {
   constructor(
     private readonly warehouseRepo: WarehouseVNRepository,
     private readonly deliveryDispatch: DeliveryDispatchService,
+    private readonly statusMachine: WarehouseVNStatusMachine,
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -104,7 +108,7 @@ export class WarehouseVNService {
     );
 
     // Emit events for each received package
-    for (const pkg of packages) {
+    for (const pkg of packages.filter(p => toReceive.includes(p.id))) {
       this.eventEmitter.emit('warehouse.package.received', {
         packageId: pkg.id,
         orderId: pkg.orderId,
@@ -198,12 +202,6 @@ export class WarehouseVNService {
    * RECEIVED -> SORTED -> READY
    */
   async sortPackages(packageIds: string[], targetStatus: string) {
-    const validTransitions: Record<string, string[]> = {
-      RECEIVED: ['SORTED'],
-      SORTED: ['READY'],
-      READY: ['DELIVERED'],
-    };
-
     // Validate all packages and their transitions
     const packages = await this.prisma.package.findMany({
       where: { id: { in: packageIds } },
@@ -216,8 +214,7 @@ export class WarehouseVNService {
 
     const invalid = packages.filter((p) => {
       const currentStatus = p.warehouseVNStatus ?? 'RECEIVED';
-      const allowed = validTransitions[currentStatus] ?? [];
-      return !allowed.includes(targetStatus);
+      return !this.statusMachine.validateTransition(currentStatus, targetStatus);
     });
 
     if (invalid.length > 0) {
@@ -247,18 +244,110 @@ export class WarehouseVNService {
   async dispatchDelivery(dto: DispatchDto, userId: string, branch: Branch) {
     const deliveries = [];
 
-    for (const item of dto.deliveries) {
-      // Validate order exists and is in correct status
-      const order = await this.prisma.order.findUnique({
-        where: { id: item.orderId },
-        select: { id: true, code: true, status: true, branch: true },
-      });
+    // Batch-fetch all orders upfront to avoid N+1 queries
+    const orderIds = dto.deliveries.map(item => item.orderId);
+    const orders = await this.prisma.order.findMany({
+      where: { id: { in: orderIds } },
+      select: { id: true, code: true, status: true, branch: true },
+    });
+    const orderMap = new Map(orders.map(o => [o.id, o]));
 
+    // Validate all orders exist and are in correct status before creating any deliveries
+    const validStatuses = ['WAREHOUSE_VN', 'READY_FOR_DELIVERY'];
+    for (const item of dto.deliveries) {
+      const order = orderMap.get(item.orderId);
       if (!order) {
         throw new NotFoundException(
           `Order with ID ${item.orderId} not found`,
         );
       }
+      if (!validStatuses.includes(order.status)) {
+        throw new BadRequestException(
+          `Order ${order.code} is ${order.status}. Can only dispatch WAREHOUSE_VN/READY_FOR_DELIVERY orders.`,
+        );
+      }
+    }
+
+    // B1: Payment validation — hard stop VN dispatch
+    const ordersWithCustomer = await this.prisma.order.findMany({
+      where: { id: { in: orderIds } },
+      select: {
+        id: true,
+        code: true,
+        totalAmount: true,
+        customer: {
+          select: {
+            id: true,
+            creditLimit: true,
+            currentDebt: true,
+            tempOverdraftLimit: true,
+            tempOverdraftExpiry: true,
+            gracePeriodUntil: true,
+          },
+        },
+      },
+    });
+    const orderCustomerMap = new Map(ordersWithCustomer.map(o => [o.id, o]));
+
+    for (const item of dto.deliveries) {
+      const orderData = orderCustomerMap.get(item.orderId);
+      if (!orderData) continue;
+
+      // 1. Check if fully paid
+      const paymentAgg = await this.prisma.paymentAllocation.aggregate({
+        where: { orderId: orderData.id, isReversed: false },
+        _sum: { allocatedAmount: true },
+      });
+      const totalPaid = Number(paymentAgg._sum.allocatedAmount ?? 0);
+      const fullyPaid = totalPaid >= Number(orderData.totalAmount);
+
+      // 2. Check credit limit
+      // D2: Include this order's unpaid amount in cumulative debt check
+      const customer = orderData.customer;
+      const orderUnpaid = Number(orderData.totalAmount) - totalPaid;
+      const effectiveDebt = Number(customer.currentDebt) + Math.max(0, orderUnpaid);
+      const creditApproved =
+        Number(customer.creditLimit) > 0 &&
+        effectiveDebt <= Number(customer.creditLimit);
+
+      // 3. Check temporary overdraft
+      const tempOverdraft =
+        customer.tempOverdraftLimit !== null &&
+        Number(customer.tempOverdraftLimit) > 0 &&
+        customer.tempOverdraftExpiry !== null &&
+        new Date(customer.tempOverdraftExpiry) > new Date();
+
+      // 4. Check grace period
+      const gracePeriodActive =
+        customer.gracePeriodUntil !== null &&
+        new Date(customer.gracePeriodUntil) > new Date();
+
+      if (!fullyPaid && !creditApproved && !tempOverdraft && !gracePeriodActive) {
+        throw new ForbiddenException(
+          'Payment required before dispatch. Order ' +
+            orderData.code +
+            ' is not fully paid and customer has no credit approval.',
+        );
+      }
+
+      // B10: High risk goods validation
+      const highRiskPackages = await this.prisma.package.findMany({
+        where: {
+          orderId: orderData.id,
+          isHighRisk: true,
+          highRiskDisclaimerAccepted: false,
+        },
+        select: { id: true, code: true },
+      });
+      if (highRiskPackages.length > 0) {
+        throw new ForbiddenException(
+          `Cannot dispatch order ${orderData.code}. High risk packages require disclaimer acceptance: ${highRiskPackages.map(p => p.code).join(', ')}`,
+        );
+      }
+    }
+
+    for (const item of dto.deliveries) {
+      const order = orderMap.get(item.orderId)!;
 
       // Generate delivery code
       const code = await this.warehouseRepo.generateDeliveryCode();
@@ -327,6 +416,7 @@ export class WarehouseVNService {
       podImageUrl?: string;
       signatureUrl?: string;
       codCollected?: boolean;
+      deliveryProofUrls?: string[];
     },
   ) {
     const delivery = await this.prisma.delivery.findUnique({
@@ -351,6 +441,16 @@ export class WarehouseVNService {
       );
     }
 
+    // Layer 4B: Mandatory proof of delivery photos
+    const hasProof =
+      (data.deliveryProofUrls && data.deliveryProofUrls.length > 0) ||
+      data.podImageUrl;
+    if (!hasProof) {
+      throw new BadRequestException(
+        'Bắt buộc ảnh bằng chứng giao hàng (POD) để xác nhận giao hàng',
+      );
+    }
+
     // COD validation: if COD > 0, must confirm collection
     if (
       Number(delivery.codAmount) > 0 &&
@@ -359,6 +459,14 @@ export class WarehouseVNService {
       throw new BadRequestException(
         `COD amount of ${delivery.codAmount} must be collected before confirming delivery`,
       );
+    }
+
+    // Save delivery proof URLs if provided
+    if (data.deliveryProofUrls && data.deliveryProofUrls.length > 0) {
+      await this.prisma.delivery.update({
+        where: { id: deliveryId },
+        data: { deliveryProofUrls: data.deliveryProofUrls },
+      });
     }
 
     // Update delivery status
@@ -397,5 +505,116 @@ export class WarehouseVNService {
    */
   async optimizeRoute(deliveryIds: string[]) {
     return this.deliveryDispatch.optimizeRoute(deliveryIds);
+  }
+
+  /**
+   * B4: Reweigh a package at VN warehouse and detect weight variance.
+   */
+  async reweighPackage(packageId: string, vnWeight: number, userId: string) {
+    const pkg = await this.prisma.package.findUnique({
+      where: { id: packageId },
+      select: {
+        id: true,
+        code: true,
+        cnWeight: true,
+        orderId: true,
+      },
+    });
+
+    if (!pkg) {
+      throw new NotFoundException(`Package with ID ${packageId} not found`);
+    }
+
+    const cnWeight = pkg.cnWeight ? Number(pkg.cnWeight) : 0;
+    let weightVariancePercent = 0;
+
+    if (cnWeight > 0) {
+      weightVariancePercent =
+        Math.abs(vnWeight - cnWeight) / cnWeight * 100;
+    }
+
+    await this.prisma.package.update({
+      where: { id: packageId },
+      data: {
+        vnWeight: new Decimal(vnWeight),
+        weightVariancePercent: new Decimal(weightVariancePercent),
+      },
+    });
+
+    if (weightVariancePercent > 5) {
+      this.eventEmitter.emit('package.weight_variance_alert', {
+        packageId: pkg.id,
+        packageCode: pkg.code,
+        orderId: pkg.orderId,
+        cnWeight,
+        vnWeight,
+        variancePercent: weightVariancePercent,
+        detectedBy: userId,
+      });
+
+      this.logger.warn(
+        `Weight variance alert for package ${pkg.code}: CN=${cnWeight}kg, VN=${vnWeight}kg, variance=${weightVariancePercent.toFixed(2)}%`,
+      );
+    }
+
+    this.logger.log(
+      `Package ${pkg.code} reweighed at VN: ${vnWeight}kg (CN: ${cnWeight}kg, variance: ${weightVariancePercent.toFixed(2)}%)`,
+    );
+
+    return {
+      packageId: pkg.id,
+      packageCode: pkg.code,
+      cnWeight,
+      vnWeight,
+      weightVariancePercent,
+      alert: weightVariancePercent > 5,
+    };
+  }
+
+  /**
+   * B9: Accrue storage fees for RTO-received deliveries.
+   * Runs daily at midnight.
+   */
+  @Cron('0 0 * * *')
+  async accrueStorageFees() {
+    const rtoDeliveries = await this.prisma.delivery.findMany({
+      where: { status: 'RTO_RECEIVED' },
+      select: {
+        id: true,
+        code: true,
+        rtoReceivedAt: true,
+        rtoStorageFee: true,
+        rtoStorageDays: true,
+      },
+    });
+
+    if (rtoDeliveries.length === 0) return;
+
+    const now = new Date();
+    let updatedCount = 0;
+
+    for (const delivery of rtoDeliveries) {
+      if (!delivery.rtoReceivedAt) continue;
+
+      const daysSinceRTO = Math.floor(
+        (now.getTime() - delivery.rtoReceivedAt.getTime()) /
+          (1000 * 60 * 60 * 24),
+      );
+      const fee = daysSinceRTO * 10000; // 10,000 VND/day
+
+      await this.prisma.delivery.update({
+        where: { id: delivery.id },
+        data: {
+          rtoStorageFee: new Decimal(fee),
+          rtoStorageDays: daysSinceRTO,
+        },
+      });
+
+      updatedCount++;
+    }
+
+    this.logger.log(
+      `RTO storage fees accrued for ${updatedCount} deliveries`,
+    );
   }
 }

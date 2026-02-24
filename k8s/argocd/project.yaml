@@ -1,0 +1,139 @@
+# ============================================
+# ArgoCD Project - TBS ERP
+# ============================================
+# Defines RBAC boundaries for the TBS ERP applications.
+# Restricts which repositories, clusters, and namespaces
+# ArgoCD applications in this project can access.
+# ============================================
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: tbs-erp
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/description: "TBS ERP System - Logistics Management Platform"
+  # Finalizer ensures proper cleanup of project resources
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "TBS ERP logistics management platform"
+
+  # Source repositories allowed for this project
+  sourceRepos:
+    - 'https://github.com/tbs-logistics/tbs-erp.git'
+    - 'https://github.com/tbs-logistics/tbs-erp-charts.git'
+
+  # Destination clusters and namespaces allowed
+  destinations:
+    # Staging
+    - server: https://kubernetes.default.svc
+      namespace: tbs-erp-staging
+    # Production
+    - server: https://kubernetes.default.svc
+      namespace: tbs-erp
+    # Development
+    - server: https://kubernetes.default.svc
+      namespace: tbs-erp-dev
+
+  # Cluster-scoped resources this project can manage
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: networking.k8s.io
+      kind: IngressClass
+
+  # Namespace-scoped resources this project can manage
+  namespaceResourceWhitelist:
+    - group: ''
+      kind: '*'
+    - group: apps
+      kind: '*'
+    - group: batch
+      kind: '*'
+    - group: networking.k8s.io
+      kind: '*'
+    - group: policy
+      kind: '*'
+    - group: autoscaling
+      kind: '*'
+    - group: argoproj.io
+      kind: '*'
+    - group: chaos-mesh.org
+      kind: '*'
+
+  # Deny certain dangerous resources
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+
+  # Roles for project-level RBAC
+  roles:
+    # Developers can view and sync staging
+    - name: developer
+      description: "Developer role - view all, sync staging"
+      policies:
+        - p, proj:tbs-erp:developer, applications, get, tbs-erp/*, allow
+        - p, proj:tbs-erp:developer, applications, sync, tbs-erp/tbs-erp-staging, allow
+        - p, proj:tbs-erp:developer, logs, get, tbs-erp/*, allow
+      groups:
+        - tbs-developers
+
+    # DevOps can view and sync everything
+    - name: devops
+      description: "DevOps role - full access"
+      policies:
+        - p, proj:tbs-erp:devops, applications, *, tbs-erp/*, allow
+        - p, proj:tbs-erp:devops, logs, get, tbs-erp/*, allow
+        - p, proj:tbs-erp:devops, exec, create, tbs-erp/*, allow
+      groups:
+        - tbs-devops
+
+    # Read-only role for stakeholders
+    - name: viewer
+      description: "Viewer role - read only"
+      policies:
+        - p, proj:tbs-erp:viewer, applications, get, tbs-erp/*, allow
+        - p, proj:tbs-erp:viewer, logs, get, tbs-erp/*, allow
+      groups:
+        - tbs-viewers
+
+  # Sync windows for production (business hours protection)
+  syncWindows:
+    # Allow syncs to staging anytime
+    - kind: allow
+      schedule: '* * * * *'
+      duration: 24h
+      namespaces:
+        - tbs-erp-staging
+        - tbs-erp-dev
+      manualSync: true
+
+    # Production: only allow syncs during maintenance windows
+    # Tuesday-Thursday 1:00-5:00 AM UTC (8:00-12:00 AM Vietnam time)
+    - kind: allow
+      schedule: '0 1 * * 2-4'
+      duration: 4h
+      namespaces:
+        - tbs-erp
+      manualSync: true
+
+    # Deny production syncs outside maintenance windows
+    - kind: deny
+      schedule: '0 5 * * *'
+      duration: 20h
+      namespaces:
+        - tbs-erp
+      manualSync: true
+
+  # Orphaned resources monitoring
+  orphanedResources:
+    warn: true
+    ignore:
+      - group: ''
+        kind: ConfigMap
+        name: kube-root-ca.crt

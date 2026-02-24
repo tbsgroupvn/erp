@@ -1,0 +1,246 @@
+# =============================================================
+# NetworkPolicies for Production
+# Enforces strict service isolation in the tbs-erp namespace
+# =============================================================
+
+# Default deny all traffic in the namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: tbs-erp
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# Allow DNS resolution for all pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: tbs-erp
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# Backend: inbound from ingress-nginx and frontend pods; outbound to postgres, redis, external HTTPS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tbs-backend-netpol
+  namespace: tbs-erp
+  labels:
+    app.kubernetes.io/name: tbs-backend
+    app.kubernetes.io/part-of: tbs-erp-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: tbs-backend
+      app.kubernetes.io/component: api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        # Allow from ingress controller namespace
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        # Allow from ERP frontend pods
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: tbs-erp-frontend
+        # Allow from CMS frontend pods
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: tbs-cms-frontend
+      ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    # Allow to PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: tbs-postgres
+      ports:
+        - port: 5432
+          protocol: TCP
+    # Allow to Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: tbs-redis
+      ports:
+        - port: 6379
+          protocol: TCP
+    # Allow external HTTPS (Sentry, third-party APIs)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+---
+# PostgreSQL: only accepts connections from the backend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tbs-postgres-netpol
+  namespace: tbs-erp
+  labels:
+    app.kubernetes.io/name: tbs-postgres
+    app.kubernetes.io/part-of: tbs-erp-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: tbs-postgres
+      app.kubernetes.io/component: database
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: tbs-backend
+              app.kubernetes.io/component: api
+      ports:
+        - port: 5432
+          protocol: TCP
+---
+# Redis: only accepts connections from the backend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tbs-redis-netpol
+  namespace: tbs-erp
+  labels:
+    app.kubernetes.io/name: tbs-redis
+    app.kubernetes.io/part-of: tbs-erp-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: tbs-redis
+      app.kubernetes.io/component: cache
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: tbs-backend
+              app.kubernetes.io/component: api
+      ports:
+        - port: 6379
+          protocol: TCP
+---
+# ERP Frontend: inbound from ingress; outbound to backend and external HTTPS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tbs-erp-frontend-netpol
+  namespace: tbs-erp
+  labels:
+    app.kubernetes.io/name: tbs-erp-frontend
+    app.kubernetes.io/part-of: tbs-erp-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: tbs-erp-frontend
+      app.kubernetes.io/component: frontend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    # Allow to backend for SSR API calls
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: tbs-backend
+      ports:
+        - port: 3000
+          protocol: TCP
+    # Allow external HTTPS (CDN, analytics)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+---
+# CMS Frontend: inbound from ingress; outbound to backend and external HTTPS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tbs-cms-frontend-netpol
+  namespace: tbs-erp
+  labels:
+    app.kubernetes.io/name: tbs-cms-frontend
+    app.kubernetes.io/part-of: tbs-erp-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: tbs-cms-frontend
+      app.kubernetes.io/component: cms
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    # Allow to backend for SSR API calls
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: tbs-backend
+      ports:
+        - port: 3000
+          protocol: TCP
+    # Allow external HTTPS (CDN, analytics)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP

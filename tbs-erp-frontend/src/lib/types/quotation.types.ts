@@ -83,3 +83,54 @@ export interface QuotationQueryParams {
   startDate?: string;
   endDate?: string;
 }
+
+// ============================================
+// QUOTATION TEMPLATE TYPES
+// ============================================
+
+export interface QuotationTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  serviceType: ServiceType;
+  branch: Branch;
+  shippingRoute?: ShippingRoute;
+  items: CreateQuotationItemDto[];
+  isPublic: boolean;
+  createdBy: string;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTemplateDto {
+  name: string;
+  description?: string;
+  serviceType: ServiceType;
+  branch: Branch;
+  shippingRoute?: ShippingRoute;
+  items: CreateQuotationItemDto[];
+  isPublic?: boolean;
+}
+
+export interface SaveAsTemplateDto {
+  name: string;
+  description?: string;
+  isPublic?: boolean;
+}
+
+export interface CreateFromTemplateDto {
+  customerId: string;
+  discountPercent?: number;
+  validityDays?: number;
+  note?: string;
+}
+
+export interface RecentQuotationItem {
+  productName: string;
+  productUrl?: string;
+  quantity: number;
+  unitPrice: number;
+  currency?: string;
+  note?: string;
+}

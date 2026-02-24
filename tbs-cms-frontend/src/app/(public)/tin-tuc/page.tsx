@@ -17,7 +17,7 @@ import { Breadcrumbs } from '@/app/(public)/components/breadcrumbs';
 export default function BlogListingPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [selectedTag, setSelectedTag] = useState<string | undefined>();
+  const [selectedTag, setSelectedTag] = useState<string>('');
 
   const breadcrumbItems = [
     { label: 'Tin tuc' }
@@ -27,7 +27,7 @@ export default function BlogListingPage() {
     page,
     limit: 12,
     search: search || undefined,
-    tag: selectedTag,
+    tag: selectedTag || undefined,
     status: 'published',
     sortBy: 'publishedAt',
     sortOrder: 'desc',
@@ -41,7 +41,7 @@ export default function BlogListingPage() {
   };
 
   const handleTagClick = (tag: string) => {
-    setSelectedTag(selectedTag === tag ? undefined : tag);
+    setSelectedTag(selectedTag === tag ? '' : tag);
     setPage(1);
   };
 
@@ -83,9 +83,9 @@ export default function BlogListingPage() {
             <div className="mx-auto mt-6 max-w-4xl">
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <Button
-                  variant={selectedTag === undefined ? 'default' : 'outline'}
+                  variant={selectedTag === '' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => handleTagClick('')}
+                  onClick={() => setSelectedTag('')}
                   className="rounded-full"
                 >
                   Tất cả

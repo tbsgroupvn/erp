@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { NewsletterService } from './newsletter.service';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt-auth.guard';
@@ -52,6 +53,7 @@ export class NewsletterController {
   }
 
   @Get('export/excel')
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 exports per minute
   @Roles('CEO', 'COO', 'MARKETING_STAFF')
   async exportToExcel(@Query() query: GetNewsletterDto) {
     // TODO: Implement Excel export

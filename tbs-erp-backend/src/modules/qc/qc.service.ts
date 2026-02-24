@@ -234,13 +234,42 @@ export class QCService {
   ) {
     const inspection = await this.findById(id);
 
-    this.validateTransition(inspection.status, QCStatus.PASSED);
+    // Validate quantities are non-negative integers
+    if (dto.inspectedQuantity < 0 || dto.passedQuantity < 0 || dto.failedQuantity < 0) {
+      throw new BadRequestException(
+        'Quantities must be non-negative values',
+      );
+    }
+
+    if (dto.inspectedQuantity === 0) {
+      throw new BadRequestException(
+        'inspectedQuantity must be greater than 0',
+      );
+    }
 
     // Validate quantities are consistent
     if (dto.passedQuantity + dto.failedQuantity !== dto.inspectedQuantity) {
       throw new BadRequestException(
         `passedQuantity (${dto.passedQuantity}) + failedQuantity (${dto.failedQuantity}) ` +
           `must equal inspectedQuantity (${dto.inspectedQuantity})`,
+      );
+    }
+
+    // Validate overallRating is within valid range (1-5) if provided
+    if (dto.overallRating !== undefined) {
+      if (dto.overallRating < 1 || dto.overallRating > 5) {
+        throw new BadRequestException(
+          `overallRating must be between 1 and 5. Received: ${dto.overallRating}`,
+        );
+      }
+    }
+
+    // D5: Mandatory photos for QC submission
+    const totalPhotos = (dto.photoUrls?.length ?? 0) + (dto.detailPhotoUrls?.length ?? 0) + (dto.defectPhotoUrls?.length ?? 0) +
+      (inspection.photoUrls?.length ?? 0) + (inspection.detailPhotoUrls?.length ?? 0) + (inspection.defectPhotoUrls?.length ?? 0);
+    if (totalPhotos < 1) {
+      throw new BadRequestException(
+        'Bắt buộc đính kèm ít nhất 1 ảnh khi nộp kết quả QC',
       );
     }
 
@@ -253,6 +282,9 @@ export class QCService {
     } else {
       resultStatus = QCStatus.PARTIAL;
     }
+
+    // Validate transition against the actual computed result status
+    this.validateTransition(inspection.status, resultStatus);
 
     const updateData: Prisma.QCInspectionUncheckedUpdateInput = {
       status: resultStatus,

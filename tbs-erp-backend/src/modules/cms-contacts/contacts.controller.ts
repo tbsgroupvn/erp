@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ContactsService } from './contacts.service';
@@ -44,6 +45,7 @@ export class ContactsController {
   }
 
   @Get('export/excel')
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 exports per minute
   @Roles('CEO', 'COO', 'MARKETING_STAFF')
   async exportToExcel(@Query() query: GetContactsDto) {
     // TODO: Implement Excel export

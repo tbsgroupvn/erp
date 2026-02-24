@@ -19,7 +19,7 @@ export class InventoryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   /**
    * Registers a new stock item (packaging materials, supplies, etc.).
@@ -72,7 +72,7 @@ export class InventoryService {
         delta = qty;
         break;
       case StockMovementType.ISSUE:
-        if (item.currentQty < qty) {
+        if (Number(item.currentQty) < qty) {
           throw new BadRequestException(
             `Insufficient stock. Current: ${item.currentQty}, Requested: ${qty}`,
           );
@@ -95,7 +95,7 @@ export class InventoryService {
         data: {
           itemId: dto.itemId,
           type: dto.type,
-          quantity: dto.quantity,
+          quantity: dto.type === StockMovementType.ISSUE ? -Math.abs(dto.quantity) : Math.abs(dto.quantity),
           reference: dto.reference,
           notes: dto.notes,
           createdBy: userId,
@@ -113,7 +113,7 @@ export class InventoryService {
     });
 
     // Emit low stock alert if applicable
-    if (result.item.currentQty <= result.item.minLevel && result.item.minLevel > 0) {
+    if (Number(result.item.currentQty) <= Number(result.item.minLevel) && Number(result.item.minLevel) > 0) {
       this.eventEmitter.emit('inventory.low.stock', {
         itemId: result.item.id,
         code: result.item.code,
@@ -174,7 +174,7 @@ export class InventoryService {
       orderBy: { currentQty: 'asc' },
     });
 
-    return items.filter((item) => item.currentQty <= item.minLevel);
+    return items.filter((item) => Number(item.currentQty) <= Number(item.minLevel));
   }
 
   /**
@@ -225,7 +225,7 @@ export class InventoryService {
           throw new NotFoundException(`Stock item ${entry.itemId} not found.`);
         }
 
-        const difference = entry.actualQty - item.currentQty;
+        const difference = entry.actualQty - Number(item.currentQty);
 
         if (Math.abs(difference) > 0.001) {
           // Create adjustment movement
@@ -250,7 +250,7 @@ export class InventoryService {
         results.push({
           itemId: entry.itemId,
           code: item.code,
-          systemQty: item.currentQty,
+          systemQty: Number(item.currentQty),
           actualQty: entry.actualQty,
           difference,
         });

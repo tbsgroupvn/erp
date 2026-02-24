@@ -130,17 +130,17 @@ export default function BlogDetailPage() {
     },
     publisher: {
       '@type': 'Organization',
-      name: 'TBS Logistics',
+      name: process.env.NEXT_PUBLIC_COMPANY_NAME || 'My ERP',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://nhaphangchinhngach.vn/logo.svg',
+        url: `${(process.env.NEXT_PUBLIC_DOMAIN || 'localhost') === 'localhost' ? 'http://localhost:3000' : `https://${process.env.NEXT_PUBLIC_DOMAIN}`}/logo.svg`,
         width: 600,
         height: 60,
       },
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `https://nhaphangchinhngach.vn/tin-tuc/${slug}`,
+      '@id': `${(process.env.NEXT_PUBLIC_DOMAIN || 'localhost') === 'localhost' ? 'http://localhost:3000' : `https://${process.env.NEXT_PUBLIC_DOMAIN}`}/tin-tuc/${slug}`,
     },
   };
 

@@ -1,0 +1,60 @@
+# ============================================
+# TBS ERP - Fail2Ban Jail Configuration
+# ============================================
+#
+# Monitors authentication failures and bans offending IPs.
+# Works with nginx access logs to detect brute force attacks.
+#
+# Installation:
+#   apt-get install fail2ban
+#   cp jail.local /etc/fail2ban/jail.local
+#   cp filter.d/tbs-erp-auth.conf /etc/fail2ban/filter.d/
+#   systemctl restart fail2ban
+
+[DEFAULT]
+# Ban duration: 1 hour
+bantime = 3600
+# Detection window: 10 minutes
+findtime = 600
+# Max retries before ban
+maxretry = 10
+# Ban action
+banaction = iptables-multiport
+
+# ─── TBS ERP Authentication ────────────────────────────────────────────────
+[tbs-erp-auth]
+enabled  = true
+filter   = tbs-erp-auth
+logpath  = /var/log/nginx/access.log
+maxretry = 10
+findtime = 600
+bantime  = 3600
+action   = iptables-multiport[name=tbs-erp, port="80,443"]
+
+# ─── TBS ERP Password Reset Abuse ──────────────────────────────────────────
+[tbs-erp-password-reset]
+enabled  = true
+filter   = tbs-erp-auth
+logpath  = /var/log/nginx/access.log
+maxretry = 5
+findtime = 600
+bantime  = 7200
+action   = iptables-multiport[name=tbs-erp-reset, port="80,443"]
+# Uses a different failregex defined in the filter
+
+# ─── Nginx HTTP Auth ───────────────────────────────────────────────────────
+[nginx-http-auth]
+enabled  = true
+filter   = nginx-http-auth
+logpath  = /var/log/nginx/error.log
+maxretry = 5
+bantime  = 3600
+
+# ─── Nginx Bot Detection ──────────────────────────────────────────────────
+[nginx-botsearch]
+enabled  = true
+filter   = nginx-botsearch
+logpath  = /var/log/nginx/access.log
+maxretry = 20
+findtime = 300
+bantime  = 86400

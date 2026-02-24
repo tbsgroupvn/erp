@@ -6,25 +6,14 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
-import { Prisma, ShippingRoute } from '@prisma/client';
+import { ContainerStatus, Prisma, ShippingRoute } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ContainerRepository } from './container.repository';
 import { ConsolidationService } from './domain/consolidation.service';
+import { ContainerStatusMachine } from './domain/container-status.machine';
 import { CreateContainerDto } from './dto/create-container.dto';
 import { UpdateContainerDto } from './dto/update-container.dto';
 import { ContainerQueryDto } from './dto/container-query.dto';
-
-/**
- * Valid container status transitions.
- */
-const CONTAINER_STATUS_TRANSITIONS: Record<string, string[]> = {
-  PLANNING: ['LOADING'],
-  LOADING: ['IN_TRANSIT'],
-  IN_TRANSIT: ['ARRIVED'],
-  ARRIVED: ['CUSTOMS'],
-  CUSTOMS: ['COMPLETED'],
-  COMPLETED: [],
-};
 
 @Injectable()
 export class ContainerService {
@@ -33,9 +22,10 @@ export class ContainerService {
   constructor(
     private readonly containerRepo: ContainerRepository,
     private readonly consolidation: ConsolidationService,
+    private readonly statusMachine: ContainerStatusMachine,
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   /**
    * Creates a new container in PLANNING status.
@@ -239,7 +229,7 @@ export class ContainerService {
     if (notReady.length > 0) {
       throw new BadRequestException(
         `Packages not in PACKED status: ${notReady.map((p) => p.code).join(', ')}. ` +
-          `Only PACKED packages can be added to a container.`,
+        `Only PACKED packages can be added to a container.`,
       );
     }
 
@@ -258,7 +248,7 @@ export class ContainerService {
 
     this.logger.log(
       `Added ${packageIds.length} packages to container ${container.code}. ` +
-        `Total: ${updated.totalPackages} packages, ${updated.totalWeight}kg`,
+      `Total: ${updated.totalPackages} packages, ${updated.totalWeight}kg`,
     );
 
     return updated;
@@ -275,18 +265,11 @@ export class ContainerService {
       throw new NotFoundException(`Container with ID ${id} not found`);
     }
 
-    // Validate status transition
-    const validTransitions =
-      CONTAINER_STATUS_TRANSITIONS[container.status] || [];
-    if (!validTransitions.includes(newStatus)) {
-      throw new BadRequestException(
-        `Invalid container status transition from ${container.status} to ${newStatus}. ` +
-          `Valid transitions: ${validTransitions.join(', ') || 'none'}`,
-      );
-    }
+    // Validate status transition via FSM
+    this.statusMachine.assertTransition(container.status, newStatus as ContainerStatus);
 
     // Build update data with timestamps
-    const updateData: Prisma.ContainerUpdateInput = { status: newStatus };
+    const updateData: Prisma.ContainerUpdateInput = { status: newStatus as ContainerStatus };
 
     switch (newStatus) {
       case 'IN_TRANSIT':
@@ -296,7 +279,14 @@ export class ContainerService {
         updateData.actualArrivalAt = new Date();
         break;
       case 'CUSTOMS':
-        // No special timestamp, but could trigger customs workflow
+        // Trigger customs declaration workflow
+        this.eventEmitter.emit('container.customs.started', {
+          containerId: id,
+          containerCode: container.code,
+          shippingRoute: container.shippingRoute,
+          totalPackages: container.totalPackages,
+          totalWeight: Number(container.totalWeight),
+        });
         break;
       case 'COMPLETED':
         updateData.customsClearedAt = new Date();
@@ -332,6 +322,23 @@ export class ContainerService {
         containerId: id,
         containerCode: container.code,
         shippingRoute: container.shippingRoute,
+      });
+    }
+
+    // B2: When container is held at border, notify affected customers
+    if (newStatus === 'ON_HOLD_BORDER') {
+      const ordersInContainer = await this.prisma.order.findMany({
+        where: { containerId: id },
+        select: { customerId: true },
+      });
+      const customerIds = [
+        ...new Set(ordersInContainer.map((o) => o.customerId)),
+      ];
+
+      this.eventEmitter.emit('container.on_hold_border', {
+        containerId: id,
+        containerCode: container.code,
+        customerIds,
       });
     }
 

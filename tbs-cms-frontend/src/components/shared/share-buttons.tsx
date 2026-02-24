@@ -12,13 +12,13 @@ interface ShareButtonsProps {
 }
 
 export function ShareButtons({
-  title = 'TBS Logistics',
+  title = process.env.NEXT_PUBLIC_COMPANY_NAME || 'My Company',
   description,
   className,
 }: ShareButtonsProps) {
   const pathname = usePathname();
   const [copied, setCopied] = useState(false);
-  const shareUrl = `https://nhaphangchinhngach.vn${pathname}`;
+  const shareUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://localhost'}${pathname}`;
   const encodedUrl = encodeURIComponent(shareUrl);
   const encodedTitle = encodeURIComponent(title);
   const encodedDescription = description

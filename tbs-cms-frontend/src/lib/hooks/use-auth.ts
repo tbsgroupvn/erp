@@ -24,7 +24,11 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (dto: LoginDto) => authApi.login(dto),
-    onSuccess: (res) => {
+    onSuccess: (res: any) => {
+      // If 2FA is required, don't set auth state yet — the login page handles this
+      if (res.requires2FA) {
+        return;
+      }
       const { user, tokens } = res;
       // refreshToken is now in HttpOnly cookie, not in response
       useAuthStore.getState().setAuth(user, tokens.accessToken);

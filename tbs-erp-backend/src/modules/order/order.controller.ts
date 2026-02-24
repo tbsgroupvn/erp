@@ -17,7 +17,7 @@ import {
   ApiBearerAuth,
   ApiParam,
 } from '@nestjs/swagger';
-import { OrderStatus, MHHIssueStatus } from '@prisma/client';
+import { OrderStatus } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { DataScopeGuard, DataScopeFilter } from '@common/guards/data-scope.guard';
@@ -27,8 +27,12 @@ import { ApiPaginated } from '@common/decorators/api-paginated.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
 import { OrderService } from './order.service';
+import { OrderReadService } from './order-read.service';
+import { DepositGateService } from './domain/deposit-gate.service';
+import { ThreeWayMatchingService } from './domain/three-way-matching.service';
 import { MHHPriceCalculatorService } from './domain/mhh-price-calculator.service';
 import { MHHIssueService } from './domain/mhh-issue.service';
+import { ExtraChargeService, AddExtraChargeDto } from './domain/extra-charge.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderQueryDto } from './dto/order-query.dto';
@@ -36,6 +40,9 @@ import { ChangeStatusDto, CancelOrderDto } from './dto/change-status.dto';
 import { CalculateMHHPriceDto } from './dto/calculate-mhh-price.dto';
 import { CreateMHHIssueDto } from './dto/create-mhh-issue.dto';
 import { ResolveMHHIssueDto } from './dto/resolve-mhh-issue.dto';
+import { UpdateMHHIssueStatusDto } from './dto/update-mhh-issue-status.dto';
+import { AssignMHHIssueDto } from './dto/assign-mhh-issue.dto';
+import { RecordCustomerDecisionDto } from './dto/record-customer-decision.dto';
 import { CreditCheckGuard } from './guards/credit-check.guard';
 
 @ApiTags('Orders')
@@ -45,8 +52,12 @@ import { CreditCheckGuard } from './guards/credit-check.guard';
 export class OrderController {
   constructor(
     private readonly orderService: OrderService,
+    private readonly orderReadService: OrderReadService,
+    private readonly depositGateService: DepositGateService,
+    private readonly threeWayMatchingService: ThreeWayMatchingService,
     private readonly mhhPriceCalculator: MHHPriceCalculatorService,
     private readonly mhhIssueService: MHHIssueService,
+    private readonly extraChargeService: ExtraChargeService,
   ) {}
 
   @Post()
@@ -88,6 +99,50 @@ export class OrderController {
       result.page,
       result.limit,
     );
+  }
+
+  @Get(':id/procurement-gate')
+  @ApiOperation({
+    summary: 'Get procurement gate status',
+    description:
+      'Returns the deposit gate status for procurement. Orders require at least 70% deposit to create supplier orders. ' +
+      'Orders with 100% deposit get priority treatment.',
+  })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 200, description: 'Procurement gate status retrieved' })
+  async getProcurementGate(@Param('id') id: string) {
+    const status = await this.depositGateService.getProcurementGateStatus(id);
+    return BaseResponse.ok(status);
+  }
+
+  @Get(':id/three-way-match')
+  @ApiOperation({
+    summary: 'Get 3-way matching report',
+    description:
+      'Returns the PO ↔ GR ↔ Invoice matching report. ' +
+      'Compares quantity ordered vs received and total quoted vs paid with 5% tolerance.',
+  })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 200, description: '3-way matching report retrieved' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async getThreeWayMatch(@Param('id') id: string) {
+    const report = await this.threeWayMatchingService.getMatchingReport(id);
+    return BaseResponse.ok(report);
+  }
+
+  @Get(':id/360')
+  @ApiOperation({
+    summary: 'Get order 360 view',
+    description:
+      'Returns comprehensive order overview with all related data structured into blocks: ' +
+      'sale, goods, finance, operations, and audit log.',
+  })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 200, description: 'Order 360 view retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async getOrder360View(@Param('id') id: string) {
+    const view = await this.orderReadService.getOrder360View(id);
+    return BaseResponse.ok(view);
   }
 
   @Get(':id')
@@ -226,21 +281,36 @@ export class OrderController {
     return BaseResponse.ok(issues);
   }
 
+  @Get('mhh-issues/:issueId')
+  @ApiOperation({
+    summary: 'Get MHH issue detail',
+    description: 'Returns full details of a single MHH issue by ID.',
+  })
+  @ApiParam({ name: 'issueId', description: 'MHH Issue ID' })
+  @ApiResponse({ status: 200, description: 'Issue retrieved' })
+  @ApiResponse({ status: 404, description: 'MHH issue not found' })
+  async getMHHIssue(@Param('issueId') issueId: string) {
+    const issue = await this.mhhIssueService.findById(issueId);
+    return BaseResponse.ok(issue);
+  }
+
   @Patch('mhh-issues/:issueId/status')
   @ApiOperation({
     summary: 'Update MHH issue status',
-    description: 'Changes the status of an MHH issue.',
+    description:
+      'Changes the status of an MHH issue. Validates allowed transitions based on the FSM.',
   })
   @ApiParam({ name: 'issueId', description: 'MHH Issue ID' })
   @ApiResponse({ status: 200, description: 'Status updated' })
+  @ApiResponse({ status: 400, description: 'Invalid status transition' })
+  @ApiResponse({ status: 404, description: 'MHH issue not found' })
   async updateMHHIssueStatus(
     @Param('issueId') issueId: string,
-    @Body('status') status: MHHIssueStatus,
-    @Body('note') note: string,
+    @Body() dto: UpdateMHHIssueStatusDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const issue = await this.mhhIssueService.updateStatus(issueId, status, user.id, note);
-    return BaseResponse.ok(issue, `Issue status updated to ${status}`);
+    const issue = await this.mhhIssueService.updateStatus(issueId, dto.status, user.id, dto.note);
+    return BaseResponse.ok(issue, `Issue status updated to ${dto.status}`);
   }
 
   @Post('mhh-issues/:issueId/resolve')
@@ -267,5 +337,132 @@ export class OrderController {
       user.id,
     );
     return BaseResponse.ok(issue, 'MHH issue resolved');
+  }
+
+  @Patch('mhh-issues/:issueId/assign')
+  @ApiOperation({
+    summary: 'Assign handler to MHH issue',
+    description:
+      'Assigns a user as the handler for an MHH issue. Cannot assign to closed issues.',
+  })
+  @ApiParam({ name: 'issueId', description: 'MHH Issue ID' })
+  @ApiResponse({ status: 200, description: 'Handler assigned successfully' })
+  @ApiResponse({ status: 400, description: 'Cannot assign handler to closed issue' })
+  @ApiResponse({ status: 404, description: 'MHH issue not found' })
+  async assignMHHIssueHandler(
+    @Param('issueId') issueId: string,
+    @Body() dto: AssignMHHIssueDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const issue = await this.mhhIssueService.assignHandler(
+      issueId,
+      dto.handlerId,
+      user.id,
+    );
+    return BaseResponse.ok(issue, 'Handler assigned successfully');
+  }
+
+  @Post('mhh-issues/:issueId/customer-decision')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Record customer decision on MHH issue',
+    description:
+      'Records the customer decision (KEEP, RETURN, EXCHANGE) on an MHH issue. ' +
+      'Cannot record on closed or resolved issues.',
+  })
+  @ApiParam({ name: 'issueId', description: 'MHH Issue ID' })
+  @ApiResponse({ status: 200, description: 'Customer decision recorded' })
+  @ApiResponse({ status: 400, description: 'Cannot record decision on closed/resolved issue' })
+  @ApiResponse({ status: 404, description: 'MHH issue not found' })
+  async recordMHHIssueCustomerDecision(
+    @Param('issueId') issueId: string,
+    @Body() dto: RecordCustomerDecisionDto,
+  ) {
+    const issue = await this.mhhIssueService.recordCustomerDecision(
+      issueId,
+      dto.decision,
+      dto.customerNote,
+    );
+    return BaseResponse.ok(issue, 'Customer decision recorded');
+  }
+
+  // ─── Extra Charges (B8) ───
+
+  @Post(':id/extra-charges')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Add extra charge to order',
+    description:
+      'Adds an extra charge (phu phi phat sinh) to an order. Sets order status to ON_HOLD until approved.',
+  })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 201, description: 'Extra charge added' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async addExtraCharge(
+    @Param('id') id: string,
+    @Body() dto: AddExtraChargeDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const charge = await this.extraChargeService.addExtraCharge(
+      id,
+      dto,
+      user.id,
+    );
+    return BaseResponse.ok(charge, 'Extra charge added to order');
+  }
+
+  @Patch('extra-charges/:chargeId/approve')
+  @ApiOperation({
+    summary: 'Approve extra charge',
+    description:
+      'Approves an extra charge, adding it to the order total and removing ON_HOLD status.',
+  })
+  @ApiParam({ name: 'chargeId', description: 'Extra Charge ID' })
+  @ApiResponse({ status: 200, description: 'Extra charge approved' })
+  @ApiResponse({ status: 400, description: 'Charge is not PENDING' })
+  @ApiResponse({ status: 404, description: 'Extra charge not found' })
+  async approveExtraCharge(
+    @Param('chargeId') chargeId: string,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const charge = await this.extraChargeService.approveExtraCharge(
+      chargeId,
+      user.id,
+    );
+    return BaseResponse.ok(charge, 'Extra charge approved');
+  }
+
+  @Patch('extra-charges/:chargeId/reject')
+  @ApiOperation({
+    summary: 'Reject extra charge',
+    description:
+      'Rejects an extra charge and removes ON_HOLD status from the order.',
+  })
+  @ApiParam({ name: 'chargeId', description: 'Extra Charge ID' })
+  @ApiResponse({ status: 200, description: 'Extra charge rejected' })
+  @ApiResponse({ status: 400, description: 'Charge is not PENDING' })
+  @ApiResponse({ status: 404, description: 'Extra charge not found' })
+  async rejectExtraCharge(
+    @Param('chargeId') chargeId: string,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const charge = await this.extraChargeService.rejectExtraCharge(
+      chargeId,
+      user.id,
+    );
+    return BaseResponse.ok(charge, 'Extra charge rejected');
+  }
+
+  @Get(':id/extra-charges')
+  @ApiOperation({
+    summary: 'List extra charges for order',
+    description: 'Returns all extra charges (phu phi phat sinh) for an order.',
+  })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 200, description: 'Extra charges retrieved' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async getExtraCharges(@Param('id') id: string) {
+    const charges = await this.extraChargeService.getExtraCharges(id);
+    return BaseResponse.ok(charges);
   }
 }

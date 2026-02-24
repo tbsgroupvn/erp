@@ -1,0 +1,186 @@
+{
+  "zone_settings": {
+    "ssl": {
+      "value": "full_strict",
+      "description": "Full (Strict) SSL/TLS encryption mode - validates origin certificate"
+    },
+    "min_tls_version": {
+      "value": "1.2",
+      "description": "Minimum TLS version - reject TLS 1.0 and 1.1"
+    },
+    "automatic_https_rewrites": {
+      "value": "on",
+      "description": "Automatically rewrite HTTP references to HTTPS"
+    },
+    "always_use_https": {
+      "value": "on",
+      "description": "Redirect all HTTP requests to HTTPS"
+    },
+    "hsts": {
+      "enabled": true,
+      "max_age": 31536000,
+      "include_subdomains": true,
+      "preload": true,
+      "no_sniff": true
+    }
+  },
+  "speed_optimization": {
+    "minify": {
+      "js": true,
+      "css": true,
+      "html": true
+    },
+    "brotli": "on",
+    "early_hints": "on",
+    "http2": "on",
+    "http3": "on",
+    "zero_rtt": "on",
+    "rocket_loader": "off",
+    "polish": "lossless",
+    "mirage": "on",
+    "description": "Rocket Loader disabled - conflicts with Next.js hydration. Polish lossless for image optimization."
+  },
+  "caching": {
+    "browser_cache_ttl": 14400,
+    "cache_level": "aggressive",
+    "development_mode": false,
+    "description": "Browser cache TTL 4 hours for non-versioned resources"
+  },
+  "page_rules": [
+    {
+      "target": "*.nhaphangchinhngach.vn/_next/static/*",
+      "actions": {
+        "cache_level": "cache_everything",
+        "browser_ttl": 31536000,
+        "edge_cache_ttl": 2592000,
+        "description": "Next.js static assets - immutable, cache 1 year browser / 30 days edge"
+      }
+    },
+    {
+      "target": "*.nhaphangchinhngach.vn/_next/image*",
+      "actions": {
+        "cache_level": "cache_everything",
+        "browser_ttl": 2592000,
+        "edge_cache_ttl": 2592000,
+        "description": "Next.js optimized images - 30 day cache"
+      }
+    },
+    {
+      "target": "api.nhaphangchinhngach.vn/api/v1/public/*",
+      "actions": {
+        "cache_level": "cache_everything",
+        "edge_cache_ttl": 300,
+        "browser_ttl": 60,
+        "description": "Public API endpoints - 5 min edge cache, 1 min browser"
+      }
+    },
+    {
+      "target": "api.nhaphangchinhngach.vn/api/v1/exchange-rates/current",
+      "actions": {
+        "cache_level": "cache_everything",
+        "edge_cache_ttl": 3600,
+        "browser_ttl": 300,
+        "description": "Exchange rates - 1 hour edge cache, 5 min browser"
+      }
+    },
+    {
+      "target": "api.nhaphangchinhngach.vn/api/v1/auth/*",
+      "actions": {
+        "cache_level": "bypass",
+        "description": "Auth endpoints - never cache"
+      }
+    },
+    {
+      "target": "api.nhaphangchinhngach.vn/api/v1/dashboard/*",
+      "actions": {
+        "cache_level": "bypass",
+        "description": "Dashboard - bypass CDN cache, use server-side Redis cache instead"
+      }
+    },
+    {
+      "target": "*.nhaphangchinhngach.vn/*.woff2",
+      "actions": {
+        "cache_level": "cache_everything",
+        "browser_ttl": 31536000,
+        "edge_cache_ttl": 2592000,
+        "description": "Font files - immutable, cache 1 year"
+      }
+    }
+  ],
+  "firewall_rules": [
+    {
+      "description": "Block known bad bots",
+      "expression": "(cf.client.bot) and not (cf.client.bot eq 'googlebot' or cf.client.bot eq 'bingbot' or cf.client.bot eq 'facebookexternalhit')",
+      "action": "challenge"
+    },
+    {
+      "description": "Rate limit login endpoint",
+      "expression": "(http.request.uri.path eq \"/api/v1/auth/login\") and (http.request.method eq \"POST\")",
+      "action": "challenge",
+      "rate_limit": {
+        "requests_per_period": 10,
+        "period": 60,
+        "description": "10 login attempts per minute per IP"
+      }
+    },
+    {
+      "description": "Block direct IP access (require hostname)",
+      "expression": "(not http.host in {\"nhaphangchinhngach.vn\" \"www.nhaphangchinhngach.vn\" \"erp.nhaphangchinhngach.vn\" \"api.nhaphangchinhngach.vn\"})",
+      "action": "block"
+    },
+    {
+      "description": "Block access to sensitive paths",
+      "expression": "(http.request.uri.path contains \"/.env\" or http.request.uri.path contains \"/.git\" or http.request.uri.path contains \"/wp-admin\")",
+      "action": "block"
+    },
+    {
+      "description": "Challenge requests from high-risk countries (adjustable)",
+      "expression": "(ip.geoip.country in {\"RU\" \"KP\"})",
+      "action": "challenge"
+    }
+  ],
+  "dns_records": [
+    {
+      "type": "A",
+      "name": "nhaphangchinhngach.vn",
+      "content": "<ORIGIN_SERVER_IP>",
+      "proxied": true,
+      "description": "CMS Frontend - proxied through Cloudflare"
+    },
+    {
+      "type": "CNAME",
+      "name": "www",
+      "content": "nhaphangchinhngach.vn",
+      "proxied": true,
+      "description": "www redirect"
+    },
+    {
+      "type": "A",
+      "name": "erp",
+      "content": "<ORIGIN_SERVER_IP>",
+      "proxied": true,
+      "description": "ERP Frontend - proxied through Cloudflare"
+    },
+    {
+      "type": "A",
+      "name": "api",
+      "content": "<ORIGIN_SERVER_IP>",
+      "proxied": true,
+      "description": "API Backend - proxied through Cloudflare"
+    }
+  ],
+  "transform_rules": {
+    "response_headers": [
+      {
+        "description": "Remove server header to hide origin info",
+        "action": "remove",
+        "header": "Server"
+      },
+      {
+        "description": "Remove X-Powered-By",
+        "action": "remove",
+        "header": "X-Powered-By"
+      }
+    ]
+  }
+}

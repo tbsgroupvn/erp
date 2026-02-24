@@ -12,7 +12,7 @@ import { GeneralLedgerQueryDto } from './dto/general-ledger-query.dto';
 export class GeneralLedgerService {
   private readonly logger = new Logger(GeneralLedgerService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Creates a journal entry with double-entry bookkeeping validation.
@@ -200,9 +200,9 @@ export class GeneralLedgerService {
         accountCode: r.accountCode,
         accountName: account?.name ?? 'Unknown',
         accountType: account?.type ?? 'Unknown',
-        totalDebit: r._sum.debit ?? 0,
-        totalCredit: r._sum.credit ?? 0,
-        balance: (r._sum.debit ?? 0) - (r._sum.credit ?? 0),
+        totalDebit: Number(r._sum.debit ?? 0),
+        totalCredit: Number(r._sum.credit ?? 0),
+        balance: Number(r._sum.debit ?? 0) - Number(r._sum.credit ?? 0),
       };
     });
 
@@ -262,7 +262,7 @@ export class GeneralLedgerService {
 
     let runningBalance = 0;
     const movements = lines.map((line) => {
-      runningBalance += line.debit - line.credit;
+      runningBalance += Number(line.debit) - Number(line.credit);
       return {
         entryCode: line.entry.code,
         date: line.entry.date,

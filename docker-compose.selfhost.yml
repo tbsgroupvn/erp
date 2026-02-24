@@ -1,0 +1,227 @@
+# ============================================
+# Self-Hosted ERP - Docker Compose
+# Core services only: PostgreSQL, Redis, Backend, Frontend, CMS, Nginx, Certbot
+# Usage: docker compose -f docker-compose.selfhost.yml up -d
+# ============================================
+
+services:
+  # ============================================
+  # DATABASE - PostgreSQL
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-erp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-erp_db}
+    command: postgres -c password_encryption=scram-sha-256
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-erp_user} -d ${POSTGRES_DB:-erp_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
+  # ============================================
+  # CACHE - Redis
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
+  # ============================================
+  # BACKEND - NestJS API
+  # ============================================
+  backend:
+    build:
+      context: ./tbs-erp-backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erp_db}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      FRONTEND_URL: https://${ERP_DOMAIN:-erp.localhost}
+      CORS_ORIGINS: https://${ERP_DOMAIN:-erp.localhost},https://${CMS_DOMAIN:-localhost}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Branding
+      COMPANY_NAME: ${COMPANY_NAME:-My ERP}
+      COMPANY_FULL_NAME: ${COMPANY_FULL_NAME:-My ERP Company}
+      COMPANY_DOMAIN: ${CMS_DOMAIN:-localhost}
+      CUSTOMER_CODE_PREFIX: ${CUSTOMER_CODE_PREFIX:-ERP-KH-}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
+      SUPPORT_PHONE: ${SUPPORT_PHONE:-}
+      APP_TITLE: ${APP_TITLE:-ERP System}
+      COMPANY_ADDRESS: ${COMPANY_ADDRESS:-}
+      COMPANY_TAX_CODE: ${COMPANY_TAX_CODE:-}
+      SEED_EMAIL_DOMAIN: ${SEED_EMAIL_DOMAIN:-example.com}
+      # BullMQ
+      BULLMQ_REDIS_HOST: redis
+      BULLMQ_REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/api/v1/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - app_network
+
+  # ============================================
+  # FRONTEND - ERP Next.js
+  # ============================================
+  frontend:
+    build:
+      context: ./tbs-erp-frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_COMPANY_NAME: ${COMPANY_NAME:-My ERP}
+        NEXT_PUBLIC_COMPANY_FULL_NAME: ${COMPANY_FULL_NAME:-My ERP Company}
+        NEXT_PUBLIC_APP_TITLE: ${APP_TITLE:-ERP System}
+        NEXT_PUBLIC_APP_DESCRIPTION: ${APP_DESCRIPTION:-Enterprise Resource Planning System}
+        NEXT_PUBLIC_DOMAIN: ${ERP_DOMAIN:-erp.localhost}
+        NEXT_PUBLIC_AUTH_COOKIE: ${AUTH_COOKIE:-erp-auth}
+        NEXT_PUBLIC_DEMO_MODE: ${DEMO_MODE:-false}
+        NEXT_PUBLIC_API_URL: https://${API_DOMAIN:-api.localhost}
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: 1
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - app_network
+
+  # ============================================
+  # CMS FRONTEND - Next.js
+  # ============================================
+  cms:
+    build:
+      context: ./tbs-cms-frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_COMPANY_NAME: ${COMPANY_NAME:-My ERP}
+        NEXT_PUBLIC_COMPANY_FULL_NAME: ${COMPANY_FULL_NAME:-My ERP Company}
+        NEXT_PUBLIC_APP_TITLE: ${CMS_TITLE:-CMS System}
+        NEXT_PUBLIC_APP_DESCRIPTION: ${CMS_DESCRIPTION:-Content Management System}
+        NEXT_PUBLIC_DOMAIN: ${CMS_DOMAIN:-localhost}
+        NEXT_PUBLIC_AUTH_COOKIE: ${AUTH_COOKIE:-erp-auth}
+        NEXT_PUBLIC_DEMO_MODE: ${DEMO_MODE:-false}
+        NEXT_PUBLIC_API_URL: https://${API_DOMAIN:-api.localhost}
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_cms
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: 1
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - app_network
+
+  # ============================================
+  # NGINX - Reverse Proxy + SSL
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.selfhost.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+      - nginx_logs:/var/log/nginx
+    environment:
+      ERP_DOMAIN: ${ERP_DOMAIN:-erp.localhost}
+      CMS_DOMAIN: ${CMS_DOMAIN:-localhost}
+      API_DOMAIN: ${API_DOMAIN:-api.localhost}
+    depends_on:
+      - frontend
+      - cms
+      - backend
+    networks:
+      - app_network
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+
+  # ============================================
+  # CERTBOT - SSL Certificate Management
+  # ============================================
+  certbot:
+    image: certbot/certbot
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_certbot
+    restart: unless-stopped
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  app_network:
+    driver: bridge
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  pgdata:
+    name: ${COMPOSE_PROJECT_NAME:-erp}_pgdata
+  redisdata:
+    name: ${COMPOSE_PROJECT_NAME:-erp}_redisdata
+  certbot_conf:
+    name: ${COMPOSE_PROJECT_NAME:-erp}_certbot_conf
+  certbot_www:
+    name: ${COMPOSE_PROJECT_NAME:-erp}_certbot_www
+  nginx_logs:
+    name: ${COMPOSE_PROJECT_NAME:-erp}_nginx_logs

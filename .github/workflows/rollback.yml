@@ -1,0 +1,145 @@
+name: Emergency Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: 'Docker image tag/commit SHA to rollback to'
+        required: true
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}-rollback-approval
+    steps:
+      - name: Validate inputs
+        run: |
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Version: ${{ inputs.version }}"
+          echo "Reason: ${{ inputs.reason }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo ""
+          echo "This rollback has been approved through the environment protection rule."
+
+      - name: Verify image exists
+        run: |
+          for service in tbs-erp-backend tbs-erp-frontend tbs-cms-frontend; do
+            echo "Checking $IMAGE_PREFIX/$service:${{ inputs.version }}..."
+            docker manifest inspect $IMAGE_PREFIX/$service:${{ inputs.version }} > /dev/null 2>&1 || \
+              (echo "ERROR: Image $service:${{ inputs.version }} not found!" && exit 1)
+          done
+        env:
+          DOCKER_CLI_EXPERIMENTAL: enabled
+
+  rollback:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Notify start
+        if: vars.SLACK_WEBHOOK_URL
+        run: |
+          curl -X POST "${{ vars.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-type: application/json' \
+            -d "{\"text\":\"🔄 ROLLBACK STARTED\\nEnvironment: ${{ inputs.environment }}\\nVersion: ${{ inputs.version }}\\nReason: ${{ inputs.reason }}\\nBy: ${{ github.actor }}\"}"
+
+      - name: Deploy rollback version
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            cd /opt/tbs-erp
+
+            # Set target version
+            export IMAGE_TAG=${{ inputs.version }}
+
+            # Select compose file
+            COMPOSE_FILE="docker-compose.${{ inputs.environment == 'production' && 'production' || 'staging' }}.yml"
+
+            # Pull specific version images
+            IMAGE_TAG=${{ inputs.version }} docker-compose -f $COMPOSE_FILE pull backend erp-frontend cms-frontend
+
+            # Restart services with rollback version
+            IMAGE_TAG=${{ inputs.version }} docker-compose -f $COMPOSE_FILE up -d --no-deps backend erp-frontend cms-frontend
+
+            # Wait for services to be healthy
+            echo "Waiting for services to be healthy..."
+            sleep 30
+
+            # Health check
+            MAX_RETRIES=12
+            RETRY=0
+            while [ $RETRY -lt $MAX_RETRIES ]; do
+              if curl -sf http://localhost/api/v1/health/ready > /dev/null 2>&1; then
+                echo "✅ Health check passed!"
+                break
+              fi
+              RETRY=$((RETRY + 1))
+              echo "Health check attempt $RETRY/$MAX_RETRIES..."
+              sleep 10
+            done
+
+            if [ $RETRY -eq $MAX_RETRIES ]; then
+              echo "❌ Health check failed after rollback!"
+              exit 1
+            fi
+
+            echo "✅ Rollback to ${{ inputs.version }} completed successfully"
+
+      - name: Verify rollback
+        run: |
+          HEALTH_URL="${{ inputs.environment == 'production' && 'https://api.tbslogistics.com' || 'https://staging-api.tbslogistics.com' }}/api/v1/health"
+          response=$(curl -sf "$HEALTH_URL" || echo "FAILED")
+          echo "Health check response: $response"
+          if [ "$response" = "FAILED" ]; then
+            echo "❌ Post-rollback health check failed!"
+            exit 1
+          fi
+
+      - name: Notify success
+        if: success() && vars.SLACK_WEBHOOK_URL
+        run: |
+          curl -X POST "${{ vars.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-type: application/json' \
+            -d "{\"text\":\"✅ ROLLBACK COMPLETED\\nEnvironment: ${{ inputs.environment }}\\nVersion: ${{ inputs.version }}\\nReason: ${{ inputs.reason }}\"}"
+
+      - name: Notify failure
+        if: failure() && vars.SLACK_WEBHOOK_URL
+        run: |
+          curl -X POST "${{ vars.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-type: application/json' \
+            -d "{\"text\":\"❌ ROLLBACK FAILED\\nEnvironment: ${{ inputs.environment }}\\nVersion: ${{ inputs.version }}\\nManual intervention required!\"}"
+
+      - name: Create incident issue
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[INCIDENT] Rollback failed - ${{ inputs.environment }}`,
+              body: `## Rollback Failure\n\n- **Environment**: ${{ inputs.environment }}\n- **Target Version**: ${{ inputs.version }}\n- **Reason**: ${{ inputs.reason }}\n- **Triggered By**: ${{ github.actor }}\n- **Time**: ${new Date().toISOString()}\n\n**Manual intervention required.**`,
+              labels: ['incident', 'priority:critical']
+            });

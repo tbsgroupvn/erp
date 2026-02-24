@@ -56,7 +56,28 @@ export const APPROVAL_STEPS: Record<ApprovalType, UserRole[]> = {
     UserRole.CHIEF_ACCOUNTANT,
     UserRole.COO,
   ],
+  [ApprovalType.CUSTOMS_DECLARATION]: [
+    UserRole.XNK_MANAGER,
+    UserRole.CHIEF_ACCOUNTANT,
+  ],
   [ApprovalType.CUSTOM]: [],
+  [ApprovalType.GRACE_PERIOD_REQUEST]: [
+    UserRole.CFO,
+    UserRole.CEO,
+  ],
+  [ApprovalType.EXTRA_CHARGE_APPROVAL]: [
+    UserRole.WAREHOUSE_VN_MANAGER,
+    UserRole.CHIEF_ACCOUNTANT,
+  ],
+  [ApprovalType.CREDIT_OVERDRAFT]: [
+    UserRole.CHIEF_ACCOUNTANT,
+    UserRole.COO,
+  ],
+  [ApprovalType.PROCUREMENT_PAYMENT]: [
+    UserRole.SALES_LEADER,
+    UserRole.CHIEF_ACCOUNTANT,
+    UserRole.COO,
+  ],
 };
 
 /**
@@ -77,7 +98,12 @@ export const APPROVAL_TYPE_LABELS: Record<ApprovalType, string> = {
   [ApprovalType.QUOTATION_SPECIAL]: 'Phê duyệt báo giá đặc biệt',
   [ApprovalType.EXPENSE_CLAIM]: 'Phê duyệt hoàn ứng chi phí',
   [ApprovalType.SALARY_ADJUSTMENT]: 'Phê duyệt điều chỉnh lương',
+  [ApprovalType.CUSTOMS_DECLARATION]: 'Phê duyệt tờ khai hải quan',
   [ApprovalType.CUSTOM]: 'Phê duyệt tùy chỉnh',
+  [ApprovalType.GRACE_PERIOD_REQUEST]: 'Phê duyệt ân hạn',
+  [ApprovalType.EXTRA_CHARGE_APPROVAL]: 'Phê duyệt phụ phí phát sinh',
+  [ApprovalType.CREDIT_OVERDRAFT]: 'Phê duyệt thấu chi tạm thời',
+  [ApprovalType.PROCUREMENT_PAYMENT]: 'Duyệt chi mua hàng NCC',
 };
 
 /**

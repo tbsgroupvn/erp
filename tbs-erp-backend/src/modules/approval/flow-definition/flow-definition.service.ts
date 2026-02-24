@@ -8,6 +8,7 @@ import { PrismaService } from '@core/database/prisma.service';
 import { FlowDefinitionRepository } from './flow-definition.repository';
 import { CreateFlowDefinitionDto } from './dto/create-flow-definition.dto';
 import { UpdateFlowDefinitionDto } from './dto/update-flow-definition.dto';
+import { ApprovalType, ApprovalCategory, Prisma } from '@prisma/client';
 import { ApprovalGraphEngine } from '../domain/approval-graph-engine';
 
 @Injectable()
@@ -18,7 +19,7 @@ export class FlowDefinitionService {
     private readonly prisma: PrismaService,
     private readonly flowDefRepo: FlowDefinitionRepository,
     private readonly graphEngine: ApprovalGraphEngine,
-  ) {}
+  ) { }
 
   async findAll() {
     return this.flowDefRepo.findAll();
@@ -38,7 +39,7 @@ export class FlowDefinitionService {
         data: {
           name: dto.name,
           description: dto.description,
-          category: dto.category,
+          category: dto.category as ApprovalCategory,
           triggerType: dto.triggerType,
           isActive: dto.isActive ?? true,
           formSchema: dto.formSchema as any,
@@ -116,7 +117,7 @@ export class FlowDefinitionService {
         data: {
           name: dto.name,
           description: dto.description,
-          category: dto.category,
+          category: dto.category as ApprovalCategory,
           triggerType: dto.triggerType,
           isActive: dto.isActive,
           formSchema: dto.formSchema as any,

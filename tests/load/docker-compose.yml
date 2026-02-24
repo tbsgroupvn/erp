@@ -1,0 +1,104 @@
+# ============================================
+# TBS ERP - Load Testing Infrastructure
+#
+# Provides k6 load testing with InfluxDB storage
+# and Grafana visualization.
+#
+# Usage:
+#   # Run smoke test
+#   docker compose -f tests/load/docker-compose.yml run --rm k6 run /scripts/smoke.js
+#
+#   # Run stress test
+#   docker compose -f tests/load/docker-compose.yml run --rm k6 run /scripts/stress.js
+#
+#   # Run specific scenario
+#   docker compose -f tests/load/docker-compose.yml run --rm k6 run /scripts/scenarios/order-flow.js
+#
+#   # View results in Grafana
+#   Open http://localhost:3030 (Grafana dashboard)
+#
+#   # Clean up
+#   docker compose -f tests/load/docker-compose.yml down -v
+# ============================================
+
+version: '3.8'
+
+services:
+  # ============================================
+  # k6 Load Testing Runner
+  # ============================================
+  k6:
+    image: grafana/k6:0.49.0
+    environment:
+      - K6_OUT=influxdb=http://influxdb:8086/k6
+      - BASE_URL=${BASE_URL:-http://host.docker.internal:3000}
+      - TEST_EMAIL=${TEST_EMAIL:-test@tbs.com}
+      - TEST_PASSWORD=${TEST_PASSWORD:-Test1234!}
+    volumes:
+      - ./:/scripts:ro
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    networks:
+      - loadtest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ============================================
+  # InfluxDB - Time Series Database for Results
+  # ============================================
+  influxdb:
+    image: influxdb:1.8-alpine
+    environment:
+      - INFLUXDB_DB=k6
+      - INFLUXDB_HTTP_MAX_BODY_SIZE=0
+    volumes:
+      - influxdb_data:/var/lib/influxdb
+    healthcheck:
+      test: ['CMD', 'influx', '-execute', 'SHOW DATABASES']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - loadtest
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # ============================================
+  # Grafana - Load Test Visualization
+  # ============================================
+  grafana:
+    image: grafana/grafana:10.3.0
+    ports:
+      - "3030:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=loadtest
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    networks:
+      - loadtest
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+networks:
+  loadtest:
+    driver: bridge
+
+volumes:
+  influxdb_data:
+  grafana_data:

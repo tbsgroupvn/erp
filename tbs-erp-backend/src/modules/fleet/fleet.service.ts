@@ -24,7 +24,7 @@ export class FleetService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   /**
    * Creates a new vehicle record.
@@ -158,11 +158,16 @@ export class FleetService {
       },
     });
 
-    // Set vehicle to MAINTENANCE status
-    await this.prisma.vehicle.update({
-      where: { id: vehicleId },
-      data: { status: VehicleStatus.MAINTENANCE },
-    });
+    const scheduledDate = new Date(dto.scheduledDate);
+    scheduledDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (scheduledDate <= today) {
+      await this.prisma.vehicle.update({
+        where: { id: vehicleId },
+        data: { status: VehicleStatus.MAINTENANCE },
+      });
+    }
 
     this.logger.log(`Maintenance scheduled for vehicle ${vehicle.plateNumber}`);
     return maintenance;
@@ -236,6 +241,14 @@ export class FleetService {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new BadRequestException('Invalid date format for startDate or endDate');
+    }
+
+    if (start > end) {
+      throw new BadRequestException('startDate must be before endDate');
+    }
+
     const [deliveries, fuelRecords] = await Promise.all([
       this.prisma.delivery.findMany({
         where: {
@@ -251,19 +264,23 @@ export class FleetService {
       }),
     ]);
 
-    const totalFuelLiters = fuelRecords.reduce((sum, f) => sum + f.liters, 0);
-    const totalFuelCost = fuelRecords.reduce((sum, f) => sum + f.cost, 0);
+    const totalFuelLiters = fuelRecords.reduce((sum, f) => sum + Number(f.liters), 0);
+    const totalFuelCost = fuelRecords.reduce((sum, f) => sum + Number(f.cost), 0);
 
     // Calculate distance from odometer readings if available
     const sortedFuel = fuelRecords
       .filter((f) => f.odometer)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .sort((a, b) => {
+        const dateA = a.date instanceof Date ? a.date : new Date(a.date);
+        const dateB = b.date instanceof Date ? b.date : new Date(b.date);
+        return dateA.getTime() - dateB.getTime();
+      });
 
     let totalDistance = 0;
     if (sortedFuel.length >= 2) {
       totalDistance =
-        (sortedFuel[sortedFuel.length - 1].odometer ?? 0) -
-        (sortedFuel[0].odometer ?? 0);
+        (Number(sortedFuel[sortedFuel.length - 1].odometer) ?? 0) -
+        (Number(sortedFuel[0].odometer) ?? 0);
     }
 
     return {
@@ -288,6 +305,10 @@ export class FleetService {
    */
   async getAvailableVehicles(branch: Branch, date: string) {
     const targetDate = new Date(date);
+
+    if (isNaN(targetDate.getTime())) {
+      throw new BadRequestException('Invalid date format');
+    }
 
     return this.prisma.vehicle.findMany({
       where: {

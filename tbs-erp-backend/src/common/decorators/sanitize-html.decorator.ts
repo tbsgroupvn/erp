@@ -91,13 +91,12 @@ export function SanitizeHtml(options?: DOMPurifyConfig) {
         'rel',
         'width',
         'height',
-        'style', // Be careful with this - consider removing for stricter security
       ],
       // Remove all scripts and event handlers
       FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'applet', 'form', 'input', 'button'],
       FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
       // Keep safe URL schemes only
-      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|#):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+      ALLOWED_URI_REGEXP: /^(https?|mailto|tel|#):/i,
       // Prevent DOM clobbering
       SANITIZE_DOM: true,
       // Keep comments (optional - can be removed for stricter security)

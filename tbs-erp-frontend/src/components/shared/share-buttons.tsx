@@ -18,7 +18,9 @@ export function ShareButtons({
 }: ShareButtonsProps) {
   const pathname = usePathname();
   const [copied, setCopied] = useState(false);
-  const shareUrl = `https://nhaphangchinhngach.vn${pathname}`;
+  const domain = process.env.NEXT_PUBLIC_DOMAIN || 'localhost';
+  const baseUrl = domain === 'localhost' ? 'http://localhost:3000' : `https://${domain}`;
+  const shareUrl = `${baseUrl}${pathname}`;
   const encodedUrl = encodeURIComponent(shareUrl);
   const encodedTitle = encodeURIComponent(title);
   const encodedDescription = description

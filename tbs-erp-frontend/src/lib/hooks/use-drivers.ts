@@ -47,7 +47,7 @@ export function useDriverPerformance(id: string) {
 
 export function useDriverDeliveries(id: string, params?: Record<string, unknown>) {
   return useQuery({
-    queryKey: driverKeys.deliveries(id),
+    queryKey: [...driverKeys.deliveries(id), params],
     queryFn: () => driversApi.getDeliveryHistory(id, params),
     enabled: !!id,
   });

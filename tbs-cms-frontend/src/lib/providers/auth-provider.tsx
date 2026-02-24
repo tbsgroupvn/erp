@@ -21,11 +21,25 @@ interface AuthContextValue {
   isLoading: boolean;
 }
 
-const AuthContext = createContext<AuthContextValue>({
-  user: null,
-  isAuthenticated: false,
-  isLoading: true,
-});
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+// ---------------------------------------------------------------------------
+// Refresh lock to prevent concurrent token refreshes
+// ---------------------------------------------------------------------------
+let isRefreshing = false;
+let refreshPromise: Promise<{ accessToken: string }> | null = null;
+
+async function refreshTokenWithLock(): Promise<{ accessToken: string }> {
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+  isRefreshing = true;
+  refreshPromise = authApi.refreshToken().finally(() => {
+    isRefreshing = false;
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -53,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Token might be expired, try refresh (refresh token is in HttpOnly cookie)
       try {
-        const tokens = await authApi.refreshToken();
+        const tokens = await refreshTokenWithLock();
         useAuthStore.getState().setTokens(tokens.accessToken);
         const profile = await authApi.getProfile();
         setUser(profile);
@@ -82,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     refreshTimerRef.current = setTimeout(async () => {
       try {
-        const tokens = await authApi.refreshToken();
+        const tokens = await refreshTokenWithLock();
         useAuthStore.getState().setTokens(tokens.accessToken);
         // Re-schedule after successful refresh
         scheduleRefresh();

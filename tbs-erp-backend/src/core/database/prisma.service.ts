@@ -9,6 +9,14 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient, Prisma } from '@prisma/client';
 
+/**
+ * Extended PrismaService with performance monitoring.
+ *
+ * In production, query events are enabled to detect slow queries (>200ms).
+ * For fine-grained per-model/operation tracking via Prisma extensions,
+ * see `prisma-performance.extension.ts` which provides a `createPerformanceExtension()`
+ * function that records all query durations to Prometheus.
+ */
 @Injectable()
 export class PrismaService
   extends PrismaClient<Prisma.PrismaClientOptions, 'query' | 'error' | 'warn'>
@@ -26,6 +34,7 @@ export class PrismaService
           url: configService.get<string>('database.url'),
         },
       },
+      // Enable query events in all environments for performance monitoring
       log: isDev
         ? [
             { emit: 'event', level: 'query' },
@@ -34,16 +43,31 @@ export class PrismaService
             { emit: 'stdout', level: 'error' },
           ]
         : [
+            { emit: 'event', level: 'query' },
             { emit: 'stdout', level: 'warn' },
             { emit: 'stdout', level: 'error' },
           ],
     });
 
     if (isDev) {
+      // In development, log all queries for debugging
       this.$on('query', (event: Prisma.QueryEvent) => {
         this.logger.debug(
           `Query: ${event.query} — Params: ${event.params} — Duration: ${event.duration}ms`,
         );
+      });
+    } else {
+      // In production, only log slow queries (>200ms)
+      this.$on('query', (event: Prisma.QueryEvent) => {
+        if (event.duration > 2000) {
+          this.logger.error(
+            `CRITICAL slow query (${event.duration}ms): ${event.query.substring(0, 200)}`,
+          );
+        } else if (event.duration > 200) {
+          this.logger.warn(
+            `Slow query (${event.duration}ms): ${event.query.substring(0, 200)}`,
+          );
+        }
       });
     }
 
@@ -56,17 +80,45 @@ export class PrismaService
     });
   }
 
+  private static readonly MAX_CONNECTION_RETRIES = 5;
+  private static readonly RETRY_DELAY_MS = 3000;
+
   async onModuleInit(): Promise<void> {
     this.logger.log('Connecting to database...');
-    const timeout = setTimeout(() => {
-      this.logger.error('Database connection timed out after 30s');
-      process.exit(1);
-    }, 30000);
-    try {
-      await this.$connect();
-      this.logger.log('Database connection established.');
-    } finally {
-      clearTimeout(timeout);
+
+    for (let attempt = 1; attempt <= PrismaService.MAX_CONNECTION_RETRIES; attempt++) {
+      try {
+        const timeout = setTimeout(() => {
+          this.logger.error(`Database connection timed out after 30s (attempt ${attempt})`);
+        }, 30000);
+
+        try {
+          await this.$connect();
+          this.logger.log('Database connection established.');
+          return;
+        } finally {
+          clearTimeout(timeout);
+        }
+      } catch (error) {
+        const isLastAttempt = attempt === PrismaService.MAX_CONNECTION_RETRIES;
+        this.logger.error(
+          `Database connection failed (attempt ${attempt}/${PrismaService.MAX_CONNECTION_RETRIES}): ${error.message}`,
+        );
+
+        if (isLastAttempt) {
+          this.logger.error(
+            'All database connection attempts exhausted. Application cannot start.',
+          );
+          throw new Error(
+            `Failed to connect to database after ${PrismaService.MAX_CONNECTION_RETRIES} attempts: ${error.message}`,
+          );
+        }
+
+        this.logger.log(
+          `Retrying database connection in ${PrismaService.RETRY_DELAY_MS}ms...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, PrismaService.RETRY_DELAY_MS));
+      }
     }
   }
 
@@ -113,16 +165,16 @@ export class PrismaService
       throw new ForbiddenException('cleanDatabase cannot be called in production');
     }
 
-    const models = Reflect.ownKeys(this).filter(
+    const tablenames = Reflect.ownKeys(this).filter(
       (key) =>
         typeof key === 'string' &&
         !key.startsWith('_') &&
         !key.startsWith('$') &&
         typeof (this as any)[key]?.deleteMany === 'function',
-    );
+    ) as string[];
 
-    for (const model of models) {
-      await (this as any)[model].deleteMany();
-    }
+    await this.$transaction(
+      tablenames.map((table) => (this as any)[table].deleteMany()),
+    );
   }
 }

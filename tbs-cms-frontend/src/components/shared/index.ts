@@ -21,3 +21,11 @@ export { InputValidation } from './input-validation';
 export { MobileBottomNav } from './mobile-bottom-nav';
 export { MobileMenu } from './mobile-menu';
 export { AnalyticsWrapper } from './analytics-wrapper';
+export { LanguageSwitcher } from './language-switcher';
+
+// Error handling
+export { ErrorBoundary, withErrorBoundary } from './error-boundary';
+
+// Skeleton loading states
+export { Skeleton, CardSkeleton, TableSkeleton, TableRowSkeleton, ListSkeleton } from './skeleton';
+export { PageSkeleton, ChartSkeleton, StatCardsSkeleton } from './loading-skeleton';

@@ -1,0 +1,63 @@
+# Production ingress with cert-manager production issuer
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tbs-erp-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Production rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+    nginx.ingress.kubernetes.io/limit-connections: "30"
+spec:
+  tls:
+    - hosts:
+        - erp.nhaphangchinhngach.vn
+        - nhaphangchinhngach.vn
+        - www.nhaphangchinhngach.vn
+        - api.nhaphangchinhngach.vn
+      secretName: tbs-erp-production-tls
+  rules:
+    # ERP Frontend - production
+    - host: erp.nhaphangchinhngach.vn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tbs-erp-frontend
+                port:
+                  number: 3000
+    # CMS Frontend - production
+    - host: nhaphangchinhngach.vn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tbs-cms-frontend
+                port:
+                  number: 3000
+    - host: www.nhaphangchinhngach.vn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tbs-cms-frontend
+                port:
+                  number: 3000
+    # Backend API - production
+    - host: api.nhaphangchinhngach.vn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tbs-backend
+                port:
+                  number: 3000

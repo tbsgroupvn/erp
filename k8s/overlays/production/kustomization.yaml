@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: tbs-erp
+
+commonLabels:
+  environment: production
+
+resources:
+  - ../../base
+  # Production-only resources
+  - pdb.yaml
+  - network-policies.yaml
+
+patches:
+  - path: patches/backend-replicas.yaml
+  - path: patches/resource-limits.yaml
+  - path: patches/ingress-host.yaml
+  - path: patches/postgres-resources.yaml

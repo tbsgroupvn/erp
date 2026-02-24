@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import { TaskStatus, TaskPriority } from '@/lib/types';
 import { TASK_STATUS_LABELS, TASK_PRIORITY_LABELS } from '@/lib/utils/constants';
+import { useDebounce } from '@/lib/hooks/use-debounce';
 
 interface TaskFiltersProps {
   onFilterChange: (filters: {
@@ -18,6 +19,16 @@ export function TaskFilters({ onFilterChange }: TaskFiltersProps) {
   const [status, setStatus] = useState<TaskStatus | undefined>();
   const [priority, setPriority] = useState<TaskPriority | undefined>();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    applyFilters({ search: debouncedSearch });
+  }, [debouncedSearch]);
 
   const applyFilters = (overrides: Partial<{
     status: TaskStatus | undefined;
@@ -43,7 +54,6 @@ export function TaskFilters({ onFilterChange }: TaskFiltersProps) {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            applyFilters({ search: e.target.value });
           }}
           className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         />

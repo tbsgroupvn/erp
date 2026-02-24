@@ -1,0 +1,48 @@
+# Override ingress hosts for staging environment
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tbs-erp-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+spec:
+  tls:
+    - hosts:
+        - staging-erp.nhaphangchinhngach.vn
+        - staging.nhaphangchinhngach.vn
+        - staging-api.nhaphangchinhngach.vn
+      secretName: tbs-erp-staging-tls
+  rules:
+    # ERP Frontend - staging
+    - host: staging-erp.nhaphangchinhngach.vn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tbs-erp-frontend
+                port:
+                  number: 3000
+    # CMS Frontend - staging
+    - host: staging.nhaphangchinhngach.vn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tbs-cms-frontend
+                port:
+                  number: 3000
+    # Backend API - staging
+    - host: staging-api.nhaphangchinhngach.vn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tbs-backend
+                port:
+                  number: 3000

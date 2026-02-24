@@ -1,0 +1,49 @@
+# PodDisruptionBudgets for production
+# Ensures minimum availability during node maintenance and cluster upgrades
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: tbs-backend-pdb
+  namespace: tbs-erp
+  labels:
+    app.kubernetes.io/name: tbs-backend
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: tbs-erp-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tbs-backend
+      app.kubernetes.io/component: api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: tbs-erp-frontend-pdb
+  namespace: tbs-erp
+  labels:
+    app.kubernetes.io/name: tbs-erp-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: tbs-erp-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tbs-erp-frontend
+      app.kubernetes.io/component: frontend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: tbs-cms-frontend-pdb
+  namespace: tbs-erp
+  labels:
+    app.kubernetes.io/name: tbs-cms-frontend
+    app.kubernetes.io/component: cms
+    app.kubernetes.io/part-of: tbs-erp-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tbs-cms-frontend
+      app.kubernetes.io/component: cms

@@ -1,0 +1,25 @@
+# ============================================
+# TBS ERP - Elasticsearch Configuration
+# ============================================
+
+cluster.name: "tbs-erp-logs"
+network.host: 0.0.0.0
+
+# Single-node mode for dev/staging
+discovery.type: single-node
+
+# Security enabled for all environments
+xpack.security.enabled: true
+xpack.security.enrollment.enabled: true
+
+# JVM heap is set via ES_JAVA_OPTS in docker-compose (-Xms1g -Xmx1g)
+
+# Index lifecycle management
+xpack.license.self_generated.type: basic
+
+# Performance tuning
+indices.memory.index_buffer_size: "20%"
+thread_pool.write.queue_size: 1000
+
+# Retention: auto-delete logs older than 30 days via ILM
+# (configured via Kibana or API separately)

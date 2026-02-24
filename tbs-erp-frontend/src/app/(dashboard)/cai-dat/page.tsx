@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
-import { Loader2, User, Lock, GitBranch, ChevronRight } from 'lucide-react';
+import { Loader2, User, Lock, GitBranch, Shield, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
 import { useAuthStore } from '@/lib/stores/auth-store';
@@ -32,6 +32,7 @@ type ChangePasswordForm = z.infer<typeof changePasswordSchema>;
 const TABS = [
   { key: 'profile', label: 'Hồ sơ', icon: User },
   { key: 'password', label: 'Đổi mật khẩu', icon: Lock },
+  { key: 'security', label: 'Bảo mật', icon: Shield },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -198,6 +199,32 @@ export default function CaiDatPage() {
               Đổi mật khẩu
             </button>
           </form>
+        </div>
+      )}
+
+      {/* Security Tab */}
+      {activeTab === 'security' && (
+        <div className="rounded-lg border bg-card p-6 max-w-2xl">
+          <h3 className="text-lg font-semibold mb-4">Bảo mật tài khoản</h3>
+          <div className="space-y-2">
+            <Link
+              href="/cai-dat/bao-mat"
+              className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <Shield className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Xác thực 2 yếu tố (2FA)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Thiết lập và quản lý xác thực 2 yếu tố cho tài khoản
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Link>
+          </div>
         </div>
       )}
     </div>

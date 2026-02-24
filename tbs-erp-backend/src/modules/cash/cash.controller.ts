@@ -15,6 +15,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { DataScopeGuard } from '@common/guards/data-scope.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginated } from '@common/decorators/api-paginated.decorator';
 import { BaseResponse } from '@common/dto/base-response.dto';
@@ -24,7 +26,7 @@ import { VoucherQueryDto } from './dto/voucher-query.dto';
 
 @ApiTags('Finance - Cash & Vouchers')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, DataScopeGuard)
 @Controller('cash')
 export class CashController {
   constructor(private readonly cashService: CashService) {}

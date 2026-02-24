@@ -58,7 +58,7 @@ export default function CMSDashboard() {
   const stats = [
     {
       name: 'Tổng số trang',
-      value: pagesData?.data?.meta?.total || 0,
+      value: (pagesData?.data?.data as any)?.meta?.total || 0,
       description: 'Trang tĩnh',
       icon: FileText,
       color: 'text-purple-600',
@@ -68,7 +68,7 @@ export default function CMSDashboard() {
     },
     {
       name: 'Thư viện Media',
-      value: mediaData?.data?.meta?.total || 0,
+      value: (mediaData?.data?.data as any)?.meta?.total || 0,
       description: 'Tệp đa phương tiện',
       icon: Image,
       color: 'text-blue-600',
@@ -78,7 +78,7 @@ export default function CMSDashboard() {
     },
     {
       name: 'Menu',
-      value: menusData?.data?.length || 0,
+      value: (menusData?.data as any)?.data?.length || 0,
       description: 'Menu điều hướng',
       icon: Menu,
       color: 'text-green-600',
@@ -88,7 +88,7 @@ export default function CMSDashboard() {
     },
   ];
 
-  const recentPages = pagesData?.data?.data?.slice(0, 5) || [];
+  const recentPages = (pagesData?.data?.data as any)?.data?.slice(0, 5) || [];
 
   const quickActions = [
     {

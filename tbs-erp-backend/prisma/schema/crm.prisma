@@ -12,11 +12,11 @@ model Customer {
   address         String?
   taxCode         String?      @map("tax_code")
   tier            CustomerTier @default(NEW)
-  creditLimit     Decimal      @default(0) @map("credit_limit") @db.Decimal(15, 2)
-  currentDebt     Decimal      @default(0) @map("current_debt") @db.Decimal(15, 2)
+  creditLimit     Decimal      @default(0) @map("credit_limit") @db.Decimal(18, 2)
+  currentDebt     Decimal      @default(0) @map("current_debt") @db.Decimal(18, 2)
   depositRate     Int          @default(100) @map("deposit_rate") // % cọc tối thiểu
   totalOrders     Int          @default(0) @map("total_orders")
-  totalRevenue    Decimal      @default(0) @map("total_revenue") @db.Decimal(15, 2)
+  totalRevenue    Decimal      @default(0) @map("total_revenue") @db.Decimal(18, 2)
   branch          Branch?
   saleId          String?      @map("sale_id")    // Sale phụ trách
   note            String?
@@ -29,6 +29,17 @@ model Customer {
   isBlocked           Boolean  @default(false) @map("is_blocked")
   blockReason         String?  @map("block_reason")
   blockedAt           DateTime? @map("blocked_at")
+
+  // Exchange rate mode
+  exchangeRateMode    String?  @map("exchange_rate_mode") // FIXED | FLOATING
+
+  // Grace period
+  gracePeriodUntil    DateTime? @map("grace_period_until")
+
+  // Temporary overdraft
+  tempOverdraftLimit      Decimal?  @map("temp_overdraft_limit") @db.Decimal(18, 2)
+  tempOverdraftExpiry     DateTime? @map("temp_overdraft_expiry")
+  tempOverdraftApprovedBy String?   @map("temp_overdraft_approved_by")
 
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
@@ -67,7 +78,7 @@ model Contact {
 model Wallet {
   id          String   @id @default(cuid())
   customerId  String   @unique @map("customer_id")
-  balance     Decimal  @default(0) @db.Decimal(15, 2)
+  balance     Decimal  @default(0) @db.Decimal(18, 2)
   currency    Currency @default(VND)
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -80,7 +91,7 @@ model Wallet {
 model WalletTransaction {
   id              String   @id @default(cuid())
   walletId        String   @map("wallet_id")
-  amount          Decimal  @db.Decimal(15, 2)  // + nạp, - trừ
+  amount          Decimal  @db.Decimal(18, 2)  // + nạp, - trừ
   type            String   // TOPUP, DEDUCT, REFUND
   reference       String?  // Mã tham chiếu (orderId, paymentId)
   allocationType  String?  @map("allocation_type") // CONTRACT, ORDER, UNALLOCATED

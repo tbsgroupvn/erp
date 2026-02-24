@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { warehouseApi } from '@/lib/api/warehouse';
 import { warehouseCnApi } from '@/lib/api/warehouse-cn.api';
 import { warehouseVnApi } from '@/lib/api/warehouse-vn.api';
 import { containersApi } from '@/lib/api/containers.api';
@@ -38,7 +37,7 @@ export const warehouseKeys = {
 export function usePackagesCN(params?: QueryParams) {
   return useQuery({
     queryKey: warehouseKeys.cnPackages(params),
-    queryFn: () => warehouseApi.listPackagesCN(params).then((r) => r.data),
+    queryFn: () => warehouseCnApi.listPackages(params),
   });
 }
 
@@ -57,7 +56,7 @@ export function usePackageCN(id: string) {
 export function usePackagesVN(params?: QueryParams) {
   return useQuery({
     queryKey: warehouseKeys.vnPackages(params),
-    queryFn: () => warehouseApi.listPackagesVN(params).then((r) => r.data),
+    queryFn: () => warehouseVnApi.listPackages(params),
   });
 }
 
@@ -68,7 +67,7 @@ export function usePackagesVN(params?: QueryParams) {
 export function useContainers(params?: ContainerQueryParams) {
   return useQuery({
     queryKey: warehouseKeys.containers(params),
-    queryFn: () => warehouseApi.listContainers(params).then((r) => r.data),
+    queryFn: () => containersApi.list(params),
   });
 }
 

@@ -4,24 +4,32 @@ import { UserRole, Branch } from '@prisma/client';
 export { UserRole, Branch };
 
 /** Roles with full system access */
-export const EXECUTIVE_ROLES: UserRole[] = [UserRole.CEO, UserRole.COO];
+export const EXECUTIVE_ROLES: UserRole[] = [
+  UserRole.CEO,
+  UserRole.COO,
+  UserRole.DIRECTOR_OPERATIONS,
+  UserRole.CFO,
+];
 
 /** Sales-related roles in hierarchical order (highest first) */
 export const SALES_ROLES: UserRole[] = [
   UserRole.SALES_DIRECTOR,
   UserRole.SALES_LEADER,
   UserRole.SALE,
+  UserRole.HR_MANAGER,
 ];
 
 /** Finance-related roles */
 export const FINANCE_ROLES: UserRole[] = [
   UserRole.CHIEF_ACCOUNTANT,
+  UserRole.ACCOUNTANT,
   UserRole.ACCOUNTANT_AR,
   UserRole.ACCOUNTANT_COST,
 ];
 
 /** Warehouse-related roles */
 export const WAREHOUSE_ROLES: UserRole[] = [
+  UserRole.WAREHOUSE_MANAGER,
   UserRole.WAREHOUSE_CN_AGENT,
   UserRole.WAREHOUSE_VN_MANAGER,
   UserRole.WAREHOUSE_VN_STAFF,
@@ -34,7 +42,10 @@ export const XNK_ROLES: UserRole[] = [
 ];
 
 /** Logistics/driver roles */
-export const LOGISTICS_ROLES: UserRole[] = [UserRole.DRIVER];
+export const LOGISTICS_ROLES: UserRole[] = [
+  UserRole.LOGISTICS_MANAGER,
+  UserRole.DRIVER,
+];
 
 /** Marketing-related roles */
 export const MARKETING_ROLES: UserRole[] = [
@@ -95,6 +106,12 @@ export function getRoleLabel(role: UserRole): string {
     [UserRole.XNK_MANAGER]: 'Truong phong XNK',
     [UserRole.XNK_STAFF]: 'Nhan vien XNK',
     [UserRole.WAREHOUSE_CN_AGENT]: 'Agent kho TQ',
+    [UserRole.DIRECTOR_OPERATIONS]: 'Giam doc Van hanh',
+    [UserRole.CFO]: 'Giam doc Tai chinh',
+    [UserRole.HR_MANAGER]: 'Truong phong Nhan su',
+    [UserRole.LOGISTICS_MANAGER]: 'Truong phong Logistics',
+    [UserRole.ACCOUNTANT]: 'Ke toan vien',
+    [UserRole.WAREHOUSE_MANAGER]: 'Quan ly kho',
     [UserRole.WAREHOUSE_VN_MANAGER]: 'Truong kho VN',
     [UserRole.WAREHOUSE_VN_STAFF]: 'Nhan vien kho VN',
     [UserRole.DRIVER]: 'Tai xe',

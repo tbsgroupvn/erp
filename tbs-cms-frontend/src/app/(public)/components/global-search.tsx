@@ -13,7 +13,7 @@ interface SearchResult {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-// Mock search data - in production, this would come from an API
+// TODO: Replace with dynamic content from CMS API when available
 const searchableContent: SearchResult[] = [
   {
     type: 'service',
@@ -87,12 +87,13 @@ export function GlobalSearch() {
   const searchRef = useRef<HTMLDivElement>(null);
 
   const search = useCallback((q: string) => {
-    if (!q.trim()) {
+    const sanitized = q.replace(/<[^>]*>/g, '').trim();
+    if (!sanitized) {
       setResults([]);
       return;
     }
 
-    const lowercaseQuery = q.toLowerCase();
+    const lowercaseQuery = sanitized.toLowerCase();
     const filtered = searchableContent.filter(
       (item) =>
         item.title.toLowerCase().includes(lowercaseQuery) ||

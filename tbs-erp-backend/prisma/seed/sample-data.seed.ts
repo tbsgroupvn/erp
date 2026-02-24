@@ -8,6 +8,9 @@ export async function seedSampleData(prisma: PrismaClient) {
 
   console.log('  → Seeding sample data (dev only)...');
 
+  const emailDomain = process.env.SEED_EMAIL_DOMAIN || 'example.com';
+  const codePrefix = process.env.CUSTOMER_CODE_PREFIX || 'ERP-KH-';
+
   // Sample exchange rates
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -29,12 +32,12 @@ export async function seedSampleData(prisma: PrismaClient) {
 
   // Look up the admin user (seeded in roles.seed.ts) to assign as sale
   const adminUser = await prisma.user.findUnique({
-    where: { email: 'admin@tbs.vn' },
+    where: { email: `admin@${emailDomain}` },
   });
 
   const sampleCustomers = [
     {
-      code: 'TBS-KH-000001',
+      code: `${codePrefix}000001`,
       fullName: 'Nguyễn Văn An',
       companyName: 'Công ty TNHH Thương mại An Phát',
       phone: '0912345001',
@@ -47,7 +50,7 @@ export async function seedSampleData(prisma: PrismaClient) {
       saleId: adminUser?.id ?? null,
     },
     {
-      code: 'TBS-KH-000002',
+      code: `${codePrefix}000002`,
       fullName: 'Trần Thị Bình',
       companyName: 'Công ty CP Xuất nhập khẩu Bình Minh',
       phone: '0912345002',
@@ -60,7 +63,7 @@ export async function seedSampleData(prisma: PrismaClient) {
       saleId: adminUser?.id ?? null,
     },
     {
-      code: 'TBS-KH-000003',
+      code: `${codePrefix}000003`,
       fullName: 'Lê Hoàng Cường',
       companyName: 'Công ty TNHH Logistics Cường Thịnh',
       phone: '0912345003',
@@ -73,7 +76,7 @@ export async function seedSampleData(prisma: PrismaClient) {
       saleId: null,
     },
     {
-      code: 'TBS-KH-000004',
+      code: `${codePrefix}000004`,
       fullName: 'Phạm Đức Dũng',
       companyName: 'Cửa hàng Dũng Phát',
       phone: '0912345004',
@@ -128,6 +131,22 @@ export async function seedSampleData(prisma: PrismaClient) {
       },
     });
   }
+
+  // ── Chart of Accounts: Unallocated Funds ──────────────────────────
+  console.log('  → Seeding chart of accounts for unallocated funds...');
+
+  await prisma.chartOfAccount.upsert({
+    where: { code: '331.99' },
+    update: {},
+    create: {
+      code: '331.99',
+      name: 'Tiền chờ phân bổ',
+      type: 'LIABILITY',
+      parentCode: '331',
+      level: 2,
+      isActive: true,
+    },
+  });
 
   console.log('  ✅ Sample data seeded');
 }

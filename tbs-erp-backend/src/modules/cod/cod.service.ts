@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '@core/database/prisma.service';
 import { CODStatus } from '@prisma/client';
 import { RecordCODCollectionDto } from './dto/record-cod-collection.dto';
@@ -99,7 +100,7 @@ export class CodService {
       orderBy: { collectedAt: 'asc' },
     });
 
-    const totalCollected = records.reduce((sum, r) => sum + r.collectedAmount, 0);
+    const totalCollected = records.reduce((sum, r) => sum + Number(r.collectedAmount), 0);
 
     return { records, totalCollected, date, driverId };
   }
@@ -130,7 +131,13 @@ export class CodService {
       );
     }
 
-    const totalCollected = records.reduce((sum, r) => sum + r.collectedAmount, 0);
+    const totalCollected = records.reduce((sum, r) => sum + Number(r.collectedAmount), 0);
+
+    if (amount > totalCollected + 0.01) {
+      throw new BadRequestException(
+        `Remittance amount (${amount}) exceeds collected amount (${totalCollected})`,
+      );
+    }
 
     // Update all collected records to REMITTED
     await this.prisma.cODRecord.updateMany({
@@ -145,10 +152,11 @@ export class CodService {
 
     // Check for shortage
     const shortage = totalCollected - amount;
-    if (Math.abs(shortage) > 0.01 && shortage > 0) {
+    if (shortage > 0.01) {
       this.logger.warn(
         `COD shortage detected for driver ${driverId} on ${date}: collected=${totalCollected}, remitted=${amount}, shortage=${shortage}`,
       );
+      // Flag the shortage but allow the remittance to proceed
     }
 
     this.eventEmitter.emit('cod.remitted', {
@@ -222,13 +230,13 @@ export class CodService {
 
     const totalCollected = records
       .filter((r) => r.status !== CODStatus.PENDING)
-      .reduce((sum, r) => sum + r.collectedAmount, 0);
+      .reduce((sum, r) => sum + Number(r.collectedAmount), 0);
 
     const totalRemitted = records
       .filter((r) => ([CODStatus.REMITTED, CODStatus.RECONCILED] as CODStatus[]).includes(r.status))
-      .reduce((sum, r) => sum + r.collectedAmount, 0);
+      .reduce((sum, r) => sum + Number(r.collectedAmount), 0);
 
-    const totalShortage = records.reduce((sum, r) => sum + r.shortage, 0);
+    const totalShortage = records.reduce((sum, r) => sum + Number(r.shortage), 0);
 
     const byStatus = {
       pending: records.filter((r) => r.status === CODStatus.PENDING).length,
@@ -281,5 +289,76 @@ export class CodService {
     this.logger.warn(`COD shortage flagged: ${codId}, amount=${shortageAmount}, reason=${reason}`);
 
     return updated;
+  }
+
+  /**
+   * COD Enforcement Cronjob.
+   * Runs daily at 08:00 to enforce COD reconciliation.
+   *
+   * Finds all COD records with status COLLECTED where collectedAt is more than 24 hours ago
+   * (i.e., the driver has not remitted the cash within the SLA).
+   * For each such record, blocks the driver from further COD collections
+   * by setting isCODBlocked = true on the Driver record.
+   */
+  @Cron('0 8 * * *')
+  async enforceCODReconciliation() {
+    this.logger.log('Running COD enforcement reconciliation cronjob...');
+
+    const cutoffTime = new Date();
+    cutoffTime.setHours(cutoffTime.getHours() - 24);
+
+    // Find all COLLECTED records older than 24 hours (not yet remitted)
+    const overdueRecords = await this.prisma.cODRecord.findMany({
+      where: {
+        status: CODStatus.COLLECTED,
+        collectedAt: {
+          lt: cutoffTime,
+        },
+      },
+      select: {
+        id: true,
+        driverId: true,
+        deliveryId: true,
+        collectedAmount: true,
+        collectedAt: true,
+      },
+    });
+
+    if (overdueRecords.length === 0) {
+      this.logger.log('COD enforcement: No overdue records found.');
+      return;
+    }
+
+    // Get unique driver IDs from overdue records
+    const driverIds = [...new Set(overdueRecords.map((r) => r.driverId))];
+
+    this.logger.warn(
+      `COD enforcement: Found ${overdueRecords.length} overdue records for ${driverIds.length} driver(s)`,
+    );
+
+    // Block each driver
+    const now = new Date();
+    await this.prisma.driver.updateMany({
+      where: {
+        id: { in: driverIds },
+        isCODBlocked: false, // Only update drivers not already blocked
+      },
+      data: {
+        isCODBlocked: true,
+        codBlockedAt: now,
+      },
+    });
+
+    // Emit enforcement event with blocked driver list
+    this.eventEmitter.emit('cod.enforcement.blocked', {
+      driverIds,
+      overdueRecordCount: overdueRecords.length,
+      cutoffTime,
+      enforcedAt: now,
+    });
+
+    this.logger.warn(
+      `COD enforcement: Blocked ${driverIds.length} driver(s) for overdue COD collections: [${driverIds.join(', ')}]`,
+    );
   }
 }

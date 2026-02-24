@@ -3,7 +3,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { quotationsApi } from '@/lib/api/quotations.api';
-import type { QuotationQueryParams, CreateQuotationDto } from '@/lib/types';
+import type {
+  QuotationQueryParams,
+  CreateQuotationDto,
+  CreateTemplateDto,
+  SaveAsTemplateDto,
+  CreateFromTemplateDto,
+} from '@/lib/types';
 
 // ---------------------------------------------------------------------------
 // Query key factory
@@ -105,6 +111,101 @@ export function useDuplicateQuotation() {
     mutationFn: (id: string) => quotationsApi.duplicate(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: quotationKeys.lists() });
+      toast.success('Đã sao chép báo giá');
     },
+    onError: () => {
+      toast.error('Không thể sao chép báo giá');
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Template Queries & Mutations
+// ---------------------------------------------------------------------------
+
+export const templateKeys = {
+  all: ['quotation-templates'] as const,
+  list: () => [...templateKeys.all, 'list'] as const,
+};
+
+export function useQuotationTemplates() {
+  return useQuery({
+    queryKey: templateKeys.list(),
+    queryFn: () => quotationsApi.listTemplates(),
+  });
+}
+
+export function useCreateTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateTemplateDto) => quotationsApi.createTemplate(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: templateKeys.list() });
+      toast.success('Đã tạo mẫu báo giá');
+    },
+    onError: () => {
+      toast.error('Không thể tạo mẫu');
+    },
+  });
+}
+
+export function useDeleteTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => quotationsApi.deleteTemplate(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: templateKeys.list() });
+      toast.success('Đã xóa mẫu');
+    },
+    onError: () => {
+      toast.error('Không thể xóa mẫu');
+    },
+  });
+}
+
+export function useSaveAsTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: SaveAsTemplateDto }) =>
+      quotationsApi.saveAsTemplate(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: templateKeys.list() });
+      toast.success('Đã lưu mẫu báo giá');
+    },
+    onError: () => {
+      toast.error('Không thể lưu mẫu');
+    },
+  });
+}
+
+export function useCreateFromTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      data,
+    }: {
+      templateId: string;
+      data: CreateFromTemplateDto;
+    }) => quotationsApi.createFromTemplate(templateId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: quotationKeys.lists() });
+      toast.success('Đã tạo báo giá từ mẫu');
+    },
+    onError: () => {
+      toast.error('Không thể tạo báo giá từ mẫu');
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Recent Items
+// ---------------------------------------------------------------------------
+
+export function useRecentItemsForCustomer(customerId: string) {
+  return useQuery({
+    queryKey: ['quotation-recent-items', customerId],
+    queryFn: () => quotationsApi.getRecentItems(customerId),
+    enabled: !!customerId,
   });
 }

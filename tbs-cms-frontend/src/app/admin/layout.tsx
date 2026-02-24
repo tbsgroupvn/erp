@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import {
   FileText,
   Image,
@@ -16,7 +18,8 @@ import {
   HelpCircle,
   Link as LinkIcon,
   Bell,
-  Search
+  Search,
+  Loader2,
 } from 'lucide-react';
 
 export default function CMSLayout({
@@ -25,6 +28,26 @@ export default function CMSLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { isAuthenticated, isLoading, logout } = useAuthStore();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push(`/login?callbackUrl=${encodeURIComponent(pathname || '/admin')}`);
+    }
+  }, [isAuthenticated, isLoading, pathname, router]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const navigation = [
     {
@@ -160,13 +183,16 @@ export default function CMSLayout({
 
             <div className="hidden md:block h-8 w-px bg-slate-200" />
 
-            <Link
-              href="/login"
+            <button
+              onClick={() => {
+                logout();
+                router.push('/login');
+              }}
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-all duration-200 cursor-pointer"
             >
               <LogOut className="h-4 w-4" />
               <span className="hidden sm:inline">Đăng xuất</span>
-            </Link>
+            </button>
           </div>
         </div>
 

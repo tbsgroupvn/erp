@@ -1,0 +1,35 @@
+# ============================================
+# TBS ERP - Kibana Configuration
+# ============================================
+
+server.name: kibana
+server.host: "0.0.0.0"
+server.port: 5601
+
+# Elasticsearch connection
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+elasticsearch.username: "kibana_system"
+elasticsearch.password: "${ELASTICSEARCH_PASSWORD}"
+
+# Default index pattern
+# kibana.defaultAppId: "discover"
+
+# Monitoring
+monitoring.ui.container.elasticsearch.enabled: true
+
+# Security
+xpack.security.enabled: true
+
+# Telemetry
+telemetry.enabled: false
+telemetry.optIn: false
+
+# Logging
+logging.root.level: warn
+
+# i18n (Vietnamese locale not available, use English)
+i18n.locale: "en"
+
+# Server base path (if behind reverse proxy)
+# server.basePath: "/kibana"
+# server.rewriteBasePath: true

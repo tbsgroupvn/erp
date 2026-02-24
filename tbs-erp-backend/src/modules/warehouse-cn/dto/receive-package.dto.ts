@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMinSize,
   IsArray,
   IsNotEmpty,
   IsOptional,
@@ -38,14 +39,15 @@ export class ReceivePackageDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({
-    description: 'Photo URLs of the package',
+  @ApiProperty({
+    description: 'Photo URLs of the package (required - Layer 4A)',
     example: ['https://storage.tbs.vn/packages/img1.jpg'],
   })
-  @IsOptional()
-  @IsArray()
+  @IsArray({ message: 'Bắt buộc chụp ảnh kiện hàng khi nhận tại kho TQ' })
+  @ArrayMinSize(1, { message: 'Bắt buộc ít nhất 1 ảnh kiện hàng khi nhận tại kho TQ' })
   @IsString({ each: true })
-  imageUrls?: string[];
+  @IsNotEmpty({ each: true })
+  imageUrls: string[];
 
   @ApiPropertyOptional({
     description: 'Additional notes',

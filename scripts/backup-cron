@@ -1,0 +1,19 @@
+# ============================================
+# TBS ERP - Backup Cron Schedule
+# ============================================
+# Managed by docker-compose. Do not edit in container.
+#
+# Format: minute hour day month weekday command
+
+# Daily backup at 2:00 AM (UTC)
+0 2 * * * /scripts/backup.sh daily >> /var/log/backup.log 2>&1
+
+# Weekly backup on Sunday at 3:00 AM (UTC)
+0 3 * * 0 /scripts/backup.sh weekly >> /var/log/backup.log 2>&1
+
+# Monthly backup on the 1st at 4:00 AM (UTC)
+0 4 1 * * /scripts/backup.sh monthly >> /var/log/backup.log 2>&1
+
+# Weekly backup verification on Monday at 5:00 AM (UTC)
+# Verifies the latest daily backup
+0 5 * * 1 LATEST_BACKUP=$(ls -t /backups/daily_*.dump.gz 2>/dev/null | head -1) && [ -n "$LATEST_BACKUP" ] && /scripts/verify-backup.sh "$LATEST_BACKUP" >> /var/log/backup-verify.log 2>&1

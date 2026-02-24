@@ -3,7 +3,7 @@
 // ============================================
 
 model MasterOrder {
-  id              String            @id @default(uuid())
+  id              String            @id @default(cuid())
   code            String            @unique  // #NV001.070226.0001
   customerId      String            @map("customer_id")
   saleId          String            @map("sale_id")
@@ -38,13 +38,13 @@ model Order {
   branch          Branch
 
   // Tài chính
-  totalAmount     Decimal      @default(0) @map("total_amount") @db.Decimal(15, 2)
+  totalAmount     Decimal      @default(0) @map("total_amount") @db.Decimal(18, 2)
   currency        Currency     @default(VND)
-  depositRequired Decimal      @default(0) @map("deposit_required") @db.Decimal(15, 2)
-  depositPaid     Decimal      @default(0) @map("deposit_paid") @db.Decimal(15, 2)
+  depositRequired Decimal      @default(0) @map("deposit_required") @db.Decimal(18, 2)
+  depositPaid     Decimal      @default(0) @map("deposit_paid") @db.Decimal(18, 2)
   isDepositPaid   Boolean      @default(false) @map("is_deposit_paid")
   discountPercent Decimal      @default(0) @map("discount_percent") @db.Decimal(5, 2)
-  discountAmount  Decimal      @default(0) @map("discount_amount") @db.Decimal(15, 2)
+  discountAmount  Decimal      @default(0) @map("discount_amount") @db.Decimal(18, 2)
 
   // Vận chuyển
   shippingRoute   ShippingRoute? @map("shipping_route")
@@ -62,6 +62,11 @@ model Order {
   // Contract link
   contractId      String?      @map("contract_id")
 
+  // Exchange rate mode
+  baseExchangeRate  Decimal?   @map("base_exchange_rate") @db.Decimal(18, 4)
+  exchangeRateMode  String?    @map("exchange_rate_mode") // FIXED | FLOATING
+  fulfillmentStatus String?    @map("fulfillment_status") // FULL | PARTIAL | NONE
+
   note            String?
   cancelReason    String?      @map("cancel_reason")
   completedAt     DateTime?    @map("completed_at")
@@ -69,7 +74,7 @@ model Order {
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
   // Relations
-  masterOrder     MasterOrder? @relation(fields: [masterOrderId], references: [id])
+  masterOrder     MasterOrder? @relation(fields: [masterOrderId], references: [id], onDelete: Cascade)
   customer        Customer     @relation(fields: [customerId], references: [id])
   container       Container?   @relation(fields: [containerId], references: [id])
   contract        Contract?    @relation(fields: [contractId], references: [id])
@@ -86,6 +91,7 @@ model Order {
   supplierOrders  SupplierOrder[]
   qcInspections   QCInspection[]
   mhhIssues       MHHIssue[]
+  extraCharges    OrderExtraCharge[]
 
   @@index([customerId])
   @@index([saleId])
@@ -103,9 +109,9 @@ model OrderItem {
   productName     String   @map("product_name")
   productUrl      String?  @map("product_url")  // Link sản phẩm TQ
   quantity        Int      @default(1)
-  unitPrice       Decimal  @default(0) @map("unit_price") @db.Decimal(15, 2)
+  unitPrice       Decimal  @default(0) @map("unit_price") @db.Decimal(18, 2)
   currency        Currency @default(CNY)
-  totalPrice      Decimal  @default(0) @map("total_price") @db.Decimal(15, 2)
+  totalPrice      Decimal  @default(0) @map("total_price") @db.Decimal(18, 2)
 
   // === MHH: Variant / Thông tin biến thể sản phẩm ===
   color           String?                         // Màu sắc
@@ -114,20 +120,49 @@ model OrderItem {
 
   // === MHH: Chi phí chi tiết ===
   serviceFeePercent    Decimal?  @map("service_fee_percent") @db.Decimal(5, 2)    // % phí dịch vụ MHH (3-8%)
-  serviceFeeAmount     Decimal?  @map("service_fee_amount") @db.Decimal(15, 2)    // Phí DV tính ra tiền (CNY)
-  domesticShippingCN   Decimal?  @map("domestic_shipping_cn") @db.Decimal(15, 2)  // Ship nội địa TQ (CNY)
-  exchangeRateUsed     Decimal?  @map("exchange_rate_used") @db.Decimal(15, 6)    // Tỷ giá CNY→VND lock lúc mua
-  actualSupplierPrice  Decimal?  @map("actual_supplier_price") @db.Decimal(15, 2) // Giá TBS trả NCC thực tế (CNY)
-  totalCostCNY         Decimal?  @map("total_cost_cny") @db.Decimal(15, 2)        // Tổng chi phí CNY = unitPrice + serviceFee + shipping
-  totalCostVND         Decimal?  @map("total_cost_vnd") @db.Decimal(15, 2)        // Tổng chi phí quy VND
+  serviceFeeAmount     Decimal?  @map("service_fee_amount") @db.Decimal(18, 2)    // Phí DV tính ra tiền (CNY)
+  domesticShippingCN   Decimal?  @map("domestic_shipping_cn") @db.Decimal(18, 2)  // Ship nội địa TQ (CNY)
+  exchangeRateUsed     Decimal?  @map("exchange_rate_used") @db.Decimal(18, 4)    // Tỷ giá CNY→VND lock lúc mua
+  actualSupplierPrice  Decimal?  @map("actual_supplier_price") @db.Decimal(18, 2) // Giá TBS trả NCC thực tế (CNY)
+  totalCostCNY         Decimal?  @map("total_cost_cny") @db.Decimal(18, 2)        // Tổng chi phí CNY = unitPrice + serviceFee + shipping
+  totalCostVND         Decimal?  @map("total_cost_vnd") @db.Decimal(18, 2)        // Tổng chi phí quy VND
+
+  fulfilledQuantity Int      @default(0) @map("fulfilled_quantity")
 
   note            String?
+  deletedAt       DateTime? @map("deleted_at") // Soft delete
   createdAt       DateTime @default(now()) @map("created_at")
 
   order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   supplierOrders  SupplierOrder[]
 
+  @@index([orderId])
   @@map("order_items")
+}
+
+// ============================================
+// ORDER EXTRA CHARGE — Phụ phí phát sinh
+// ============================================
+
+model OrderExtraCharge {
+  id          String   @id @default(cuid())
+  orderId     String   @map("order_id")
+  chargeType  String   @map("charge_type")  // e.g. REPACK, INSPECTION, STORAGE, CUSTOMS, OTHER
+  amount      Decimal  @db.Decimal(18, 2)
+  currency    Currency @default(CNY)
+  description String?
+  imageUrls   String[] @default([]) @map("image_urls")
+  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  approvedBy  String?  @map("approved_by")
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status])
+  @@map("order_extra_charges")
 }
 
 model OrderStatusHistory {
@@ -152,7 +187,7 @@ model PreAlert {
   description     String?
   expectedPieces  Int?     @map("expected_pieces")
   imageUrl        String?  @map("image_url")
-  status          String   @default("WAITING") // WAITING, RECEIVED, ASSIGNED
+  status          PreAlertStatus @default(WAITING)
   matchedPackageId String? @map("matched_package_id")
   orderId         String?  @map("order_id")
   createdAt       DateTime @default(now()) @map("created_at")
@@ -174,16 +209,17 @@ model Contract {
   saleId          String          @map("sale_id")
   type            ContractType    @default(MASTER)
   parentId        String?         @map("parent_id") // Cho phụ lục hợp đồng
+  quotationId     String?         @map("quotation_id") // Liên kết với báo giá gốc
 
   title           String
   signedDate      DateTime?       @map("signed_date")
   effectiveDate   DateTime        @map("effective_date")
   expiryDate      DateTime?       @map("expiry_date")
 
-  totalValue      Decimal         @default(0) @map("total_value") @db.Decimal(15, 2)
-  depositRequired Decimal         @default(0) @map("deposit_required") @db.Decimal(15, 2)
-  depositPaid     Decimal         @default(0) @map("deposit_paid") @db.Decimal(15, 2)
-  totalPaid       Decimal         @default(0) @map("total_paid") @db.Decimal(15, 2)
+  totalValue      Decimal         @default(0) @map("total_value") @db.Decimal(18, 2)
+  depositRequired Decimal         @default(0) @map("deposit_required") @db.Decimal(18, 2)
+  depositPaid     Decimal         @default(0) @map("deposit_paid") @db.Decimal(18, 2)
+  totalPaid       Decimal         @default(0) @map("total_paid") @db.Decimal(18, 2)
   currency        Currency        @default(VND)
 
   status          ContractStatus  @default(DRAFT)
@@ -195,6 +231,8 @@ model Contract {
   note            String?
 
   createdBy       String          @map("created_by")
+  deletedAt       DateTime?       @map("deleted_at")  // Soft delete
+  deletedBy       String?         @map("deleted_by")
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
@@ -202,6 +240,7 @@ model Contract {
   sale            User            @relation("ContractSale", fields: [saleId], references: [id])
   parent          Contract?       @relation("ContractAppendixes", fields: [parentId], references: [id])
   appendixes      Contract[]      @relation("ContractAppendixes")
+  quotation       Quotation?      @relation(fields: [quotationId], references: [id])
   orders          Order[]
   allocations     PaymentAllocation[]
   paymentVouchers PaymentVoucher[]
@@ -210,6 +249,7 @@ model Contract {
   @@index([saleId])
   @@index([status])
   @@index([parentId])
+  @@index([quotationId])
   @@map("contracts")
 }
 
@@ -231,12 +271,12 @@ model Quotation {
   version           Int             @default(1)
 
   // Tài chính
-  subtotal          Decimal         @default(0) @db.Decimal(15, 2)
+  subtotal          Decimal         @default(0) @db.Decimal(18, 2)
   discountPercent   Decimal         @default(0) @map("discount_percent") @db.Decimal(5, 2)
-  discountAmount    Decimal         @default(0) @map("discount_amount") @db.Decimal(15, 2)
+  discountAmount    Decimal         @default(0) @map("discount_amount") @db.Decimal(18, 2)
   taxRate           Decimal         @default(0.1) @map("tax_rate") @db.Decimal(5, 4)
-  taxAmount         Decimal         @default(0) @map("tax_amount") @db.Decimal(15, 2)
-  totalAmount       Decimal         @default(0) @map("total_amount") @db.Decimal(15, 2)
+  taxAmount         Decimal         @default(0) @map("tax_amount") @db.Decimal(18, 2)
+  totalAmount       Decimal         @default(0) @map("total_amount") @db.Decimal(18, 2)
 
   // Validity
   validUntil        DateTime?       @map("valid_until")
@@ -259,6 +299,7 @@ model Quotation {
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
   items             QuotationItem[]
+  contracts         Contract[]
 
   @@index([customerId])
   @@index([status])
@@ -274,10 +315,11 @@ model QuotationItem {
   productName   String    @map("product_name")
   productUrl    String?   @map("product_url")
   quantity      Int       @default(1)
-  unitPrice     Decimal   @default(0) @map("unit_price") @db.Decimal(15, 2)
-  currency      String    @default("CNY")
-  totalPrice    Decimal   @default(0) @map("total_price") @db.Decimal(15, 2)
+  unitPrice     Decimal   @default(0) @map("unit_price") @db.Decimal(18, 2)
+  currency      Currency  @default(CNY)
+  totalPrice    Decimal   @default(0) @map("total_price") @db.Decimal(18, 2)
   note          String?
+  deletedAt     DateTime? @map("deleted_at") // Soft delete
   createdAt     DateTime  @default(now()) @map("created_at")
 
   @@index([quotationId])
@@ -305,12 +347,12 @@ model SupplierOrder {
   status              SupplierOrderStatus @default(DRAFT)
 
   // Tài chính
-  quotedPriceCNY      Decimal?            @map("quoted_price_cny") @db.Decimal(15, 2)   // Giá NCC báo
-  actualPriceCNY      Decimal?            @map("actual_price_cny") @db.Decimal(15, 2)   // Giá thực tế trả
-  shippingFeeCNY      Decimal?            @map("shipping_fee_cny") @db.Decimal(15, 2)   // Phí ship nội địa TQ
-  totalCNY            Decimal?            @map("total_cny") @db.Decimal(15, 2)
-  exchangeRateUsed    Decimal?            @map("exchange_rate_used") @db.Decimal(15, 6)
-  totalVND            Decimal?            @map("total_vnd") @db.Decimal(15, 2)
+  quotedPriceCNY      Decimal?            @map("quoted_price_cny") @db.Decimal(18, 2)   // Giá NCC báo
+  actualPriceCNY      Decimal?            @map("actual_price_cny") @db.Decimal(18, 2)   // Giá thực tế trả
+  shippingFeeCNY      Decimal?            @map("shipping_fee_cny") @db.Decimal(18, 2)   // Phí ship nội địa TQ
+  totalCNY            Decimal?            @map("total_cny") @db.Decimal(18, 2)
+  exchangeRateUsed    Decimal?            @map("exchange_rate_used") @db.Decimal(18, 4)
+  totalVND            Decimal?            @map("total_vnd") @db.Decimal(18, 2)
 
   // Vận chuyển nội địa TQ
   trackingNumberCN    String?             @map("tracking_number_cn")  // Mã vận đơn nội địa TQ
@@ -338,12 +380,15 @@ model SupplierOrder {
   updatedAt           DateTime            @updatedAt @map("updated_at")
 
   // Relations
-  order               Order               @relation(fields: [orderId], references: [id])
+  order               Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderItem           OrderItem?          @relation(fields: [orderItemId], references: [id])
+  vendor              Vendor?             @relation("SupplierOrderVendor", fields: [vendorId], references: [id])
+  paymentVouchers     PaymentVoucher[]
 
   @@index([orderId])
   @@index([orderItemId])
   @@index([status])
+  @@index([orderId, status])
   @@index([trackingNumberCN])
   @@index([createdAt])
   @@map("supplier_orders")
@@ -374,7 +419,7 @@ model MHHIssue {
   // Giải quyết
   resolution          MHHIssueResolution? @map("resolution")
   resolutionNote      String?             @map("resolution_note")
-  compensationAmount  Decimal?            @map("compensation_amount") @db.Decimal(15, 2)
+  compensationAmount  Decimal?            @map("compensation_amount") @db.Decimal(18, 2)
   compensationCurrency Currency?          @map("compensation_currency")
   resolvedAt          DateTime?           @map("resolved_at")
 
@@ -413,15 +458,15 @@ model ServiceFeeConfig {
 
   // Điều kiện áp dụng
   customerTier    CustomerTier? @map("customer_tier")   // null = tất cả
-  minOrderValue   Decimal?     @map("min_order_value") @db.Decimal(15, 2) // Giá trị đơn tối thiểu (CNY)
-  maxOrderValue   Decimal?     @map("max_order_value") @db.Decimal(15, 2)
+  minOrderValue   Decimal?     @map("min_order_value") @db.Decimal(18, 2) // Giá trị đơn tối thiểu (CNY)
+  maxOrderValue   Decimal?     @map("max_order_value") @db.Decimal(18, 2)
   minQuantity     Int?         @map("min_quantity")     // Số lượng tối thiểu
   productCategory String?      @map("product_category") // Danh mục hàng hóa
 
   // Phí
   feePercent      Decimal      @map("fee_percent") @db.Decimal(5, 2)  // % phí dịch vụ
-  minFeeAmount    Decimal?     @map("min_fee_amount") @db.Decimal(15, 2) // Phí tối thiểu (CNY)
-  maxFeeAmount    Decimal?     @map("max_fee_amount") @db.Decimal(15, 2) // Phí tối đa (CNY)
+  minFeeAmount    Decimal?     @map("min_fee_amount") @db.Decimal(18, 2) // Phí tối thiểu (CNY)
+  maxFeeAmount    Decimal?     @map("max_fee_amount") @db.Decimal(18, 2) // Phí tối đa (CNY)
 
   // Meta
   priority        Int          @default(0)              // Ưu tiên cao hơn = áp dụng trước
@@ -436,4 +481,37 @@ model ServiceFeeConfig {
   @@index([customerTier])
   @@index([priority])
   @@map("service_fee_configs")
+}
+
+// ============================================
+// ORDER ENUMS
+// ============================================
+
+enum PreAlertStatus {
+  WAITING
+  RECEIVED
+  ASSIGNED
+}
+
+// ============================================
+// QUOTATION TEMPLATE — Mẫu báo giá
+// ============================================
+
+model QuotationTemplate {
+  id            String        @id @default(cuid())
+  name          String
+  description   String?
+  serviceType   ServiceType   @map("service_type")
+  branch        Branch
+  shippingRoute ShippingRoute? @map("shipping_route")
+  items         Json          @default("[]")
+  isPublic      Boolean       @default(false) @map("is_public")
+  createdBy     String        @map("created_by")
+  usageCount    Int           @default(0) @map("usage_count")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@index([createdBy])
+  @@index([serviceType])
+  @@map("quotation_templates")
 }

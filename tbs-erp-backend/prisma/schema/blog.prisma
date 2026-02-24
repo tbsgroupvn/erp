@@ -49,6 +49,7 @@ model BlogPost {
 
   // Author
   authorId    String
+  author      User            @relation("BlogPostAuthor", fields: [authorId], references: [id])
   authorName  String          @db.VarChar(255)
 
   // Categorization
@@ -78,6 +79,9 @@ model BlogPost {
   // Related posts
   relatedPostIds String[]     @default([])
 
+  // Relations
+  comments    BlogComment[]
+
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -87,6 +91,8 @@ model BlogPost {
   @@index([categoryId])
   @@index([isFeatured])
   @@index([authorId])
+  @@index([publishedAt])
+  @@index([status])
   @@map("blog_posts")
 }
 
@@ -94,6 +100,9 @@ model BlogPost {
 model BlogComment {
   id        String   @id @default(cuid())
   postId    String
+
+  // Post relation
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   // Author info
   authorName  String   @db.VarChar(255)
@@ -118,5 +127,6 @@ model BlogComment {
 
   @@index([postId, isApproved])
   @@index([parentId])
+  @@index([postId])
   @@map("blog_comments")
 }

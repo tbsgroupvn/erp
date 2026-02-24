@@ -1,7 +1,8 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
-import { NotificationChannel } from '@prisma/client';
+import { NotificationChannel, NotificationType } from '@prisma/client';
+import { withRetry } from '@common/utils/retry.util';
 
 export interface SendNotificationDto {
   userId: string;
@@ -18,7 +19,7 @@ export interface SendNotificationDto {
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Route notification to appropriate channel(s) and persist in DB.
@@ -121,9 +122,11 @@ export class NotificationService {
         userId,
         title,
         body,
-        type: type ?? 'SYSTEM',
+        type: (type ?? 'SYSTEM') as NotificationType,
         channel,
         data: (data as any) ?? undefined,
+        referenceId: referenceId ?? null,
+        isUrgent: isUrgent ?? false,
         isRead: false,
       },
     });
@@ -152,7 +155,7 @@ export class NotificationService {
   }
 
   /**
-   * Placeholder for email integration.
+   * Send an email with retry logic (3 retries, exponential backoff).
    * In production, this would integrate with an email provider (SES, SendGrid, etc.).
    */
   async sendEmail(
@@ -160,20 +163,53 @@ export class NotificationService {
     subject: string,
     body: string,
   ): Promise<void> {
-    // TODO: Integrate with email provider
-    this.logger.log(
-      `[Email Placeholder] To: ${email}, Subject: ${subject}`,
+    await withRetry(
+      () => this.callEmailProvider(email, subject, body),
+      { maxRetries: 3, baseDelayMs: 1000, maxDelayMs: 10_000 },
+      this.logger,
     );
   }
 
   /**
-   * Placeholder for SMS integration.
+   * Internal method performing the actual email provider API call.
+   */
+  private async callEmailProvider(
+    email: string,
+    subject: string,
+    body: string,
+  ): Promise<void> {
+    // TODO: Integrate with email provider (SES, SendGrid, etc.)
+    const maskedEmail = email.replace(/^(.{2}).*(@.*)$/, '$1***$2');
+    this.logger.log(
+      `[Email Placeholder] To: ${maskedEmail}, Subject: ${subject}`,
+    );
+  }
+
+  /**
+   * Send an SMS with retry logic (3 retries, exponential backoff).
    * In production, this would integrate with an SMS provider (Twilio, Zalo ZNS, etc.).
    */
   async sendSms(phone: string, message: string): Promise<void> {
-    // TODO: Integrate with SMS provider
+    await withRetry(
+      () => this.callSmsProvider(phone, message),
+      { maxRetries: 3, baseDelayMs: 1000, maxDelayMs: 10_000 },
+      this.logger,
+    );
+  }
+
+  /**
+   * Internal method performing the actual SMS provider API call.
+   */
+  private async callSmsProvider(
+    phone: string,
+    message: string,
+  ): Promise<void> {
+    // TODO: Integrate with SMS provider (Twilio, Zalo ZNS, etc.)
+    const maskedPhone = phone.length > 4
+      ? '***' + phone.slice(-4)
+      : '***';
     this.logger.log(
-      `[SMS Placeholder] To: ${phone}, Message: ${message.substring(0, 50)}...`,
+      `[SMS Placeholder] To: ${maskedPhone}, Message length: ${message.length}`,
     );
   }
 
@@ -218,16 +254,8 @@ export class NotificationService {
       where: { id: notificationId },
     });
 
-    if (!notification) {
-      throw new NotFoundException(
-        `Notification ${notificationId} not found`,
-      );
-    }
-
-    if (notification.userId !== userId) {
-      throw new NotFoundException(
-        `Notification ${notificationId} not found`,
-      );
+    if (!notification || notification.userId !== userId) {
+      throw new NotFoundException('Notification not found');
     }
 
     return this.prisma.notificationRecord.update({
@@ -263,7 +291,35 @@ export class NotificationService {
   }
 
   /**
+   * Bulk-insert APP_PUSH notifications using a single createMany call.
+   * Much faster than individual creates for large recipient lists.
+   */
+  private async bulkPersistAppPush(
+    userIds: string[],
+    notification: Omit<SendNotificationDto, 'userId'>,
+  ): Promise<void> {
+    if (userIds.length === 0) return;
+
+    await this.prisma.notificationRecord.createMany({
+      data: userIds.map((userId) => ({
+        userId,
+        title: notification.title,
+        body: notification.body,
+        type: ((notification.type ?? 'SYSTEM') as NotificationType),
+        channel: notification.channel ?? NotificationChannel.APP_PUSH,
+        data: (notification.data as any) ?? undefined,
+        referenceId: notification.referenceId ?? null,
+        isUrgent: notification.isUrgent ?? false,
+        isRead: false,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  /**
    * Send notification to all users with a specific role.
+   * Uses createMany for APP_PUSH channel (single DB round-trip),
+   * falls back to batched individual sends for other channels.
    */
   async sendToRole(role: string, notification: Omit<SendNotificationDto, 'userId'>) {
     const users = await this.prisma.user.findMany({
@@ -271,8 +327,21 @@ export class NotificationService {
       select: { id: true },
     });
 
-    for (const user of users) {
-      await this.send({ ...notification, userId: user.id });
+    const channel = notification.channel ?? NotificationChannel.APP_PUSH;
+
+    if (channel === NotificationChannel.APP_PUSH) {
+      // Optimized path: single createMany call instead of N individual creates
+      await this.bulkPersistAppPush(
+        users.map((u) => u.id),
+        notification,
+      );
+    } else {
+      // For EMAIL/SMS channels, we still need individual sends for provider calls
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < users.length; i += BATCH_SIZE) {
+        const batch = users.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(user => this.send({ ...notification, userId: user.id })));
+      }
     }
 
     this.logger.log(
@@ -284,10 +353,22 @@ export class NotificationService {
 
   /**
    * Send notification to multiple users.
+   * Uses createMany for APP_PUSH channel (single DB round-trip),
+   * falls back to batched individual sends for other channels.
    */
   async sendBulk(userIds: string[], notification: Omit<SendNotificationDto, 'userId'>) {
-    for (const userId of userIds) {
-      await this.send({ ...notification, userId });
+    const channel = notification.channel ?? NotificationChannel.APP_PUSH;
+
+    if (channel === NotificationChannel.APP_PUSH) {
+      // Optimized path: single createMany call instead of N individual creates
+      await this.bulkPersistAppPush(userIds, notification);
+    } else {
+      // For EMAIL/SMS channels, we still need individual sends for provider calls
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+        const batch = userIds.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(userId => this.send({ ...notification, userId })));
+      }
     }
 
     this.logger.log(
@@ -382,15 +463,15 @@ export class NotificationService {
       select: { id: true },
     });
 
-    for (const user of accountants) {
-      await this.send({
+    await Promise.all(accountants.map(user =>
+      this.send({
         userId: user.id,
         title: 'Payment Received',
         body: `Payment of ${event.paymentAmount.toLocaleString()} VND recorded. ${event.isFullyPaid ? 'Fully paid.' : 'Partial payment.'}`,
         type: 'PAYMENT',
         referenceId: event.arId,
-      });
-    }
+      }),
+    ));
   }
 
   @OnEvent('approval.submitted')
@@ -407,16 +488,16 @@ export class NotificationService {
       select: { id: true },
     });
 
-    for (const user of approvers) {
-      await this.send({
+    await Promise.all(approvers.map(user =>
+      this.send({
         userId: user.id,
         title: 'New Approval Request',
         body: `A new ${event.type} approval request is waiting for your review.`,
         type: 'APPROVAL',
         referenceId: event.approvalId,
         isUrgent: true,
-      });
-    }
+      }),
+    ));
   }
 
   @OnEvent('approval.completed')
@@ -456,16 +537,16 @@ export class NotificationService {
       select: { id: true },
     });
 
-    for (const user of approvers) {
-      await this.send({
+    await Promise.all(approvers.map(user =>
+      this.send({
         userId: user.id,
         title: 'Overdue Approval Reminder',
         body: `Approval for ${event.type} (${event.referenceCode ?? event.approvalId}) is overdue. Please review.`,
         type: 'APPROVAL',
         referenceId: event.approvalId,
         isUrgent: true,
-      });
-    }
+      }),
+    ));
   }
 
   @OnEvent('sla.breached')
@@ -520,15 +601,15 @@ export class NotificationService {
       select: { id: true },
     });
 
-    for (const user of users) {
-      await this.send({
+    await Promise.all(users.map(user =>
+      this.send({
         userId: user.id,
         title: 'AR Overdue Alert',
         body: `AR ${event.arCode} for ${event.customerName} is ${event.daysOverdue} day(s) overdue. Outstanding: ${event.outstanding.toLocaleString()} VND.`,
         type: 'FINANCE',
         isUrgent: true,
-      });
-    }
+      }),
+    ));
   }
 
   @OnEvent('ar.aging.critical')
@@ -544,15 +625,15 @@ export class NotificationService {
       select: { id: true },
     });
 
-    for (const user of users) {
-      await this.send({
+    await Promise.all(users.map(user =>
+      this.send({
         userId: user.id,
         title: 'CRITICAL: AR 30+ Days Overdue',
         body: `AR ${event.arCode} for ${event.customerName} is ${event.daysOverdue} day(s) overdue. Outstanding: ${event.outstanding.toLocaleString()} VND. Requires executive review.`,
         type: 'FINANCE',
         isUrgent: true,
-      });
-    }
+      }),
+    ));
   }
 
   @OnEvent('auth.password.reset.requested')

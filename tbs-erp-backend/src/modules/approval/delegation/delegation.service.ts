@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { CreateDelegationDto } from './dto/create-delegation.dto';
 
@@ -19,13 +19,28 @@ export class DelegationService {
   }
 
   async create(dto: CreateDelegationDto, userId: string) {
+    const startDate = new Date(dto.startDate);
+    const endDate = new Date(dto.endDate);
+
+    if (dto.toUserId === userId) {
+      throw new BadRequestException('Cannot delegate to yourself');
+    }
+
+    if (startDate >= endDate) {
+      throw new BadRequestException('startDate must be before endDate');
+    }
+
+    if (endDate <= new Date()) {
+      throw new BadRequestException('endDate must be in the future');
+    }
+
     return this.prisma.approvalDelegation.create({
       data: {
         fromUserId: userId,
         toUserId: dto.toUserId,
         approvalTypes: dto.approvalTypes ?? [],
-        startDate: new Date(dto.startDate),
-        endDate: new Date(dto.endDate),
+        startDate,
+        endDate,
         reason: dto.reason,
         isActive: true,
       },
@@ -42,7 +57,7 @@ export class DelegationService {
     }
 
     if (delegation.fromUserId !== userId) {
-      throw new NotFoundException('Only the delegator can deactivate');
+      throw new ForbiddenException('Only the delegator can deactivate a delegation');
     }
 
     return this.prisma.approvalDelegation.update({
@@ -62,13 +77,54 @@ export class DelegationService {
         isActive: true,
         startDate: { lte: now },
         endDate: { gte: now },
-        OR: [
-          { approvalTypes: { isEmpty: true } },
-          ...(approvalType
-            ? [{ approvalTypes: { has: approvalType } }]
-            : []),
-        ],
+        ...(approvalType
+          ? {
+              OR: [
+                { approvalTypes: { isEmpty: true } },
+                { approvalTypes: { has: approvalType } },
+              ],
+            }
+          : {}),
       },
     });
+  }
+
+  /**
+   * Layer 3A: Validate segregation of duties — the request creator
+   * cannot be the approver (even if delegated).
+   *
+   * Returns the delegated approver if the original approver is the same
+   * as the request creator.
+   */
+  async validateSegregationOfDuties(
+    requestCreatedBy: string,
+    currentApproverId: string,
+    approvalType?: string,
+  ): Promise<{ allowed: boolean; reason?: string; delegatedTo?: string }> {
+    if (requestCreatedBy !== currentApproverId) {
+      return { allowed: true };
+    }
+
+    // Same person — try to find a delegation
+    const delegation = await this.findActiveDelegation(
+      currentApproverId,
+      approvalType,
+    );
+
+    if (delegation) {
+      this.logger.log(
+        `Segregation of duties: Approval delegated from ${currentApproverId} to ${delegation.toUserId}`,
+      );
+      return {
+        allowed: false,
+        reason: 'Người tạo không thể tự duyệt. Đã ủy quyền cho người khác.',
+        delegatedTo: delegation.toUserId,
+      };
+    }
+
+    return {
+      allowed: false,
+      reason: 'Người tạo yêu cầu không thể tự duyệt. Cần người khác duyệt.',
+    };
   }
 }

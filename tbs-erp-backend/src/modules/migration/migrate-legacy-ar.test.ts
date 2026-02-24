@@ -7,7 +7,7 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '@core/database/prisma.service';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { AccountStatus, OrderStatus, Prisma } from '@prisma/client';
 
 describe('Legacy AR Migration Logic', () => {
   let prismaService: PrismaService;
@@ -267,7 +267,7 @@ describe('Legacy AR Migration Logic', () => {
           amount: mockAr.amount,
           currency: mockAr.currency as any,
           dueDate: mockAr.dueDate,
-          status: mockAr.status,
+          status: mockAr.status as AccountStatus,
           note: mockAr.note,
           createdBy: mockAr.createdBy,
         },

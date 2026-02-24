@@ -142,6 +142,12 @@ export default function NhapExcelPage() {
         return;
       }
 
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error('File quá lớn. Giới hạn 10MB');
+        return;
+      }
+
       setIsProcessing(true);
       try {
         const buffer = await file.arrayBuffer();

@@ -22,15 +22,19 @@ import { toast } from 'sonner';
 import { Breadcrumbs } from '@/app/(public)/components/breadcrumbs';
 
 const contactFormSchema = z.object({
-  fullName: z.string().min(2, 'Họ tên phải có ít nhất 2 ký tự'),
+  fullName: z.string().min(2, 'Họ tên phải có ít nhất 2 ký tự').max(100, 'Họ tên tối đa 100 ký tự')
+    .transform((v) => v.trim().replace(/<[^>]*>/g, '')),
   phone: z
     .string()
     .min(10, 'Số điện thoại phải có ít nhất 10 số')
+    .max(15, 'Số điện thoại tối đa 15 ký tự')
     .regex(/^[0-9+\-\s()]+$/, 'Số điện thoại không hợp lệ'),
-  email: z.string().email('Email không hợp lệ'),
-  company: z.string().optional(),
+  email: z.string().email('Email không hợp lệ').max(255, 'Email tối đa 255 ký tự'),
+  company: z.string().max(200, 'Tên công ty tối đa 200 ký tự').optional()
+    .transform((v) => v?.trim().replace(/<[^>]*>/g, '')),
   service: z.string().min(1, 'Vui lòng chọn dịch vụ'),
-  message: z.string().min(10, 'Nội dung phải có ít nhất 10 ký tự'),
+  message: z.string().min(10, 'Nội dung phải có ít nhất 10 ký tự').max(2000, 'Nội dung tối đa 2000 ký tự')
+    .transform((v) => v.trim().replace(/<[^>]*>/g, '')),
 });
 
 type ContactFormData = z.infer<typeof contactFormSchema>;
@@ -53,8 +57,8 @@ const contactInfo = [
   {
     icon: Mail,
     title: 'Email',
-    content: process.env.NEXT_PUBLIC_COMPANY_EMAIL || 'info@nhaphangchinhngach.vn',
-    subContent: process.env.NEXT_PUBLIC_COMPANY_SUPPORT_EMAIL || 'support@nhaphangchinhngach.vn',
+    content: process.env.NEXT_PUBLIC_COMPANY_EMAIL || '',
+    subContent: process.env.NEXT_PUBLIC_COMPANY_SUPPORT_EMAIL || '',
   },
   {
     icon: MapPin,
@@ -100,11 +104,18 @@ export default function ContactPage() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      // Read CSRF token from cookie for cross-site request protection
+      const csrfToken = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('XSRF-TOKEN='))
+        ?.split('=')[1];
       const response = await fetch(`${apiUrl}/public/leads`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-XSRF-TOKEN': decodeURIComponent(csrfToken) } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
 
@@ -426,13 +437,6 @@ function GoogleMap() {
         mapTypeControl: true,
         streetViewControl: true,
         fullscreenControl: true,
-      });
-
-      new window.google.maps.Marker({
-        position: location,
-        map,
-        title: 'TBS Logistics',
-        animation: window.google.maps.Animation.DROP,
       });
 
       // Add info window

@@ -47,6 +47,8 @@ const SO_STATUS_LABELS: Record<SupplierOrderStatus, string> = {
   PARTIALLY_SHIPPED: 'Gửi một phần',
   SHIPPED_CN: 'Đã gửi hàng',
   RECEIVED_CN: 'Đã nhận kho TQ',
+  RETURN_IN_PROGRESS: 'Đang trả hàng',
+  REFUNDED: 'Đã hoàn tiền',
   CANCELLED: 'Đã hủy',
   ISSUE: 'Có vấn đề',
 };
@@ -59,18 +61,22 @@ const SO_STATUS_COLORS: Record<SupplierOrderStatus, string> = {
   PARTIALLY_SHIPPED: 'bg-yellow-100 text-yellow-700',
   SHIPPED_CN: 'bg-orange-100 text-orange-700',
   RECEIVED_CN: 'bg-green-100 text-green-700',
+  RETURN_IN_PROGRESS: 'bg-orange-100 text-orange-700',
+  REFUNDED: 'bg-teal-100 text-teal-700',
   CANCELLED: 'bg-red-100 text-red-700',
   ISSUE: 'bg-red-100 text-red-700',
 };
 
 const STATUS_FLOW: Partial<Record<SupplierOrderStatus, SupplierOrderStatus[]>> = {
-  DRAFT: ['QUOTED', 'CANCELLED'],
+  DRAFT: ['QUOTED', 'ORDERED', 'CANCELLED'],
   QUOTED: ['ORDERED', 'CANCELLED'],
-  ORDERED: ['CONFIRMED', 'CANCELLED'],
-  CONFIRMED: ['PARTIALLY_SHIPPED', 'SHIPPED_CN', 'ISSUE'],
-  PARTIALLY_SHIPPED: ['SHIPPED_CN', 'ISSUE'],
+  ORDERED: ['CONFIRMED', 'CANCELLED', 'ISSUE'],
+  CONFIRMED: ['PARTIALLY_SHIPPED', 'SHIPPED_CN', 'CANCELLED', 'ISSUE'],
+  PARTIALLY_SHIPPED: ['SHIPPED_CN', 'RECEIVED_CN', 'ISSUE'],
   SHIPPED_CN: ['RECEIVED_CN', 'ISSUE'],
-  ISSUE: ['CONFIRMED', 'CANCELLED'],
+  RECEIVED_CN: ['RETURN_IN_PROGRESS', 'ISSUE'],
+  RETURN_IN_PROGRESS: ['REFUNDED', 'ISSUE'],
+  ISSUE: ['ORDERED', 'CONFIRMED', 'RETURN_IN_PROGRESS', 'CANCELLED'],
 };
 
 const ALL_STATUSES: SupplierOrderStatus[] = [
@@ -81,6 +87,8 @@ const ALL_STATUSES: SupplierOrderStatus[] = [
   'PARTIALLY_SHIPPED',
   'SHIPPED_CN',
   'RECEIVED_CN',
+  'RETURN_IN_PROGRESS',
+  'REFUNDED',
   'CANCELLED',
   'ISSUE',
 ];

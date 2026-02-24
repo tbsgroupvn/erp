@@ -156,6 +156,8 @@ export function AppSidebar() {
 
   return (
     <aside
+      role="navigation"
+      aria-label="Menu chinh"
       className={cn(
         'flex h-screen flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300',
         isCollapsed ? 'w-[68px]' : 'w-[280px]'
@@ -165,11 +167,11 @@ export function AppSidebar() {
       <div className="flex h-16 items-center border-b px-4">
         <Link href="/tong-quan" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-bold text-sm">
-            T
+            {(process.env.NEXT_PUBLIC_APP_TITLE || 'CMS')[0]}
           </div>
           {!isCollapsed && (
             <span className="text-lg font-bold tracking-tight">
-              TBS ERP
+              {process.env.NEXT_PUBLIC_APP_TITLE || 'CMS System'}
             </span>
           )}
         </Link>
@@ -200,16 +202,21 @@ export function AppSidebar() {
                         key={item.href}
                         href={item.href}
                         title={item.title}
+                        aria-current={isActive ? 'page' : undefined}
+                        aria-label={item.title}
                         className={cn(
-                          'relative flex h-10 w-10 mx-auto items-center justify-center rounded-md transition-colors',
+                          'relative flex h-10 w-10 mx-auto items-center justify-center rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-ring',
                           isActive
                             ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
                             : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                         )}
                       >
-                        <Icon className="h-5 w-5" />
+                        <Icon className="h-5 w-5" aria-hidden="true" />
                         {showBadge && (
-                          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                          <span
+                            className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+                            aria-label={`${pendingCount} cho phe duyet`}
+                          >
                             {pendingCount > 9 ? '9+' : pendingCount}
                           </span>
                         )}
@@ -228,18 +235,26 @@ export function AppSidebar() {
                 className="mb-1"
               >
                 <Collapsible.Trigger asChild>
-                  <button className="flex w-full items-center justify-between rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors">
+                  <button
+                    className="flex w-full items-center justify-between rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                    aria-expanded={openGroups[group.label]}
+                    aria-controls={`nav-group-${group.label}`}
+                  >
                     <span>{group.label}</span>
                     <ChevronDown
                       className={cn(
                         'h-3.5 w-3.5 transition-transform',
                         openGroups[group.label] ? '' : '-rotate-90'
                       )}
+                      aria-hidden="true"
                     />
                   </button>
                 </Collapsible.Trigger>
 
-                <Collapsible.Content className="flex flex-col gap-0.5">
+                <Collapsible.Content
+                  id={`nav-group-${group.label}`}
+                  className="flex flex-col gap-0.5"
+                >
                   {filteredItems.map((item) => {
                     const isActive =
                       pathname === item.href ||
@@ -251,17 +266,21 @@ export function AppSidebar() {
                       <Link
                         key={item.href}
                         href={item.href}
+                        aria-current={isActive ? 'page' : undefined}
                         className={cn(
-                          'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+                          'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring',
                           isActive
                             ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
                             : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                         )}
                       >
-                        <Icon className="h-4 w-4 shrink-0" />
+                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                         <span className="flex-1">{item.title}</span>
                         {showBadge && (
-                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-semibold text-white">
+                          <span
+                            className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-semibold text-white"
+                            aria-label={`${pendingCount} cho phe duyet`}
+                          >
                             {pendingCount > 99 ? '99+' : pendingCount}
                           </span>
                         )}

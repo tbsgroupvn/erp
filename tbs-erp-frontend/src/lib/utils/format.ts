@@ -36,11 +36,11 @@ const CURRENCY_FORMATTERS: Record<Currency, Intl.NumberFormat> = {
  */
 export function formatCurrency(
   amount: number | string | null | undefined,
-  currency: Currency = Currency.VND,
+  currency: Currency | string = Currency.VND,
 ): string {
   const value = typeof amount === 'string' ? parseFloat(amount) : (amount ?? 0);
   if (isNaN(value)) return '0';
-  const formatter = CURRENCY_FORMATTERS[currency] ?? CURRENCY_FORMATTERS[Currency.VND];
+  const formatter = CURRENCY_FORMATTERS[currency as Currency] ?? CURRENCY_FORMATTERS[Currency.VND];
   return formatter.format(value);
 }
 

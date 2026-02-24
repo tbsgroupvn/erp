@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@core/database/prisma.service';
 
 export interface VoucherValidationInput {
@@ -34,7 +35,25 @@ export class PaymentVoucherValidator {
   // Known approved vendors list (in production this would come from DB)
   private readonly APPROVED_VENDORS: string[] = [];
 
-  constructor(private readonly prisma: PrismaService) {}
+  /** Anti-fraud thresholds from config */
+  private readonly expensePercentThreshold: number;
+  private readonly miscExpenseThreshold: number;
+  private readonly maxVouchersPerDay: number;
+  private readonly minReasonLength: number;
+  private readonly businessHoursStart: number;
+  private readonly businessHoursEnd: number;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {
+    this.expensePercentThreshold = this.configService.get<number>('business.antifraud.expensePercentThreshold', 0.9);
+    this.miscExpenseThreshold = this.configService.get<number>('business.antifraud.miscExpenseThreshold', 5_000_000);
+    this.maxVouchersPerDay = this.configService.get<number>('business.antifraud.maxVouchersPerDay', 5);
+    this.minReasonLength = this.configService.get<number>('business.antifraud.minReasonLength', 20);
+    this.businessHoursStart = this.configService.get<number>('business.antifraud.businessHoursStart', 7);
+    this.businessHoursEnd = this.configService.get<number>('business.antifraud.businessHoursEnd', 19);
+  }
 
   /**
    * Run all validation checks on a payment voucher.
@@ -85,21 +104,14 @@ export class PaymentVoucherValidator {
           );
         }
 
-        // 3. Wrong owner: voucher creator is not the order's sale owner
-        if (order.saleId !== input.createdBy) {
-          blockReasons.push(
-            `Creator (${input.createdBy}) is not the order owner (${order.saleId}). Only the order owner can create payment vouchers.`,
-          );
-        }
-
         // ==================== FLAG CHECKS ====================
 
-        // F1. Total cost exceeds 90% of order revenue
+        // F1. Total cost exceeds configured % of order revenue
         if (order.totalAmount) {
           const orderRevenue = order.totalAmount.toNumber();
-          if (orderRevenue > 0 && input.amount > orderRevenue * 0.9) {
+          if (orderRevenue > 0 && input.amount > orderRevenue * this.expensePercentThreshold) {
             flagReasons.push(
-              `Payment amount (${input.amount}) exceeds 90% of order revenue (${orderRevenue}). Possible over-billing.`,
+              `Payment amount (${input.amount}) exceeds ${this.expensePercentThreshold * 100}% of order revenue (${orderRevenue}). Possible over-billing.`,
             );
           }
         }
@@ -113,10 +125,10 @@ export class PaymentVoucherValidator {
       );
     }
 
-    // 5. Reason too short (< 20 characters)
-    if (!input.reason || input.reason.trim().length < 20) {
+    // 5. Reason too short
+    if (!input.reason || input.reason.trim().length < this.minReasonLength) {
       blockReasons.push(
-        'Reason must be at least 20 characters. Provide a detailed explanation.',
+        `Reason must be at least ${this.minReasonLength} characters. Provide a detailed explanation.`,
       );
     }
 
@@ -132,7 +144,7 @@ export class PaymentVoucherValidator {
 
     // ==================== FLAG CHECKS (continued) ====================
 
-    // F2. "Phat sinh" (incidental expense) > 5M VND
+    // F2. "Phat sinh" (incidental expense) exceeding configured threshold
     const lowerReason = (input.reason || '').toLowerCase();
     const lowerCostType = (input.costType || '').toLowerCase();
     if (
@@ -140,10 +152,10 @@ export class PaymentVoucherValidator {
         lowerReason.includes('phát sinh') ||
         lowerCostType.includes('phat sinh') ||
         lowerCostType.includes('phát sinh')) &&
-      input.amount > 5_000_000
+      input.amount > this.miscExpenseThreshold
     ) {
       flagReasons.push(
-        `Incidental expense ("phát sinh") exceeding 5,000,000 VND (${input.amount}). Requires additional review.`,
+        `Incidental expense ("phát sinh") exceeding ${this.miscExpenseThreshold.toLocaleString()} VND (${input.amount}). Requires additional review.`,
       );
     }
 
@@ -158,7 +170,7 @@ export class PaymentVoucherValidator {
       },
     });
 
-    if (recentVouchers >= 5) {
+    if (recentVouchers >= this.maxVouchersPerDay) {
       flagReasons.push(
         `Creator has ${recentVouchers} payment vouchers in the last 24 hours. Possible voucher splitting pattern.`,
       );
@@ -176,12 +188,12 @@ export class PaymentVoucherValidator {
       );
     }
 
-    // F5. Created outside business hours (before 7AM or after 7PM)
+    // F5. Created outside business hours
     const createdAt = input.createdAt ?? new Date();
     const hour = createdAt.getHours();
-    if (hour < 7 || hour >= 19) {
+    if (hour < this.businessHoursStart || hour >= this.businessHoursEnd) {
       flagReasons.push(
-        `Voucher created outside business hours (${hour}:00). Business hours are 07:00 - 19:00.`,
+        `Voucher created outside business hours (${hour}:00). Business hours are ${String(this.businessHoursStart).padStart(2, '0')}:00 - ${String(this.businessHoursEnd).padStart(2, '0')}:00.`,
       );
     }
 

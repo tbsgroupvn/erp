@@ -19,7 +19,7 @@ export function Topbar({
   onNotificationClick,
 }: TopbarProps) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-6">
+    <header role="banner" aria-label="Thanh cong cu" className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-6">
       {/* Left: Breadcrumbs */}
       <div className="flex items-center">
         <Breadcrumbs />

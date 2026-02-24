@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Logger } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { ICurrentUser } from '../interfaces/current-user.interface';
 
@@ -13,12 +13,18 @@ export interface DataScopeFilter {
   saleId?: string;
   /** If set, restrict data to records belonging to the user's team */
   teamLeaderId?: string;
+  /** If set, restrict data to a specific driver user ID */
+  driverId?: string;
   /** If true, the user has unrestricted access across all data */
   isGlobal: boolean;
+  /** If true, the user is denied all data access */
+  denied?: boolean;
 }
 
 @Injectable()
 export class DataScopeGuard implements CanActivate {
+  private readonly logger = new Logger(DataScopeGuard.name);
+
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
     const user = request.user as ICurrentUser;
@@ -40,12 +46,9 @@ export class DataScopeGuard implements CanActivate {
       case UserRole.COO:
         return { isGlobal: true };
 
-      // Directors: see everything within their function
+      // Directors: see all orders/customers (no restriction)
       case UserRole.SALES_DIRECTOR:
-        return {
-          isGlobal: false,
-          branch: user.branch ?? undefined,
-        };
+        return { isGlobal: true };
 
       // Leaders: see own team data
       case UserRole.SALES_LEADER:
@@ -104,15 +107,12 @@ export class DataScopeGuard implements CanActivate {
         return {
           isGlobal: false,
           branch: user.branch ?? undefined,
-          saleId: user.id, // Reuse saleId as userId scope for drivers
+          driverId: user.id,
         };
 
       default:
-        return {
-          isGlobal: false,
-          branch: user.branch ?? undefined,
-          saleId: user.id,
-        };
+        this.logger.warn(`Unknown role ${user.role} - denying data access`);
+        return { isGlobal: false, denied: true };
     }
   }
 }

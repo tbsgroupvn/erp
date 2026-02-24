@@ -1,0 +1,139 @@
+# ============================================
+# ArgoCD Application - TBS ERP Staging
+# ============================================
+# GitOps configuration for the staging environment.
+#
+# Auto-sync IS ENABLED for staging:
+#   - Automatically deploys when changes are pushed to staging branch
+#   - Self-healing: reverts manual kubectl changes
+#   - Pruning: removes resources deleted from git
+#
+# This allows rapid iteration and testing in staging.
+# ============================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tbs-erp-staging
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    app.kubernetes.io/managed-by: argocd
+    environment: staging
+  annotations:
+    argocd.argoproj.io/description: "TBS ERP - Staging Environment"
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: tbs-staging
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: tbs-staging
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: tbs-staging
+spec:
+  project: tbs-erp
+
+  source:
+    repoURL: https://github.com/tbs-logistics/tbs-erp.git
+    targetRevision: staging
+    path: k8s/overlays/staging
+    kustomize:
+      images:
+        - ghcr.io/tbs-logistics/tbs-erp-backend
+        - ghcr.io/tbs-logistics/tbs-erp-frontend
+        - ghcr.io/tbs-logistics/tbs-cms-frontend
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tbs-erp-staging
+
+  # Auto-sync enabled for staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+      - ApplyOutOfSyncOnly=true
+
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /spec/replicas
+
+  revisionHistoryLimit: 5
+
+  info:
+    - name: environment
+      value: staging
+    - name: team
+      value: platform
+---
+# ============================================
+# ArgoCD Application - TBS ERP Development
+# ============================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tbs-erp-dev
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    app.kubernetes.io/managed-by: argocd
+    environment: dev
+  annotations:
+    argocd.argoproj.io/description: "TBS ERP - Development Environment"
+spec:
+  project: tbs-erp
+
+  source:
+    repoURL: https://github.com/tbs-logistics/tbs-erp.git
+    targetRevision: develop
+    path: k8s/overlays/dev
+    kustomize:
+      images:
+        - ghcr.io/tbs-logistics/tbs-erp-backend
+        - ghcr.io/tbs-logistics/tbs-erp-frontend
+        - ghcr.io/tbs-logistics/tbs-cms-frontend
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tbs-erp-dev
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - ServerSideApply=true
+
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m
+
+  revisionHistoryLimit: 3
+
+  info:
+    - name: environment
+      value: development
+    - name: team
+      value: platform

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tbs-erp-frontend
+  namespace: tbs-erp
+  labels:
+    app.kubernetes.io/name: tbs-erp-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: tbs-erp-system
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: tbs-erp-frontend
+    app.kubernetes.io/component: frontend
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: TCP

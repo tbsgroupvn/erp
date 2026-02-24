@@ -12,7 +12,9 @@ import { SupplierOrderStatus } from '@prisma/client';
  *  - CONFIRMED can progress to shipping stages, be CANCELLED, or flagged as ISSUE
  *  - PARTIALLY_SHIPPED can complete shipping or flag ISSUE
  *  - SHIPPED_CN can be RECEIVED_CN or flag ISSUE
- *  - RECEIVED_CN and CANCELLED are terminal states
+ *  - RECEIVED_CN can be returned to supplier
+ *  - RETURN_IN_PROGRESS leads to REFUNDED (terminal)
+ *  - REFUNDED and CANCELLED are terminal states
  *  - ISSUE can retry (ORDERED, CONFIRMED) or be CANCELLED
  */
 @Injectable()
@@ -47,11 +49,20 @@ export class SupplierOrderStatusMachine {
       SupplierOrderStatus.RECEIVED_CN,
       SupplierOrderStatus.ISSUE,
     ],
-    RECEIVED_CN: [],
+    RECEIVED_CN: [
+      SupplierOrderStatus.RETURN_IN_PROGRESS,
+      SupplierOrderStatus.ISSUE,
+    ],
+    RETURN_IN_PROGRESS: [
+      SupplierOrderStatus.REFUNDED,
+      SupplierOrderStatus.ISSUE,
+    ],
+    REFUNDED: [],
     CANCELLED: [],
     ISSUE: [
       SupplierOrderStatus.ORDERED,
       SupplierOrderStatus.CONFIRMED,
+      SupplierOrderStatus.RETURN_IN_PROGRESS,
       SupplierOrderStatus.CANCELLED,
     ],
   };

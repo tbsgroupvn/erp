@@ -1,0 +1,95 @@
+# ============================================
+# ArgoCD Application - TBS ERP Production
+# ============================================
+# GitOps configuration for the production environment.
+#
+# IMPORTANT: autoSync is DISABLED for production.
+# Production deployments require manual sync or approval
+# through the ArgoCD UI or CLI.
+#
+# The application watches the k8s/overlays/production path
+# and uses Kustomize for rendering.
+# ============================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tbs-erp-production
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    app.kubernetes.io/managed-by: argocd
+    environment: production
+  annotations:
+    argocd.argoproj.io/description: "TBS ERP - Production Environment"
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: tbs-deployments
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: tbs-deployments
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: tbs-alerts
+  # Prevent accidental deletion
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: tbs-erp
+
+  source:
+    repoURL: https://github.com/tbs-logistics/tbs-erp.git
+    targetRevision: main
+    path: k8s/overlays/production
+    kustomize:
+      images:
+        - ghcr.io/tbs-logistics/tbs-erp-backend
+        - ghcr.io/tbs-logistics/tbs-erp-frontend
+        - ghcr.io/tbs-logistics/tbs-cms-frontend
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tbs-erp
+
+  # Sync policy - NO auto-sync for production
+  syncPolicy:
+    # Auto-sync is intentionally DISABLED for production
+    # Deployments must be manually triggered after review
+    # automated: null
+
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+      - ApplyOutOfSyncOnly=true
+
+    # Retry policy for failed syncs
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+
+  # Ignore differences in certain fields that change at runtime
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # HPA manages replicas
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /spec/replicas  # HPA manages replicas
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jsonPointers:
+        - /spec/minReplicas
+        - /spec/maxReplicas
+
+  # Revision history limit
+  revisionHistoryLimit: 10
+
+  # Health assessment customization
+  info:
+    - name: environment
+      value: production
+    - name: team
+      value: platform
+    - name: oncall
+      value: "https://opsgenie.com/teams/tbs-platform"

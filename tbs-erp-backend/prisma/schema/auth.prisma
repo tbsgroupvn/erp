@@ -2,10 +2,17 @@
 // AUTH & RBAC — User, Role, Permission, Session
 // ============================================
 
+enum TwoFactorMethod {
+  TOTP
+  SMS
+}
+
 enum UserRole {
   // BGĐ
   CEO
   COO
+  DIRECTOR_OPERATIONS
+  CFO
   // Kinh doanh
   SALES_DIRECTOR   // GĐ Kinh doanh
   SALES_LEADER     // Leader
@@ -17,12 +24,16 @@ enum UserRole {
   CHIEF_ACCOUNTANT // KT Tổng hợp (TP KT)
   ACCOUNTANT_AR    // KT Thanh toán
   ACCOUNTANT_COST  // KT Chi phí VN
+  ACCOUNTANT
+  HR_MANAGER
+  LOGISTICS_MANAGER
   // XNK
   XNK_MANAGER      // TP XNK
   XNK_STAFF
   // Kho
   WAREHOUSE_CN_AGENT  // Agent kho TQ
   WAREHOUSE_VN_MANAGER // Trưởng kho VN
+  WAREHOUSE_MANAGER
   WAREHOUSE_VN_STAFF
   // Vận tải
   DRIVER
@@ -39,6 +50,13 @@ model User {
   saleCode      String?   @unique @map("sale_code")  // NV001, NV002
   isActive      Boolean   @default(true) @map("is_active")
   is2FAEnabled  Boolean   @default(false) @map("is_2fa_enabled")
+  /// @encrypted
+  twoFactorSecret          String?          @map("two_factor_secret")   // TOTP secret (encrypted)
+  /// @encrypted
+  twoFactorBackupCodes     String[]         @map("two_factor_backup_codes") // Hashed backup codes
+  phoneNumber              String?          @map("phone_number_2fa")    // For SMS OTP (dedicated 2FA phone)
+  preferredTwoFactorMethod TwoFactorMethod  @default(TOTP) @map("preferred_two_factor_method")
+  /// @encrypted
   resetToken    String?   @map("reset_token")
   resetTokenExpiry DateTime? @map("reset_token_expiry")
   lastLoginAt   DateTime? @map("last_login_at")
@@ -76,6 +94,15 @@ model User {
   tasksAssigned      Task[]             @relation("TaskAssignee")
   tasksCreated       Task[]             @relation("TaskCreator")
   taskComments       TaskComment[]
+  documents          Document[]
+  blogPosts          BlogPost[]         @relation("BlogPostAuthor")
+
+  // CMS relations
+  pagesAuthored      Page[]             @relation("PageAuthor")
+  mediaUploaded      Media[]            @relation("MediaUploader")
+
+  // Compliance relations
+  consents           UserConsent[]
 
   @@index([resetToken, resetTokenExpiry]) // Fast lookup for password reset
   @@map("users")
@@ -84,6 +111,7 @@ model User {
 model Session {
   id            String   @id @default(cuid())
   userId        String   @map("user_id")
+  /// @encrypted
   refreshToken  String   @map("refresh_token")
   userAgent     String?  @map("user_agent")
   ipAddress     String?  @map("ip_address")
@@ -106,11 +134,104 @@ model AuditLog {
   oldData    Json?    @map("old_data")
   newData    Json?    @map("new_data")
   ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")   // Layer 2C: Browser/client info
+  sessionId  String?  @map("session_id")   // Layer 2C: Session tracking
   createdAt  DateTime @default(now()) @map("created_at")
 
   user       User     @relation(fields: [userId], references: [id])
 
   @@index([entity, entityId])
   @@index([userId, createdAt])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ============================================
+// AUDIT LOG ARCHIVE — Lưu trữ audit log cũ
+// ============================================
+
+model AuditLogArchive {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  action     String
+  entity     String
+  entityId   String?  @map("entity_id")
+  oldData    Json?    @map("old_data")
+  newData    Json?    @map("new_data")
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @map("created_at")
+  archivedAt DateTime @default(now()) @map("archived_at")
+
+  @@index([entity, entityId])
+  @@index([userId, createdAt])
+  @@index([archivedAt])
+  @@map("audit_log_archives")
+}
+
+// ============================================
+// USER CONSENT — Quản lý đồng ý xử lý dữ liệu (NĐ 13/2023)
+// ============================================
+
+model UserConsent {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id])
+  consentType String    @map("consent_type") // data_processing, marketing, analytics, third_party_sharing
+  granted     Boolean
+  grantedAt   DateTime? @map("granted_at")
+  revokedAt   DateTime? @map("revoked_at")
+  ipAddress   String?   @map("ip_address")
+  userAgent   String?   @map("user_agent")
+  version     String    // Policy version that was consented to
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, consentType])
+  @@unique([userId, consentType, version])
+  @@map("user_consents")
+}
+
+// ============================================
+// DATA RETENTION REPORT — Báo cáo thực thi chính sách lưu trữ
+// ============================================
+
+model DataRetentionReport {
+  id              String   @id @default(cuid())
+  executedAt      DateTime @default(now()) @map("executed_at")
+  executedBy      String?  @map("executed_by") // null = automated cron
+  trigger         String   @default("SCHEDULED") // SCHEDULED, MANUAL
+  auditLogsArchived   Int  @default(0) @map("audit_logs_archived")
+  sessionsDeleted     Int  @default(0) @map("sessions_deleted")
+  ordersArchived      Int  @default(0) @map("orders_archived")
+  tempFilesDeleted    Int  @default(0) @map("temp_files_deleted")
+  notificationsDeleted Int @default(0) @map("notifications_deleted")
+  tokensDeleted       Int  @default(0) @map("tokens_deleted")
+  usersAnonymized     Int  @default(0) @map("users_anonymized")
+  durationMs          Int  @default(0) @map("duration_ms")
+  errors              String? // JSON array of error messages if any
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@index([executedAt])
+  @@map("data_retention_reports")
+}
+
+// ============================================
+// IMPERSONATION LOG — Nhật ký đăng nhập hộ
+// ============================================
+
+model ImpersonationLog {
+  id               String   @id @default(cuid())
+  adminUserId      String   @map("admin_user_id")
+  targetCustomerId String   @map("target_customer_id")
+  startedAt        DateTime @default(now()) @map("started_at")
+  endedAt          DateTime? @map("ended_at")
+  ipAddress        String?  @map("ip_address")
+  actions          Json[]   @default([])
+
+  @@index([adminUserId])
+  @@index([targetCustomerId])
+  @@index([startedAt])
+  @@map("impersonation_logs")
 }

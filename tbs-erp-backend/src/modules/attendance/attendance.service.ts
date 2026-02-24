@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
-import { LeaveStatus, LeaveType, Prisma } from '@prisma/client';
+import { AttendanceType, LeaveStatus, LeaveType, Prisma } from '@prisma/client';
 import { CheckInDto, CheckOutDto } from './dto/check-in.dto';
+import { ManualCheckInDto } from './dto/manual-check-in.dto';
 import { RequestLeaveDto } from './dto/leave-request.dto';
 import { RequestOvertimeDto } from './dto/overtime-request.dto';
 
@@ -16,18 +17,18 @@ export class AttendanceService {
   private readonly logger = new Logger(AttendanceService.name);
 
   private static readonly STANDARD_CHECK_IN = 8; // 8:00 AM
-  private static readonly LEAVE_BALANCES: Record<string, number> = {
-    ANNUAL: 12,
-    SICK: 30,
-    PERSONAL: 3,
-    MATERNITY: 180,
-    OTHER: 5,
+  private static readonly LEAVE_BALANCES: Record<LeaveType, number> = {
+    [LeaveType.ANNUAL]: 12,
+    [LeaveType.SICK]: 30,
+    [LeaveType.PERSONAL]: 3,
+    [LeaveType.MATERNITY]: 180,
+    [LeaveType.OTHER]: 5,
   };
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   /**
    * Records check-in for an employee.
@@ -59,7 +60,7 @@ export class AttendanceService {
           checkIn: checkInTime,
           checkInLat: dto.lat,
           checkInLng: dto.lng,
-          type: dto.type,
+          type: dto.type as AttendanceType,
           isLate,
         },
       });
@@ -72,7 +73,7 @@ export class AttendanceService {
         checkIn: checkInTime,
         checkInLat: dto.lat,
         checkInLng: dto.lng,
-        type: dto.type,
+        type: dto.type as AttendanceType,
         isLate,
       },
     });
@@ -283,7 +284,7 @@ export class AttendanceService {
       where: { id },
       data: {
         status: LeaveStatus.REJECTED,
-        approvedBy: approverId,
+        approvedBy: null,
         rejectionReason: reason,
       },
     });
@@ -306,13 +307,13 @@ export class AttendanceService {
       },
     });
 
-    const usedByType: Record<string, number> = {};
+    const usedByType: Partial<Record<LeaveType, number>> = {};
     approvedLeaves.forEach((leave) => {
-      const type = leave.type;
+      const type = leave.type as LeaveType;
       usedByType[type] = (usedByType[type] || 0) + leave.totalDays;
     });
 
-    return Object.entries(AttendanceService.LEAVE_BALANCES).map(([type, total]) => ({
+    return (Object.entries(AttendanceService.LEAVE_BALANCES) as [LeaveType, number][]).map(([type, total]) => ({
       type,
       total,
       used: usedByType[type] || 0,
@@ -332,6 +333,8 @@ export class AttendanceService {
         date: new Date(dto.date),
         hours: dto.hours,
         reason: dto.reason,
+        // Intentionally reusing LeaveStatus.PENDING for overtime requests —
+        // the OvertimeRequest model shares the same LeaveStatus enum in the schema.
         status: LeaveStatus.PENDING,
       },
     });
@@ -393,6 +396,136 @@ export class AttendanceService {
       otHours,
       leaveDays,
     };
+  }
+
+  /**
+   * Records a manual check-in with selfie for an employee.
+   * Creates an Attendance record with isManualCheckIn=true and hrReviewStatus='PENDING_REVIEW'.
+   */
+  async manualCheckIn(userId: string, dto: ManualCheckInDto) {
+    const employee = await this.findEmployeeByUserId(userId);
+    const now = new Date();
+    const dateOnly = this.toDateOnly(now);
+
+    // Check if already checked in today
+    const existing = await this.prisma.attendance.findUnique({
+      where: {
+        employeeId_date: { employeeId: employee.id, date: dateOnly },
+      },
+    });
+
+    if (existing?.checkIn) {
+      throw new BadRequestException('Already checked in today');
+    }
+
+    const isLate = now.getHours() > AttendanceService.STANDARD_CHECK_IN ||
+      (now.getHours() === AttendanceService.STANDARD_CHECK_IN && now.getMinutes() > 0);
+
+    if (existing) {
+      return this.prisma.attendance.update({
+        where: { id: existing.id },
+        data: {
+          checkIn: now,
+          checkInLat: dto.lat,
+          checkInLng: dto.lng,
+          type: AttendanceType.OFFICE,
+          isLate,
+          isManualCheckIn: true,
+          selfieUrl: dto.selfieUrl,
+          manualReason: dto.manualReason,
+          hrReviewStatus: 'PENDING_REVIEW',
+        },
+      });
+    }
+
+    const attendance = await this.prisma.attendance.create({
+      data: {
+        employeeId: employee.id,
+        date: dateOnly,
+        checkIn: now,
+        checkInLat: dto.lat,
+        checkInLng: dto.lng,
+        type: AttendanceType.OFFICE,
+        isLate,
+        isManualCheckIn: true,
+        selfieUrl: dto.selfieUrl,
+        manualReason: dto.manualReason,
+        hrReviewStatus: 'PENDING_REVIEW',
+      },
+    });
+
+    this.eventEmitter.emit('attendance.manual-check-in', {
+      attendanceId: attendance.id,
+      employeeId: employee.id,
+      employeeName: employee.fullName,
+    });
+
+    this.logger.log(
+      `Manual check-in recorded for ${employee.code} (${employee.fullName}), pending HR review`,
+    );
+
+    return attendance;
+  }
+
+  /**
+   * Reviews a manual check-in record. Sets hrReviewStatus to APPROVED or REJECTED.
+   */
+  async reviewManualCheckIn(attendanceId: string, approved: boolean, hrUserId: string) {
+    const attendance = await this.prisma.attendance.findUnique({
+      where: { id: attendanceId },
+      include: { employee: { select: { id: true, code: true, fullName: true } } },
+    });
+
+    if (!attendance) {
+      throw new NotFoundException(`Attendance record ${attendanceId} not found`);
+    }
+
+    if (!attendance.isManualCheckIn) {
+      throw new BadRequestException('This attendance record is not a manual check-in');
+    }
+
+    if (attendance.hrReviewStatus !== 'PENDING_REVIEW') {
+      throw new BadRequestException(`This manual check-in has already been reviewed (${attendance.hrReviewStatus})`);
+    }
+
+    const updated = await this.prisma.attendance.update({
+      where: { id: attendanceId },
+      data: {
+        hrReviewStatus: approved ? 'APPROVED' : 'REJECTED',
+        hrReviewedBy: hrUserId,
+        hrReviewedAt: new Date(),
+      },
+      include: { employee: { select: { id: true, code: true, fullName: true } } },
+    });
+
+    this.eventEmitter.emit('attendance.manual-check-in.reviewed', {
+      attendanceId,
+      employeeId: attendance.employeeId,
+      approved,
+      reviewedBy: hrUserId,
+    });
+
+    this.logger.log(
+      `Manual check-in ${attendanceId} ${approved ? 'approved' : 'rejected'} by HR user ${hrUserId}`,
+    );
+
+    return updated;
+  }
+
+  /**
+   * Gets all manual check-in records pending HR review.
+   */
+  async getPendingManualCheckIns() {
+    return this.prisma.attendance.findMany({
+      where: {
+        isManualCheckIn: true,
+        hrReviewStatus: 'PENDING_REVIEW',
+      },
+      include: {
+        employee: { select: { id: true, code: true, fullName: true, departmentCode: true, branch: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   /**

@@ -1,0 +1,76 @@
+# ============================================
+# Chaos Mesh - DNS Error Injection
+# ============================================
+# Simulates DNS resolution failures to test:
+#   1. How the backend handles DNS failures to external services
+#   2. Retry logic and circuit breaker behavior
+#   3. Graceful degradation when external APIs are unreachable
+#
+# SAFETY: Only targets staging namespace.
+# Schedule: Weekly Thursday 3 AM UTC.
+# ============================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: DNSChaos
+metadata:
+  name: backend-dns-error
+  namespace: tbs-erp-staging
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    chaos-mesh.org/experiment-type: dns
+    tbs.chaos/category: resilience
+    tbs.chaos/severity: medium
+  annotations:
+    tbs.chaos/description: "Inject DNS resolution errors for external domains"
+    tbs.chaos/owner: "platform-team"
+    tbs.chaos/expected: "Backend falls back to cached data, external API calls fail gracefully"
+spec:
+  action: error
+  mode: one
+  selector:
+    namespaces:
+      - tbs-erp-staging
+    labelSelectors:
+      app.kubernetes.io/name: tbs-backend
+      app.kubernetes.io/component: api
+  # Only affect external DNS, not internal service resolution
+  patterns:
+    - "*.sentry.io"
+    - "*.googleapis.com"
+    - "api.exchangerate-api.com"
+  duration: '3m'
+  scheduler:
+    cron: '0 3 * * 4'  # Weekly Thursday 3 AM UTC
+---
+# ============================================
+# Chaos Mesh - DNS Random Response
+# ============================================
+# Returns random DNS responses to simulate DNS poisoning
+# or misconfigured DNS. Tests DNS caching behavior.
+# ============================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: DNSChaos
+metadata:
+  name: backend-dns-random
+  namespace: tbs-erp-staging
+  labels:
+    app.kubernetes.io/part-of: tbs-erp-system
+    chaos-mesh.org/experiment-type: dns
+    tbs.chaos/category: security
+    tbs.chaos/severity: low
+  annotations:
+    tbs.chaos/description: "Return random DNS responses for external domains"
+    tbs.chaos/expected: "TLS verification fails for spoofed IPs, connections rejected"
+spec:
+  action: random
+  mode: one
+  selector:
+    namespaces:
+      - tbs-erp-staging
+    labelSelectors:
+      app.kubernetes.io/name: tbs-backend
+      app.kubernetes.io/component: api
+  patterns:
+    - "*.external-test.example.com"
+  duration: '2m'
+  scheduler:
+    cron: '30 3 * * 4'  # Weekly Thursday 3:30 AM UTC

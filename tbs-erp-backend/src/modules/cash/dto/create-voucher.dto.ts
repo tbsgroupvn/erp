@@ -77,4 +77,12 @@ export class CreateVoucherDto {
   @IsString({ each: true })
   @MaxLength(500, { each: true })
   attachments?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Related supplier order ID (for NCC procurement payments)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  supplierOrderId?: string;
 }

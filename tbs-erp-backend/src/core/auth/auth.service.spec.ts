@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AuthService } from './auth.service';
 import { PrismaService } from '@core/database/prisma.service';
+import { SmsService } from '@core/sms/sms.service';
 import { UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
@@ -11,6 +12,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let prismaService: PrismaService;
   let jwtService: JwtService;
+  let smsService: SmsService;
 
   // Mock user data
   const mockUser = {
@@ -27,6 +29,10 @@ describe('AuthService', () => {
     phone: null,
     saleCode: null,
     is2FAEnabled: false,
+    twoFactorSecret: null,
+    twoFactorBackupCodes: [],
+    phoneNumber: null,
+    preferredTwoFactorMethod: 'TOTP',
     resetToken: null,
     resetTokenExpiry: null,
     leaderId: null,
@@ -62,14 +68,15 @@ describe('AuthService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key: string) => {
+            get: jest.fn((key: string, defaultValue?: string) => {
               const config: Record<string, string> = {
                 'jwt.secret': 'test-secret',
                 'jwt.refreshSecret': 'test-refresh-secret',
                 'jwt.expiresIn': '15m',
                 'jwt.refreshExpiresIn': '7d',
+                'TWO_FA_ENCRYPTION_KEY': 'test-2fa-encryption-key-for-testing',
               };
-              return config[key];
+              return config[key] ?? defaultValue;
             }),
           },
         },
@@ -77,6 +84,7 @@ describe('AuthService', () => {
           provide: JwtService,
           useValue: {
             sign: jest.fn((payload) => `mock-token-${payload.sub}`),
+            verify: jest.fn(),
           },
         },
         {
@@ -85,12 +93,19 @@ describe('AuthService', () => {
             emit: jest.fn(),
           },
         },
+        {
+          provide: SmsService,
+          useValue: {
+            sendSms: jest.fn().mockResolvedValue(true),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
     prismaService = module.get<PrismaService>(PrismaService);
     jwtService = module.get<JwtService>(JwtService);
+    smsService = module.get<SmsService>(SmsService);
   });
 
   afterEach(() => {
@@ -98,9 +113,10 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('should successfully login with valid credentials', async () => {
+    it('should successfully login with valid credentials (no 2FA)', async () => {
       // Arrange
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest.spyOn(prismaService.user, 'update').mockResolvedValue(mockUser as any);
       jest.spyOn(prismaService.session, 'create').mockResolvedValue({
         id: 'session-123',
         userId: mockUser.id,
@@ -121,14 +137,45 @@ describe('AuthService', () => {
 
       // Assert
       expect(result).toBeDefined();
-      expect(result.user).toBeDefined();
-      expect(result.user.email).toBe('test@example.com');
-      expect(result.tokens).toBeDefined();
-      expect(result.tokens.accessToken).toBeDefined();
-      expect(result.tokens.refreshToken).toBeDefined();
+      expect('requires2FA' in result).toBe(false);
+      if (!('requires2FA' in result)) {
+        expect(result.user).toBeDefined();
+        expect(result.user.email).toBe('test@example.com');
+        expect(result.tokens).toBeDefined();
+        expect(result.tokens.accessToken).toBeDefined();
+      }
       expect(prismaService.user.findUnique).toHaveBeenCalledWith({
         where: { email: 'test@example.com' },
       });
+    });
+
+    it('should return 2FA challenge when 2FA is enabled', async () => {
+      // Arrange
+      const user2FA = {
+        ...mockUser,
+        is2FAEnabled: true,
+        twoFactorSecret: 'encrypted-secret',
+        preferredTwoFactorMethod: 'TOTP',
+      };
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(user2FA as any);
+
+      // Act
+      const result = await service.login(
+        'test@example.com',
+        'Test123!@#',
+        'test-agent',
+        '127.0.0.1',
+      );
+
+      // Assert
+      expect(result).toBeDefined();
+      expect('requires2FA' in result).toBe(true);
+      if ('requires2FA' in result) {
+        expect(result.requires2FA).toBe(true);
+        expect(result.userId).toBe(mockUser.id);
+        expect(result.methods).toContain('TOTP');
+        expect(result.tempToken).toBeDefined();
+      }
     });
 
     it('should throw UnauthorizedException for invalid email', async () => {
@@ -266,6 +313,127 @@ describe('AuthService', () => {
       expect(prismaService.session.deleteMany).toHaveBeenCalledWith({
         where: { id: sessionId },
       });
+    });
+  });
+
+  describe('2FA', () => {
+    it('should generate 2FA secret and QR code', async () => {
+      // Arrange
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest.spyOn(prismaService.user, 'update').mockResolvedValue(mockUser as any);
+
+      // Act
+      const result = await service.generate2FASecret(mockUser.id);
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(result.secret).toBeDefined();
+      expect(result.qrCodeDataUrl).toContain('data:image/png;base64');
+      expect(result.otpauthUrl).toContain('otpauth://totp/');
+      expect(result.otpauthUrl).toContain('TBS%20ERP');
+      expect(prismaService.user.update).toHaveBeenCalledWith({
+        where: { id: mockUser.id },
+        data: { twoFactorSecret: expect.any(String) },
+      });
+    });
+
+    it('should throw BadRequestException when enabling 2FA without secret', async () => {
+      // Arrange
+      const userNoSecret = { ...mockUser, twoFactorSecret: null };
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(userNoSecret as any);
+
+      // Act & Assert
+      await expect(
+        service.enable2FA(mockUser.id, '123456'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when 2FA is already enabled', async () => {
+      // Arrange
+      const user2FA = { ...mockUser, is2FAEnabled: true, twoFactorSecret: 'encrypted' };
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(user2FA as any);
+
+      // Act & Assert
+      await expect(
+        service.enable2FA(mockUser.id, '123456'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should get 2FA status', async () => {
+      // Arrange
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue({
+        is2FAEnabled: false,
+        preferredTwoFactorMethod: 'TOTP',
+        phoneNumber: null,
+        twoFactorBackupCodes: [],
+      } as any);
+
+      // Act
+      const result = await service.get2FAStatus(mockUser.id);
+
+      // Assert
+      expect(result).toEqual({
+        is2FAEnabled: false,
+        preferredMethod: 'TOTP',
+        hasPhoneNumber: false,
+        hasBackupCodes: false,
+      });
+    });
+
+    it('should regenerate backup codes when 2FA is enabled', async () => {
+      // Arrange
+      const user2FA = { ...mockUser, is2FAEnabled: true };
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(user2FA as any);
+      jest.spyOn(prismaService.user, 'update').mockResolvedValue(user2FA as any);
+
+      // Act
+      const result = await service.regenerateBackupCodes(mockUser.id);
+
+      // Assert
+      expect(result.backupCodes).toBeDefined();
+      expect(result.backupCodes).toHaveLength(10);
+      // Each code should be in XXXX-XXXX format
+      result.backupCodes.forEach((code) => {
+        expect(code).toMatch(/^[A-F0-9]{4}-[A-F0-9]{4}$/);
+      });
+    });
+
+    it('should throw BadRequestException when regenerating codes without 2FA enabled', async () => {
+      // Arrange
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+
+      // Act & Assert
+      await expect(
+        service.regenerateBackupCodes(mockUser.id),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('SMS OTP', () => {
+    it('should send SMS OTP when phone number is configured', async () => {
+      // Arrange
+      const userWithPhone = { ...mockUser, phoneNumber: '+84901234567' };
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(userWithPhone as any);
+
+      // Act
+      const result = await service.sendSmsOtp(mockUser.id);
+
+      // Assert
+      expect(result.message).toBe('Verification code sent via SMS');
+      expect(smsService.sendSms).toHaveBeenCalledWith(
+        '+84901234567',
+        expect.stringContaining('verification code'),
+      );
+    });
+
+    it('should throw BadRequestException when no phone number is configured', async () => {
+      // Arrange
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+
+      // Act & Assert
+      await expect(
+        service.sendSmsOtp(mockUser.id),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

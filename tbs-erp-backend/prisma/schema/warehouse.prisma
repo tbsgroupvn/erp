@@ -30,12 +30,28 @@ model Package {
   receivedVNBy      String?   @map("received_vn_by")
   deliveredAt       DateTime? @map("delivered_at")
 
+  // CN/VN weight + variance
+  cnWeight            Decimal?  @map("cn_weight") @db.Decimal(10, 2)
+  vnWeight            Decimal?  @map("vn_weight") @db.Decimal(10, 2)
+  weightVariancePercent Decimal? @map("weight_variance_percent") @db.Decimal(5, 2)
+
+  // Independent package status
+  independentStatus   String?   @map("independent_status") // NORMAL | CONFISCATED_BY_CUSTOMS | HIGH_RISK_HOLD
+  isHighRisk          Boolean   @default(false) @map("is_high_risk")
+  highRiskDisclaimerAccepted Boolean @default(false) @map("high_risk_disclaimer_accepted")
+  highRiskAcceptedAt  DateTime? @map("high_risk_accepted_at")
+  highRiskAcceptedBy  String?   @map("high_risk_accepted_by")
+
+  // Weight confirmation lock
+  weightConfirmedAt DateTime? @map("weight_confirmed_at")
+  weightConfirmedBy String?   @map("weight_confirmed_by")
+
   containerId       String?  @map("container_id")
   note              String?
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  order             Order    @relation(fields: [orderId], references: [id])
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   container         Container? @relation(fields: [containerId], references: [id])
   trackingEvents    TrackingEvent[]
   qcInspections     QCInspection[]

@@ -8,7 +8,6 @@ import {
   CustomerTier,
   PaymentMethod,
   ServiceType,
-  ShippingRoute,
   TaskPriority,
 } from '@/lib/types/enums';
 
@@ -28,52 +27,6 @@ export const loginSchema = z.object({
 });
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
-
-// ============================================
-// CREATE ORDER
-// ============================================
-
-const createOrderItemSchema = z.object({
-  productName: z
-    .string({ required_error: 'Vui lòng nhập tên sản phẩm' })
-    .min(1, 'Vui lòng nhập tên sản phẩm'),
-  productUrl: z
-    .string()
-    .url('Link sản phẩm không hợp lệ')
-    .optional()
-    .or(z.literal('')),
-  quantity: z
-    .number({ required_error: 'Vui lòng nhập số lượng' })
-    .int('Số lượng phải là số nguyên')
-    .min(1, 'Số lượng tối thiểu là 1'),
-  unitPrice: z
-    .number({ required_error: 'Vui lòng nhập đơn giá' })
-    .min(0, 'Đơn giá không được âm'),
-  currency: z.nativeEnum(Currency).optional(),
-  note: z.string().optional(),
-});
-
-export const createOrderSchema = z.object({
-  customerId: z
-    .string({ required_error: 'Vui lòng chọn khách hàng' })
-    .min(1, 'Vui lòng chọn khách hàng'),
-  serviceType: z.nativeEnum(ServiceType, {
-    required_error: 'Vui lòng chọn loại dịch vụ',
-    invalid_type_error: 'Loại dịch vụ không hợp lệ',
-  }),
-  branch: z.nativeEnum(Branch, {
-    required_error: 'Vui lòng chọn chi nhánh',
-    invalid_type_error: 'Chi nhánh không hợp lệ',
-  }),
-  shippingRoute: z.nativeEnum(ShippingRoute).optional(),
-  currency: z.nativeEnum(Currency).optional(),
-  note: z.string().max(500, 'Ghi chú tối đa 500 ký tự').optional(),
-  items: z
-    .array(createOrderItemSchema)
-    .min(1, 'Đơn hàng phải có ít nhất 1 sản phẩm'),
-});
-
-export type CreateOrderFormValues = z.infer<typeof createOrderSchema>;
 
 // ============================================
 // CREATE CUSTOMER
@@ -231,9 +184,9 @@ export type CreateComplaintFormValues = z.infer<typeof createComplaintSchema>;
 export const createQuotationSchema = z.object({
   customerId: z.string().min(1, 'Chọn khách hàng'),
   serviceType: z.nativeEnum(ServiceType, { errorMap: () => ({ message: 'Chọn loại dịch vụ' }) }),
-  discountRate: z.number().min(0).max(1).optional(),
+  discountPercent: z.number().min(0).max(100).optional(),
   items: z.array(z.object({
-    description: z.string().min(1, 'Nhập mô tả'),
+    productName: z.string().min(1, 'Nhập tên sản phẩm'),
     quantity: z.number().positive('Số lượng > 0'),
     unitPrice: z.number().positive('Đơn giá > 0'),
   })).min(1, 'Ít nhất 1 mục'),

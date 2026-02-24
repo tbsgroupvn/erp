@@ -6,14 +6,20 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
-import { EmployeeStatus, LeaveStatus, Prisma } from '@prisma/client';
+import { EmployeeStatus, LeaveStatus, PayrollStatus, Prisma } from '@prisma/client';
 import { PayrollQueryDto } from './dto/payroll-query.dto';
 
 /**
- * Vietnam personal income tax brackets (monthly, after deductions).
+ * Vietnam personal income tax (PIT) brackets (monthly, after deductions).
+ * Based on Article 22, Law on Personal Income Tax.
+ *
+ * These rates are defined by Vietnamese tax law and should be updated
+ * if the government changes the tax brackets. Consider moving to a
+ * database-driven configuration if rates change frequently.
+ *
  * Deduction: 11,000,000 VND personal + 4,400,000 per dependent.
  */
-const TAX_BRACKETS = [
+const VIETNAM_PIT_BRACKETS: ReadonlyArray<{ readonly max: number; readonly rate: number }> = [
   { max: 5_000_000, rate: 0.05 },
   { max: 10_000_000, rate: 0.10 },
   { max: 18_000_000, rate: 0.15 },
@@ -21,11 +27,21 @@ const TAX_BRACKETS = [
   { max: 52_000_000, rate: 0.25 },
   { max: 80_000_000, rate: 0.30 },
   { max: Infinity, rate: 0.35 },
-];
+] as const;
 
+/** Personal deduction per month (VND). Update per Government Decree. */
 const PERSONAL_DEDUCTION = 11_000_000;
+
+/** Dependent deduction per dependent per month (VND). */
+const DEPENDENT_DEDUCTION = 4_400_000;
+
+/** Social insurance employee contribution rate. */
 const SOCIAL_INSURANCE_RATE = 0.08;
+
+/** Health insurance employee contribution rate. */
 const HEALTH_INSURANCE_RATE = 0.015;
+
+/** Unemployment insurance employee contribution rate. */
 const UNEMPLOYMENT_INSURANCE_RATE = 0.01;
 
 @Injectable()
@@ -35,7 +51,7 @@ export class PayrollService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   /**
    * Batch calculates payroll for all active employees for a given month/year.
@@ -50,22 +66,33 @@ export class PayrollService {
       throw new BadRequestException('No active employees found');
     }
 
+    const startOfMonth = new Date(year, month - 1, 1);
+    const endOfMonth = new Date(year, month, 0);
+
+    // Batch-fetch all overtime requests and attendances for the month to avoid N+1
+    const allOvertime = await this.prisma.overtimeRequest.findMany({
+      where: {
+        status: LeaveStatus.APPROVED,
+        date: { gte: startOfMonth, lte: endOfMonth },
+      },
+    });
+
+    const allAttendance = await this.prisma.attendance.findMany({
+      where: {
+        date: { gte: startOfMonth, lte: endOfMonth },
+        checkIn: { not: null },
+      },
+    });
+
     const results = [];
 
     for (const emp of employees) {
-      const baseSalary = emp.salary || 0;
+      const baseSalary = Number(emp.salary || 0);
 
-      // Get approved overtime for the month
-      const overtimeRequests = await this.prisma.overtimeRequest.findMany({
-        where: {
-          employeeId: emp.id,
-          status: LeaveStatus.APPROVED,
-          date: {
-            gte: new Date(year, month - 1, 1),
-            lte: new Date(year, month, 0),
-          },
-        },
-      });
+      // Filter overtime for this employee from batch
+      const overtimeRequests = allOvertime.filter(
+        (ot) => ot.employeeId === emp.id,
+      );
 
       const otHours = overtimeRequests.reduce((sum, ot) => sum + ot.hours, 0);
 
@@ -82,20 +109,16 @@ export class PayrollService {
         otPay += ot.hours * hourlyRate * multiplier;
       }
 
-      // Get work days from attendance
-      const attendances = await this.prisma.attendance.findMany({
-        where: {
-          employeeId: emp.id,
-          date: {
-            gte: new Date(year, month - 1, 1),
-            lte: new Date(year, month, 0),
-          },
-          checkIn: { not: null },
-        },
-      });
+      // Filter attendance for this employee from batch
+      const attendances = allAttendance.filter(
+        (a) => a.employeeId === emp.id,
+      );
+      const standardWorkDays = 22;
       const workDays = attendances.length;
+      const effectiveWorkDays = Math.min(workDays, standardWorkDays);
+      const proratedSalary = Math.round(baseSalary * effectiveWorkDays / standardWorkDays);
 
-      const grossSalary = baseSalary + otPay;
+      const grossSalary = proratedSalary + otPay;
 
       // Insurance deductions
       const socialInsurance = baseSalary * SOCIAL_INSURANCE_RATE;
@@ -104,14 +127,34 @@ export class PayrollService {
       const totalInsurance = socialInsurance + healthInsurance + unemploymentInsurance;
 
       // Taxable income
-      const taxableIncome = grossSalary - totalInsurance - PERSONAL_DEDUCTION;
+      const dependents = emp.numberOfDependents || 0;
+      const taxableIncome = grossSalary - totalInsurance - PERSONAL_DEDUCTION - (DEPENDENT_DEDUCTION * dependents);
 
       // Personal income tax (progressive)
       const personalIncomeTax = taxableIncome > 0
         ? this.calculatePIT(taxableIncome)
         : 0;
 
-      const totalDeductions = totalInsurance + personalIncomeTax;
+      // Commission clawback deductions: sum ON_HOLD clawback amounts for this employee's userId
+      let commissionClawback = 0;
+      if (emp.userId) {
+        const clawbackRecords = await this.prisma.commissionRecord.findMany({
+          where: {
+            saleId: emp.userId,
+            status: 'ON_HOLD',
+            clawbackAmount: { not: null },
+          },
+          select: { clawbackAmount: true },
+        });
+
+        commissionClawback = clawbackRecords.reduce(
+          (sum, r) => sum + (r.clawbackAmount ? Number(r.clawbackAmount) : 0),
+          0,
+        );
+      }
+
+      const otherDeductions = commissionClawback;
+      const totalDeductions = totalInsurance + personalIncomeTax + otherDeductions;
       const netSalary = grossSalary - totalDeductions;
 
       // Upsert payroll record
@@ -132,6 +175,7 @@ export class PayrollService {
           grossSalary: Math.round(grossSalary),
           taxDeduction: Math.round(personalIncomeTax),
           insuranceDeduction: Math.round(totalInsurance),
+          otherDeductions: Math.round(otherDeductions),
           netSalary: Math.round(netSalary),
           status: 'DRAFT',
         },
@@ -141,6 +185,7 @@ export class PayrollService {
           grossSalary: Math.round(grossSalary),
           taxDeduction: Math.round(personalIncomeTax),
           insuranceDeduction: Math.round(totalInsurance),
+          otherDeductions: Math.round(otherDeductions),
           netSalary: Math.round(netSalary),
         },
         include: {
@@ -246,10 +291,10 @@ export class PayrollService {
       throw new NotFoundException(`No payroll records found for ${month}/${year}`);
     }
 
-    const totalGross = records.reduce((sum, r) => sum + r.grossSalary, 0);
-    const totalTax = records.reduce((sum, r) => sum + r.taxDeduction, 0);
-    const totalInsurance = records.reduce((sum, r) => sum + r.insuranceDeduction, 0);
-    const totalNet = records.reduce((sum, r) => sum + r.netSalary, 0);
+    const totalGross = records.reduce((sum, r) => sum + Number(r.grossSalary), 0);
+    const totalTax = records.reduce((sum, r) => sum + Number(r.taxDeduction), 0);
+    const totalInsurance = records.reduce((sum, r) => sum + Number(r.insuranceDeduction), 0);
+    const totalNet = records.reduce((sum, r) => sum + Number(r.netSalary), 0);
     const totalDeductions = totalTax + totalInsurance;
 
     // Group by department
@@ -259,8 +304,8 @@ export class PayrollService {
       if (!byDepartment[dept]) {
         byDepartment[dept] = { gross: 0, net: 0, count: 0 };
       }
-      byDepartment[dept].gross += r.grossSalary;
-      byDepartment[dept].net += r.netSalary;
+      byDepartment[dept].gross += Number(r.grossSalary);
+      byDepartment[dept].net += Number(r.netSalary);
       byDepartment[dept].count += 1;
     });
 
@@ -290,7 +335,7 @@ export class PayrollService {
 
     if (query.month) where.month = query.month;
     if (query.year) where.year = query.year;
-    if (query.status) where.status = query.status;
+    if (query.status) where.status = query.status as PayrollStatus;
     if (query.employeeId) where.employeeId = query.employeeId;
 
     const [data, total] = await this.prisma.$transaction([
@@ -325,7 +370,7 @@ export class PayrollService {
     let remaining = taxableIncome;
     let prevMax = 0;
 
-    for (const bracket of TAX_BRACKETS) {
+    for (const bracket of VIETNAM_PIT_BRACKETS) {
       const bracketSize = bracket.max - prevMax;
       const taxable = Math.min(remaining, bracketSize);
       tax += taxable * bracket.rate;

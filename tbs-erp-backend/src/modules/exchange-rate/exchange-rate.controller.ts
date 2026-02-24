@@ -18,6 +18,7 @@ import {
 import { Currency } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
+import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { BaseResponse } from '@common/dto/base-response.dto';
 import { ExchangeRateService } from './exchange-rate.service';
 import { SetRateDto } from './dto/set-rate.dto';
@@ -34,8 +35,11 @@ export class ExchangeRateController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Set exchange rate', description: 'Manually set an exchange rate for a currency pair and date.' })
   @ApiResponse({ status: 201, description: 'Rate set successfully' })
-  async setRate(@Body() dto: SetRateDto) {
-    const rate = await this.exchangeRateService.setRate(dto);
+  async setRate(
+    @Body() dto: SetRateDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    const rate = await this.exchangeRateService.setRate(dto, userId);
     return BaseResponse.ok(rate, 'Exchange rate set successfully');
   }
 
@@ -82,8 +86,9 @@ export class ExchangeRateController {
 
   @Post('sync/vietcombank')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Sync from Vietcombank', description: 'Stub for fetching CNY/VND, USD/VND rates from Vietcombank API.' })
+  @ApiOperation({ summary: 'Sync from Vietcombank', description: 'Fetches USD/VND rates from Vietcombank API. CNY rates must be set manually.' })
   @ApiResponse({ status: 200, description: 'Sync result' })
+  @ApiResponse({ status: 403, description: 'CNY rate cannot be synced automatically' })
   async syncFromVietcombank() {
     const result = await this.exchangeRateService.syncFromVietcombank();
     return BaseResponse.ok(result);
@@ -95,5 +100,18 @@ export class ExchangeRateController {
   async getActiveRates() {
     const rates = await this.exchangeRateService.getActiveRates();
     return BaseResponse.ok(rates);
+  }
+
+  @Get('audit-trail')
+  @ApiOperation({ summary: 'Get exchange rate audit trail', description: 'Returns audit log entries for exchange rate changes within a date range.' })
+  @ApiQuery({ name: 'from', required: true, description: 'Start date (ISO 8601)' })
+  @ApiQuery({ name: 'to', required: true, description: 'End date (ISO 8601)' })
+  @ApiResponse({ status: 200, description: 'Audit trail retrieved' })
+  async getAuditTrail(
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    const trail = await this.exchangeRateService.getAuditTrail(from, to);
+    return BaseResponse.ok(trail);
   }
 }

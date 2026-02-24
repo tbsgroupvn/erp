@@ -18,7 +18,7 @@ interface PageData {
 }
 
 async function getPublicPage(slug: string): Promise<PageData> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
   const res = await fetch(`${apiUrl}/public/cms/pages/${slug}`, {
     next: { revalidate: 60 } // Revalidate every 60 seconds
   });
