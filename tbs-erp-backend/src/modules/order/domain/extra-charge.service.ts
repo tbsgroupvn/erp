@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -36,11 +31,7 @@ export class ExtraChargeService {
    * Add an extra charge to an order.
    * Sets charge status to PENDING and puts the order ON_HOLD.
    */
-  async addExtraCharge(
-    orderId: string,
-    dto: AddExtraChargeDto,
-    createdBy: string,
-  ) {
+  async addExtraCharge(orderId: string, dto: AddExtraChargeDto, createdBy: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       select: { id: true, code: true, status: true },
@@ -59,6 +50,7 @@ export class ExtraChargeService {
         description: dto.description,
         imageUrls: dto.imageUrls ?? [],
         status: 'PENDING',
+        previousOrderStatus: order.status, // Luu trang thai truoc ON_HOLD de khoi phuc dung
         createdBy,
       },
     });
@@ -104,9 +96,7 @@ export class ExtraChargeService {
     }
 
     if (charge.status !== 'PENDING') {
-      throw new BadRequestException(
-        `Extra charge is already ${charge.status}`,
-      );
+      throw new BadRequestException(`Extra charge is already ${charge.status}`);
     }
 
     // Update charge status
@@ -120,14 +110,19 @@ export class ExtraChargeService {
 
     // Add charge amount to order total
     const newTotal = Number(charge.order.totalAmount) + Number(charge.amount);
+
+    // Determine the correct status to restore when removing ON_HOLD
+    let restoreStatus: string | undefined;
+    if (await this.shouldRemoveHold(charge.orderId)) {
+      // Use the previousOrderStatus from the charge being approved (not from findFirst)
+      restoreStatus = charge.previousOrderStatus ?? charge.order.status;
+    }
+
     await this.prisma.order.update({
       where: { id: charge.orderId },
       data: {
         totalAmount: new Decimal(newTotal),
-        // Remove ON_HOLD if no other pending charges
-        ...(await this.shouldRemoveHold(charge.orderId)
-          ? { status: 'WAREHOUSE_CN' as any }
-          : {}),
+        ...(restoreStatus ? { status: restoreStatus as any } : {}),
       },
     });
 
@@ -163,9 +158,7 @@ export class ExtraChargeService {
     }
 
     if (charge.status !== 'PENDING') {
-      throw new BadRequestException(
-        `Extra charge is already ${charge.status}`,
-      );
+      throw new BadRequestException(`Extra charge is already ${charge.status}`);
     }
 
     const updated = await this.prisma.orderExtraCharge.update({
@@ -176,11 +169,13 @@ export class ExtraChargeService {
       },
     });
 
-    // Remove ON_HOLD if no other pending charges
+    // Remove ON_HOLD if no other pending charges — restore correct previous status
     if (await this.shouldRemoveHold(charge.orderId)) {
+      // Use the previousOrderStatus from the charge being rejected (not from findFirst)
+      const restoreStatus = charge.previousOrderStatus ?? charge.order.status;
       await this.prisma.order.update({
         where: { id: charge.orderId },
-        data: { status: 'WAREHOUSE_CN' as any },
+        data: { status: restoreStatus as any },
       });
     }
 
@@ -191,9 +186,7 @@ export class ExtraChargeService {
       rejectedBy: userId,
     });
 
-    this.logger.log(
-      `Extra charge ${chargeId} rejected for order ${charge.order.code}`,
-    );
+    this.logger.log(`Extra charge ${chargeId} rejected for order ${charge.order.code}`);
 
     return updated;
   }

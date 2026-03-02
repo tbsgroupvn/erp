@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { Prisma, Order, OrderStatus, OrderItem } from '@prisma/client';
 import { DataScopeFilter } from '@common/guards/data-scope.guard';
+import { generateCode } from '@common/utils/code-generator.util';
 
 export interface OrderWithRelations extends Order {
   customer: {
@@ -110,9 +111,7 @@ export class OrderRepository {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         // Re-generate code on retry to avoid duplicate
-        const orderData = attempt > 0
-          ? { ...data, code: await this.generateOrderCode() }
-          : data;
+        const orderData = attempt > 0 ? { ...data, code: await this.generateOrderCode() } : data;
 
         return await this.prisma.order.create({
           data: {
@@ -122,7 +121,7 @@ export class OrderRepository {
             },
           },
           include: {
-            items: true,
+            items: { where: { deletedAt: null } },
             customer: {
               select: {
                 id: true,
@@ -184,6 +183,7 @@ export class OrderRepository {
             },
           },
           items: {
+            where: { deletedAt: null },
             select: {
               id: true,
               productName: true,
@@ -227,7 +227,7 @@ export class OrderRepository {
             overallStatus: true,
           },
         },
-        items: true,
+        items: { where: { deletedAt: null } },
         statusHistory: {
           orderBy: { createdAt: 'desc' },
           take: 50,
@@ -302,7 +302,7 @@ export class OrderRepository {
         mhhIssues: {
           select: {
             id: true,
-            type: true,
+            issueType: true,
             status: true,
             createdAt: true,
           },
@@ -312,9 +312,9 @@ export class OrderRepository {
         costAllocations: {
           select: {
             id: true,
-            costType: true,
             allocatedAmount: true,
             method: true,
+            proportion: true,
           },
           take: 50,
         },
@@ -349,7 +349,7 @@ export class OrderRepository {
             phone: true,
           },
         },
-        items: true,
+        items: { where: { deletedAt: null } },
       },
     });
   }
@@ -433,29 +433,11 @@ export class OrderRepository {
    * Generate the next order code in the format TBS-ORD-YYMMDD-NNNN.
    */
   async generateOrderCode(): Promise<string> {
-    const now = new Date();
-    const datePrefix = [
-      String(now.getFullYear()).slice(-2),
-      String(now.getMonth() + 1).padStart(2, '0'),
-      String(now.getDate()).padStart(2, '0'),
-    ].join('');
-
-    const prefix = `TBS-ORD-${datePrefix}`;
-
-    // Find the latest order with this prefix to determine the sequence number
-    const latestOrder = await this.prisma.order.findFirst({
-      where: { code: { startsWith: prefix } },
-      orderBy: { code: 'desc' },
-      select: { code: true },
+    return generateCode(this.prisma.order, {
+      prefix: 'TBS-ORD',
+      datePrefixFormat: 'YYMMDD',
+      sequenceLength: 4,
     });
-
-    let sequence = 1;
-    if (latestOrder) {
-      const lastSequence = parseInt(latestOrder.code.split('-').pop() || '0', 10);
-      sequence = lastSequence + 1;
-    }
-
-    return `${prefix}-${String(sequence).padStart(4, '0')}`;
   }
 
   /**
