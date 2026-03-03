@@ -3,10 +3,10 @@
 import { useState, Suspense } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, User, ShoppingCart, Wallet, CreditCard, Plus, Pencil, Loader2 } from 'lucide-react';
+import { ArrowLeft, User, ShoppingCart, Wallet, CreditCard, Plus, Pencil, Loader2, MessageSquare } from 'lucide-react';
 import { LoadingOverlay } from '@/components/shared/loading-overlay';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { useCustomer, useUpdateCustomer, useTopupWallet } from '@/lib/hooks/use-customers';
+import { useCustomer, useUpdateCustomer, useTopupWallet, useInteractionNotes, useCreateInteractionNote } from '@/lib/hooks/use-customers';
 import { useMasterOrders } from '@/lib/hooks/use-orders';
 import { useComplaints } from '@/lib/hooks/use-complaints';
 import { useReceivables } from '@/lib/hooks/use-finance';
@@ -17,6 +17,7 @@ import { formatCurrency, formatDate } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/cn';
 import type { CustomerTier, MasterOrderStatus, ComplaintStatus } from '@/lib/types';
 import { AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 const TABS = [
   { key: 'info', label: 'Thông tin', icon: User },
@@ -24,6 +25,7 @@ const TABS = [
   { key: 'wallet', label: 'Ví', icon: Wallet },
   { key: 'debt', label: 'Công nợ', icon: CreditCard },
   { key: 'complaints', label: 'Khiếu nại', icon: AlertCircle },
+  { key: 'notes', label: 'Ghi chú', icon: MessageSquare },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -299,6 +301,10 @@ function CustomerDetailContent() {
           {activeTab === 'complaints' && (
             <CustomerComplaints customerId={id} />
           )}
+
+          {activeTab === 'notes' && (
+            <CustomerInteractionNotes customerId={id} />
+          )}
         </>
       )}
     </div>
@@ -372,17 +378,23 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
   const topup = useTopupWallet();
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
+  const [bankTraceId, setBankTraceId] = useState('');
   const [note, setNote] = useState('');
   const [reference, setReference] = useState('');
 
   const handleTopup = () => {
     const numAmount = Number(amount);
     if (!numAmount || numAmount <= 0) return;
+    if (!bankTraceId || bankTraceId.trim().length < 5) {
+      toast.error('Ma giao dich ngan hang (Bank Trace ID) la bat buoc (toi thieu 5 ky tu)');
+      return;
+    }
     topup.mutate(
       {
         id: customerId,
         data: {
           amount: numAmount,
+          bankTraceId: bankTraceId.trim(),
           note: note || undefined,
           reference: reference || undefined,
         },
@@ -391,8 +403,13 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
         onSuccess: () => {
           setShowForm(false);
           setAmount('');
+          setBankTraceId('');
           setNote('');
           setReference('');
+        },
+        onError: (err: any) => {
+          toast.error(err?.message || 'Nap tien that bai');
+          // DON'T close form - let user retry with same data
         },
       },
     );
@@ -472,10 +489,11 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
       {showForm && (
         <div className="rounded-md border p-4 space-y-3">
           <p className="text-sm font-medium">Nạp tiền vào ví</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-xs font-medium">Số tiền *</label>
+              <label htmlFor="wallet-topup-amount" className="text-xs font-medium">Số tiền *</label>
               <input
+                id="wallet-topup-amount"
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -484,17 +502,29 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
               />
             </div>
             <div>
-              <label className="text-xs font-medium">Mã tham chiếu</label>
+              <label htmlFor="wallet-topup-bank-trace-id" className="text-xs font-medium">Mã giao dịch ngân hàng (Trace ID) *</label>
               <input
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="Mã GD ngân hàng..."
+                id="wallet-topup-bank-trace-id"
+                value={bankTraceId}
+                onChange={(e) => setBankTraceId(e.target.value)}
+                placeholder="VD: FT24060012345678"
                 className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className="text-xs font-medium">Ghi chú</label>
+              <label htmlFor="wallet-topup-reference" className="text-xs font-medium">Mã tham chiếu</label>
               <input
+                id="wallet-topup-reference"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="Tham chiếu nội bộ..."
+                className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="wallet-topup-note" className="text-xs font-medium">Ghi chú</label>
+              <input
+                id="wallet-topup-note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Ghi chú..."
@@ -506,15 +536,24 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
             <button
               type="button"
               onClick={handleTopup}
-              disabled={topup.isPending || !amount || Number(amount) <= 0}
+              disabled={topup.isPending || !amount || Number(amount) <= 0 || !bankTraceId || bankTraceId.trim().length < 5}
               className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {topup.isPending ? 'Đang nạp...' : 'Xác nhận nạp'}
             </button>
             <button
               type="button"
-              onClick={() => { setShowForm(false); setAmount(''); setNote(''); setReference(''); }}
-              className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+              onClick={() => {
+                if (!topup.isPending) {
+                  setShowForm(false);
+                  setAmount('');
+                  setBankTraceId('');
+                  setNote('');
+                  setReference('');
+                }
+              }}
+              disabled={topup.isPending}
+              className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-50"
             >
               Hủy
             </button>
@@ -710,6 +749,130 @@ function CustomerComplaints({ customerId }: { customerId: string }) {
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** CSKH-5: Sub-component: Quick interaction notes (Zalo/WeChat paste) */
+const INTERACTION_CHANNELS = [
+  { value: 'ZALO', label: 'Zalo' },
+  { value: 'WECHAT', label: 'WeChat' },
+  { value: 'PHONE', label: 'Điện thoại' },
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'OTHER', label: 'Khác' },
+] as const;
+
+const CHANNEL_COLORS: Record<string, string> = {
+  ZALO: 'bg-blue-100 text-blue-700',
+  WECHAT: 'bg-green-100 text-green-700',
+  PHONE: 'bg-purple-100 text-purple-700',
+  EMAIL: 'bg-amber-100 text-amber-700',
+  OTHER: 'bg-gray-100 text-gray-700',
+};
+
+function CustomerInteractionNotes({ customerId }: { customerId: string }) {
+  const { data: notesData, isLoading } = useInteractionNotes(customerId);
+  const createNote = useCreateInteractionNote();
+  const [content, setContent] = useState('');
+  const [channel, setChannel] = useState<string>('ZALO');
+
+  const notes = (notesData as any)?.data ?? notesData ?? [];
+
+  const handlePasteAndSave = () => {
+    if (!content.trim()) return;
+    createNote.mutate(
+      { customerId, data: { content: content.trim(), channel } },
+      {
+        onSuccess: () => {
+          setContent('');
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Quick note input */}
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <MessageSquare className="h-4 w-4" />
+          Ghi chú nhanh (Dán tin nhắn Zalo/WeChat)
+        </h3>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Kênh:</span>
+          <div className="flex gap-1">
+            {INTERACTION_CHANNELS.map((ch) => (
+              <button
+                key={ch.value}
+                type="button"
+                onClick={() => setChannel(ch.value)}
+                className={cn(
+                  'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                  channel === ch.value
+                    ? CHANNEL_COLORS[ch.value]
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                )}
+              >
+                {ch.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Dán nội dung tin nhắn từ Zalo, WeChat hoặc ghi chú cuộc gọi vào đây..."
+          rows={4}
+          className="w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handlePasteAndSave}
+            disabled={createNote.isPending || !content.trim()}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {createNote.isPending ? 'Đang lưu...' : 'Dán & Lưu'}
+          </button>
+        </div>
+      </div>
+
+      {/* Notes history */}
+      <div className="rounded-lg border bg-card">
+        <div className="px-4 py-3 border-b bg-muted/50">
+          <h3 className="text-sm font-medium">Lịch sử ghi chú</h3>
+        </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : notes.length === 0 ? (
+          <div className="py-8 text-center">
+            <p className="text-sm text-muted-foreground">Chưa có ghi chú nào</p>
+          </div>
+        ) : (
+          <div className="divide-y max-h-[500px] overflow-auto">
+            {notes.map((note: any) => (
+              <div key={note.id} className="px-4 py-3 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span
+                    className={cn(
+                      'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                      CHANNEL_COLORS[note.channel] || CHANNEL_COLORS.OTHER,
+                    )}
+                  >
+                    {INTERACTION_CHANNELS.find((c) => c.value === note.channel)?.label || note.channel}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatDate(note.createdAt, 'dd/MM/yyyy HH:mm')}
+                  </span>
+                </div>
+                <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

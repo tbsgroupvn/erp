@@ -113,6 +113,7 @@ export interface CustomerQueryParams extends QueryParams {
 export interface TopupWalletDto {
   customerId: string;
   amount: number;
+  bankTraceId: string;
   note?: string;
   reference?: string;
 }

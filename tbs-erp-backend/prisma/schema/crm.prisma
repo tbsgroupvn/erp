@@ -54,6 +54,8 @@ model Customer {
   complaints      Complaint[]
   contracts       Contract[]
   agingSnapshots  ARAgingSnapshot[]
+  interactionNotes CustomerInteractionNote[]
+  returnRequests  ReturnRequest[]
 
   @@index([saleId])
   @@index([tier])
@@ -94,6 +96,7 @@ model WalletTransaction {
   amount          Decimal  @db.Decimal(18, 2)  // + nạp, - trừ
   type            String   // TOPUP, DEDUCT, REFUND
   reference       String?  // Mã tham chiếu (orderId, paymentId)
+  bankTraceId     String?  @unique @map("bank_trace_id") // Mã GD ngân hàng - chống trùng
   allocationType  String?  @map("allocation_type") // CONTRACT, ORDER, UNALLOCATED
   allocationId    String?  @map("allocation_id")
   note            String?
@@ -104,4 +107,60 @@ model WalletTransaction {
   @@index([walletId, createdAt])
   @@index([allocationType, allocationId])
   @@map("wallet_transactions")
+}
+
+// ============================================
+// CUSTOMER INTERACTION NOTE — Quick paste from Zalo/WeChat (CSKH-5)
+// ============================================
+
+model CustomerInteractionNote {
+  id          String   @id @default(cuid())
+  customerId  String   @map("customer_id")
+  content     String
+  channel     String   // ZALO, WECHAT, PHONE, EMAIL, OTHER
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId, createdAt])
+  @@map("customer_interaction_notes")
+}
+
+// ============================================
+// LEAD — Prospective customer pipeline (KD-4)
+// ============================================
+
+model Lead {
+  id                  String   @id @default(cuid())
+  code                String   @unique // LEAD-YYYYMM-XXXX
+  fullName            String   @map("full_name")
+  companyName         String?  @map("company_name")
+  phone               String?
+  email               String?
+  source              String   // WEBSITE, REFERRAL, EXHIBITION, SOCIAL_MEDIA, COLD_CALL
+  status              String   @default("NEW") // NEW, CONTACTING, QUOTED, CONVERTED, LOST
+  assignedTo          String?  @map("assigned_to")
+  lostReason          String?  @map("lost_reason")
+  convertedCustomerId String?  @map("converted_customer_id")
+  notes               LeadNote[]
+  createdBy           String   @map("created_by")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([assignedTo])
+  @@index([status])
+  @@map("leads")
+}
+
+model LeadNote {
+  id        String   @id @default(cuid())
+  leadId    String   @map("lead_id")
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  content   String
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([leadId])
+  @@map("lead_notes")
 }

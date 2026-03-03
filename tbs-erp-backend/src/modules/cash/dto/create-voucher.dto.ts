@@ -85,4 +85,22 @@ export class CreateVoucherDto {
   @IsString()
   @MaxLength(100)
   supplierOrderId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Ma giao dich ngan hang (bat buoc cho RECEIPT + BANK_TRANSFER)',
+    example: 'FT24060012345678',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(5, { message: 'Ma giao dich ngan hang phai co it nhat 5 ky tu' })
+  bankTraceId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Exchange rate at payment time (for foreign currency PAYMENT vouchers). If not provided, current rate will be used.',
+    example: 3500,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.0001)
+  exchangeRateAtPayment?: number;
 }

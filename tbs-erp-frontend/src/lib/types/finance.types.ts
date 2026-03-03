@@ -56,6 +56,9 @@ export interface PaymentVoucher {
   status: ApprovalStatus;
   approvedBy: string | null;
   approvedAt: string | null;
+  exchangeRateAtOrder: number | null;
+  exchangeRateAtPayment: number | null;
+  exchangeRateDiff: number | null;
   isFlagged: boolean;
   flagReason: string | null;
   createdBy: string;
@@ -136,6 +139,8 @@ export interface CreateVoucherDto {
   beneficiary: string;
   reason: string;
   attachments?: string[];
+  exchangeRateAtPayment?: number;
+  bankTraceId?: string;
 }
 
 /** DTO for creating an invoice */

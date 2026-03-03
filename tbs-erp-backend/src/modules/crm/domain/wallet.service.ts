@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { Prisma, Wallet, WalletTransaction } from '@prisma/client';
 
@@ -62,6 +57,7 @@ export class WalletService {
     amount: number,
     reference?: string,
     note?: string,
+    bankTraceId?: string,
   ): Promise<WalletOperationResult> {
     if (amount <= 0) {
       throw new BadRequestException('Topup amount must be positive');
@@ -88,11 +84,12 @@ export class WalletService {
           type: 'TOPUP',
           reference,
           note,
+          bankTraceId: bankTraceId || null,
         },
       });
 
       this.logger.log(
-        `Wallet topup: customer=${customerId}, amount=${amount}, balance=${updatedWallet.balance}`,
+        `Wallet topup: customer=${customerId}, amount=${amount}, balance=${updatedWallet.balance}, bankTraceId=${bankTraceId ?? 'N/A'}`,
       );
 
       return { wallet: updatedWallet, transaction };
@@ -112,18 +109,23 @@ export class WalletService {
       throw new BadRequestException('Deduct amount must be positive');
     }
 
-    return this.prisma.executeInTransaction(async (tx) => {
-      const wallet = await tx.wallet.findUnique({
-        where: { customerId },
-      });
+    // Validate UUID format before using in raw SQL query
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(customerId)) {
+      throw new BadRequestException('Invalid customer ID format');
+    }
 
-      if (!wallet) {
-        throw new NotFoundException(
-          `Wallet not found for customer ${customerId}`,
-        );
+    return this.prisma.executeInTransaction(async (tx) => {
+      // FOR UPDATE lock to prevent concurrent deduction race condition
+      const rows = await tx.$queryRaw<Array<{ id: string; balance: any }>>`
+        SELECT id, balance FROM wallets WHERE customer_id = ${customerId} FOR UPDATE`;
+
+      if (rows.length === 0) {
+        throw new NotFoundException(`Wallet not found for customer ${customerId}`);
       }
 
-      if (wallet.balance.toNumber() < amount) {
+      const wallet = rows[0];
+      if (Number(wallet.balance) < amount) {
         throw new BadRequestException(
           `Insufficient wallet balance. Current balance: ${wallet.balance}, requested: ${amount}`,
         );
@@ -173,9 +175,7 @@ export class WalletService {
       });
 
       if (!wallet) {
-        throw new NotFoundException(
-          `Wallet not found for customer ${customerId}`,
-        );
+        throw new NotFoundException(`Wallet not found for customer ${customerId}`);
       }
 
       const updatedWallet = await tx.wallet.update({

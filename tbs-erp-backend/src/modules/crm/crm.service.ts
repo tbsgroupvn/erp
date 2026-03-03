@@ -1,18 +1,18 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Customer, CustomerTier } from '@prisma/client';
+import { Customer, CustomerTier, UserRole } from '@prisma/client';
 import { CrmRepository } from './crm.repository';
 import { CustomerTierService } from './domain/customer-tier.service';
 import { WalletService } from './domain/wallet.service';
+import { DataScopeService } from '@core/rbac/data-scope.service';
+import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { CustomerQueryDto } from './dto/customer-query.dto';
 import { PaginatedResponse } from '@common/dto/base-response.dto';
+
+/** Roles that auto-assign saleId to themselves when creating customers. */
+const SALE_ROLES: UserRole[] = [UserRole.SALE, UserRole.SALES_LEADER];
 
 @Injectable()
 export class CrmService {
@@ -22,14 +22,19 @@ export class CrmService {
     private readonly crmRepository: CrmRepository,
     private readonly customerTierService: CustomerTierService,
     private readonly walletService: WalletService,
+    private readonly dataScopeService: DataScopeService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
    * Create a new customer with auto-generated code and initial wallet.
+   * Auto-assigns saleId from the creator when the creator has a SALE role.
    */
-  async createCustomer(dto: CreateCustomerDto): Promise<Customer> {
+  async createCustomer(dto: CreateCustomerDto, user?: ICurrentUser): Promise<Customer> {
     const code = await this.crmRepository.generateCode();
+
+    // Auto-assign saleId: if not explicitly set and creator is a SALE role, use their ID
+    const saleId = dto.saleId ?? (user && SALE_ROLES.includes(user.role) ? user.id : undefined);
 
     const customer = await this.crmRepository.create({
       code,
@@ -40,7 +45,7 @@ export class CrmService {
       address: dto.address,
       taxCode: dto.taxCode,
       branch: dto.branch,
-      saleId: dto.saleId,
+      saleId,
       note: dto.note,
       tier: CustomerTier.NEW,
       depositRate: this.customerTierService.getDepositRate(CustomerTier.NEW),
@@ -53,16 +58,14 @@ export class CrmService {
     this.eventEmitter.emit('customer.created', { customer });
     this.logger.log(`Customer created: ${customer.code}`);
 
-    return customer;
+    // Re-fetch to include wallet in response
+    return this.crmRepository.findById(customer.id) as Promise<Customer>;
   }
 
   /**
    * Update an existing customer.
    */
-  async updateCustomer(
-    id: string,
-    dto: UpdateCustomerDto,
-  ): Promise<Customer> {
+  async updateCustomer(id: string, dto: UpdateCustomerDto): Promise<Customer> {
     const existing = await this.crmRepository.findById(id);
     if (!existing) {
       throw new NotFoundException(`Customer ${id} not found`);
@@ -85,12 +88,8 @@ export class CrmService {
     if (dto.tier !== undefined) {
       if (dto.tier === CustomerTier.STRATEGIC) {
         updateData.tier = CustomerTier.STRATEGIC;
-        updateData.depositRate = this.customerTierService.getDepositRate(
-          CustomerTier.STRATEGIC,
-        );
-        updateData.creditLimit = this.customerTierService.getCreditLimit(
-          CustomerTier.STRATEGIC,
-        );
+        updateData.depositRate = this.customerTierService.getDepositRate(CustomerTier.STRATEGIC);
+        updateData.creditLimit = this.customerTierService.getCreditLimit(CustomerTier.STRATEGIC);
       } else {
         throw new BadRequestException(
           'Only STRATEGIC tier can be set manually. Other tiers are auto-calculated.',
@@ -109,23 +108,43 @@ export class CrmService {
   }
 
   /**
-   * Get a single customer by ID.
+   * Get a single customer by ID with data-scope enforcement.
    */
-  async getCustomer(id: string): Promise<Customer> {
+  async getCustomer(id: string, user?: ICurrentUser): Promise<Customer> {
     const customer = await this.crmRepository.findById(id);
     if (!customer) {
       throw new NotFoundException(`Customer ${id} not found`);
     }
+
+    // Enforce data scope: verify the caller has access to this customer
+    if (user) {
+      const scopeFilter = await this.dataScopeService.getDataScopeFilter(
+        { userId: user.id, role: user.role, branch: user.branch },
+        'customer',
+      );
+      if (Object.keys(scopeFilter).length > 0) {
+        const accessible = await this.crmRepository.findByIdWithScope(id, scopeFilter);
+        if (!accessible) {
+          throw new ForbiddenException('You do not have access to this customer');
+        }
+      }
+    }
+
     return customer;
   }
 
   /**
-   * List customers with pagination and filters.
+   * List customers with pagination, filters, and data-scope enforcement.
    */
-  async listCustomers(
-    query: CustomerQueryDto,
-  ): Promise<PaginatedResponse<Customer>> {
-    const { data, total } = await this.crmRepository.findMany(query);
+  async listCustomers(query: CustomerQueryDto, user?: ICurrentUser): Promise<PaginatedResponse<Customer>> {
+    let scopeFilter = {};
+    if (user) {
+      scopeFilter = await this.dataScopeService.getDataScopeFilter(
+        { userId: user.id, role: user.role, branch: user.branch },
+        'customer',
+      );
+    }
+    const { data, total } = await this.crmRepository.findMany(query, scopeFilter);
     return PaginatedResponse.paginate(data, total, query.page, query.limit);
   }
 
@@ -183,23 +202,17 @@ export class CrmService {
   /**
    * Top up a customer's wallet.
    */
-  async topupWallet(
-    customerId: string,
-    amount: number,
-    reference?: string,
-    note?: string,
-  ) {
+  async topupWallet(customerId: string, amount: number, reference?: string, note?: string, bankTraceId?: string) {
     const customer = await this.crmRepository.findById(customerId);
     if (!customer) {
       throw new NotFoundException(`Customer ${customerId} not found`);
     }
 
-    const result = await this.walletService.topup(
-      customerId,
-      amount,
-      reference,
-      note,
-    );
+    if (!bankTraceId) {
+      throw new BadRequestException('Ma giao dich ngan hang (Bank Trace ID) la bat buoc khi nap vi');
+    }
+
+    const result = await this.walletService.topup(customerId, amount, reference, note, bankTraceId);
 
     this.eventEmitter.emit('wallet.topup', {
       customerId,
@@ -214,12 +227,7 @@ export class CrmService {
   /**
    * Deduct from a customer's wallet.
    */
-  async deductWallet(
-    customerId: string,
-    amount: number,
-    reference?: string,
-    note?: string,
-  ) {
+  async deductWallet(customerId: string, amount: number, reference?: string, note?: string) {
     return this.walletService.deduct(customerId, amount, reference, note);
   }
 }

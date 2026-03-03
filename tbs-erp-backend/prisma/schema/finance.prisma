@@ -31,7 +31,6 @@ model AccountPayable {
   id            String   @id @default(cuid())
   code          String   @unique
   vendorId      String?  @map("vendor_id")
-  vendorName    String   @map("vendor_name")
   amount        Decimal  @db.Decimal(18, 2)
   paidAmount    Decimal  @default(0) @map("paid_amount") @db.Decimal(18, 2)
   currency      Currency @default(VND)
@@ -42,6 +41,8 @@ model AccountPayable {
   createdBy     String   @map("created_by")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
+
+  vendor      Vendor?  @relation(fields: [vendorId], references: [id])
 
   @@index([vendorId, status])
   @@index([dueDate])
@@ -65,8 +66,12 @@ model PaymentVoucher {
   status          ApprovalStatus @default(PENDING)
   approvedBy      String?        @map("approved_by")
   approvedAt      DateTime?      @map("approved_at")
+  exchangeRateAtOrder   Decimal?  @map("exchange_rate_at_order") @db.Decimal(18, 4)
+  exchangeRateAtPayment Decimal?  @map("exchange_rate_at_payment") @db.Decimal(18, 4)
+  exchangeRateDiff      Decimal?  @map("exchange_rate_diff") @db.Decimal(18, 4)
   isFlagged       Boolean        @default(false) @map("is_flagged")
   flagReason      String?        @map("flag_reason")
+  bankTraceId     String?        @unique @map("bank_trace_id") // Mã GD ngân hàng - chống trùng
   createdBy       String         @map("created_by")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
@@ -82,6 +87,7 @@ model PaymentVoucher {
   @@index([createdBy])
   @@index([status])
   @@index([createdAt])
+  @@index([type, createdAt])
   @@map("payment_vouchers")
 }
 
@@ -99,6 +105,7 @@ model CashTransaction {
 
   @@index([createdAt])
   @@index([voucherId])
+  @@index([type, createdAt])
   @@map("cash_transactions")
 }
 
@@ -253,9 +260,10 @@ model CommissionRecord {
 
   createdAt   DateTime @default(now())
 
-  @@index([orderId])
+  @@unique([orderId])
   @@index([saleId])
   @@index([status])
+  @@index([saleId, createdAt])
   @@map("commission_records")
 }
 
@@ -347,6 +355,8 @@ model StockMovement {
 
   @@index([itemId])
   @@index([type])
+  @@index([itemId, createdAt])
+  @@index([createdAt])
   @@map("stock_movements")
 }
 
@@ -372,15 +382,17 @@ model CODRecord {
   @@index([deliveryId])
   @@index([driverId])
   @@index([status])
+  @@index([createdAt])
   @@map("cod_records")
 }
 
 model ClosedPeriod {
-  id        String   @id @default(cuid())
-  year      Int
-  month     Int
-  closedBy  String   @map("closed_by")
-  closedAt  DateTime @default(now()) @map("closed_at")
+  id             String   @id @default(cuid())
+  year           Int
+  month          Int
+  closedBy       String   @map("closed_by")
+  closedAt       DateTime @default(now()) @map("closed_at")
+  bypassReasons  Json?    @map("bypass_reasons") // KT-5: reasons for bypassing checklist items
 
   @@unique([year, month])
   @@map("closed_periods")
@@ -640,4 +652,32 @@ model UnallocatedFundClaim {
   @@index([customerId])
   @@index([status])
   @@map("unallocated_fund_claims")
+}
+
+// ============================================
+// BANK WEBHOOK TRANSACTION — Auto-reconciliation from bank webhooks
+// ============================================
+
+model BankWebhookTransaction {
+  id                  String    @id @default(cuid())
+  provider            String                           // CASSO, PAYOS, MANUAL
+  bankTraceId         String    @unique @map("bank_trace_id")
+  amount              Decimal   @db.Decimal(18, 2)
+  description         String
+  bankCode            String?   @map("bank_code")
+  accountNumber       String?   @map("account_number")
+  transactionDate     DateTime  @map("transaction_date")
+  parsedCustomerCode  String?   @map("parsed_customer_code")
+  matchedCustomerId   String?   @map("matched_customer_id")
+  status              String    @default("PENDING")    // PENDING, AUTO_CREDITED, FAILED, DUPLICATE
+  walletTransactionId String?   @map("wallet_transaction_id")
+  processedAt         DateTime? @map("processed_at")
+  errorMessage        String?   @map("error_message")
+  rawPayload          Json?     @map("raw_payload")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([parsedCustomerCode])
+  @@index([createdAt])
+  @@map("bank_webhook_transactions")
 }

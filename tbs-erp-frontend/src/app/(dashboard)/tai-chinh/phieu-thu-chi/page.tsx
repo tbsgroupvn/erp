@@ -21,7 +21,19 @@ const voucherSchema = z.object({
   costType: z.string().min(1, 'Bắt buộc'),
   beneficiary: z.string().min(1, 'Bắt buộc'),
   reason: z.string().min(1, 'Bắt buộc nhập lý do'),
-});
+  bankTraceId: z.string().optional(),
+}).refine(
+  (data) => {
+    if (data.type === 'RECEIPT' && data.paymentMethod === PaymentMethod.BANK_TRANSFER) {
+      return data.bankTraceId && data.bankTraceId.trim().length >= 5;
+    }
+    return true;
+  },
+  {
+    message: 'Ma giao dich ngan hang bat buoc cho Phieu thu + Chuyen khoan (toi thieu 5 ky tu)',
+    path: ['bankTraceId'],
+  },
+);
 
 type VoucherFormData = z.infer<typeof voucherSchema>;
 
@@ -52,6 +64,7 @@ export default function PhieuThuChiPage() {
       costType: '',
       beneficiary: '',
       reason: '',
+      bankTraceId: '',
     },
   });
 
@@ -94,8 +107,9 @@ export default function PhieuThuChiPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {/* Type */}
               <div>
-                <label className="text-sm font-medium">Loại phiếu *</label>
+                <label htmlFor="voucher-type" className="text-sm font-medium">Loại phiếu *</label>
                 <select
+                  id="voucher-type"
                   {...form.register('type')}
                   className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
                 >
@@ -106,8 +120,9 @@ export default function PhieuThuChiPage() {
 
               {/* Order ID */}
               <div>
-                <label className="text-sm font-medium">Mã đơn hàng (ID) *</label>
+                <label htmlFor="voucher-order-id" className="text-sm font-medium">Mã đơn hàng (ID) *</label>
                 <input
+                  id="voucher-order-id"
                   {...form.register('orderId')}
                   placeholder="Nhập ID đơn hàng"
                   className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
@@ -119,8 +134,9 @@ export default function PhieuThuChiPage() {
 
               {/* Amount */}
               <div>
-                <label className="text-sm font-medium">Số tiền *</label>
+                <label htmlFor="voucher-amount" className="text-sm font-medium">Số tiền *</label>
                 <input
+                  id="voucher-amount"
                   type="number"
                   {...form.register('amount')}
                   placeholder="0"
@@ -133,8 +149,9 @@ export default function PhieuThuChiPage() {
 
               {/* Payment Method */}
               <div>
-                <label className="text-sm font-medium">Phương thức *</label>
+                <label htmlFor="voucher-payment-method" className="text-sm font-medium">Phương thức *</label>
                 <select
+                  id="voucher-payment-method"
                   {...form.register('paymentMethod')}
                   className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
                 >
@@ -144,10 +161,27 @@ export default function PhieuThuChiPage() {
                 </select>
               </div>
 
+              {/* Bank Trace ID - shown when RECEIPT + BANK_TRANSFER */}
+              {form.watch('type') === 'RECEIPT' && form.watch('paymentMethod') === PaymentMethod.BANK_TRANSFER && (
+                <div>
+                  <label htmlFor="voucher-bank-trace-id" className="text-sm font-medium">Mã GD ngân hàng (Trace ID) *</label>
+                  <input
+                    id="voucher-bank-trace-id"
+                    {...form.register('bankTraceId')}
+                    placeholder="VD: FT24060012345678"
+                    className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                  />
+                  {form.formState.errors.bankTraceId && (
+                    <p className="text-xs text-destructive mt-1">{form.formState.errors.bankTraceId.message}</p>
+                  )}
+                </div>
+              )}
+
               {/* Cost Type */}
               <div>
-                <label className="text-sm font-medium">Loại chi phí *</label>
+                <label htmlFor="voucher-cost-type" className="text-sm font-medium">Loại chi phí *</label>
                 <select
+                  id="voucher-cost-type"
                   {...form.register('costType')}
                   className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
                 >
@@ -163,8 +197,9 @@ export default function PhieuThuChiPage() {
 
               {/* Beneficiary */}
               <div>
-                <label className="text-sm font-medium">Người nhận/nộp *</label>
+                <label htmlFor="voucher-beneficiary" className="text-sm font-medium">Người nhận/nộp *</label>
                 <input
+                  id="voucher-beneficiary"
                   {...form.register('beneficiary')}
                   placeholder="Tên người nhận hoặc nộp tiền"
                   className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
@@ -177,8 +212,9 @@ export default function PhieuThuChiPage() {
 
             {/* Reason */}
             <div>
-              <label className="text-sm font-medium">Lý do *</label>
+              <label htmlFor="voucher-reason" className="text-sm font-medium">Lý do *</label>
               <textarea
+                id="voucher-reason"
                 {...form.register('reason')}
                 placeholder="Nhập lý do tạo phiếu..."
                 rows={2}
