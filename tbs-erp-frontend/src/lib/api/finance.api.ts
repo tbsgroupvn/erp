@@ -9,6 +9,7 @@ import type {
   QueryParams,
   CreateVoucherDto,
   CreateInvoiceDto,
+  CustomerDebtSummary,
 } from '@/lib/types';
 import type { VoucherQueryParams, InvoiceQueryParams } from '@/lib/types/finance.types';
 
@@ -72,7 +73,21 @@ export const arApi = {
   /** GET /ar/by-customer/:customerId */
   getCustomerDebt: (customerId: string) =>
     apiClient
-      .get<BaseResponse<AccountReceivable[]>>(`/ar/by-customer/${encodeURIComponent(customerId)}`)
+      .get<
+        BaseResponse<{
+          totalDebt: number;
+          overdueDebt: number;
+          receivablesCount: number;
+          receivables: AccountReceivable[];
+        }>
+      >(`/ar/by-customer/${encodeURIComponent(customerId)}`)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
+
+  /** GET /ar/customer-summary */
+  getCustomerSummary: () =>
+    apiClient
+      .get<BaseResponse<CustomerDebtSummary[]>>('/ar/customer-summary')
       .then((r) => r.data.data)
       .catch(handleApiError),
 };

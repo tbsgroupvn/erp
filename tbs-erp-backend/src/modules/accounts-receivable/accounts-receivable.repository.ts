@@ -9,6 +9,19 @@ export interface AgingBucket {
   totalAmount: number;
 }
 
+export interface CustomerDebtSummary {
+  customerId: string;
+  customerCode: string;
+  customerName: string;
+  companyName: string | null;
+  totalDebt: number;
+  overdueDebt: number;
+  arCount: number;
+  oldestDueDate: Date | null;
+  /** Max days since any linked order reached COMPLETED status (null if no order has completedAt) */
+  maxDaysSinceCompletion: number | null;
+}
+
 @Injectable()
 export class AccountsReceivableRepository {
   private readonly logger = new Logger(AccountsReceivableRepository.name);
@@ -211,5 +224,96 @@ export class AccountsReceivableRepository {
       overdueDebt,
       receivablesCount: receivables.length,
     };
+  }
+
+  /**
+   * Aggregate all OPEN/PARTIAL AR records grouped by customer.
+   * Prisma groupBy does not support joins, so we fetch with customer include
+   * and aggregate in JS. Result is sorted by totalDebt descending.
+   */
+  async getCustomerSummary(): Promise<CustomerDebtSummary[]> {
+    const now = new Date();
+
+    const records = await this.prisma.accountReceivable.findMany({
+      where: {
+        status: { in: [ArStatus.OPEN, ArStatus.PARTIAL] },
+      },
+      select: {
+        customerId: true,
+        amount: true,
+        paidAmount: true,
+        dueDate: true,
+        order: {
+          select: { completedAt: true },
+        },
+        customer: {
+          select: {
+            id: true,
+            code: true,
+            fullName: true,
+            companyName: true,
+          },
+        },
+      },
+    });
+
+    const map = new Map<string, CustomerDebtSummary>();
+
+    for (const ar of records) {
+      const outstanding = ar.amount.toNumber() - ar.paidAmount.toNumber();
+      const isOverdue = ar.dueDate < now;
+
+      // Calculate days since order completion
+      let daysSinceCompletion: number | null = null;
+      if (ar.order?.completedAt) {
+        daysSinceCompletion = Math.floor(
+          (now.getTime() - ar.order.completedAt.getTime()) / (1000 * 60 * 60 * 24),
+        );
+      }
+
+      const existing = map.get(ar.customerId);
+
+      if (existing) {
+        existing.totalDebt += outstanding;
+        if (isOverdue) {
+          existing.overdueDebt += outstanding;
+        }
+        existing.arCount += 1;
+        if (
+          existing.oldestDueDate === null ||
+          ar.dueDate < existing.oldestDueDate
+        ) {
+          existing.oldestDueDate = ar.dueDate;
+        }
+        // Keep the max daysSinceCompletion across all ARs for this customer
+        if (
+          daysSinceCompletion !== null &&
+          (existing.maxDaysSinceCompletion === null ||
+            daysSinceCompletion > existing.maxDaysSinceCompletion)
+        ) {
+          existing.maxDaysSinceCompletion = daysSinceCompletion;
+        }
+      } else {
+        map.set(ar.customerId, {
+          customerId: ar.customerId,
+          customerCode: ar.customer.code,
+          customerName: ar.customer.fullName,
+          companyName: ar.customer.companyName ?? null,
+          totalDebt: outstanding,
+          overdueDebt: isOverdue ? outstanding : 0,
+          arCount: 1,
+          oldestDueDate: ar.dueDate,
+          maxDaysSinceCompletion: daysSinceCompletion,
+        });
+      }
+    }
+
+    // Sort: highest daysSinceCompletion first (urgency), then by totalDebt descending
+    return Array.from(map.values()).sort((a, b) => {
+      const aDays = a.maxDaysSinceCompletion ?? -1;
+      const bDays = b.maxDaysSinceCompletion ?? -1;
+      if (aDays !== bDays) return bDays - aDays;
+      return b.totalDebt - a.totalDebt;
+    });
   }
 }

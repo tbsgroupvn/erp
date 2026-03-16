@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@core/database/prisma.service';
-import { AccountsReceivableRepository } from './accounts-receivable.repository';
+import { AccountsReceivableRepository, CustomerDebtSummary } from './accounts-receivable.repository';
 import { CreateArDto } from './dto/create-ar.dto';
 import { RecordPaymentDto } from './dto/record-payment.dto';
 import { ArQueryDto, ArStatus } from './dto/ar-query.dto';
@@ -251,6 +251,14 @@ export class AccountsReceivableService {
    */
   async getHighRiskCustomers() {
     return this.snapshotService.getHighRiskCustomers();
+  }
+
+  /**
+   * Get total outstanding debt grouped by customer.
+   * Returns all customers with OPEN/PARTIAL AR, sorted by totalDebt descending.
+   */
+  async getCustomerSummary(): Promise<CustomerDebtSummary[]> {
+    return this.arRepository.getCustomerSummary();
   }
 
   /**

@@ -20,6 +20,33 @@ export interface AccountReceivable {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  customer?: {
+    id: string;
+    code: string;
+    fullName: string;
+    companyName: string | null;
+    phone: string | null;
+  };
+  order?: {
+    id: string;
+    code: string;
+    status: string;
+    totalAmount: number;
+  } | null;
+}
+
+/** Per-customer outstanding debt summary */
+export interface CustomerDebtSummary {
+  customerId: string;
+  customerCode: string;
+  customerName: string;
+  companyName: string | null;
+  totalDebt: number;
+  overdueDebt: number;
+  arCount: number;
+  oldestDueDate: string | null;
+  /** Max days since any linked order completed — used for collection urgency */
+  maxDaysSinceCompletion: number | null;
 }
 
 /** Account Payable entity */

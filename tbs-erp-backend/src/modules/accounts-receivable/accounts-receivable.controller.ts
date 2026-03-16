@@ -139,6 +139,20 @@ export class AccountsReceivableController {
     return BaseResponse.ok(trend);
   }
 
+  @Get('customer-summary')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.SALES_DIRECTOR)
+  @ApiOperation({
+    summary: 'Get outstanding debt grouped by customer',
+    description:
+      'Returns all customers with OPEN or PARTIAL AR records. ' +
+      'Each entry includes total debt, overdue debt, AR count, and oldest due date. ' +
+      'Sorted by totalDebt descending.',
+  })
+  async getCustomerSummary() {
+    const data = await this.arService.getCustomerSummary();
+    return BaseResponse.ok(data);
+  }
+
   @Get('by-customer/:customerId')
   @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.SALES_DIRECTOR)
   @ApiOperation({ summary: 'Get all receivables and debt for a customer' })

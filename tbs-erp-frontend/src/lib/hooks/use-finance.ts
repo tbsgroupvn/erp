@@ -288,6 +288,13 @@ export function useCustomerDebt(customerId: string) {
   });
 }
 
+export function useCustomerDebtSummary() {
+  return useQuery({
+    queryKey: [...financeKeys.ar.all, 'customer-summary'] as const,
+    queryFn: () => arApi.getCustomerSummary(),
+  });
+}
+
 export function useCashFlow(params?: { dateFrom?: string; dateTo?: string }) {
   return useQuery({
     queryKey: [...financeKeys.vouchers.cashFlow(), params] as const,
