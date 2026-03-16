@@ -131,6 +131,7 @@ export type {
   Invoice,
   ExchangeRate,
   DebtNetting,
+  CustomerDebtSummary,
   CreateVoucherDto,
   CreateInvoiceDto,
 } from './finance.types';

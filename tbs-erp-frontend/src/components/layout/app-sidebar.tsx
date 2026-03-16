@@ -56,6 +56,8 @@ import {
   Bot,
   Zap,
   LayoutGrid,
+  Network,
+  ClipboardList,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils/cn';
@@ -127,6 +129,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Bot,
   Zap,
   LayoutGrid,
+  Network,
+  ClipboardList,
 };
 
 function getInitials(name: string): string {

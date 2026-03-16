@@ -5,7 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
 import { PageHeader } from '@/components/shared/page-header';
 
-// Doanh so imports
+// Doanh số imports
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ import { useSalesReport, useFinancialReport } from '@/lib/hooks/use-reports';
 import { formatCurrency } from '@/lib/utils/format';
 import type { ReportQueryParams } from '@/lib/api/report.api';
 
-// Tong hop imports
+// Tổng hợp imports
 import {
   FileBarChart,
   ShoppingCart,
@@ -46,15 +46,15 @@ import {
 // ---------------------------------------------------------------------------
 
 const TABS = [
-  { key: 'default', label: 'Doanh so' },
-  { key: 'tai-chinh', label: 'Tai chinh' },
-  { key: 'tong-hop', label: 'Xuat bao cao' },
+  { key: 'default', label: 'Doanh số' },
+  { key: 'tai-chinh', label: 'Tài chính' },
+  { key: 'tong-hop', label: 'Xuất báo cáo' },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
 
 // ---------------------------------------------------------------------------
-// Doanh so content
+// Doanh số content
 // ---------------------------------------------------------------------------
 
 function DoanhSoContent() {
@@ -77,7 +77,7 @@ function DoanhSoContent() {
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-1">
-              <Label htmlFor="ds-dateFrom">Tu ngay</Label>
+              <Label htmlFor="ds-dateFrom">Từ ngày</Label>
               <Input
                 id="ds-dateFrom"
                 type="date"
@@ -87,7 +87,7 @@ function DoanhSoContent() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="ds-dateTo">Den ngay</Label>
+              <Label htmlFor="ds-dateTo">Đến ngày</Label>
               <Input
                 id="ds-dateTo"
                 type="date"
@@ -97,20 +97,20 @@ function DoanhSoContent() {
               />
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Chi nhanh</p>
+              <p className="text-sm font-medium leading-none">Chi nhánh</p>
               <Select value={branch} onValueChange={setBranch}>
                 <SelectTrigger className="w-44">
                   <SelectValue placeholder="Chọn chi nhánh" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tat ca</SelectItem>
-                  <SelectItem value="HN">Ha Noi</SelectItem>
-                  <SelectItem value="HCM">Ho Chi Minh</SelectItem>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  <SelectItem value="HN">Hà Nội</SelectItem>
+                  <SelectItem value="HCM">Hồ Chí Minh</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <Button onClick={() => refetch()} variant="outline">
-              Lam moi
+              Làm mới
             </Button>
           </div>
         </CardContent>
@@ -125,25 +125,25 @@ function DoanhSoContent() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardContent className="p-4">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Tong don hang</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Tổng đơn hàng</CardTitle>
                 <p className="text-2xl font-bold mt-1">{data.totalOrders}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Tong doanh thu</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Tổng doanh thu</CardTitle>
                 <p className="text-2xl font-bold mt-1">{formatCurrency(data.totalRevenue)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Tong loi nhuan</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Tổng lợi nhuận</CardTitle>
                 <p className="text-2xl font-bold mt-1">{formatCurrency(data.totalProfit)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Gia tri don TB</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Giá trị đơn TB</CardTitle>
                 <p className="text-2xl font-bold mt-1">{formatCurrency(data.averageOrderValue)}</p>
               </CardContent>
             </Card>
@@ -151,25 +151,25 @@ function DoanhSoContent() {
 
           <Card>
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-base">Doanh so theo nhan vien</CardTitle>
+              <CardTitle className="text-base">Doanh số theo nhân viên</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2 px-3 font-medium">Nhan vien</th>
-                      <th className="text-left py-2 px-3 font-medium">So don hang</th>
+                      <th className="text-left py-2 px-3 font-medium">Nhân viên</th>
+                      <th className="text-left py-2 px-3 font-medium">Số đơn hàng</th>
                       <th className="text-left py-2 px-3 font-medium">Doanh thu</th>
-                      <th className="text-left py-2 px-3 font-medium">Loi nhuan</th>
-                      <th className="text-left py-2 px-3 font-medium">Ti le chuyen doi (%)</th>
+                      <th className="text-left py-2 px-3 font-medium">Lợi nhuận</th>
+                      <th className="text-left py-2 px-3 font-medium">Tỉ lệ chuyển đổi (%)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.items.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="text-center py-4 text-muted-foreground">
-                          Khong co du lieu
+                          Không có dữ liệu
                         </td>
                       </tr>
                     ) : (
@@ -195,7 +195,7 @@ function DoanhSoContent() {
 }
 
 // ---------------------------------------------------------------------------
-// Tai chinh content
+// Tài chính content
 // ---------------------------------------------------------------------------
 
 function TaiChinhContent() {
@@ -216,7 +216,7 @@ function TaiChinhContent() {
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-1">
-              <Label htmlFor="tc-dateFrom">Tu ngay</Label>
+              <Label htmlFor="tc-dateFrom">Từ ngày</Label>
               <Input
                 id="tc-dateFrom"
                 type="date"
@@ -226,7 +226,7 @@ function TaiChinhContent() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="tc-dateTo">Den ngay</Label>
+              <Label htmlFor="tc-dateTo">Đến ngày</Label>
               <Input
                 id="tc-dateTo"
                 type="date"
@@ -236,7 +236,7 @@ function TaiChinhContent() {
               />
             </div>
             <Button onClick={() => refetch()} variant="outline">
-              Lam moi
+              Làm mới
             </Button>
           </div>
         </CardContent>
@@ -251,37 +251,37 @@ function TaiChinhContent() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
             <Card>
               <CardContent className="p-4">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Tong doanh thu</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Tổng doanh thu</CardTitle>
                 <p className="text-2xl font-bold mt-1">{formatCurrency(data.totalRevenue)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Tong chi phi</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Tổng chi phí</CardTitle>
                 <p className="text-2xl font-bold mt-1">{formatCurrency(data.totalExpense)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Loi nhuan rong</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Lợi nhuận ròng</CardTitle>
                 <p className="text-2xl font-bold mt-1">{formatCurrency(data.netProfit)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <CardTitle className="text-sm font-medium text-muted-foreground">So du tien mat</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Số dư tiền mặt</CardTitle>
                 <p className="text-2xl font-bold mt-1">{formatCurrency(data.cashBalance)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Cong no phai thu</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Công nợ phải thu</CardTitle>
                 <p className="text-2xl font-bold mt-1">{formatCurrency(data.receivableTotal)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Cong no phai tra</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Công nợ phải trả</CardTitle>
                 <p className="text-2xl font-bold mt-1">{formatCurrency(data.payableTotal)}</p>
               </CardContent>
             </Card>
@@ -290,21 +290,21 @@ function TaiChinhContent() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <Card>
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-base">Doanh thu theo thang</CardTitle>
+                <CardTitle className="text-base">Doanh thu theo tháng</CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-2 px-3 font-medium">Thang</th>
-                        <th className="text-left py-2 px-3 font-medium">So tien</th>
+                        <th className="text-left py-2 px-3 font-medium">Tháng</th>
+                        <th className="text-left py-2 px-3 font-medium">Số tiền</th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.revenueByMonth.length === 0 ? (
                         <tr>
-                          <td colSpan={2} className="text-center py-4 text-muted-foreground">Khong co du lieu</td>
+                          <td colSpan={2} className="text-center py-4 text-muted-foreground">Không có dữ liệu</td>
                         </tr>
                       ) : (
                         data.revenueByMonth.map((row) => (
@@ -322,21 +322,21 @@ function TaiChinhContent() {
 
             <Card>
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-base">Chi phi theo danh muc</CardTitle>
+                <CardTitle className="text-base">Chi phí theo danh mục</CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-2 px-3 font-medium">Danh muc</th>
-                        <th className="text-left py-2 px-3 font-medium">So tien</th>
+                        <th className="text-left py-2 px-3 font-medium">Danh mục</th>
+                        <th className="text-left py-2 px-3 font-medium">Số tiền</th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.expenseByCategory.length === 0 ? (
                         <tr>
-                          <td colSpan={2} className="text-center py-4 text-muted-foreground">Khong co du lieu</td>
+                          <td colSpan={2} className="text-center py-4 text-muted-foreground">Không có dữ liệu</td>
                         </tr>
                       ) : (
                         data.expenseByCategory.map((row) => (
@@ -355,21 +355,21 @@ function TaiChinhContent() {
 
           <Card>
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-base">Loi nhuan theo thang</CardTitle>
+              <CardTitle className="text-base">Lợi nhuận theo tháng</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2 px-3 font-medium">Thang</th>
-                      <th className="text-left py-2 px-3 font-medium">So tien</th>
+                      <th className="text-left py-2 px-3 font-medium">Tháng</th>
+                      <th className="text-left py-2 px-3 font-medium">Số tiền</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.profitByMonth.length === 0 ? (
                       <tr>
-                        <td colSpan={2} className="text-center py-4 text-muted-foreground">Khong co du lieu</td>
+                        <td colSpan={2} className="text-center py-4 text-muted-foreground">Không có dữ liệu</td>
                       </tr>
                     ) : (
                       data.profitByMonth.map((row) => (
@@ -391,22 +391,22 @@ function TaiChinhContent() {
 }
 
 // ---------------------------------------------------------------------------
-// Tong hop (export) content
+// Tổng hợp (export) content
 // ---------------------------------------------------------------------------
 
 const ORDER_STATUS_OPTIONS = [
-  { value: 'PENDING', label: 'Cho xu ly' },
-  { value: 'CONFIRMED', label: 'Da xac nhan' },
-  { value: 'PROCESSING', label: 'Dang xu ly' },
-  { value: 'COMPLETED', label: 'Hoan thanh' },
-  { value: 'CANCELLED', label: 'Da huy' },
+  { value: 'PENDING', label: 'Chờ xử lý' },
+  { value: 'CONFIRMED', label: 'Đã xác nhận' },
+  { value: 'PROCESSING', label: 'Đang xử lý' },
+  { value: 'COMPLETED', label: 'Hoàn thành' },
+  { value: 'CANCELLED', label: 'Đã hủy' },
 ];
 
 const AR_STATUS_OPTIONS = [
-  { value: 'PENDING', label: 'Chua thanh toan' },
-  { value: 'PARTIAL', label: 'Thanh toan mot phan' },
-  { value: 'PAID', label: 'Da thanh toan' },
-  { value: 'OVERDUE', label: 'Qua han' },
+  { value: 'PENDING', label: 'Chưa thanh toán' },
+  { value: 'PARTIAL', label: 'Thanh toán một phần' },
+  { value: 'PAID', label: 'Đã thanh toán' },
+  { value: 'OVERDUE', label: 'Quá hạn' },
 ];
 
 function OrdersReportSection() {
@@ -425,17 +425,17 @@ function OrdersReportSection() {
               <ShoppingCart className="h-5 w-5 text-blue-700" />
             </div>
             <div>
-              <CardTitle className="text-base">Bao cao don hang</CardTitle>
-              <CardDescription className="text-xs">Danh sach don hang theo khoang thoi gian va trang thai</CardDescription>
+              <CardTitle className="text-base">Báo cáo đơn hàng</CardTitle>
+              <CardDescription className="text-xs">Danh sách đơn hàng theo khoảng thời gian và trạng thái</CardDescription>
             </div>
           </div>
-          <ExportButton endpoint="/reports/orders/export" filename="bao-cao-don-hang" params={exportParams} formats={['csv', 'html']} label="Xuat" />
+          <ExportButton endpoint="/reports/orders/export" filename="bao-cao-don-hang" params={exportParams} formats={['csv', 'html']} label="Xuất" />
         </div>
       </CardHeader>
       <CardContent>
         <FilterCard onReset={reset}>
-          <DateRangeFilter value={dateRange} onChange={setDateRange} label="Tu ngay / Den ngay" />
-          <StatusFilter value={status} onChange={setStatus} options={ORDER_STATUS_OPTIONS} label="Trang thai don hang" />
+          <DateRangeFilter value={dateRange} onChange={setDateRange} label="Từ ngày / Đến ngày" />
+          <StatusFilter value={status} onChange={setStatus} options={ORDER_STATUS_OPTIONS} label="Trạng thái đơn hàng" />
         </FilterCard>
       </CardContent>
     </Card>
@@ -458,17 +458,17 @@ function ARReportSection() {
               <CreditCard className="h-5 w-5 text-green-700" />
             </div>
             <div>
-              <CardTitle className="text-base">Bao cao cong no phai thu</CardTitle>
-              <CardDescription className="text-xs">Tat ca hoa don cong no cua khach hang</CardDescription>
+              <CardTitle className="text-base">Báo cáo công nợ phải thu</CardTitle>
+              <CardDescription className="text-xs">Tất cả hóa đơn công nợ của khách hàng</CardDescription>
             </div>
           </div>
-          <ExportButton endpoint="/reports/ar/export" filename="cong-no-phai-thu" params={exportParams} formats={['csv', 'html']} label="Xuat" />
+          <ExportButton endpoint="/reports/ar/export" filename="cong-no-phai-thu" params={exportParams} formats={['csv', 'html']} label="Xuất" />
         </div>
       </CardHeader>
       <CardContent>
         <FilterCard onReset={reset}>
-          <DateRangeFilter value={dateRange} onChange={setDateRange} label="Tu ngay / Den ngay" />
-          <StatusFilter value={status} onChange={setStatus} options={AR_STATUS_OPTIONS} label="Trang thai cong no" />
+          <DateRangeFilter value={dateRange} onChange={setDateRange} label="Từ ngày / Đến ngày" />
+          <StatusFilter value={status} onChange={setStatus} options={AR_STATUS_OPTIONS} label="Trạng thái công nợ" />
         </FilterCard>
       </CardContent>
     </Card>
@@ -487,11 +487,11 @@ function AttendanceReportSection() {
               <Clock className="h-5 w-5 text-orange-700" />
             </div>
             <div>
-              <CardTitle className="text-base">Bao cao cham cong</CardTitle>
-              <CardDescription className="text-xs">Tong hop cham cong toan bo nhan vien theo thang</CardDescription>
+              <CardTitle className="text-base">Báo cáo chấm công</CardTitle>
+              <CardDescription className="text-xs">Tổng hợp chấm công toàn bộ nhân viên theo tháng</CardDescription>
             </div>
           </div>
-          <ExportButton endpoint="/reports/attendance/export" filename={`cham-cong-${monthYear.month}-${monthYear.year}`} params={exportParams} formats={['csv', 'html']} label="Xuat" />
+          <ExportButton endpoint="/reports/attendance/export" filename={`cham-cong-${monthYear.month}-${monthYear.year}`} params={exportParams} formats={['csv', 'html']} label="Xuất" />
         </div>
       </CardHeader>
       <CardContent>
@@ -515,11 +515,11 @@ function PayrollReportSection() {
               <Wallet className="h-5 w-5 text-purple-700" />
             </div>
             <div>
-              <CardTitle className="text-base">Bang luong</CardTitle>
-              <CardDescription className="text-xs">Bao cao chi luong toan bo nhan vien theo thang</CardDescription>
+              <CardTitle className="text-base">Bảng lương</CardTitle>
+              <CardDescription className="text-xs">Báo cáo chi lương toàn bộ nhân viên theo tháng</CardDescription>
             </div>
           </div>
-          <ExportButton endpoint="/reports/payroll/export" filename={`bang-luong-${monthYear.month}-${monthYear.year}`} params={exportParams} formats={['csv', 'html']} label="Xuat" />
+          <ExportButton endpoint="/reports/payroll/export" filename={`bang-luong-${monthYear.month}-${monthYear.year}`} params={exportParams} formats={['csv', 'html']} label="Xuất" />
         </div>
       </CardHeader>
       <CardContent>
@@ -536,7 +536,7 @@ function TongHopContent() {
     <div>
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
         <FileBarChart className="h-4 w-4" />
-        <span>4 loai bao cao</span>
+        <span>4 loại báo cáo</span>
       </div>
       <div className="space-y-4">
         <OrdersReportSection />
@@ -566,9 +566,9 @@ function BaoCaoInner() {
   };
 
   const titles: Record<TabKey, { title: string; description: string }> = {
-    'default': { title: 'Bao cao doanh so', description: 'Thong ke doanh so ban hang theo nhan vien va chi nhanh' },
-    'tai-chinh': { title: 'Bao cao tai chinh', description: 'Tong hop tinh hinh tai chinh doanh nghiep' },
-    'tong-hop': { title: 'Bao cao tong hop', description: 'Xuat bao cao du lieu ra Excel (CSV) hoac in / luu PDF' },
+    'default': { title: 'Báo cáo doanh số', description: 'Thống kê doanh số bán hàng theo nhân viên và chi nhánh' },
+    'tai-chinh': { title: 'Báo cáo tài chính', description: 'Tổng hợp tình hình tài chính doanh nghiệp' },
+    'tong-hop': { title: 'Báo cáo tổng hợp', description: 'Xuất báo cáo dữ liệu ra Excel (CSV) hoặc in / lưu PDF' },
   };
 
   const current = titles[activeTab];

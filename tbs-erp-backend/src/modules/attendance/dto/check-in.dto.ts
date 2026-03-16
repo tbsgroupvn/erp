@@ -1,10 +1,11 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CheckInDto {
-  @ApiProperty({ description: 'Check-in timestamp', example: '2025-06-01T08:30:00Z' })
+  @ApiPropertyOptional({ description: 'Check-in timestamp (defaults to now)', example: '2025-06-01T08:30:00Z' })
+  @IsOptional()
   @IsDateString()
-  timestamp: string;
+  timestamp?: string;
 
   @ApiPropertyOptional({ description: 'Latitude', example: 21.0285 })
   @IsOptional()
@@ -16,19 +17,26 @@ export class CheckInDto {
   @IsNumber()
   lng?: number;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Check-in type',
     enum: ['OFFICE', 'REMOTE', 'FIELD'],
     example: 'OFFICE',
   })
+  @IsOptional()
   @IsString()
-  type: string;
+  type?: string;
+
+  @ApiPropertyOptional({ description: 'Note' })
+  @IsOptional()
+  @IsString()
+  note?: string;
 }
 
 export class CheckOutDto {
-  @ApiProperty({ description: 'Check-out timestamp', example: '2025-06-01T17:30:00Z' })
+  @ApiPropertyOptional({ description: 'Check-out timestamp (defaults to now)', example: '2025-06-01T17:30:00Z' })
+  @IsOptional()
   @IsDateString()
-  timestamp: string;
+  timestamp?: string;
 
   @ApiPropertyOptional({ description: 'Latitude', example: 21.0285 })
   @IsOptional()
@@ -39,4 +47,9 @@ export class CheckOutDto {
   @IsOptional()
   @IsNumber()
   lng?: number;
+
+  @ApiPropertyOptional({ description: 'Note' })
+  @IsOptional()
+  @IsString()
+  note?: string;
 }

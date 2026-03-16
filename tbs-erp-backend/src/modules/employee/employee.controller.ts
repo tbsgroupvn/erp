@@ -26,6 +26,7 @@ import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
 import { EmployeeService } from './employee.service';
+import { BulkCreateEmployeeDto } from './dto/bulk-create-employee.dto';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { EmployeeQueryDto } from './dto/employee-query.dto';
@@ -46,6 +47,35 @@ export class EmployeeController {
   async create(@Body() dto: CreateEmployeeDto) {
     const employee = await this.employeeService.createEmployee(dto);
     return BaseResponse.ok(employee, 'Employee created successfully');
+  }
+
+  @Post('bulk')
+  @Roles(UserRole.HR_MANAGER, UserRole.CEO, UserRole.COO)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Bulk create employees',
+    description:
+      'Import up to 500 employees in a single request. Each row is processed independently — ' +
+      'a validation or business error on one row does not abort the rest. ' +
+      'Inspect the `results` array for per-row outcome and `summary` for totals.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Bulk import processed. Check summary.failed for partial failures.',
+    schema: {
+      example: {
+        results: [
+          { index: 0, success: true, employee: { id: 'abc', code: 'EMP-0001' } },
+          { index: 1, success: false, error: 'Manager with ID xyz not found' },
+        ],
+        summary: { total: 2, success: 1, failed: 1 },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Request body validation failed' })
+  async bulkCreate(@Body() dto: BulkCreateEmployeeDto) {
+    const { results, summary } = await this.employeeService.bulkCreateEmployees(dto.employees);
+    return BaseResponse.ok({ results, summary }, `Bulk import complete: ${summary.success}/${summary.total} succeeded`);
   }
 
   @Get()

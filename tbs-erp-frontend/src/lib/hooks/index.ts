@@ -215,6 +215,47 @@ export {
   inventoryKeys,
 } from './use-inventory';
 
+// Recruitment
+export {
+  useRecruitmentList,
+  useRecruitmentStats,
+  useRecruitmentBoard,
+  useCandidate,
+  useCreateCandidate,
+  useUpdateCandidate,
+  useUpdateCandidateStatus,
+  useDeleteCandidate,
+  recruitmentKeys,
+} from './use-recruitment';
+
+// Onboarding
+export {
+  onboardingKeys,
+  useOnboardingList,
+  useOnboardingByEmployee,
+  useOnboardingDetail,
+  useCreateChecklist,
+  useToggleChecklistItem,
+  useMarkChecklistComplete,
+} from './use-onboarding';
+
+// Expenses
+export {
+  expenseKeys,
+  useExpenses,
+  useMyExpenses,
+  useExpenseStats,
+  useExpense,
+  useCreateExpense,
+  useUpdateExpense,
+  useSubmitExpense,
+  useApproveExpense,
+  useRejectExpense,
+  useMarkPaidExpense,
+  useAddExpenseItem,
+  useRemoveExpenseItem,
+} from './use-expenses';
+
 // Utilities
 export { useDebounce } from './use-debounce';
 export { usePagination } from './use-pagination';

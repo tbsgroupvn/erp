@@ -83,6 +83,9 @@ import { DriverModule } from '@modules/driver/driver.module';
 import { EmployeeModule } from '@modules/employee/employee.module';
 import { AttendanceModule } from '@modules/attendance/attendance.module';
 import { PayrollModule } from '@modules/payroll/payroll.module';
+import { RecruitmentModule } from '@modules/recruitment/recruitment.module';
+import { OnboardingModule } from '@modules/onboarding/onboarding.module';
+import { ExpenseModule } from '@modules/expense/expense.module';
 // PerformanceModule, TrainingModule removed — empty stubs, will be implemented when needed
 
 // Modules — Nhóm F: Hệ thống
@@ -248,6 +251,9 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
     EmployeeModule,
     AttendanceModule,
     PayrollModule,
+    RecruitmentModule,
+    OnboardingModule,
+    ExpenseModule,
 
     // ─── Nhóm F: Hệ thống ───
     DashboardModule,

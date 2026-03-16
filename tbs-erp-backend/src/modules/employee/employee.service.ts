@@ -67,6 +67,44 @@ export class EmployeeService {
   }
 
   /**
+   * Creates multiple employees in a single request.
+   * Processes each row independently — a failure on one row does not abort the rest.
+   * Returns per-row results plus a summary { total, success, failed }.
+   */
+  async bulkCreateEmployees(
+    employees: CreateEmployeeDto[],
+  ): Promise<{
+    results: Array<{ index: number; success: boolean; employee?: any; error?: string }>;
+    summary: { total: number; success: number; failed: number };
+  }> {
+    const results: Array<{ index: number; success: boolean; employee?: any; error?: string }> = [];
+
+    for (let i = 0; i < employees.length; i++) {
+      try {
+        const employee = await this.createEmployee(employees[i]);
+        results.push({ index: i, success: true, employee });
+      } catch (err: any) {
+        const message: string =
+          err?.message ?? 'Unknown error';
+        results.push({ index: i, success: false, error: message });
+        this.logger.warn(`Bulk import row ${i} failed: ${message}`);
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    const failedCount = results.length - successCount;
+
+    this.logger.log(
+      `Bulk employee import finished — total: ${employees.length}, success: ${successCount}, failed: ${failedCount}`,
+    );
+
+    return {
+      results,
+      summary: { total: employees.length, success: successCount, failed: failedCount },
+    };
+  }
+
+  /**
    * Updates an existing employee record.
    */
   async updateEmployee(id: string, dto: UpdateEmployeeDto) {

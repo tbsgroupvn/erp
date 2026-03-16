@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
-import { AttendanceType, LeaveStatus, LeaveType } from '@prisma/client';
+import { AttendanceType, LeaveStatus, LeaveType, Prisma } from '@prisma/client';
 import { CheckInDto, CheckOutDto } from './dto/check-in.dto';
 import { ManualCheckInDto } from './dto/manual-check-in.dto';
 import { RequestLeaveDto } from './dto/leave-request.dto';
@@ -25,81 +25,66 @@ export class AttendanceService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  /**
-   * Records check-in for an employee.
-   */
+  // ─────────────────────────────────────────────
+  // CHECK-IN / CHECK-OUT
+  // ─────────────────────────────────────────────
+
   async checkIn(userId: string, dto: CheckInDto) {
     const employee = await this.findEmployeeByUserId(userId);
-    const checkInTime = new Date(dto.timestamp);
+    const checkInTime = dto.timestamp ? new Date(dto.timestamp) : new Date();
     const dateOnly = this.toDateOnly(checkInTime);
 
-    // Check if already checked in today
     const existing = await this.prisma.attendance.findUnique({
-      where: {
-        employeeId_date: { employeeId: employee.id, date: dateOnly },
-      },
+      where: { employeeId_date: { employeeId: employee.id, date: dateOnly } },
     });
 
     if (existing?.checkIn) {
-      throw new BadRequestException('Already checked in today');
+      throw new BadRequestException('Hôm nay bạn đã chấm công vào rồi');
     }
 
     const isLate =
       checkInTime.getHours() > AttendanceService.STANDARD_CHECK_IN ||
-      (checkInTime.getHours() === AttendanceService.STANDARD_CHECK_IN &&
-        checkInTime.getMinutes() > 0);
+      (checkInTime.getHours() === AttendanceService.STANDARD_CHECK_IN && checkInTime.getMinutes() > 0);
+
+    const data: Prisma.AttendanceUpdateInput = {
+      checkIn: checkInTime,
+      checkInLat: dto.lat,
+      checkInLng: dto.lng,
+      type: (dto.type as AttendanceType) ?? AttendanceType.OFFICE,
+      isLate,
+      notes: dto.note,
+    };
 
     if (existing) {
-      // Update existing record
-      return this.prisma.attendance.update({
-        where: { id: existing.id },
-        data: {
-          checkIn: checkInTime,
-          checkInLat: dto.lat,
-          checkInLng: dto.lng,
-          type: dto.type as AttendanceType,
-          isLate,
-        },
-      });
+      return this.prisma.attendance.update({ where: { id: existing.id }, data });
     }
 
     return this.prisma.attendance.create({
       data: {
         employeeId: employee.id,
         date: dateOnly,
-        checkIn: checkInTime,
-        checkInLat: dto.lat,
-        checkInLng: dto.lng,
-        type: dto.type as AttendanceType,
-        isLate,
-      },
+        ...data,
+      } as Prisma.AttendanceUncheckedCreateInput,
     });
   }
 
-  /**
-   * Records check-out for an employee.
-   */
   async checkOut(userId: string, dto: CheckOutDto) {
     const employee = await this.findEmployeeByUserId(userId);
-    const checkOutTime = new Date(dto.timestamp);
+    const checkOutTime = dto.timestamp ? new Date(dto.timestamp) : new Date();
     const dateOnly = this.toDateOnly(checkOutTime);
 
     const attendance = await this.prisma.attendance.findUnique({
-      where: {
-        employeeId_date: { employeeId: employee.id, date: dateOnly },
-      },
+      where: { employeeId_date: { employeeId: employee.id, date: dateOnly } },
     });
 
     if (!attendance) {
-      throw new BadRequestException('No check-in record found for today');
+      throw new BadRequestException('Bạn chưa chấm công vào hôm nay');
     }
-
     if (!attendance.checkIn) {
-      throw new BadRequestException('Must check in before checking out');
+      throw new BadRequestException('Bạn cần chấm công vào trước khi chấm ra');
     }
-
     if (attendance.checkOut) {
-      throw new BadRequestException('Already checked out today');
+      throw new BadRequestException('Hôm nay bạn đã chấm công ra rồi');
     }
 
     const workHours =
@@ -112,133 +97,280 @@ export class AttendanceService {
         checkOutLat: dto.lat,
         checkOutLng: dto.lng,
         workHours: Math.round(workHours * 100) / 100,
+        notes: dto.note ?? attendance.notes,
       },
     });
   }
 
+  // ─────────────────────────────────────────────
+  // ATTENDANCE QUERIES — paginated
+  // ─────────────────────────────────────────────
+
   /**
-   * Gets monthly attendance for an employee.
+   * GET /attendance/my — paginated list of my attendance records.
    */
-  async getMyAttendance(userId: string, month: number, year: number) {
+  async getMyAttendancePaginated(userId: string, page: number, limit: number) {
     const employee = await this.findEmployeeByUserId(userId);
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    const skip = (page - 1) * limit;
 
-    return this.prisma.attendance.findMany({
-      where: {
-        employeeId: employee.id,
-        date: { gte: startDate, lte: endDate },
+    const [total, records] = await Promise.all([
+      this.prisma.attendance.count({ where: { employeeId: employee.id } }),
+      this.prisma.attendance.findMany({
+        where: { employeeId: employee.id },
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit,
+        include: { employee: { select: { fullName: true } } },
+      }),
+    ]);
+
+    const data = records.map((r) => this.mapAttendanceRecord(r, r.employee?.fullName ?? employee.fullName));
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: { date: 'asc' },
-    });
+    };
   }
 
   /**
-   * Gets team attendance summary for a manager.
+   * GET /attendance — paginated list of all attendance (admin).
    */
-  async getTeamAttendance(managerId: string, month: number, year: number) {
-    const manager = await this.findEmployeeByUserId(managerId);
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+  async findAllPaginated(page: number, limit: number, filters?: { date?: string; employeeId?: string; status?: string }) {
+    const skip = (page - 1) * limit;
+    const where: Prisma.AttendanceWhereInput = {};
 
-    // Get all subordinates
-    const subordinates = await this.prisma.employee.findMany({
-      where: { managerId: manager.id, status: 'ACTIVE' },
-      select: { id: true, code: true, fullName: true },
-    });
+    if (filters?.employeeId) where.employeeId = filters.employeeId;
+    if (filters?.date) where.date = new Date(filters.date);
 
-    const subIds = subordinates.map((s) => s.id);
+    const [total, records] = await Promise.all([
+      this.prisma.attendance.count({ where }),
+      this.prisma.attendance.findMany({
+        where,
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit,
+        include: { employee: { select: { fullName: true } } },
+      }),
+    ]);
 
-    const attendances = await this.prisma.attendance.findMany({
-      where: {
-        employeeId: { in: subIds },
-        date: { gte: startDate, lte: endDate },
-      },
-      include: {
-        employee: { select: { id: true, code: true, fullName: true } },
-      },
-    });
-
-    // Group by employee
-    const summary = subordinates.map((sub) => {
-      const records = attendances.filter((a) => a.employeeId === sub.id);
-      return {
-        employee: sub,
-        totalDays: records.length,
-        lateDays: records.filter((a) => a.isLate).length,
-        totalWorkHours: records.reduce((sum, a) => sum + Number(a.workHours || 0), 0),
-      };
-    });
-
-    return summary;
+    const data = records.map((r) => this.mapAttendanceRecord(r, r.employee?.fullName ?? ''));
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   /**
-   * Creates a leave request, auto-calculating leave days (excluding weekends).
+   * GET /attendance/summary — company-wide today summary.
    */
-  async requestLeave(userId: string, dto: RequestLeaveDto) {
+  async getCompanyTodaySummary() {
+    const today = this.toDateOnly(new Date());
+
+    const [totalEmployees, todayAttendances, todayLeaves] = await Promise.all([
+      this.prisma.employee.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.attendance.findMany({ where: { date: today } }),
+      this.prisma.leaveRequest.count({
+        where: {
+          status: LeaveStatus.APPROVED,
+          startDate: { lte: today },
+          endDate: { gte: today },
+        },
+      }),
+    ]);
+
+    const presentToday = todayAttendances.filter((a) => a.checkIn).length;
+    const lateToday = todayAttendances.filter((a) => a.isLate).length;
+    const absentToday = totalEmployees - presentToday - todayLeaves;
+
+    return {
+      totalEmployees,
+      presentToday,
+      absentToday: Math.max(0, absentToday),
+      lateToday,
+      onLeaveToday: todayLeaves,
+      averageWorkHours: presentToday > 0
+        ? Math.round(todayAttendances.reduce((sum, a) => sum + Number(a.workHours || 0), 0) / presentToday * 100) / 100
+        : 0,
+      overtimeHoursThisMonth: 0,
+    };
+  }
+
+  // ─────────────────────────────────────────────
+  // LEAVE REQUESTS — paginated
+  // ─────────────────────────────────────────────
+
+  /**
+   * POST /attendance/leave-request — create a leave request.
+   * Accepts both { type } and { leaveType } field names for compatibility.
+   */
+  async requestLeave(userId: string, dto: RequestLeaveDto & { leaveType?: LeaveType }) {
     const employee = await this.findEmployeeByUserId(userId);
+    const leaveType = dto.type ?? dto.leaveType;
+    if (!leaveType) throw new BadRequestException('Loại nghỉ phép là bắt buộc');
+
     const startDate = new Date(dto.startDate);
     const endDate = new Date(dto.endDate);
 
     if (endDate < startDate) {
-      throw new BadRequestException('End date must be after start date');
+      throw new BadRequestException('Ngày kết thúc phải sau ngày bắt đầu');
     }
 
     const totalDays = this.calculateBusinessDays(startDate, endDate);
-
     if (totalDays <= 0) {
-      throw new BadRequestException('Leave period must include at least one business day');
+      throw new BadRequestException('Khoảng thời gian nghỉ phải bao gồm ít nhất một ngày làm việc');
     }
 
-    // Check leave balance
+    // Check balance
     const balance = await this.getLeaveBalance(userId, startDate.getFullYear());
-    const typeBalance = balance.find((b) => b.type === dto.type);
+    const typeBalance = balance.find((b) => b.type === leaveType);
     if (typeBalance && typeBalance.remaining < totalDays) {
       throw new BadRequestException(
-        `Insufficient ${dto.type} leave balance. Remaining: ${typeBalance.remaining} days`,
+        `Không đủ ngày nghỉ ${leaveType}. Còn lại: ${typeBalance.remaining} ngày`,
       );
     }
 
     const leave = await this.prisma.leaveRequest.create({
       data: {
         employeeId: employee.id,
-        type: dto.type,
+        type: leaveType,
         startDate,
         endDate,
         totalDays,
         reason: dto.reason,
         status: LeaveStatus.PENDING,
       },
-      include: {
-        employee: { select: { id: true, code: true, fullName: true } },
-      },
+      include: { employee: { select: { id: true, code: true, fullName: true } } },
     });
 
     this.eventEmitter.emit('leave.requested', {
       leaveId: leave.id,
       employeeId: employee.id,
-      type: dto.type,
+      type: leaveType,
       totalDays,
     });
 
-    this.logger.log(`Leave request created: ${employee.code} - ${dto.type} for ${totalDays} days`);
-
-    return leave;
+    this.logger.log(`Leave request created: ${employee.code} - ${leaveType} for ${totalDays} days`);
+    return this.mapLeaveRequest(leave);
   }
 
   /**
-   * Approves a leave request.
+   * GET /attendance/leave-requests — all leave requests (paginated).
    */
+  async findAllLeavesPaginated(page: number, limit: number, filters?: { status?: string; leaveType?: string }) {
+    const skip = (page - 1) * limit;
+    const where: Prisma.LeaveRequestWhereInput = {};
+
+    if (filters?.status) where.status = filters.status as LeaveStatus;
+    if (filters?.leaveType) where.type = filters.leaveType as LeaveType;
+
+    const [total, records] = await Promise.all([
+      this.prisma.leaveRequest.count({ where }),
+      this.prisma.leaveRequest.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: { employee: { select: { id: true, fullName: true } } },
+      }),
+    ]);
+
+    const data = records.map((r) => this.mapLeaveRequest(r));
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  /**
+   * GET /attendance/leave-requests/my — my leave requests (paginated).
+   */
+  async findMyLeavesPaginated(userId: string, page: number, limit: number, filters?: { status?: string }) {
+    const employee = await this.findEmployeeByUserId(userId);
+    const skip = (page - 1) * limit;
+    const where: Prisma.LeaveRequestWhereInput = { employeeId: employee.id };
+
+    if (filters?.status) where.status = filters.status as LeaveStatus;
+
+    const [total, records] = await Promise.all([
+      this.prisma.leaveRequest.count({ where }),
+      this.prisma.leaveRequest.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: { employee: { select: { id: true, fullName: true } } },
+      }),
+    ]);
+
+    const data = records.map((r) => this.mapLeaveRequest(r));
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  /**
+   * GET /attendance/leave-balance — flat format.
+   */
+  async getLeaveBalanceFlat(userId: string) {
+    const year = new Date().getFullYear();
+    const balance = await this.getLeaveBalance(userId, year);
+
+    const find = (type: LeaveType) => balance.find((b) => b.type === type);
+
+    return {
+      employeeId: userId,
+      annual: find(LeaveType.ANNUAL)?.total ?? 12,
+      annualUsed: find(LeaveType.ANNUAL)?.used ?? 0,
+      sick: find(LeaveType.SICK)?.total ?? 30,
+      sickUsed: find(LeaveType.SICK)?.used ?? 0,
+      personal: find(LeaveType.PERSONAL)?.total ?? 3,
+      personalUsed: find(LeaveType.PERSONAL)?.used ?? 0,
+    };
+  }
+
+  /**
+   * PATCH /attendance/leave-requests/:id/cancel — cancel a leave request.
+   */
+  async cancelLeave(id: string, userId: string) {
+    const employee = await this.findEmployeeByUserId(userId);
+    const leave = await this.prisma.leaveRequest.findUnique({
+      where: { id },
+      include: { employee: { select: { id: true, fullName: true } } },
+    });
+
+    if (!leave) throw new NotFoundException(`Yêu cầu nghỉ phép ${id} không tồn tại`);
+    if (leave.employeeId !== employee.id) {
+      throw new BadRequestException('Bạn không có quyền hủy yêu cầu này');
+    }
+    if (leave.status !== LeaveStatus.PENDING) {
+      throw new BadRequestException(`Không thể hủy yêu cầu ở trạng thái ${leave.status}`);
+    }
+
+    const updated = await this.prisma.leaveRequest.update({
+      where: { id },
+      data: { status: LeaveStatus.CANCELLED },
+      include: { employee: { select: { id: true, fullName: true } } },
+    });
+
+    return this.mapLeaveRequest(updated);
+  }
+
+  // ─────────────────────────────────────────────
+  // APPROVE / REJECT LEAVE (keep existing)
+  // ─────────────────────────────────────────────
+
   async approveLeave(id: string, approverId: string) {
     const leave = await this.prisma.leaveRequest.findUnique({
       where: { id },
       include: { employee: true },
     });
 
-    if (!leave) {
-      throw new NotFoundException(`Leave request with ID ${id} not found`);
-    }
+    if (!leave) throw new NotFoundException(`Leave request with ID ${id} not found`);
     if (leave.status !== LeaveStatus.PENDING) {
       throw new BadRequestException(`Leave request is already ${leave.status}`);
     }
@@ -261,15 +393,9 @@ export class AttendanceService {
     return updated;
   }
 
-  /**
-   * Rejects a leave request with a reason.
-   */
   async rejectLeave(id: string, approverId: string, reason: string) {
     const leave = await this.prisma.leaveRequest.findUnique({ where: { id } });
-
-    if (!leave) {
-      throw new NotFoundException(`Leave request with ID ${id} not found`);
-    }
+    if (!leave) throw new NotFoundException(`Leave request with ID ${id} not found`);
     if (leave.status !== LeaveStatus.PENDING) {
       throw new BadRequestException(`Leave request is already ${leave.status}`);
     }
@@ -284,9 +410,10 @@ export class AttendanceService {
     });
   }
 
-  /**
-   * Gets remaining leave balance for a user by year.
-   */
+  // ─────────────────────────────────────────────
+  // LEAVE BALANCE (internal)
+  // ─────────────────────────────────────────────
+
   async getLeaveBalance(userId: string, year: number) {
     const employee = await this.findEmployeeByUserId(userId);
 
@@ -294,10 +421,7 @@ export class AttendanceService {
       where: {
         employeeId: employee.id,
         status: LeaveStatus.APPROVED,
-        startDate: {
-          gte: new Date(year, 0, 1),
-          lte: new Date(year, 11, 31),
-        },
+        startDate: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) },
       },
     });
 
@@ -317,9 +441,10 @@ export class AttendanceService {
     );
   }
 
-  /**
-   * Creates an overtime request.
-   */
+  // ─────────────────────────────────────────────
+  // OVERTIME
+  // ─────────────────────────────────────────────
+
   async requestOvertime(userId: string, dto: RequestOvertimeDto) {
     const employee = await this.findEmployeeByUserId(userId);
 
@@ -329,8 +454,6 @@ export class AttendanceService {
         date: new Date(dto.date),
         hours: dto.hours,
         reason: dto.reason,
-        // Intentionally reusing LeaveStatus.PENDING for overtime requests —
-        // the OvertimeRequest model shares the same LeaveStatus enum in the schema.
         status: LeaveStatus.PENDING,
       },
     });
@@ -344,70 +467,17 @@ export class AttendanceService {
     return overtime;
   }
 
-  /**
-   * Gets monthly summary for an employee.
-   */
-  async getMonthlySummary(userId: string, month: number, year: number) {
-    const employee = await this.findEmployeeByUserId(userId);
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+  // ─────────────────────────────────────────────
+  // MANUAL CHECK-IN / REVIEW
+  // ─────────────────────────────────────────────
 
-    const [attendances, leaveRequests, overtimeRequests] = await Promise.all([
-      this.prisma.attendance.findMany({
-        where: {
-          employeeId: employee.id,
-          date: { gte: startDate, lte: endDate },
-        },
-      }),
-      this.prisma.leaveRequest.findMany({
-        where: {
-          employeeId: employee.id,
-          status: LeaveStatus.APPROVED,
-          startDate: { lte: endDate },
-          endDate: { gte: startDate },
-        },
-      }),
-      this.prisma.overtimeRequest.findMany({
-        where: {
-          employeeId: employee.id,
-          status: LeaveStatus.APPROVED,
-          date: { gte: startDate, lte: endDate },
-        },
-      }),
-    ]);
-
-    const workDays = attendances.filter((a) => a.checkIn).length;
-    const lateDays = attendances.filter((a) => a.isLate).length;
-    const totalWorkHours = attendances.reduce((sum, a) => sum + Number(a.workHours || 0), 0);
-    const otHours = overtimeRequests.reduce((sum, ot) => sum + Number(ot.hours), 0);
-    const leaveDays = leaveRequests.reduce((sum, l) => sum + Number(l.totalDays), 0);
-
-    return {
-      employee: { id: employee.id, code: employee.code, fullName: employee.fullName },
-      month,
-      year,
-      workDays,
-      lateDays,
-      totalWorkHours: Math.round(totalWorkHours * 100) / 100,
-      otHours,
-      leaveDays,
-    };
-  }
-
-  /**
-   * Records a manual check-in with selfie for an employee.
-   * Creates an Attendance record with isManualCheckIn=true and hrReviewStatus='PENDING_REVIEW'.
-   */
   async manualCheckIn(userId: string, dto: ManualCheckInDto) {
     const employee = await this.findEmployeeByUserId(userId);
     const now = new Date();
     const dateOnly = this.toDateOnly(now);
 
-    // Check if already checked in today
     const existing = await this.prisma.attendance.findUnique({
-      where: {
-        employeeId_date: { employeeId: employee.id, date: dateOnly },
-      },
+      where: { employeeId_date: { employeeId: employee.id, date: dateOnly } },
     });
 
     if (existing?.checkIn) {
@@ -418,37 +488,24 @@ export class AttendanceService {
       now.getHours() > AttendanceService.STANDARD_CHECK_IN ||
       (now.getHours() === AttendanceService.STANDARD_CHECK_IN && now.getMinutes() > 0);
 
+    const data = {
+      checkIn: now,
+      checkInLat: dto.lat,
+      checkInLng: dto.lng,
+      type: AttendanceType.OFFICE,
+      isLate,
+      isManualCheckIn: true,
+      selfieUrl: dto.selfieUrl,
+      manualReason: dto.manualReason,
+      hrReviewStatus: 'PENDING_REVIEW',
+    };
+
     if (existing) {
-      return this.prisma.attendance.update({
-        where: { id: existing.id },
-        data: {
-          checkIn: now,
-          checkInLat: dto.lat,
-          checkInLng: dto.lng,
-          type: AttendanceType.OFFICE,
-          isLate,
-          isManualCheckIn: true,
-          selfieUrl: dto.selfieUrl,
-          manualReason: dto.manualReason,
-          hrReviewStatus: 'PENDING_REVIEW',
-        },
-      });
+      return this.prisma.attendance.update({ where: { id: existing.id }, data });
     }
 
     const attendance = await this.prisma.attendance.create({
-      data: {
-        employeeId: employee.id,
-        date: dateOnly,
-        checkIn: now,
-        checkInLat: dto.lat,
-        checkInLng: dto.lng,
-        type: AttendanceType.OFFICE,
-        isLate,
-        isManualCheckIn: true,
-        selfieUrl: dto.selfieUrl,
-        manualReason: dto.manualReason,
-        hrReviewStatus: 'PENDING_REVIEW',
-      },
+      data: { employeeId: employee.id, date: dateOnly, ...data },
     });
 
     this.eventEmitter.emit('attendance.manual-check-in', {
@@ -457,34 +514,21 @@ export class AttendanceService {
       employeeName: employee.fullName,
     });
 
-    this.logger.log(
-      `Manual check-in recorded for ${employee.code} (${employee.fullName}), pending HR review`,
-    );
-
     return attendance;
   }
 
-  /**
-   * Reviews a manual check-in record. Sets hrReviewStatus to APPROVED or REJECTED.
-   */
   async reviewManualCheckIn(attendanceId: string, approved: boolean, hrUserId: string) {
     const attendance = await this.prisma.attendance.findUnique({
       where: { id: attendanceId },
       include: { employee: { select: { id: true, code: true, fullName: true } } },
     });
 
-    if (!attendance) {
-      throw new NotFoundException(`Attendance record ${attendanceId} not found`);
-    }
-
+    if (!attendance) throw new NotFoundException(`Attendance record ${attendanceId} not found`);
     if (!attendance.isManualCheckIn) {
       throw new BadRequestException('This attendance record is not a manual check-in');
     }
-
     if (attendance.hrReviewStatus !== 'PENDING_REVIEW') {
-      throw new BadRequestException(
-        `This manual check-in has already been reviewed (${attendance.hrReviewStatus})`,
-      );
+      throw new BadRequestException(`Already reviewed (${attendance.hrReviewStatus})`);
     }
 
     const updated = await this.prisma.attendance.update({
@@ -504,65 +548,170 @@ export class AttendanceService {
       reviewedBy: hrUserId,
     });
 
-    this.logger.log(
-      `Manual check-in ${attendanceId} ${approved ? 'approved' : 'rejected'} by HR user ${hrUserId}`,
-    );
-
     return updated;
   }
 
-  /**
-   * Gets all manual check-in records pending HR review.
-   */
   async getPendingManualCheckIns() {
     return this.prisma.attendance.findMany({
-      where: {
-        isManualCheckIn: true,
-        hrReviewStatus: 'PENDING_REVIEW',
-      },
+      where: { isManualCheckIn: true, hrReviewStatus: 'PENDING_REVIEW' },
       include: {
-        employee: {
-          select: { id: true, code: true, fullName: true, departmentCode: true, branch: true },
-        },
+        employee: { select: { id: true, code: true, fullName: true, departmentCode: true, branch: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
+  // ─────────────────────────────────────────────
+  // LEGACY — kept for backward compat
+  // ─────────────────────────────────────────────
+
+  async getMyAttendance(userId: string, month: number, year: number) {
+    const employee = await this.findEmployeeByUserId(userId);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+    return this.prisma.attendance.findMany({
+      where: { employeeId: employee.id, date: { gte: startDate, lte: endDate } },
+      orderBy: { date: 'asc' },
+    });
+  }
+
+  async getTeamAttendance(managerId: string, month: number, year: number) {
+    const manager = await this.findEmployeeByUserId(managerId);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+
+    const subordinates = await this.prisma.employee.findMany({
+      where: { managerId: manager.id, status: 'ACTIVE' },
+      select: { id: true, code: true, fullName: true },
+    });
+
+    const subIds = subordinates.map((s) => s.id);
+    const attendances = await this.prisma.attendance.findMany({
+      where: { employeeId: { in: subIds }, date: { gte: startDate, lte: endDate } },
+      include: { employee: { select: { id: true, code: true, fullName: true } } },
+    });
+
+    return subordinates.map((sub) => {
+      const records = attendances.filter((a) => a.employeeId === sub.id);
+      return {
+        employee: sub,
+        totalDays: records.length,
+        lateDays: records.filter((a) => a.isLate).length,
+        totalWorkHours: records.reduce((sum, a) => sum + Number(a.workHours || 0), 0),
+      };
+    });
+  }
+
+  async getMonthlySummary(userId: string, month: number, year: number) {
+    const employee = await this.findEmployeeByUserId(userId);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+
+    const [attendances, leaveRequests, overtimeRequests] = await Promise.all([
+      this.prisma.attendance.findMany({
+        where: { employeeId: employee.id, date: { gte: startDate, lte: endDate } },
+      }),
+      this.prisma.leaveRequest.findMany({
+        where: {
+          employeeId: employee.id,
+          status: LeaveStatus.APPROVED,
+          startDate: { lte: endDate },
+          endDate: { gte: startDate },
+        },
+      }),
+      this.prisma.overtimeRequest.findMany({
+        where: {
+          employeeId: employee.id,
+          status: LeaveStatus.APPROVED,
+          date: { gte: startDate, lte: endDate },
+        },
+      }),
+    ]);
+
+    return {
+      employee: { id: employee.id, code: employee.code, fullName: employee.fullName },
+      month,
+      year,
+      workDays: attendances.filter((a) => a.checkIn).length,
+      lateDays: attendances.filter((a) => a.isLate).length,
+      totalWorkHours: Math.round(attendances.reduce((sum, a) => sum + Number(a.workHours || 0), 0) * 100) / 100,
+      otHours: overtimeRequests.reduce((sum, ot) => sum + Number(ot.hours), 0),
+      leaveDays: leaveRequests.reduce((sum, l) => sum + Number(l.totalDays), 0),
+    };
+  }
+
+  // ─────────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────────
+
   /**
-   * Calculates business days between two dates (excluding weekends).
+   * Maps a raw Prisma attendance record to the format the frontend expects.
    */
+  private mapAttendanceRecord(record: any, employeeName: string) {
+    let status = 'PRESENT';
+    if (!record.checkIn) status = 'ABSENT';
+    else if (record.isLate) status = 'LATE';
+
+    return {
+      id: record.id,
+      employeeId: record.employeeId,
+      employeeName,
+      date: record.date?.toISOString?.() ?? record.date,
+      checkIn: record.checkIn ? this.formatTime(record.checkIn) : null,
+      checkOut: record.checkOut ? this.formatTime(record.checkOut) : null,
+      workHours: Number(record.workHours || 0),
+      overtimeHours: Number(record.overtimeHours || 0),
+      status,
+      note: record.notes,
+      createdAt: record.createdAt?.toISOString?.() ?? record.createdAt,
+    };
+  }
+
+  /**
+   * Maps a raw Prisma leave request to the format the frontend expects.
+   */
+  private mapLeaveRequest(record: any) {
+    return {
+      id: record.id,
+      employeeId: record.employeeId,
+      employeeName: record.employee?.fullName ?? '',
+      leaveType: record.type,
+      startDate: record.startDate?.toISOString?.() ?? record.startDate,
+      endDate: record.endDate?.toISOString?.() ?? record.endDate,
+      days: Number(record.totalDays),
+      reason: record.reason ?? '',
+      status: record.status,
+      approverId: record.approvedBy,
+      approverName: null,
+      approvalId: null,
+      createdAt: record.createdAt?.toISOString?.() ?? record.createdAt,
+    };
+  }
+
+  private formatTime(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toISOString().substring(11, 16); // "HH:mm"
+  }
+
   private calculateBusinessDays(startDate: Date, endDate: Date): number {
     let count = 0;
     const current = new Date(startDate);
     while (current <= endDate) {
       const dayOfWeek = current.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        count++;
-      }
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) count++;
       current.setDate(current.getDate() + 1);
     }
     return count;
   }
 
-  /**
-   * Finds employee linked to a user ID.
-   */
   private async findEmployeeByUserId(userId: string) {
     const employee = await this.prisma.employee.findFirst({
       where: { OR: [{ userId }, { id: userId }] },
     });
-
-    if (!employee) {
-      throw new NotFoundException(`Employee not found for user ${userId}`);
-    }
-
+    if (!employee) throw new NotFoundException(`Không tìm thấy nhân viên cho user ${userId}`);
     return employee;
   }
 
-  /**
-   * Converts a datetime to date-only (zeroed time).
-   */
   private toDateOnly(date: Date): Date {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
   }
