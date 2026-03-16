@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsArray,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ContractType, Currency } from '@prisma/client';
@@ -48,6 +49,7 @@ export class CreateContractDto {
 
   @ApiPropertyOptional({ description: 'Expiry date (ISO 8601)' })
   @IsOptional()
+  @ValidateIf((o) => o.expiryDate !== '' && o.expiryDate !== null)
   @IsDateString()
   expiryDate?: string;
 

@@ -44,10 +44,24 @@ export class DataScopeGuard implements CanActivate {
       // Top-level management: see everything
       case UserRole.CEO:
       case UserRole.COO:
+      case UserRole.CFO:
+      case UserRole.DIRECTOR_OPERATIONS:
         return { isGlobal: true };
 
       // Directors: see all orders/customers (no restriction)
       case UserRole.SALES_DIRECTOR:
+        return { isGlobal: true };
+
+      // HR Manager: see all employee/HR data
+      case UserRole.HR_MANAGER:
+        return { isGlobal: true };
+
+      // Logistics Manager: see all logistics data
+      case UserRole.LOGISTICS_MANAGER:
+        return { isGlobal: true };
+
+      // Warehouse Manager: see all warehouse data
+      case UserRole.WAREHOUSE_MANAGER:
         return { isGlobal: true };
 
       // Leaders: see own team data
@@ -68,6 +82,7 @@ export class DataScopeGuard implements CanActivate {
 
       // Accounting roles: see all financial data (cross-branch)
       case UserRole.CHIEF_ACCOUNTANT:
+      case UserRole.ACCOUNTANT:
         return { isGlobal: true };
       case UserRole.ACCOUNTANT_AR:
       case UserRole.ACCOUNTANT_COST:

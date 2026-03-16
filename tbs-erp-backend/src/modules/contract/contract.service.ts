@@ -63,7 +63,9 @@ export class ContractService {
    * Lists contracts with pagination and filters.
    */
   async findAll(query: ContractQueryDto) {
-    const where: Prisma.ContractWhereInput = {};
+    const where: Prisma.ContractWhereInput = {
+      deletedAt: null, // Exclude soft-deleted
+    };
 
     if (query.status) {
       where.status = query.status;
@@ -139,8 +141,8 @@ export class ContractService {
    * Gets a single contract by ID with full details.
    */
   async findOne(id: string) {
-    const contract = await this.prisma.contract.findUnique({
-      where: { id },
+    const contract = await this.prisma.contract.findFirst({
+      where: { id, deletedAt: null },
       include: {
         customer: {
           select: {
@@ -282,8 +284,8 @@ export class ContractService {
    * Updates a contract. Only allowed when status is DRAFT.
    */
   async update(id: string, dto: UpdateContractDto) {
-    const contract = await this.prisma.contract.findUnique({
-      where: { id },
+    const contract = await this.prisma.contract.findFirst({
+      where: { id, deletedAt: null },
     });
 
     if (!contract) {
@@ -334,8 +336,8 @@ export class ContractService {
    * Transitions contract status. Validates allowed transitions.
    */
   async updateStatus(id: string, newStatus: ContractStatus, userId: string) {
-    const contract = await this.prisma.contract.findUnique({
-      where: { id },
+    const contract = await this.prisma.contract.findFirst({
+      where: { id, deletedAt: null },
     });
 
     if (!contract) {
@@ -399,8 +401,8 @@ export class ContractService {
    * Deletes a contract. Only DRAFT contracts can be deleted.
    */
   async delete(id: string) {
-    const contract = await this.prisma.contract.findUnique({
-      where: { id },
+    const contract = await this.prisma.contract.findFirst({
+      where: { id, deletedAt: null },
     });
 
     if (!contract) {

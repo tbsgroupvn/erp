@@ -52,8 +52,9 @@ export function useCreateContract() {
       qc.invalidateQueries({ queryKey: contractKeys.lists() });
       toast.success('Tạo hợp đồng thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo hợp đồng');
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Không thể tạo hợp đồng');
     },
   });
 }
