@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, FileSpreadsheet, FileText, Download, Pencil, BookmarkPlus } from 'lucide-react';
+import { ArrowLeft, Loader2, FileSpreadsheet, FileText, Download, Pencil, BookmarkPlus, FileSignature, ShoppingCart, ExternalLink } from 'lucide-react';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { LoadingOverlay } from '@/components/shared/loading-overlay';
 import {
@@ -182,7 +182,7 @@ export default function QuotationDetailPage() {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{q.code}</h1>
+            <h1 className="text-2xl font-bold font-heading">{q.code}</h1>
             <StatusBadge
               label={QUOTATION_STATUS_LABELS[status] || status}
               colorClass={QUOTATION_STATUS_COLORS[status] || 'bg-gray-100 text-gray-700'}
@@ -200,7 +200,7 @@ export default function QuotationDetailPage() {
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 pb-2">
         {(status === 'DRAFT' || status === 'PENDING_APPROVAL') && (
           <Link
             href={`/bao-gia/tao-moi?editId=${id}`}
@@ -257,7 +257,7 @@ export default function QuotationDetailPage() {
 
       {/* Reject Form */}
       {showRejectForm && (
-        <div className="rounded-lg border bg-card p-4 space-y-3">
+        <div className="section-card p-4 space-y-3">
           <p className="text-sm font-medium">Lý do từ chối *</p>
           <textarea
             value={rejectReason}
@@ -284,8 +284,11 @@ export default function QuotationDetailPage() {
 
       {/* Info Cards */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border bg-card p-6">
-          <h3 className="text-lg font-semibold mb-4">Thông tin báo giá</h3>
+        <div className="section-card">
+          <div className="section-card-header">
+            <h3 className="text-base font-semibold font-heading">Thông tin báo giá</h3>
+          </div>
+          <div className="p-6">
           <dl className="space-y-3 text-sm">
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Loại dịch vụ</dt>
@@ -314,10 +317,14 @@ export default function QuotationDetailPage() {
               </div>
             )}
           </dl>
+          </div>
         </div>
 
-        <div className="rounded-lg border bg-card p-6">
-          <h3 className="text-lg font-semibold mb-4">Khách hàng</h3>
+        <div className="section-card">
+          <div className="section-card-header">
+            <h3 className="text-base font-semibold font-heading">Khách hàng</h3>
+          </div>
+          <div className="p-6">
           {q.customer ? (
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
@@ -354,11 +361,15 @@ export default function QuotationDetailPage() {
           ) : (
             <p className="text-sm text-muted-foreground">Không có thông tin</p>
           )}
+          </div>
         </div>
 
         {/* Price Summary */}
-        <div className="rounded-lg border bg-card p-6 lg:col-span-2">
-          <h3 className="text-lg font-semibold mb-4">Tổng hợp giá</h3>
+        <div className="section-card lg:col-span-2">
+          <div className="section-card-header">
+            <h3 className="text-base font-semibold font-heading">Tổng hợp giá</h3>
+          </div>
+          <div className="p-6">
           <dl className="space-y-3 text-sm max-w-sm ml-auto">
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Tạm tính</dt>
@@ -377,17 +388,65 @@ export default function QuotationDetailPage() {
               <dd>{formatCurrency(q.totalAmount)}</dd>
             </div>
           </dl>
+          </div>
         </div>
       </div>
 
+      {/* Linked Documents */}
+      {(q.convertedOrderId || (q.contracts && q.contracts.length > 0)) && (
+        <div className="section-card">
+          <div className="section-card-header">
+            <h3 className="text-base font-semibold font-heading">Tài liệu liên kết</h3>
+          </div>
+          <div className="p-6">
+            <div className="flex flex-wrap gap-3">
+              {q.contracts && q.contracts.map((contract) => (
+                <Link
+                  key={contract.id}
+                  href={`/hop-dong/${contract.id}`}
+                  className="inline-flex items-center gap-2.5 rounded-lg border bg-card px-4 py-3 text-sm hover:border-primary/30 hover:bg-primary/5 transition-colors group"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-100 text-blue-700">
+                    <FileSignature className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium group-hover:text-primary">{contract.code}</p>
+                    <p className="text-xs text-muted-foreground">{contract.title}</p>
+                  </div>
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground ml-1" />
+                </Link>
+              ))}
+              {q.convertedOrderId && (
+                <Link
+                  href={`/don-hang/${q.convertedOrderId}`}
+                  className="inline-flex items-center gap-2.5 rounded-lg border bg-card px-4 py-3 text-sm hover:border-primary/30 hover:bg-primary/5 transition-colors group"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-green-100 text-green-700">
+                    <ShoppingCart className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium group-hover:text-primary">Đơn hàng</p>
+                    <p className="text-xs text-muted-foreground">Đã chuyển đổi</p>
+                  </div>
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground ml-1" />
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Items Table */}
       {q.items && q.items.length > 0 && (
-        <div className="rounded-lg border bg-card p-6">
-          <h3 className="text-lg font-semibold mb-4">Chi tiết hàng mục</h3>
+        <div className="section-card">
+          <div className="section-card-header">
+            <h3 className="text-base font-semibold font-heading">Chi tiết hàng mục</h3>
+          </div>
+          <div className="p-6">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-muted-foreground">
+                <tr className="border-b bg-muted/30 text-left text-muted-foreground">
                   <th className="pb-2 font-medium w-10">STT</th>
                   <th className="pb-2 font-medium">Tên sản phẩm</th>
                   <th className="pb-2 font-medium w-16 text-center">SL</th>
@@ -397,7 +456,7 @@ export default function QuotationDetailPage() {
               </thead>
               <tbody>
                 {q.items.map((item, index) => (
-                  <tr key={item.id} className="border-b">
+                  <tr key={item.id} className="border-b hover:bg-muted/20 transition-colors">
                     <td className="py-2 text-center">{index + 1}</td>
                     <td className="py-2">
                       <div>
@@ -419,14 +478,15 @@ export default function QuotationDetailPage() {
               </tbody>
             </table>
           </div>
+          </div>
         </div>
       )}
 
       {/* Save as Template Dialog */}
       {showSaveTemplate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-lg bg-background p-6 shadow-xl mx-4">
-            <h3 className="text-lg font-semibold mb-4">Lưu làm mẫu báo giá</h3>
+          <div className="w-full max-w-md rounded-xl bg-background p-6 shadow-2xl mx-4">
+            <h3 className="text-lg font-semibold font-heading mb-4">Lưu làm mẫu báo giá</h3>
             <div className="space-y-4">
               <div className="space-y-2">
                 <p className="text-sm font-medium">Tên mẫu *</p>

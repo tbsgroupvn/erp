@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, FileText } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, FileDown, ShoppingCart, ExternalLink } from 'lucide-react';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { LoadingOverlay } from '@/components/shared/loading-overlay';
 import { useContract, useUpdateContractStatus, useDeleteContract } from '@/lib/hooks/use-contracts';
@@ -13,13 +13,16 @@ import {
   CONTRACT_STATUS_COLORS,
   CONTRACT_TYPE_LABELS,
   CONTRACT_TYPE_COLORS,
+  ORDER_STATUS_LABELS,
+  ORDER_STATUS_COLORS,
 } from '@/lib/utils/constants';
 import { formatCurrency, formatDate } from '@/lib/utils/format';
-import { ContractStatus, ContractType } from '@/lib/types';
+import { ContractStatus, ContractType, OrderStatus } from '@/lib/types';
 import type { Contract } from '@/lib/types';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { useState } from 'react';
+import { contractsApi } from '@/lib/api/contracts.api';
 
 /** Valid next statuses for each current status */
 const STATUS_ACTIONS: Partial<Record<ContractStatus, { label: string; status: ContractStatus; variant: string }[]>> = {
@@ -56,6 +59,7 @@ export default function ContractDetailPage() {
   const updateStatus = useUpdateContractStatus();
   const deleteContract = useDeleteContract();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   if (isLoading) return <LoadingOverlay className="h-[60vh]" />;
   if (!contract) {
@@ -86,6 +90,26 @@ export default function ContractDetailPage() {
     deleteContract.mutate(id, {
       onSuccess: () => router.push('/hop-dong'),
     });
+  };
+
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const blob = await contractsApi.exportPdf(id);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `hop-dong-${c.code}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      toast.success('Xuất PDF hợp đồng thành công');
+    } catch {
+      toast.error('Không thể xuất PDF, vui lòng thử lại');
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   return (
@@ -126,6 +150,18 @@ export default function ContractDetailPage() {
             {action.label}
           </button>
         ))}
+        <button
+          onClick={handleExportPdf}
+          disabled={isExportingPdf}
+          className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
+        >
+          {isExportingPdf ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <FileDown className="h-4 w-4" />
+          )}
+          Xuất PDF
+        </button>
         {status === 'DRAFT' && (
           <button
             onClick={() => setShowDeleteConfirm(true)}
@@ -269,10 +305,30 @@ export default function ContractDetailPage() {
                 <dd>{c.sale.fullName}</dd>
               </div>
             )}
-            {c._count?.orders !== undefined && c._count.orders > 0 && (
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Đơn hàng liên kết</dt>
-                <dd>{c._count.orders} đơn</dd>
+            {c.orders && c.orders.length > 0 && (
+              <div>
+                <dt className="text-muted-foreground mb-2">Đơn hàng liên kết ({c.orders.length})</dt>
+                <dd className="space-y-1.5">
+                  {c.orders.map((order) => {
+                    const os = order.status as OrderStatus;
+                    return (
+                      <Link
+                        key={order.id}
+                        href={`/don-hang/${order.id}`}
+                        className="flex items-center gap-2 rounded-md border px-3 py-2 hover:bg-accent transition-colors group"
+                      >
+                        <ShoppingCart className="h-4 w-4 text-green-600 shrink-0" />
+                        <span className="font-medium text-primary group-hover:underline">{order.code}</span>
+                        <StatusBadge
+                          label={ORDER_STATUS_LABELS[os] || order.status}
+                          colorClass={ORDER_STATUS_COLORS[os] || 'bg-gray-100 text-gray-700'}
+                        />
+                        <span className="ml-auto text-xs font-medium">{formatCurrency(order.totalAmount)}</span>
+                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                      </Link>
+                    );
+                  })}
+                </dd>
               </div>
             )}
           </dl>

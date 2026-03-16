@@ -380,6 +380,15 @@ export class QuotationService {
           },
         },
         items: { where: { deletedAt: null } },
+        contracts: {
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            status: true,
+            type: true,
+          },
+        },
       },
     });
 

@@ -60,6 +60,12 @@ export interface Contract {
     totalValue: number;
     createdAt: string;
   }[];
+  orders?: {
+    id: string;
+    code: string;
+    status: string;
+    totalAmount: number;
+  }[];
   _count?: {
     appendixes?: number;
     orders?: number;

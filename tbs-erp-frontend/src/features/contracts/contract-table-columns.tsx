@@ -87,6 +87,22 @@ export const contractColumns: ColumnDef<Contract>[] = [
     },
   },
   {
+    id: 'quotation',
+    header: 'Báo giá',
+    cell: ({ row }) => {
+      const q = row.original.quotation;
+      if (!q) return <span className="text-muted-foreground">—</span>;
+      return (
+        <Link
+          href={`/bao-gia/${q.id}`}
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          {q.code}
+        </Link>
+      );
+    },
+  },
+  {
     accessorKey: 'totalValue',
     header: 'Giá trị',
     cell: ({ row }) => (

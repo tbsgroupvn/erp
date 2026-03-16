@@ -213,6 +213,21 @@ export class OrderReadService {
             email: true,
           },
         },
+        contract: {
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            status: true,
+            quotationId: true,
+            quotation: {
+              select: {
+                id: true,
+                code: true,
+              },
+            },
+          },
+        },
         items: true,
         packages: {
           include: {

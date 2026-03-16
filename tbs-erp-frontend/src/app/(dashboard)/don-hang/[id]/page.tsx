@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight, XCircle, ArrowRightCircle, Package, Layers, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, XCircle, ArrowRightCircle, Package, Layers, Loader2, FileSignature, FileText as FileTextIcon, ExternalLink } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { LoadingOverlay } from '@/components/shared/loading-overlay';
@@ -678,6 +678,44 @@ export default function MasterOrderDetailPage() {
     <div className="space-y-6">
       {/* Header */}
       <OrderHeader masterOrder={masterOrder} />
+
+      {/* Linked Documents — Contract & Quotation */}
+      {(() => {
+        // Collect contract/quotation from sub-orders
+        const contracts = masterOrder.subOrders
+          ?.map((so: any) => so.contract)
+          .filter(Boolean)
+          .filter((c: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === c.id) === i) ?? [];
+        const quotations = contracts
+          .map((c: any) => c.quotation)
+          .filter(Boolean)
+          .filter((q: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === q.id) === i);
+        if (contracts.length === 0 && quotations.length === 0) return null;
+        return (
+          <div className="flex flex-wrap items-center gap-3">
+            {quotations.map((q: any) => (
+              <Link key={q.id} href={`/bao-gia/${q.id}`}
+                className="inline-flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm hover:border-primary/30 hover:bg-primary/5 transition-colors group">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-100 text-amber-700">
+                  <FileTextIcon className="h-3.5 w-3.5" />
+                </div>
+                <span className="font-medium group-hover:text-primary">Báo giá: {q.code}</span>
+                <ExternalLink className="h-3 w-3 text-muted-foreground" />
+              </Link>
+            ))}
+            {contracts.map((c: any) => (
+              <Link key={c.id} href={`/hop-dong/${c.id}`}
+                className="inline-flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm hover:border-primary/30 hover:bg-primary/5 transition-colors group">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-100 text-blue-700">
+                  <FileSignature className="h-3.5 w-3.5" />
+                </div>
+                <span className="font-medium group-hover:text-primary">Hợp đồng: {c.code}</span>
+                <ExternalLink className="h-3 w-3 text-muted-foreground" />
+              </Link>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Tabbed 360 View */}
       <Tabs defaultValue="overview" className="w-full">

@@ -45,6 +45,9 @@ export interface Order {
   subOrderSuffix: string | null;
   clearanceType: ClearanceType;
 
+  // Contract link
+  contractId: string | null;
+
   note: string | null;
   cancelReason: string | null;
   completedAt: string | null;
@@ -52,6 +55,17 @@ export interface Order {
   updatedAt: string;
 
   // Nested relations (optionally populated)
+  contract?: {
+    id: string;
+    code: string;
+    title: string;
+    status: string;
+    quotationId?: string;
+    quotation?: {
+      id: string;
+      code: string;
+    };
+  } | null;
   customer?: {
     id: string;
     code: string;

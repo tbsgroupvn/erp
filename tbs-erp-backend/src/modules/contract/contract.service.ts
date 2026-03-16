@@ -178,12 +178,21 @@ export class ContractService {
             totalAmount: true,
           },
         },
+        orders: {
+          select: {
+            id: true,
+            code: true,
+            status: true,
+            totalAmount: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
         _count: { select: { orders: true } },
       },
     });
 
     if (!contract) {
-      throw new NotFoundException(`Contract with ID ${id} not found`);
+      throw new NotFoundException(`Không tìm thấy hợp đồng`);
     }
 
     return contract;
@@ -200,11 +209,11 @@ export class ContractService {
     });
 
     if (!customer) {
-      throw new NotFoundException(`Customer with ID ${dto.customerId} not found`);
+      throw new NotFoundException(`Không tìm thấy khách hàng`);
     }
 
     if (!customer.isActive) {
-      throw new BadRequestException(`Customer ${customer.code} is inactive`);
+      throw new BadRequestException(`Khách hàng ${customer.code} đã ngừng hoạt động`);
     }
 
     // If APPENDIX, validate parent exists
@@ -215,7 +224,7 @@ export class ContractService {
       });
 
       if (!parent) {
-        throw new NotFoundException(`Parent contract with ID ${dto.parentId} not found`);
+        throw new NotFoundException(`Không tìm thấy hợp đồng chính`);
       }
     }
 
@@ -278,12 +287,12 @@ export class ContractService {
     });
 
     if (!contract) {
-      throw new NotFoundException(`Contract with ID ${id} not found`);
+      throw new NotFoundException(`Không tìm thấy hợp đồng`);
     }
 
     if (contract.status !== ContractStatus.DRAFT) {
       throw new BadRequestException(
-        `Contract in status ${contract.status} cannot be edited. Only DRAFT contracts can be modified.`,
+        `Hợp đồng ở trạng thái ${contract.status} không thể chỉnh sửa. Chỉ hợp đồng Nháp mới được sửa.`,
       );
     }
 
@@ -330,14 +339,14 @@ export class ContractService {
     });
 
     if (!contract) {
-      throw new NotFoundException(`Contract with ID ${id} not found`);
+      throw new NotFoundException(`Không tìm thấy hợp đồng`);
     }
 
     const allowedTransitions = STATUS_TRANSITIONS[contract.status];
     if (!allowedTransitions.includes(newStatus)) {
       throw new BadRequestException(
-        `Cannot transition from ${contract.status} to ${newStatus}. ` +
-          `Allowed transitions: ${allowedTransitions.join(', ') || 'none'}`,
+        `Không thể chuyển trạng thái từ ${contract.status} sang ${newStatus}. ` +
+          `Trạng thái cho phép: ${allowedTransitions.join(', ') || 'không có'}`,
       );
     }
 
@@ -395,12 +404,12 @@ export class ContractService {
     });
 
     if (!contract) {
-      throw new NotFoundException(`Contract with ID ${id} not found`);
+      throw new NotFoundException(`Không tìm thấy hợp đồng`);
     }
 
     if (contract.status !== ContractStatus.DRAFT) {
       throw new BadRequestException(
-        `Only DRAFT contracts can be deleted. Current status: ${contract.status}`,
+        `Chỉ hợp đồng Nháp mới được xóa. Trạng thái hiện tại: ${contract.status}`,
       );
     }
 

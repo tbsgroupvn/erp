@@ -37,6 +37,13 @@ export interface Quotation {
   rejectedAt?: string;
   convertedOrderId?: string;
   parentQuotationId?: string;
+  contracts?: {
+    id: string;
+    code: string;
+    title: string;
+    status: string;
+    type: string;
+  }[];
   items: QuotationItem[];
   createdBy: string;
   createdAt: string;
