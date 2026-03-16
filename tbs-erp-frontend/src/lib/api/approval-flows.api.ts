@@ -89,11 +89,15 @@ export const approvalFlowsApi = {
 // ============================================
 
 export const approvalDelegationsApi = {
-  /** GET /approval-delegations */
+  /** GET /approval-delegations — backend returns paginated { data, meta } */
   list: () =>
     apiClient
-      .get<BaseResponse<ApprovalDelegation[]>>('/approval-delegations')
-      .then((r) => r.data.data),
+      .get<BaseResponse<{ data: ApprovalDelegation[]; meta: unknown }>>('/approval-delegations')
+      .then((r) => {
+        const payload = r.data.data;
+        // Handle both paginated { data, meta } and flat array responses
+        return Array.isArray(payload) ? payload : payload.data;
+      }),
 
   /** POST /approval-delegations */
   create: (data: {

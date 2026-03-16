@@ -18,9 +18,19 @@ import { cn } from '@/lib/utils/cn';
 import type { Approval } from '@/lib/types';
 import { InfoTooltip } from '@/components/shared/info-tooltip';
 
-// Uy quyen imports
+// Ủy quyền imports
 import { useState } from 'react';
-import { Plus, X, UserCog } from 'lucide-react';
+import {
+  ClipboardCheck,
+  UserCog,
+  Clock,
+  Send,
+  CheckCircle2,
+  Eye,
+  List,
+  Plus,
+  X,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,8 +47,8 @@ import { formatDate } from '@/lib/utils/format';
 // ---------------------------------------------------------------------------
 
 const SECTION_TABS = [
-  { key: 'default', label: 'Phe duyet' },
-  { key: 'uy-quyen', label: 'Uy quyen' },
+  { key: 'default', label: 'Phê duyệt', icon: ClipboardCheck },
+  { key: 'uy-quyen', label: 'Ủy quyền', icon: UserCog },
 ] as const;
 
 type SectionKey = (typeof SECTION_TABS)[number]['key'];
@@ -48,11 +58,11 @@ type SectionKey = (typeof SECTION_TABS)[number]['key'];
 // ---------------------------------------------------------------------------
 
 const APPROVAL_TABS = [
-  { key: 'pending', label: 'Cho toi duyet' },
-  { key: 'submitted', label: 'Toi da gui' },
-  { key: 'processed', label: 'Da xu ly' },
-  { key: 'cc', label: 'Theo doi' },
-  { key: 'all', label: 'Tat ca' },
+  { key: 'pending', label: 'Chờ tôi duyệt', icon: Clock },
+  { key: 'submitted', label: 'Tôi đã gửi', icon: Send },
+  { key: 'processed', label: 'Đã xử lý', icon: CheckCircle2 },
+  { key: 'cc', label: 'Theo dõi', icon: Eye },
+  { key: 'all', label: 'Tất cả', icon: List },
 ] as const;
 
 type TabKey = (typeof APPROVAL_TABS)[number]['key'];
@@ -121,50 +131,50 @@ function ApprovalSection() {
   const { data, isLoading } = getTabData();
 
   const emptyMessages: Record<TabKey, string> = {
-    pending: 'Khong co yeu cau cho duyet',
-    submitted: 'Ban chua gui yeu cau nao',
-    processed: 'Ban chua xu ly yeu cau nao',
-    cc: 'Khong co yeu cau theo doi',
-    all: 'Khong co yeu cau nao',
+    pending: 'Không có yêu cầu chờ duyệt',
+    submitted: 'Bạn chưa gửi yêu cầu nào',
+    processed: 'Bạn chưa xử lý yêu cầu nào',
+    cc: 'Không có yêu cầu theo dõi',
+    all: 'Không có yêu cầu nào',
   };
 
   return (
     <div>
-      {/* Approval inner tabs */}
-      <div className="border-b mb-6">
-        <nav className="-mb-px flex gap-1">
-          {APPROVAL_TABS.map((tab) => {
-            const isActive = activeTab === tab.key;
-            const count = badgeCounts[tab.key];
+      {/* Approval inner tabs — Lark-style horizontal pills */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+        {APPROVAL_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          const count = badgeCounts[tab.key];
 
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setTab(tab.key)}
-                className={cn(
-                  'relative inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground',
-                )}
-              >
-                {tab.label}
-                {count != null && count > 0 && (
-                  <span
-                    className={cn(
-                      'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold',
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground',
-                    )}
-                  >
-                    {count > 99 ? '99+' : count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setTab(tab.key)}
+              className={cn(
+                'inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all',
+                isActive
+                  ? 'bg-primary/10 text-primary ring-1 ring-primary/20'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+              {count != null && count > 0 && (
+                <span
+                  className={cn(
+                    'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold',
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted-foreground/20 text-muted-foreground',
+                  )}
+                >
+                  {count > 99 ? '99+' : count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Table */}
@@ -174,7 +184,7 @@ function ApprovalSection() {
         emptyMessage={emptyMessages[activeTab]}
         showActions={activeTab === 'pending'}
         onApprove={(id) => approveApproval.mutate({ id })}
-        onReject={(id) => rejectApproval.mutate({ id, comment: 'Tu choi' })}
+        onReject={(id) => rejectApproval.mutate({ id, comment: 'Từ chối' })}
         isPending={isPending}
       />
     </div>
@@ -182,7 +192,7 @@ function ApprovalSection() {
 }
 
 // ---------------------------------------------------------------------------
-// Delegation (Uy quyen) section
+// Delegation (Ủy quyền) section
 // ---------------------------------------------------------------------------
 
 function UyQuyenSection() {
@@ -218,7 +228,7 @@ function UyQuyenSection() {
   };
 
   const handleDeactivate = async (delegationId: string) => {
-    if (confirm('Ban co chac chan muon huy uy quyen nay?')) {
+    if (confirm('Bạn có chắc chắn muốn hủy ủy quyền này?')) {
       try {
         await deactivateDelegation.mutateAsync(delegationId);
       } catch (error) {
@@ -231,7 +241,9 @@ function UyQuyenSection() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <p className="text-sm text-muted-foreground">Quan ly uy quyen phe duyet khi vang mat</p>
+          <p className="text-sm text-muted-foreground">
+            Quản lý ủy quyền phê duyệt khi vắng mặt
+          </p>
           <InfoTooltip tipKey="approval-flow" />
         </div>
         <Button onClick={() => setShowForm(!showForm)}>
@@ -243,7 +255,7 @@ function UyQuyenSection() {
           ) : (
             <>
               <Plus className="mr-2 h-4 w-4" />
-              Tao uy quyen
+              Tạo ủy quyền
             </>
           )}
         </Button>
@@ -252,9 +264,9 @@ function UyQuyenSection() {
       {showForm && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="font-heading flex items-center gap-2">
               <UserCog className="h-5 w-5" />
-              Tao uy quyen moi
+              Tạo ủy quyền mới
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -262,31 +274,31 @@ function UyQuyenSection() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="delegateUserId">
-                    Nguoi nhan uy quyen <span className="text-red-500">*</span>
+                    Người nhận ủy quyền <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="delegateUserId"
                     value={formData.delegateUserId}
                     onChange={(e) => setFormData({ ...formData, delegateUserId: e.target.value })}
                     required
-                    placeholder="Nhap ID nguoi dung"
+                    placeholder="Nhập ID người dùng"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reason">
-                    Ly do <span className="text-red-500">*</span>
+                    Lý do <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="reason"
                     value={formData.reason}
                     onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                     required
-                    placeholder="Nhap ly do uy quyen"
+                    placeholder="Nhập lý do ủy quyền"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="startDate">
-                    Ngay bat dau <span className="text-red-500">*</span>
+                    Ngày bắt đầu <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="startDate"
@@ -298,7 +310,7 @@ function UyQuyenSection() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="endDate">
-                    Ngay ket thuc <span className="text-red-500">*</span>
+                    Ngày kết thúc <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="endDate"
@@ -310,25 +322,26 @@ function UyQuyenSection() {
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="approvalTypes">
-                    Loai phe duyet <span className="text-muted-foreground">(tuy chon)</span>
+                    Loại phê duyệt{' '}
+                    <span className="text-muted-foreground">(tùy chọn)</span>
                   </Label>
                   <Input
                     id="approvalTypes"
                     value={formData.approvalTypes}
                     onChange={(e) => setFormData({ ...formData, approvalTypes: e.target.value })}
-                    placeholder="De trong cho tat ca hoac nhap cac loai cach nhau boi dau phay"
+                    placeholder="Để trống cho tất cả hoặc nhập các loại cách nhau bởi dấu phẩy"
                   />
                   <p className="text-sm text-muted-foreground">
-                    Vi du: purchase_order, expense, leave_request
+                    Ví dụ: purchase_order, expense, leave_request
                   </p>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-                  Huy
+                  Hủy
                 </Button>
                 <Button type="submit" disabled={createDelegation.isPending}>
-                  {createDelegation.isPending ? 'Dang tao...' : 'Tao uy quyen'}
+                  {createDelegation.isPending ? 'Đang tạo...' : 'Tạo ủy quyền'}
                 </Button>
               </div>
             </form>
@@ -338,24 +351,24 @@ function UyQuyenSection() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Danh sach uy quyen</CardTitle>
+          <CardTitle className="font-heading">Danh sách ủy quyền</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">Đang tải...</div>
           ) : !delegations || delegations.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">Chua co uy quyen nao</div>
+            <div className="text-center py-8 text-muted-foreground">Chưa có ủy quyền nào</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium">Nguoi nhan</th>
-                    <th className="text-left py-3 px-4 font-medium">Ngay bat dau</th>
-                    <th className="text-left py-3 px-4 font-medium">Ngay ket thuc</th>
-                    <th className="text-left py-3 px-4 font-medium">Ly do</th>
-                    <th className="text-left py-3 px-4 font-medium">Trang thai</th>
-                    <th className="text-center py-3 px-4 font-medium">Thao tac</th>
+                    <th className="text-left py-3 px-4 font-medium">Người nhận</th>
+                    <th className="text-left py-3 px-4 font-medium">Ngày bắt đầu</th>
+                    <th className="text-left py-3 px-4 font-medium">Ngày kết thúc</th>
+                    <th className="text-left py-3 px-4 font-medium">Lý do</th>
+                    <th className="text-left py-3 px-4 font-medium">Trạng thái</th>
+                    <th className="text-center py-3 px-4 font-medium">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -368,11 +381,11 @@ function UyQuyenSection() {
                       <td className="py-3 px-4">
                         {delegation.isActive ? (
                           <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-green-100 text-green-700">
-                            Dang hoat dong
+                            Đang hoạt động
                           </span>
                         ) : (
                           <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700">
-                            Da huy
+                            Đã hủy
                           </span>
                         )}
                       </td>
@@ -385,7 +398,7 @@ function UyQuyenSection() {
                             disabled={deactivateDelegation.isPending}
                           >
                             <X className="h-4 w-4 mr-1" />
-                            Huy
+                            Hủy
                           </Button>
                         )}
                       </td>
@@ -427,27 +440,31 @@ function PheDuyetInner() {
   return (
     <div>
       <PageHeader
-        title="Phe duyet"
-        description="Trung tam phe duyet yeu cau"
+        title="Phê duyệt"
+        description="Trung tâm phê duyệt yêu cầu"
         infoKey="phe-duyet"
       />
 
-      {/* Outer section tabs */}
-      <div className="flex gap-1 border-b mb-6">
-        {SECTION_TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setSection(t.key)}
-            className={cn(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-              activeSection === t.key
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Outer section tabs — Lark-style pill buttons */}
+      <div className="flex gap-2 mb-6">
+        {SECTION_TABS.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setSection(t.key)}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all',
+                activeSection === t.key
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Section content */}

@@ -2,7 +2,23 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Loader2, CheckCheck, XCircle } from 'lucide-react';
+import {
+  Loader2,
+  CheckCheck,
+  XCircle,
+  Percent,
+  Receipt,
+  ReceiptText,
+  Ban,
+  Clock,
+  Shield,
+  Container,
+  Warehouse,
+  CalendarOff,
+  Timer,
+  FileText,
+} from 'lucide-react';
+import { cn } from '@/lib/utils/cn';
 import { StatusBadge } from '@/components/shared/status-badge';
 import {
   APPROVAL_TYPE_LABELS,
@@ -24,6 +40,45 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useBatchApprove, useBatchReject } from '@/lib/hooks/use-approval-flows';
+
+// ---------------------------------------------------------------------------
+// Type icon / color helpers
+// ---------------------------------------------------------------------------
+
+/** Map approval type to a background + text color class for the icon container */
+function getTypeColor(type: string): string {
+  const colors: Record<string, string> = {
+    DISCOUNT: 'bg-amber-100 text-amber-700',
+    PAYMENT_VOUCHER: 'bg-emerald-100 text-emerald-700',
+    RECEIPT_VOUCHER: 'bg-blue-100 text-blue-700',
+    ORDER_CANCEL: 'bg-red-100 text-red-700',
+    CREDIT_EXTENSION: 'bg-purple-100 text-purple-700',
+    DEPOSIT_EXEMPTION: 'bg-cyan-100 text-cyan-700',
+    CONTAINER_PLAN: 'bg-indigo-100 text-indigo-700',
+    WAREHOUSE_RELEASE: 'bg-orange-100 text-orange-700',
+    LEAVE_REQUEST: 'bg-pink-100 text-pink-700',
+    OVERTIME_REQUEST: 'bg-teal-100 text-teal-700',
+  };
+  return colors[type] ?? 'bg-muted text-muted-foreground';
+}
+
+/** Map approval type to an icon element */
+function getTypeIcon(type: string): React.ReactNode {
+  const iconClass = 'h-5 w-5';
+  const icons: Record<string, React.ReactNode> = {
+    DISCOUNT: <Percent className={iconClass} />,
+    PAYMENT_VOUCHER: <Receipt className={iconClass} />,
+    RECEIPT_VOUCHER: <ReceiptText className={iconClass} />,
+    ORDER_CANCEL: <Ban className={iconClass} />,
+    CREDIT_EXTENSION: <Clock className={iconClass} />,
+    DEPOSIT_EXEMPTION: <Shield className={iconClass} />,
+    CONTAINER_PLAN: <Container className={iconClass} />,
+    WAREHOUSE_RELEASE: <Warehouse className={iconClass} />,
+    LEAVE_REQUEST: <CalendarOff className={iconClass} />,
+    OVERTIME_REQUEST: <Timer className={iconClass} />,
+  };
+  return icons[type] ?? <FileText className={iconClass} />;
+}
 
 // ---------------------------------------------------------------------------
 // Batch confirmation dialog
@@ -276,135 +331,155 @@ export function ApprovalTable({
     setSelectedIds(new Set());
   };
 
+  // ── Loading skeleton ──────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-start gap-4 rounded-xl border bg-card p-4 animate-pulse">
+            <div className="h-10 w-10 shrink-0 rounded-lg bg-muted" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-48 rounded bg-muted" />
+              <div className="h-3 w-32 rounded bg-muted" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
+  // ── Empty state ───────────────────────────────────────────────────────────
   if (data.length === 0) {
     return (
-      <div className="rounded-lg border bg-card p-12 text-center">
-        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/20 py-16">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-4">
+          <CheckCheck className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground">{emptyMessage}</p>
       </div>
     );
   }
 
+  // ── Card list ─────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="rounded-lg border bg-card">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                {showActions && (
-                  <th className="w-10 px-4 py-3">
-                    <Checkbox
-                      checked={allSelected ? true : someSelected ? 'indeterminate' : false}
-                      onCheckedChange={toggleAll}
-                      aria-label="Chọn tất cả"
-                    />
-                  </th>
-                )}
-                <th className="px-4 py-3 text-left font-medium">Loại</th>
-                <th className="px-4 py-3 text-left font-medium">Mã tham chiếu</th>
-                <th className="px-4 py-3 text-left font-medium">Bước hiện tại</th>
-                <th className="px-4 py-3 text-left font-medium">Trạng thái</th>
-                <th className="px-4 py-3 text-left font-medium">Ngày tạo</th>
-                {showActions && (
-                  <th className="px-4 py-3 text-right font-medium">Thao tác</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((approval) => {
-                const currentStep = approval.steps?.find(
-                  (s) => s.stepNumber === approval.currentStep,
-                );
-                const isSelected = selectedIds.has(approval.id);
+      {/* Select-all bar — only when actions are enabled */}
+      {showActions && data.length > 0 && (
+        <div className="flex items-center gap-3 mb-3 px-1">
+          <Checkbox
+            checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+            onCheckedChange={toggleAll}
+            aria-label="Chọn tất cả"
+          />
+          <span className="text-xs text-muted-foreground">
+            {allSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+          </span>
+        </div>
+      )}
 
-                return (
-                  <tr
-                    key={approval.id}
-                    className={`border-b last:border-b-0 transition-colors hover:bg-muted/30 ${
-                      isSelected ? 'bg-primary/5' : ''
-                    }`}
-                  >
-                    {showActions && (
-                      <td className="w-10 px-4 py-3">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleOne(approval.id)}
-                          aria-label={`Chọn yêu cầu ${approval.referenceCode || approval.id}`}
-                        />
-                      </td>
-                    )}
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/phe-duyet/${approval.id}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {APPROVAL_TYPE_LABELS[approval.type as ApprovalType] || approval.type}
-                      </Link>
+      <div className="space-y-3">
+        {data.map((approval) => {
+          const currentStep = approval.steps?.find(
+            (s) => s.stepNumber === approval.currentStep,
+          );
+          const isSelected = selectedIds.has(approval.id);
+
+          return (
+            <div
+              key={approval.id}
+              className={cn(
+                'group relative flex items-start gap-4 rounded-xl border bg-card p-4 transition-all hover:shadow-md',
+                isSelected
+                  ? 'ring-2 ring-primary/30 bg-primary/5'
+                  : 'hover:border-primary/20',
+              )}
+            >
+              {/* Checkbox — only when showActions */}
+              {showActions && (
+                <div className="pt-1">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleOne(approval.id)}
+                    aria-label={`Chọn yêu cầu ${approval.referenceCode || approval.id}`}
+                  />
+                </div>
+              )}
+
+              {/* Type icon / color indicator */}
+              <div
+                className={cn(
+                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
+                  getTypeColor(approval.type),
+                )}
+              >
+                {getTypeIcon(approval.type)}
+              </div>
+
+              {/* Main content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <Link
+                      href={`/phe-duyet/${approval.id}`}
+                      className="text-sm font-semibold text-foreground hover:text-primary transition-colors"
+                    >
+                      {APPROVAL_TYPE_LABELS[approval.type as ApprovalType] || approval.type}
                       {approval.isUrgent && (
-                        <span className="ml-2 inline-block rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
+                        <span className="ml-2 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
                           Khẩn
                         </span>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    </Link>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       {approval.referenceCode || approval.referenceId}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-muted-foreground">
-                        {approval.currentStep}/{approval.totalSteps}
-                        {currentStep &&
-                          ` - ${USER_ROLE_LABELS[currentStep.approverRole] || currentStep.approverRole}`}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge
-                        label={
-                          APPROVAL_STATUS_LABELS[approval.status as ApprovalStatus] ||
-                          approval.status
-                        }
-                        colorClass={
-                          APPROVAL_STATUS_COLORS[approval.status as ApprovalStatus] ||
-                          'bg-gray-100 text-gray-700'
-                        }
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {formatDateTime(approval.createdAt)}
-                    </td>
-                    {showActions && (
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => onApprove?.(approval.id)}
-                            disabled={isPending || isBatchPending}
-                            className="rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                          >
-                            Duyệt
-                          </button>
-                          <button
-                            onClick={() => onReject?.(approval.id)}
-                            disabled={isPending || isBatchPending}
-                            className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                          >
-                            Từ chối
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </p>
+                  </div>
+                  <StatusBadge
+                    label={
+                      APPROVAL_STATUS_LABELS[approval.status as ApprovalStatus] ||
+                      approval.status
+                    }
+                    colorClass={
+                      APPROVAL_STATUS_COLORS[approval.status as ApprovalStatus] ||
+                      'bg-gray-100 text-gray-700'
+                    }
+                  />
+                </div>
+
+                <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
+                  <span>
+                    Bước {approval.currentStep}/{approval.totalSteps}
+                    {currentStep &&
+                      ` — ${USER_ROLE_LABELS[currentStep.approverRole] || currentStep.approverRole}`}
+                  </span>
+                  <span>{formatDateTime(approval.createdAt)}</span>
+                </div>
+              </div>
+
+              {/* Approve / Reject buttons — only when showActions */}
+              {showActions && (
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    onClick={() => onApprove?.(approval.id)}
+                    disabled={isPending || isBatchPending}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 ring-1 ring-green-200 hover:bg-green-100 disabled:opacity-50 transition-colors"
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" />
+                    Duyệt
+                  </button>
+                  <button
+                    onClick={() => onReject?.(approval.id)}
+                    disabled={isPending || isBatchPending}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 ring-1 ring-red-200 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                    Từ chối
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Floating batch action bar — only visible when items are selected */}
