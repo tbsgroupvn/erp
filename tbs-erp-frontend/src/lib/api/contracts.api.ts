@@ -50,4 +50,10 @@ export const contractsApi = {
     apiClient
       .delete<BaseResponse<null>>(`/contracts/${id}`)
       .then((r) => r.data),
+
+  /** GET /contracts/:id/export/pdf — trả về Blob */
+  exportPdf: (id: string) =>
+    apiClient
+      .get(`/contracts/${id}/export/pdf`, { responseType: 'blob' })
+      .then((r) => r.data as Blob),
 };
