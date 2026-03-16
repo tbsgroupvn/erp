@@ -11,6 +11,7 @@ import { OrderStatus, MasterOrderStatus, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { DataScopeFilter } from '@common/guards/data-scope.guard';
+import { EXECUTIVE_ROLES } from '@core/rbac/roles.enum';
 import { MasterOrderRepository, MasterOrderWithRelations } from './master-order.repository';
 import { OrderRepository } from './order.repository';
 import { DepositGateService } from './domain/deposit-gate.service';
@@ -40,7 +41,9 @@ export class MasterOrderService {
       select: { id: true, saleCode: true },
     });
 
-    if (!user?.saleCode) {
+    const isExec = EXECUTIVE_ROLES.includes(currentUser.role);
+
+    if (!user?.saleCode && !isExec) {
       throw new BadRequestException(
         'User does not have a saleCode assigned. Please contact admin to set your saleCode.',
       );
@@ -74,7 +77,8 @@ export class MasterOrderService {
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
         // Generate master order code inside the attempt loop
-        const masterCode = await this.masterOrderRepo.generateMasterOrderCode(user.saleCode);
+        const effectiveSaleCode = user?.saleCode || 'BOD';
+        const masterCode = await this.masterOrderRepo.generateMasterOrderCode(effectiveSaleCode);
 
         // Create master order and sub orders in a transaction
         const result = await this.prisma.$transaction(async (tx) => {

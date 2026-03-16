@@ -293,7 +293,9 @@ function TaoMoiDonHangContent() {
   const watchedCustomerId = watch('customerId');
 
   const { user } = useAuthStore();
-  const hasSaleCode = Boolean(user?.hasSaleCode);
+  const EXEC_ROLES: string[] = ['CEO', 'COO', 'CFO', 'DIRECTOR_OPERATIONS'];
+  const isExec = Boolean(user?.role && EXEC_ROLES.includes(user.role));
+  const hasSaleCode = isExec || Boolean(user?.hasSaleCode);
 
   return (
     <div>

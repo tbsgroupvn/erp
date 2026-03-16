@@ -351,10 +351,10 @@ function TaoMoiBaoGiaContent() {
 
       {/* Template Selector */}
       {!isEditMode && templates && templates.length > 0 && (
-        <div className="rounded-lg border bg-blue-50/50 p-4 mb-6">
+        <div className="section-card bg-blue-50/30 mb-6">
           <div className="flex items-center gap-2 mb-2">
             <LayoutTemplate className="h-4 w-4 text-blue-600" />
-            <h4 className="text-sm font-medium text-blue-800">Tạo từ mẫu</h4>
+            <h4 className="text-sm font-medium font-heading text-blue-800">Tạo từ mẫu</h4>
           </div>
           <div className="flex gap-2">
             <select
@@ -383,8 +383,11 @@ function TaoMoiBaoGiaContent() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Thông tin chung */}
-        <div className="rounded-lg border bg-card p-6 space-y-4">
-          <h3 className="text-lg font-semibold">Thông tin chung</h3>
+        <div className="section-card">
+          <div className="section-card-header">
+            <h3 className="text-base font-semibold font-heading">Thông tin chung</h3>
+          </div>
+          <div className="p-6 space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Customer Picker */}
             <div className="space-y-2 sm:col-span-2">
@@ -549,12 +552,13 @@ function TaoMoiBaoGiaContent() {
               className="flex w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
+          </div>
         </div>
 
         {/* Recent items from customer */}
         {selectedCustomer && recentItems && recentItems.length > 0 && (
-          <div className="rounded-lg border bg-amber-50/50 p-4 space-y-3">
-            <h4 className="text-sm font-medium text-amber-800">Sản phẩm đã báo giá cho {selectedCustomer.fullName}</h4>
+          <div className="section-card bg-amber-50/30 p-4 space-y-3">
+            <h4 className="text-sm font-medium font-heading text-amber-800">Sản phẩm đã báo giá cho {selectedCustomer.fullName}</h4>
             <div className="flex flex-wrap gap-2">
               {recentItems.map((item: RecentQuotationItem, idx: number) => (
                 <button
@@ -573,10 +577,13 @@ function TaoMoiBaoGiaContent() {
         )}
 
         {/* Hàng mục */}
-        <div className="rounded-lg border bg-card p-6 space-y-4">
-          <h3 className="text-lg font-semibold">Hàng mục báo giá</h3>
+        <div className="section-card">
+          <div className="section-card-header">
+            <h3 className="text-base font-semibold font-heading">Hàng mục báo giá</h3>
+          </div>
+          <div className="p-6 space-y-4">
           {fields.map((field, index) => (
-            <div key={field.id} className="rounded-md border p-4 space-y-3">
+            <div key={field.id} className="rounded-lg border bg-muted/20 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-muted-foreground">Hàng mục #{index + 1}</span>
                 {fields.length > 1 && (
@@ -645,25 +652,28 @@ function TaoMoiBaoGiaContent() {
           </div>
 
           {/* Tổng hợp giá */}
-          <div className="border-t pt-4 space-y-2 text-sm max-w-xs ml-auto">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Tạm tính</span>
-              <span>{formatCurrency(subtotal)}</span>
-            </div>
-            {watchDiscount > 0 && (
+          <div className="flex justify-end">
+            <div className="rounded-lg bg-muted/30 p-4 space-y-2 text-sm w-full max-w-xs">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Giảm giá ({watchDiscount}%)</span>
-                <span className="text-destructive">-{formatCurrency(discountAmount)}</span>
+                <span className="text-muted-foreground">Tạm tính</span>
+                <span>{formatCurrency(subtotal)}</span>
               </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Thuế (10%)</span>
-              <span>{formatCurrency(taxAmount)}</span>
+              {watchDiscount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Giảm giá ({watchDiscount}%)</span>
+                  <span className="text-destructive">-{formatCurrency(discountAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Thuế (10%)</span>
+                <span>{formatCurrency(taxAmount)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-base border-t pt-2">
+                <span>Tổng cộng</span>
+                <span>{formatCurrency(total)}</span>
+              </div>
             </div>
-            <div className="flex justify-between font-semibold text-base border-t pt-2">
-              <span>Tổng cộng</span>
-              <span>{formatCurrency(total)}</span>
-            </div>
+          </div>
           </div>
         </div>
 
@@ -686,9 +696,9 @@ function TaoMoiBaoGiaContent() {
       {/* Batch Paste Modal */}
       {showBatchPaste && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-2xl rounded-lg bg-background p-6 shadow-xl mx-4">
+          <div className="w-full max-w-2xl rounded-xl bg-background p-6 shadow-2xl mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Dán hàng loạt từ Excel</h3>
+              <h3 className="text-lg font-semibold font-heading">Dán hàng loạt từ Excel</h3>
               <button type="button" onClick={() => { setShowBatchPaste(false); setBatchText(''); setBatchPreview([]); }} className="h-8 w-8 rounded-md hover:bg-accent flex items-center justify-center">
                 <X className="h-4 w-4" />
               </button>

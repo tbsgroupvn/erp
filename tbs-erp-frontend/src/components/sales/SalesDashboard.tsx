@@ -342,7 +342,7 @@ export const SalesDashboard: React.FC = () => {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">
-              Dashboard Sales
+              Bảng điều khiển Sales
             </h1>
             <p className="mt-1 text-sm text-slate-600">
               Theo dõi đơn hàng, công nợ và hoa hồng của bạn
@@ -646,7 +646,7 @@ export const SalesDashboard: React.FC = () => {
                           onClick={() => handleRequestPayment(order.id)}
                           className="rounded-md p-1.5 text-blue-600 transition-colors hover:bg-blue-50"
                           title="Gửi yêu cầu thanh toán"
-                          aria-label="Gui yeu cau thanh toan"
+                          aria-label="Gửi yêu cầu thanh toán"
                         >
                           <Send className="h-4 w-4" />
                         </button>
@@ -654,7 +654,7 @@ export const SalesDashboard: React.FC = () => {
                           onClick={() => handleViewDebt(order.id)}
                           className="rounded-md p-1.5 text-slate-600 transition-colors hover:bg-slate-100"
                           title="Xem công nợ"
-                          aria-label="Xem cong no"
+                          aria-label="Xem công nợ"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
