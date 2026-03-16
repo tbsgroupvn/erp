@@ -63,7 +63,7 @@ export class ExchangeRateService {
     if (latestRate) {
       const oldRate = Number(latestRate.rate);
       const newRate = dto.rate;
-      const variancePercent = Math.abs(newRate - oldRate) / oldRate * 100;
+      const variancePercent = (Math.abs(newRate - oldRate) / oldRate) * 100;
       if (variancePercent > 5) {
         this.logger.warn(
           `Exchange rate variance alert: ${dto.fromCurrency}/${dto.toCurrency} ` +
@@ -106,9 +106,7 @@ export class ExchangeRateService {
 
     // Invalidate cached rates for this currency pair and active rates list
     await Promise.all([
-      this.cacheService.invalidateByPrefix(
-        `exchange-rate:${dto.fromCurrency}:${dto.toCurrency}:`,
-      ),
+      this.cacheService.invalidateByPrefix(`exchange-rate:${dto.fromCurrency}:${dto.toCurrency}:`),
       this.cacheService.invalidate('exchange-rate:active-rates'),
     ]);
 
@@ -136,9 +134,7 @@ export class ExchangeRateService {
         });
 
         if (!rate) {
-          throw new NotFoundException(
-            `No exchange rate found for ${from}/${to}.`,
-          );
+          throw new NotFoundException(`No exchange rate found for ${from}/${to}.`);
         }
 
         return rate;
@@ -150,12 +146,7 @@ export class ExchangeRateService {
   /**
    * Gets historical exchange rates for a currency pair within a date range.
    */
-  async getHistoricalRates(
-    from: Currency,
-    to: Currency,
-    startDate?: string,
-    endDate?: string,
-  ) {
+  async getHistoricalRates(from: Currency, to: Currency, startDate?: string, endDate?: string) {
     const where: any = { from, to };
 
     if (startDate || endDate) {
@@ -189,9 +180,7 @@ export class ExchangeRateService {
       };
     }
 
-    const dateFilter = dto.date
-      ? new Date(dto.date)
-      : new Date();
+    const dateFilter = dto.date ? new Date(dto.date) : new Date();
 
     const dateKey = dateFilter.toISOString().slice(0, 10);
     const cacheKey = `exchange-rate:${dto.from}:${dto.to}:${dateKey}`;
@@ -240,13 +229,14 @@ export class ExchangeRateService {
    * CNY rates are excluded from automatic sync because they must be set manually
    * by the Chief Accountant per business policy.
    */
-  async syncFromVietcombank(currencyPair?: { from: Currency; to: Currency }): Promise<{ message: string; synced: number }> {
+  async syncFromVietcombank(currencyPair?: {
+    from: Currency;
+    to: Currency;
+  }): Promise<{ message: string; synced: number }> {
     // Guard: CNY rate must be set manually by Chief Accountant
     if (currencyPair) {
       if (currencyPair.from === Currency.CNY || currencyPair.to === Currency.CNY) {
-        throw new ForbiddenException(
-          'CNY rate must be set manually by Chief Accountant',
-        );
+        throw new ForbiddenException('CNY rate must be set manually by Chief Accountant');
       }
     }
 

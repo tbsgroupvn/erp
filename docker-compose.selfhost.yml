@@ -17,6 +17,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-erp_db}
     command: postgres -c password_encryption=scram-sha-256
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -34,7 +39,12 @@ services:
     image: redis:7-alpine
     container_name: ${COMPOSE_PROJECT_NAME:-erp}_redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required} --maxmemory 512mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     volumes:
       - redisdata:/data
     healthcheck:
@@ -69,6 +79,10 @@ services:
       FRONTEND_URL: https://${ERP_DOMAIN:-erp.localhost}
       CORS_ORIGINS: https://${ERP_DOMAIN:-erp.localhost},https://${CMS_DOMAIN:-localhost}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Encryption
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:?FIELD_ENCRYPTION_KEY is required}
+      TWO_FA_ENCRYPTION_KEY: ${TWO_FA_ENCRYPTION_KEY:?TWO_FA_ENCRYPTION_KEY is required}
+      TWO_FA_ENCRYPTION_SALT: ${TWO_FA_ENCRYPTION_SALT:?TWO_FA_ENCRYPTION_SALT is required}
       # Branding
       COMPANY_NAME: ${COMPANY_NAME:-My ERP}
       COMPANY_FULL_NAME: ${COMPANY_FULL_NAME:-My ERP Company}
@@ -83,6 +97,12 @@ services:
       # BullMQ
       BULLMQ_REDIS_HOST: redis
       BULLMQ_REDIS_PORT: 6379
+      BULLMQ_REDIS_PASSWORD: ${REDIS_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,6 +139,11 @@ services:
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: 1
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
     depends_on:
       backend:
         condition: service_healthy
@@ -153,6 +178,11 @@ services:
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: 1
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
     depends_on:
       backend:
         condition: service_healthy
@@ -172,11 +202,16 @@ services:
     image: nginx:alpine
     container_name: ${COMPOSE_PROJECT_NAME:-erp}_nginx
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
     ports:
       - '80:80'
       - '443:443'
     volumes:
-      - ./nginx/nginx.selfhost.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/nginx.selfhost.conf.template:/etc/nginx/nginx.conf.template:ro
       - certbot_conf:/etc/letsencrypt
       - certbot_www:/var/www/certbot
       - nginx_logs:/var/log/nginx
@@ -190,7 +225,32 @@ services:
       - backend
     networks:
       - app_network
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    command: >
+      /bin/sh -c '
+        envsubst "$$ERP_DOMAIN $$CMS_DOMAIN $$API_DOMAIN" < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf &&
+        while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"
+      '
+
+  # ============================================
+  # MIGRATE - One-off migration & seed (has devDeps)
+  # Only started manually: docker compose run --rm migrate
+  # ============================================
+  migrate:
+    build:
+      context: ./tbs-erp-backend
+      dockerfile: Dockerfile
+      target: build
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_migrate
+    profiles: ['migrate']
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erp_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app_network
+    working_dir: /app
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed"
 
   # ============================================
   # CERTBOT - SSL Certificate Management

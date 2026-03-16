@@ -174,7 +174,7 @@ export default function QuanLyUserPage() {
 
   return (
     <div>
-      <PageHeader title="Quản lý người dùng" description="Quản lý tài khoản và phân quyền">
+      <PageHeader title="Quản lý người dùng" description="Quản lý tài khoản và phân quyền" infoKey="quan-ly-user">
         <Button onClick={() => setShowForm((prev) => !prev)}>
           {showForm ? (
             <>
@@ -259,7 +259,7 @@ export default function QuanLyUserPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Vai trò *</Label>
+                <p className="text-sm font-medium leading-none">Vai trò *</p>
                 <Select
                   value={formData.role}
                   onValueChange={(value) =>

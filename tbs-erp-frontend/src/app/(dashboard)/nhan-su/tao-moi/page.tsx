@@ -74,7 +74,7 @@ export default function TaoMoiNhanVienPage() {
         <div className="rounded-lg border bg-card p-6 space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Họ tên *</label>
+              <p className="text-sm font-medium">Họ tên *</p>
               <input
                 {...register('fullName')}
                 placeholder="Nhập họ tên"
@@ -85,7 +85,7 @@ export default function TaoMoiNhanVienPage() {
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
+              <p className="text-sm font-medium">Email</p>
               <input
                 {...register('email')}
                 type="email"
@@ -97,7 +97,7 @@ export default function TaoMoiNhanVienPage() {
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Số điện thoại</label>
+              <p className="text-sm font-medium">Số điện thoại</p>
               <input
                 {...register('phone')}
                 placeholder="0912345678"
@@ -105,7 +105,7 @@ export default function TaoMoiNhanVienPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Phòng ban *</label>
+              <p className="text-sm font-medium">Phòng ban *</p>
               <input
                 {...register('departmentCode')}
                 placeholder="Mã phòng ban"
@@ -116,7 +116,7 @@ export default function TaoMoiNhanVienPage() {
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Chức vụ *</label>
+              <p className="text-sm font-medium">Chức vụ *</p>
               <input
                 {...register('positionTitle')}
                 placeholder="Chức vụ"
@@ -127,7 +127,7 @@ export default function TaoMoiNhanVienPage() {
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Chi nhánh *</label>
+              <p className="text-sm font-medium">Chi nhánh *</p>
               <select
                 {...register('branch')}
                 className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -138,7 +138,7 @@ export default function TaoMoiNhanVienPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Quản lý trực tiếp</label>
+              <p className="text-sm font-medium">Quản lý trực tiếp</p>
               <input
                 {...register('managerId')}
                 placeholder="ID quản lý"
@@ -146,7 +146,7 @@ export default function TaoMoiNhanVienPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Ngày vào làm *</label>
+              <p className="text-sm font-medium">Ngày vào làm *</p>
               <input
                 {...register('joinDate')}
                 type="date"
@@ -157,7 +157,7 @@ export default function TaoMoiNhanVienPage() {
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Lương</label>
+              <p className="text-sm font-medium">Lương</p>
               <input
                 {...register('salary')}
                 type="number"

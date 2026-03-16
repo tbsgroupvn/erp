@@ -151,7 +151,9 @@ export const useAuthStore = create<AuthState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          state.isLoading = true;
+          // Hydration done — accessToken is NOT persisted, so it will be null.
+          // The 401 interceptor will auto-refresh via HttpOnly cookie on first API call.
+          state.isLoading = false;
         }
       },
     },

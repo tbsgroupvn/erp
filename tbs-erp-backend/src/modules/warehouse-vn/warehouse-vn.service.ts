@@ -13,8 +13,11 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { WarehouseVNRepository } from './warehouse-vn.repository';
 import { DeliveryDispatchService } from './domain/delivery-dispatch.service';
 import { WarehouseVNStatusMachine } from './domain/warehouse-vn-status.machine';
+import { ExtraChargeService } from '@modules/order/domain/extra-charge.service';
 import { ReceiveVNDto } from './dto/receive-vn.dto';
 import { DispatchDto } from './dto/dispatch.dto';
+import { MarkDeliveryFailedDto } from './dto/mark-delivery-failed.dto';
+import { RescheduleDeliveryDto } from './dto/reschedule-delivery.dto';
 
 @Injectable()
 export class WarehouseVNService {
@@ -24,6 +27,7 @@ export class WarehouseVNService {
     private readonly warehouseRepo: WarehouseVNRepository,
     private readonly deliveryDispatch: DeliveryDispatchService,
     private readonly statusMachine: WarehouseVNStatusMachine,
+    private readonly extraChargeService: ExtraChargeService,
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -486,21 +490,29 @@ export class WarehouseVNService {
       );
     }
 
-    // Wrap all mutations in a single transaction
-    return this.prisma.executeInTransaction(async (tx) => {
-      // Save delivery proof URLs if provided
+    // Wrap all mutations in a single transaction.
+    // IMPORTANT: All DB writes use `tx` to avoid deadlock (previously
+    // deliveryDispatch.updateDeliveryStatus used this.prisma which caused
+    // a deadlock when deliveryProofUrls was also updated via tx).
+    const updatedDelivery = await this.prisma.executeInTransaction(async (tx) => {
+      // Build a single delivery update merging proof URLs + status fields
+      const deliveryUpdateData: any = {
+        status: 'DELIVERED' as any,
+        deliveredAt: new Date(),
+      };
       if (data.deliveryProofUrls && data.deliveryProofUrls.length > 0) {
-        await tx.delivery.update({
-          where: { id: deliveryId },
-          data: { deliveryProofUrls: data.deliveryProofUrls },
-        });
+        deliveryUpdateData.deliveryProofUrls = data.deliveryProofUrls;
+      }
+      if (data.podImageUrl) deliveryUpdateData.podImageUrl = data.podImageUrl;
+      if (data.signatureUrl) deliveryUpdateData.signatureUrl = data.signatureUrl;
+      if (data.codCollected) {
+        deliveryUpdateData.codCollected = true;
+        deliveryUpdateData.codCollectedAt = new Date();
       }
 
-      // Update delivery status
-      await this.deliveryDispatch.updateDeliveryStatus(deliveryId, 'DELIVERED', {
-        podImageUrl: data.podImageUrl,
-        signatureUrl: data.signatureUrl,
-        codCollected: data.codCollected,
+      const updated = await tx.delivery.update({
+        where: { id: deliveryId },
+        data: deliveryUpdateData,
       });
 
       // Update all packages for this order as DELIVERED
@@ -515,10 +527,26 @@ export class WarehouseVNService {
         },
       });
 
-      this.logger.log(`Delivery ${deliveryId} confirmed for order ${delivery.orderId}`);
-
-      return { deliveryId, status: 'DELIVERED' };
+      return updated;
     });
+
+    // Emit events AFTER transaction commits (no DB lock held)
+    this.eventEmitter.emit('delivery.status.changed', {
+      deliveryId,
+      orderId: updatedDelivery.orderId,
+      status: 'DELIVERED',
+      driverId: updatedDelivery.driverId,
+    });
+    this.eventEmitter.emit('delivery.completed', {
+      deliveryId,
+      orderId: updatedDelivery.orderId,
+      codAmount: Number(updatedDelivery.codAmount),
+      codCollected: data.codCollected ?? false,
+    });
+
+    this.logger.log(`Delivery ${deliveryId} confirmed for order ${delivery.orderId}`);
+
+    return { deliveryId, status: 'DELIVERED' };
   }
 
   /**
@@ -613,7 +641,10 @@ export class WarehouseVNService {
         id: true,
         code: true,
         cnWeight: true,
+        vnWeight: true,
         orderId: true,
+        actualWeight: true,
+        chargeableWeight: true,
       },
     });
 
@@ -628,12 +659,28 @@ export class WarehouseVNService {
       weightVariancePercent = (Math.abs(vnWeight - cnWeight) / cnWeight) * 100;
     }
 
-    await this.prisma.package.update({
-      where: { id: packageId },
-      data: {
-        vnWeight: new Decimal(vnWeight),
-        weightVariancePercent: new Decimal(weightVariancePercent),
-      },
+    const oldVnWeight = pkg.vnWeight;
+
+    await this.prisma.executeInTransaction(async (tx) => {
+      await tx.package.update({
+        where: { id: packageId },
+        data: {
+          vnWeight: new Decimal(vnWeight),
+          weightVariancePercent: new Decimal(weightVariancePercent),
+        },
+      });
+
+      // Write WeightAuditLog for VN reweigh
+      await tx.weightAuditLog.create({
+        data: {
+          packageId,
+          action: 'REWEIGH_VN',
+          oldActualWeight: oldVnWeight ?? pkg.actualWeight,
+          oldChargeableWeight: pkg.chargeableWeight,
+          newActualWeight: new Decimal(vnWeight),
+          performedBy: userId,
+        },
+      });
     });
 
     if (weightVariancePercent > 5) {
@@ -663,6 +710,224 @@ export class WarehouseVNService {
       vnWeight,
       weightVariancePercent,
       alert: weightVariancePercent > 5,
+    };
+  }
+
+  /**
+   * Cap nhat ma van don hang van chuyen noi dia cho delivery.
+   */
+  async setCarrierTracking(
+    deliveryId: string,
+    carrierTrackingNumber: string,
+    carrierName: string,
+  ) {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id: deliveryId },
+      select: { id: true, code: true, status: true },
+    });
+
+    if (!delivery) {
+      throw new NotFoundException(`Delivery ${deliveryId} khong ton tai`);
+    }
+
+    const updated = await this.prisma.delivery.update({
+      where: { id: deliveryId },
+      data: { carrierTrackingNumber, carrierName },
+      select: {
+        id: true,
+        code: true,
+        carrierTrackingNumber: true,
+        carrierName: true,
+      },
+    });
+
+    this.logger.log(
+      `Delivery ${delivery.code} carrier tracking updated: ${carrierName} - ${carrierTrackingNumber}`,
+    );
+
+    return updated;
+  }
+
+  /**
+   * TH-020: Tai xe bao giao that bai.
+   * Chain: FAILED -> auto initiate RTO.
+   */
+  async markDeliveryFailed(deliveryId: string, dto: MarkDeliveryFailedDto, userId: string) {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id: deliveryId },
+      select: { id: true, code: true, status: true, orderId: true, driverId: true },
+    });
+
+    if (!delivery) {
+      throw new NotFoundException(`Delivery with ID ${deliveryId} not found`);
+    }
+
+    if (!['DISPATCHED', 'PICKED_UP', 'DELIVERING'].includes(delivery.status)) {
+      throw new BadRequestException(
+        `Delivery ${delivery.code} khong the bao that bai o trang thai ${delivery.status}. ` +
+          `Chi cho phep: DISPATCHED, PICKED_UP, DELIVERING.`,
+      );
+    }
+
+    // 1. Mark as FAILED
+    await this.deliveryDispatch.updateDeliveryStatus(deliveryId, 'FAILED', {
+      failReason: dto.failReason,
+    });
+
+    // Save photo evidence if provided
+    if (dto.photoUrls && dto.photoUrls.length > 0) {
+      await this.prisma.delivery.update({
+        where: { id: deliveryId },
+        data: { deliveryProofUrls: dto.photoUrls },
+      });
+    }
+
+    // 2. Auto initiate RTO
+    const rtoReason = dto.failNote
+      ? `${dto.failReason}: ${dto.failNote}`
+      : dto.failReason;
+    await this.deliveryDispatch.initiateRTO(deliveryId, rtoReason);
+
+    // 3. Emit delivery.failed event for notification listener
+    this.eventEmitter.emit('delivery.failed', {
+      deliveryId,
+      orderId: delivery.orderId,
+      driverId: delivery.driverId,
+      failReason: dto.failReason,
+      failNote: dto.failNote,
+    });
+
+    this.logger.log(
+      `Delivery ${delivery.code} marked failed: ${dto.failReason}. RTO initiated.`,
+    );
+
+    return {
+      deliveryId,
+      deliveryCode: delivery.code,
+      status: 'RETURN_TO_ORIGIN',
+      failReason: dto.failReason,
+    };
+  }
+
+  /**
+   * TH-020: Len lich giao lai cho delivery RTO_RECEIVED.
+   * Tinh phi luu kho + tao extra charge + tao delivery moi.
+   */
+  async rescheduleDelivery(deliveryId: string, dto: RescheduleDeliveryDto, userId: string) {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id: deliveryId },
+      select: {
+        id: true,
+        code: true,
+        status: true,
+        orderId: true,
+        branch: true,
+        rtoReceivedAt: true,
+        rtoStorageFee: true,
+        rtoStorageDays: true,
+        recipientName: true,
+        recipientPhone: true,
+        deliveryAddress: true,
+        codAmount: true,
+        deliveryPackages: {
+          select: { packageId: true },
+        },
+      },
+    });
+
+    if (!delivery) {
+      throw new NotFoundException(`Delivery with ID ${deliveryId} not found`);
+    }
+
+    if (delivery.status !== 'RTO_RECEIVED') {
+      throw new BadRequestException(
+        `Delivery ${delivery.code} o trang thai ${delivery.status}. Chi cho phep reschedule khi RTO_RECEIVED.`,
+      );
+    }
+
+    // Validate scheduledDate is in the future
+    const scheduledDate = new Date(dto.scheduledDate);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    if (scheduledDate <= now) {
+      throw new BadRequestException('scheduledDate phai la ngay tuong lai');
+    }
+
+    // Calculate storage fee
+    const DAILY_RATE = 10000; // 10,000 VND/day
+    let storageDays = delivery.rtoStorageDays ?? 0;
+    if (delivery.rtoReceivedAt) {
+      storageDays = Math.floor(
+        (scheduledDate.getTime() - delivery.rtoReceivedAt.getTime()) / (1000 * 60 * 60 * 24),
+      );
+    }
+    const storageFee = Math.max(0, storageDays * DAILY_RATE);
+
+    // Create extra charge for RTO storage fee (if > 0)
+    if (storageFee > 0) {
+      await this.extraChargeService.addExtraCharge(
+        delivery.orderId,
+        {
+          chargeType: 'RTO_STORAGE',
+          amount: storageFee,
+          currency: 'VND',
+          description: `Phi luu kho RTO: ${storageDays} ngay x ${DAILY_RATE.toLocaleString()} VND (Delivery ${delivery.code})`,
+        },
+        userId,
+      );
+    }
+
+    // Get order info for new delivery
+    const order = await this.prisma.order.findUnique({
+      where: { id: delivery.orderId },
+      select: {
+        id: true,
+        code: true,
+        customer: {
+          select: { fullName: true, phone: true, address: true },
+        },
+      },
+    });
+
+    // Determine delivery info (use original or order fallback)
+    const recipientName = delivery.recipientName ?? order?.customer?.fullName ?? '';
+    const recipientPhone = delivery.recipientPhone ?? order?.customer?.phone ?? '';
+    const deliveryAddress = delivery.deliveryAddress ?? order?.customer?.address ?? '';
+
+    // Get package IDs from old delivery
+    const packageIds = delivery.deliveryPackages.map((dp) => dp.packageId);
+
+    // Create new delivery
+    const newDelivery = await this.deliveryDispatch.createSplitDelivery(
+      delivery.orderId,
+      packageIds,
+      {
+        recipientName,
+        recipientPhone,
+        deliveryAddress,
+        codAmount: Number(delivery.codAmount ?? 0),
+        note: dto.note ?? `Giao lai tu delivery ${delivery.code}`,
+        driverId: dto.driverId,
+        branch: delivery.branch as any,
+        dispatchedBy: userId,
+      },
+    );
+
+    this.logger.log(
+      `Rescheduled delivery ${delivery.code} -> ${newDelivery.code}. ` +
+        `Storage fee: ${storageFee} VND (${storageDays} days).`,
+    );
+
+    return {
+      newDelivery: {
+        id: newDelivery.id,
+        code: newDelivery.code,
+        status: newDelivery.status,
+        scheduledAt: dto.scheduledDate,
+      },
+      storageFee,
+      storageDays,
+      originalDeliveryCode: delivery.code,
     };
   }
 

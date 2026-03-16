@@ -93,10 +93,7 @@ export class SLAMonitorService {
     }
 
     // SLA: Warehouse receipt (WAREHOUSE_CN or WAREHOUSE_VN stage)
-    if (
-      order.status === OrderStatus.WAREHOUSE_CN ||
-      order.status === OrderStatus.WAREHOUSE_VN
-    ) {
+    if (order.status === OrderStatus.WAREHOUSE_CN || order.status === OrderStatus.WAREHOUSE_VN) {
       const limitMinutes = slaConfig.warehouseReceiptHours * 60;
       if (statusDurationMinutes > limitMinutes) {
         breaches.push({
@@ -260,30 +257,15 @@ export class SLAMonitorService {
    */
   private getSLAConfig() {
     return {
-      cskhResponseMinutes: this.configService.get<number>(
-        'business.sla.cskhResponseMinutes',
-        15,
-      ),
-      saleContactHours: this.configService.get<number>(
-        'business.sla.saleContactHours',
-        2,
-      ),
-      quotationHours: this.configService.get<number>(
-        'business.sla.quotationHours',
-        4,
-      ),
-      approvalHours: this.configService.get<number>(
-        'business.sla.approvalHours',
-        2,
-      ),
+      cskhResponseMinutes: this.configService.get<number>('business.sla.cskhResponseMinutes', 15),
+      saleContactHours: this.configService.get<number>('business.sla.saleContactHours', 2),
+      quotationHours: this.configService.get<number>('business.sla.quotationHours', 4),
+      approvalHours: this.configService.get<number>('business.sla.approvalHours', 2),
       warehouseReceiptHours: this.configService.get<number>(
         'business.sla.warehouseReceiptHours',
         24,
       ),
-      deliveryDays: this.configService.get<number>(
-        'business.sla.deliveryDays',
-        3,
-      ),
+      deliveryDays: this.configService.get<number>('business.sla.deliveryDays', 3),
     };
   }
 }

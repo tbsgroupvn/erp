@@ -1,0 +1,72 @@
+// ============================================
+// WIKI — Knowledge Base
+// ============================================
+
+enum WikiAccess {
+  PUBLIC  // Tat ca moi nguoi
+  TEAM    // Chi team duoc chi dinh
+  PRIVATE // Chi tac gia
+}
+
+model WikiSpace {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+  icon        String?    // emoji or icon name
+  color       String?    @default("#3b82f6")
+  ownerId     String     @map("owner_id")
+  teamScope   String?    @map("team_scope") // dept/team name
+  access      WikiAccess @default(PUBLIC)
+
+  pages       WikiPage[]
+
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  @@map("wiki_spaces")
+}
+
+model WikiPage {
+  id          String      @id @default(cuid())
+  spaceId     String      @map("space_id")
+  space       WikiSpace   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  title       String
+  slug        String      @map("slug")
+  content     String      @db.Text // HTML content
+  excerpt     String?
+  authorId    String      @map("author_id")
+  parentId    String?     @map("parent_id")
+  parent      WikiPage?   @relation("PageTree", fields: [parentId], references: [id])
+  children    WikiPage[]  @relation("PageTree")
+  position    Int         @default(0) // ordering within parent
+  isPublished Boolean     @default(false) @map("is_published")
+  viewCount   Int         @default(0) @map("view_count")
+
+  versions    WikiPageVersion[]
+
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  @@unique([spaceId, slug])
+  @@index([spaceId, parentId])
+  @@index([authorId])
+  @@map("wiki_pages")
+}
+
+model WikiPageVersion {
+  id            String   @id @default(cuid())
+  pageId        String   @map("page_id")
+  page          WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  version       Int
+  title         String
+  content       String   @db.Text
+  authorId      String   @map("author_id")
+  changeSummary String?  @map("change_summary")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([pageId, version])
+  @@index([pageId])
+  @@map("wiki_page_versions")
+}

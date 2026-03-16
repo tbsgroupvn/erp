@@ -22,7 +22,7 @@ import { WsGateway } from './ws.gateway';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('jwt.secret'),
         signOptions: {
-          expiresIn: configService.get<string>('jwt.expiresIn', '15m'),
+          expiresIn: configService.get<string>('jwt.expiresIn', '15m') as any,
         },
       }),
     }),

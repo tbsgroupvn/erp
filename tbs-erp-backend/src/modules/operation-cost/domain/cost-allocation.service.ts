@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
@@ -31,8 +26,7 @@ export class CostAllocationService {
    * Formula: orderCost = (orderWeight / totalWeight) * totalContainerCost
    */
   async allocateByWeight(containerId: string): Promise<AllocationResult[]> {
-    const { container, orders, totalCost } =
-      await this.getContainerData(containerId);
+    const { container, orders, totalCost } = await this.getContainerData(containerId);
 
     if (orders.length === 0) {
       throw new BadRequestException(
@@ -41,13 +35,10 @@ export class CostAllocationService {
     }
 
     // Calculate total chargeable weight using rounded values to avoid floating-point drift
-    const totalWeight = orders.reduce(
-      (sum, o) => {
-        const weight = o.totalChargeableWeight ? Number(o.totalChargeableWeight) : 0;
-        return sum + Math.round(weight * 10000) / 10000;
-      },
-      0,
-    );
+    const totalWeight = orders.reduce((sum, o) => {
+      const weight = o.totalChargeableWeight ? Number(o.totalChargeableWeight) : 0;
+      return sum + Math.round(weight * 10000) / 10000;
+    }, 0);
 
     if (totalWeight === 0) {
       throw new BadRequestException(
@@ -58,9 +49,7 @@ export class CostAllocationService {
 
     let sumAllocated = 0;
     const allocations: AllocationResult[] = orders.map((order, index) => {
-      const weight = order.totalChargeableWeight
-        ? Number(order.totalChargeableWeight)
-        : 0;
+      const weight = order.totalChargeableWeight ? Number(order.totalChargeableWeight) : 0;
       const proportion = weight / totalWeight;
       let allocatedAmount: number;
 
@@ -98,8 +87,7 @@ export class CostAllocationService {
    * Uses package dimensions (L x W x H) to determine volumetric space.
    */
   async allocateByVolume(containerId: string): Promise<AllocationResult[]> {
-    const { container, orders, totalCost } =
-      await this.getContainerData(containerId);
+    const { container, orders, totalCost } = await this.getContainerData(containerId);
 
     if (orders.length === 0) {
       throw new BadRequestException(
@@ -120,7 +108,7 @@ export class CostAllocationService {
           const w = pkg.width ? Number(pkg.width) : 0;
           const h = pkg.height ? Number(pkg.height) : 0;
           // Round to 4 decimal places to avoid floating-point drift in volume calculations
-          const volumeM3 = Math.round((l * w * h) / 1_000_000 * 10000) / 10000;
+          const volumeM3 = Math.round(((l * w * h) / 1_000_000) * 10000) / 10000;
           return sum + volumeM3;
         }, 0);
 
@@ -174,8 +162,7 @@ export class CostAllocationService {
    * Allocates container costs evenly across all orders.
    */
   async allocateEvenly(containerId: string): Promise<AllocationResult[]> {
-    const { container, orders, totalCost } =
-      await this.getContainerData(containerId);
+    const { container, orders, totalCost } = await this.getContainerData(containerId);
 
     if (orders.length === 0) {
       throw new BadRequestException(
@@ -219,9 +206,7 @@ export class CostAllocationService {
     });
 
     if (!container) {
-      throw new NotFoundException(
-        `Container with ID ${containerId} not found`,
-      );
+      throw new NotFoundException(`Container with ID ${containerId} not found`);
     }
 
     const orders = await this.prisma.order.findMany({
@@ -239,14 +224,10 @@ export class CostAllocationService {
       _sum: { amount: true },
     });
 
-    const totalCost = costAgg._sum.amount
-      ? Number(costAgg._sum.amount)
-      : 0;
+    const totalCost = costAgg._sum.amount ? Number(costAgg._sum.amount) : 0;
 
     if (totalCost === 0) {
-      throw new BadRequestException(
-        `No operation costs recorded for container ${container.code}`,
-      );
+      throw new BadRequestException(`No operation costs recorded for container ${container.code}`);
     }
 
     return { container, orders, totalCost };

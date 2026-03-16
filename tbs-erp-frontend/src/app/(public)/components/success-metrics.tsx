@@ -1,17 +1,20 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ElementType } from 'react';
 import { Calendar, TrendingUp, Users, Heart, Package } from 'lucide-react';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+
 interface Metric {
-  icon: React.ElementType;
+  icon: ElementType;
   label: string;
   value: number;
   suffix: string;
   duration: number;
 }
 
-const metrics: Metric[] = [
+// Fallback values shown while the API is loading or if it fails
+const FALLBACK_METRICS: Metric[] = [
   {
     icon: Calendar,
     label: 'Năm kinh nghiệm',
@@ -48,6 +51,56 @@ const metrics: Metric[] = [
     duration: 2000,
   },
 ];
+
+/**
+ * Build metrics array from API stats, falling back to defaults for
+ * values that cannot be derived from the backend (e.g. satisfaction %).
+ */
+function buildMetrics(stats: {
+  yearsOfOperation: number;
+  totalCompletedOrders: number;
+  totalCustomers: number;
+}): Metric[] {
+  return [
+    {
+      icon: Calendar,
+      label: 'Năm kinh nghiệm',
+      value: stats.yearsOfOperation,
+      suffix: '+',
+      duration: 2000,
+    },
+    {
+      icon: Package,
+      label: 'Tổng đơn hàng',
+      value: stats.totalCompletedOrders,
+      suffix: '+',
+      duration: 2500,
+    },
+    {
+      icon: Users,
+      label: 'Khách hàng hoạt động',
+      value: stats.totalCustomers,
+      suffix: '+',
+      duration: 2000,
+    },
+    {
+      // Not available from API - keep hardcoded fallback
+      icon: TrendingUp,
+      label: 'Đơn hàng mỗi tháng',
+      value: 5000,
+      suffix: '+',
+      duration: 2000,
+    },
+    {
+      // Not available from API - keep hardcoded fallback
+      icon: Heart,
+      label: 'Độ hài lòng',
+      value: 99,
+      suffix: '%',
+      duration: 2000,
+    },
+  ];
+}
 
 function useCountUp(end: number, duration: number, shouldStart: boolean) {
   const [count, setCount] = useState(0);
@@ -106,8 +159,31 @@ function MetricCard({ metric, shouldAnimate }: { metric: Metric; shouldAnimate: 
 }
 
 export function SuccessMetrics() {
+  const [metrics, setMetrics] = useState<Metric[]>(FALLBACK_METRICS);
   const [shouldAnimate, setShouldAnimate] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
+
+  // Fetch real stats from the public API
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchStats() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/public/stats`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const stats = json.data;
+        if (!cancelled && stats) {
+          setMetrics(buildMetrics(stats));
+        }
+      } catch {
+        // Keep fallback values on error
+      }
+    }
+
+    fetchStats();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(

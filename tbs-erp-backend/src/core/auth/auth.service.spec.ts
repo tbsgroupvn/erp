@@ -4,14 +4,28 @@ import { JwtService } from '@nestjs/jwt';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AuthService } from './auth.service';
 import { PrismaService } from '@core/database/prisma.service';
+import { CacheService } from '@core/cache/cache.service';
 import { SmsService } from '@core/sms/sms.service';
 import { UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+
+jest.mock('otplib', () => ({
+  authenticator: {
+    generateSecret: jest.fn().mockReturnValue('mock-secret'),
+    keyuri: jest.fn().mockReturnValue('otpauth://totp/mock?issuer=TBS%20ERP'),
+  },
+}));
+
+jest.mock('qrcode', () => ({
+  toDataURL: jest.fn().mockResolvedValue('data:image/png;base64,mock-qr-code'),
+}));
 
 describe('AuthService', () => {
+  let module: TestingModule;
   let service: AuthService;
   let prismaService: PrismaService;
-  let jwtService: JwtService;
   let smsService: SmsService;
 
   // Mock user data
@@ -44,7 +58,7 @@ describe('AuthService', () => {
   });
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         AuthService,
         {
@@ -74,7 +88,7 @@ describe('AuthService', () => {
                 'jwt.refreshSecret': 'test-refresh-secret',
                 'jwt.expiresIn': '15m',
                 'jwt.refreshExpiresIn': '7d',
-                'TWO_FA_ENCRYPTION_KEY': 'test-2fa-encryption-key-for-testing',
+                TWO_FA_ENCRYPTION_KEY: 'test-2fa-encryption-key-for-testing',
               };
               return config[key] ?? defaultValue;
             }),
@@ -99,12 +113,30 @@ describe('AuthService', () => {
             sendSms: jest.fn().mockResolvedValue(true),
           },
         },
+        {
+          provide: CACHE_MANAGER,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+          },
+        },
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn().mockResolvedValue(undefined),
+            set: jest.fn().mockResolvedValue(true),
+            del: jest.fn().mockResolvedValue(undefined),
+            delByPrefix: jest.fn().mockResolvedValue(undefined),
+            invalidate: jest.fn().mockResolvedValue(undefined),
+            invalidateByPrefix: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
     prismaService = module.get<PrismaService>(PrismaService);
-    jwtService = module.get<JwtService>(JwtService);
     smsService = module.get<SmsService>(SmsService);
   });
 
@@ -237,7 +269,7 @@ describe('AuthService', () => {
   describe('resetPassword', () => {
     it('should successfully reset password with valid token', async () => {
       // Arrange
-      const crypto = require('crypto');
+
       const testToken = 'test-reset-token';
       const tokenHash = crypto.createHash('sha256').update(testToken).digest('hex');
 
@@ -273,46 +305,44 @@ describe('AuthService', () => {
       jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue(null);
 
       // Act & Assert
-      await expect(
-        service.resetPassword('invalid-token', 'NewPassword123!@#'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.resetPassword('invalid-token', 'NewPassword123!@#')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException for expired token', async () => {
       // Arrange
-      const crypto = require('crypto');
-      const testToken = 'test-reset-token';
-      const tokenHash = crypto.createHash('sha256').update(testToken).digest('hex');
 
-      const userWithExpiredToken = {
-        ...mockUser,
-        resetToken: tokenHash,
-        resetTokenExpiry: new Date(Date.now() - 60 * 60 * 1000), // 1 hour ago (expired)
-      };
+      const testToken = 'test-reset-token';
 
       // findFirst with gt: new Date() won't return expired tokens
       jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue(null);
 
       // Act & Assert
-      await expect(
-        service.resetPassword(testToken, 'NewPassword123!@#'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.resetPassword(testToken, 'NewPassword123!@#')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('logout', () => {
-    it('should successfully revoke session', async () => {
+    it('should successfully revoke session and invalidate cache', async () => {
       // Arrange
+      const userId = 'user-123';
       const sessionId = 'session-123';
       jest.spyOn(prismaService.session, 'deleteMany').mockResolvedValue({ count: 1 } as any);
+      const cacheService = module.get<CacheService>(CacheService);
 
       // Act
-      await service.logout(sessionId);
+      await service.logout(userId, sessionId);
 
-      // Assert
+      // Assert — DB session deleted
       expect(prismaService.session.deleteMany).toHaveBeenCalledWith({
         where: { id: sessionId },
       });
+
+      // Assert — Redis cache entry invalidated for this specific session
+      expect(cacheService.del).toHaveBeenCalledWith(`jwt-session:${userId}:${sessionId}`);
     });
   });
 
@@ -343,9 +373,7 @@ describe('AuthService', () => {
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(userNoSecret as any);
 
       // Act & Assert
-      await expect(
-        service.enable2FA(mockUser.id, '123456'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.enable2FA(mockUser.id, '123456')).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when 2FA is already enabled', async () => {
@@ -354,9 +382,7 @@ describe('AuthService', () => {
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(user2FA as any);
 
       // Act & Assert
-      await expect(
-        service.enable2FA(mockUser.id, '123456'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.enable2FA(mockUser.id, '123456')).rejects.toThrow(BadRequestException);
     });
 
     it('should get 2FA status', async () => {
@@ -403,9 +429,7 @@ describe('AuthService', () => {
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
 
       // Act & Assert
-      await expect(
-        service.regenerateBackupCodes(mockUser.id),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.regenerateBackupCodes(mockUser.id)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -431,9 +455,7 @@ describe('AuthService', () => {
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
 
       // Act & Assert
-      await expect(
-        service.sendSmsOtp(mockUser.id),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.sendSmsOtp(mockUser.id)).rejects.toThrow(BadRequestException);
     });
   });
 });

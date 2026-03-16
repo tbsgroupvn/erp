@@ -8,10 +8,11 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Logger, UnauthorizedException } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
+import { Cron } from '@nestjs/schedule';
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from '@core/database/prisma.service';
 
@@ -33,7 +34,10 @@ import { PrismaService } from '@core/database/prisma.service';
  */
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN?.split(',') || ['https://app.tbslogistics.com', 'https://nhaphangchinhngach.vn'],
+    origin: process.env.CORS_ORIGIN?.split(',') || [
+      'https://app.tbslogistics.com',
+      'https://nhaphangchinhngach.vn',
+    ],
     credentials: true,
   },
   namespace: '/ws',
@@ -41,14 +45,15 @@ import { PrismaService } from '@core/database/prisma.service';
   pingTimeout: 60000,
   pingInterval: 25000,
 })
-export class WsGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
-{
+export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(WsGateway.name);
-  private connectedClients = new Map<string, { userId: string; role: string; branch: string | null }>();
+  private connectedClients = new Map<
+    string,
+    { userId: string; role: string; branch: string | null; lastHeartbeat: number }
+  >();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -98,6 +103,7 @@ export class WsGateway
         userId: user.id,
         role: user.role,
         branch: user.branch,
+        lastHeartbeat: Date.now(),
       });
 
       // Join identity-based rooms
@@ -116,7 +122,7 @@ export class WsGateway
 
       this.logger.log(
         `Client ${client.id} connected: user=${user.id}, role=${user.role}, branch=${user.branch}` +
-        ` (total: ${this.connectedClients.size})`,
+          ` (total: ${this.connectedClients.size})`,
       );
 
       // Confirm successful connection
@@ -139,8 +145,8 @@ export class WsGateway
 
     this.logger.log(
       `Client ${client.id} disconnected` +
-      (clientInfo ? ` (user=${clientInfo.userId})` : '') +
-      ` (remaining: ${this.connectedClients.size})`,
+        (clientInfo ? ` (user=${clientInfo.userId})` : '') +
+        ` (remaining: ${this.connectedClients.size})`,
     );
   }
 
@@ -148,7 +154,26 @@ export class WsGateway
 
   @SubscribeMessage('ping')
   handlePing(@ConnectedSocket() client: Socket): void {
+    const meta = this.connectedClients.get(client.id);
+    if (meta) {
+      meta.lastHeartbeat = Date.now();
+    }
     client.emit('pong', { timestamp: new Date().toISOString() });
+  }
+
+  @Cron('*/5 * * * *')
+  cleanupStaleClients(): void {
+    const now = Date.now();
+    let cleaned = 0;
+    for (const [id, meta] of this.connectedClients) {
+      if (now - meta.lastHeartbeat > 60_000) {
+        this.connectedClients.delete(id);
+        cleaned++;
+      }
+    }
+    if (cleaned > 0) {
+      this.logger.log(`Cleaned ${cleaned} stale WebSocket client(s) (remaining: ${this.connectedClients.size})`);
+    }
   }
 
   @SubscribeMessage('subscribe')
@@ -161,10 +186,13 @@ export class WsGateway
     }
 
     // Validate channel format
-    const validChannelPattern = /^(user:[a-zA-Z0-9]+|role:[a-zA-Z0-9_]+|branch:[a-zA-Z0-9_]+|dashboard)$/;
+    const validChannelPattern =
+      /^(user:[a-zA-Z0-9]+|role:[a-zA-Z0-9_]+|branch:[a-zA-Z0-9_]+|dashboard)$/;
     if (!validChannelPattern.test(data.channel)) {
       client.emit('error', { message: 'Invalid channel format' });
-      this.logger.warn(`Client ${client.id} attempted to subscribe to invalid channel: ${data.channel}`);
+      this.logger.warn(
+        `Client ${client.id} attempted to subscribe to invalid channel: ${data.channel}`,
+      );
       return;
     }
 
@@ -270,9 +298,24 @@ export class WsGateway
   }
 
   /**
+   * Get unique userIds of all currently connected clients.
+   * Used by ChatController to report online status.
+   */
+  getOnlineUserIds(): string[] {
+    const ids = new Set<string>();
+    this.connectedClients.forEach((info) => ids.add(info.userId));
+    return Array.from(ids);
+  }
+
+  /**
    * Get connected client info (for admin/monitoring).
    */
-  getConnectedClients(): Array<{ clientId: string; userId: string; role: string; branch: string | null }> {
+  getConnectedClients(): Array<{
+    clientId: string;
+    userId: string;
+    role: string;
+    branch: string | null;
+  }> {
     return Array.from(this.connectedClients.entries()).map(([clientId, info]) => ({
       clientId,
       ...info,

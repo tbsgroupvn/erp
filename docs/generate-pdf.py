@@ -323,18 +323,18 @@ def create_cover_page():
     <div class="logo-line"></div>
 
     <div class="meta">
-        <strong>Phiên bản:</strong> 3.0<br>
-        <strong>Ngày cập nhật:</strong> 24/02/2026<br>
+        <strong>Phiên bản:</strong> 4.0<br>
+        <strong>Ngày cập nhật:</strong> 04/03/2026<br>
         <strong>Loại tài liệu:</strong> Nội bộ &mdash; Chuyển giao hệ thống<br>
         <strong>Kiến trúc:</strong> NestJS + Next.js 14 + PostgreSQL + Redis<br>
     </div>
 
     <div class="badge-row">
-        <span class="badge">65+ Phân hệ</span>
-        <span class="badge">95+ Mô hình</span>
-        <span class="badge">7 Máy trạng thái</span>
+        <span class="badge">64 Phân hệ</span>
+        <span class="badge">142 Mô hình</span>
+        <span class="badge">9 Máy trạng thái</span>
         <span class="badge">22 Vai trò</span>
-        <span class="badge">350+ Điểm cuối API</span>
+        <span class="badge">603+ Điểm cuối API</span>
     </div>
 </div>
 """
@@ -411,7 +411,7 @@ def main():
     {html_body}
     </div>
     <div class="doc-footer">
-        TÀI LIỆU HỆ THỐNG ERP &mdash; v3.0 &mdash; 24/02/2026 &mdash; Tạo tự động từ phân tích mã nguồn
+        TÀI LIỆU HỆ THỐNG ERP &mdash; v4.0 &mdash; 04/03/2026 &mdash; Tạo tự động từ phân tích mã nguồn
     </div>
 </body>
 </html>

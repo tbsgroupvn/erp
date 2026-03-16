@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+/* Fonts loaded via next/font/google (self-hosted at build time, no runtime Google requests) */
 
 @tailwind base;
 @tailwind components;
@@ -27,11 +27,11 @@
     --input: 214 32% 91%;
     --ring: 217 91% 60%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 100%;
+    --sidebar-background: 220 60% 98%;
     --sidebar-foreground: 217 33% 35%;
     --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 91% 95%;
+    --sidebar-accent: 217 91% 93%;
     --sidebar-accent-foreground: 217 91% 20%;
     --sidebar-border: 214 32% 91%;
     --sidebar-ring: 217 91% 60%;
@@ -83,11 +83,17 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground font-sans;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-heading;
   }
 
@@ -106,7 +112,10 @@
     html {
       scroll-behavior: auto;
     }
-    *, *::before, *::after {
+
+    *,
+    *::before,
+    *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
@@ -120,12 +129,18 @@
       outline: 2px solid LinkText;
       outline-offset: 2px;
     }
-    button, [role="button"] {
+
+    button,
+    [role="button"] {
       border: 1px solid ButtonText;
     }
-    input, textarea, select {
+
+    input,
+    textarea,
+    select {
       border: 1px solid ButtonText;
     }
+
     a {
       text-decoration: underline;
     }
@@ -133,10 +148,17 @@
 }
 
 @layer utilities {
+
   /* Grid background effect */
   .bg-grid-white {
     background-image: linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-                      linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  }
+
+  /* Subtle dot pattern for content areas */
+  .bg-dot-pattern {
+    background-image: radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px);
+    background-size: 24px 24px;
   }
 
   /* Hover effects */
@@ -159,7 +181,56 @@
 
   /* Card hover effect */
   .card-hover {
-    @apply transition-all duration-300 hover:-translate-y-2 hover:shadow-xl;
+    transition: all 0.2s ease;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Colored left-border accent for stat cards */
+  .stat-card-blue {
+    border-left: 4px solid hsl(217, 91%, 60%);
+  }
+
+  .stat-card-emerald {
+    border-left: 4px solid hsl(160, 84%, 39%);
+  }
+
+  .stat-card-amber {
+    border-left: 4px solid hsl(38, 92%, 50%);
+  }
+
+  .stat-card-rose {
+    border-left: 4px solid hsl(350, 89%, 60%);
+  }
+
+  .stat-card-violet {
+    border-left: 4px solid hsl(263, 70%, 50%);
+  }
+
+  .stat-card-cyan {
+    border-left: 4px solid hsl(192, 91%, 36%);
+  }
+
+  /* Section card with subtle header gradient */
+  .section-card {
+    @apply rounded-xl border bg-card shadow-sm overflow-hidden;
+  }
+
+  .section-card-header {
+    @apply px-6 py-4 border-b bg-gradient-to-r from-muted/60 to-transparent;
+  }
+
+  /* Active sidebar indicator */
+  .sidebar-active-indicator {
+    @apply relative;
+  }
+
+  .sidebar-active-indicator::before {
+    content: '';
+    @apply absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r-full bg-primary;
   }
 
   /* Loading states - dark mode aware */
@@ -188,12 +259,111 @@
   }
 
   @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 1;
     }
+
     50% {
       opacity: 0.8;
     }
+  }
+
+  /* ─── Page & element transition animations ─── */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out both;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out both;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-down {
+    animation: slideDown 0.3s ease-out both;
+  }
+
+  /* Stagger children — apply to parent, each child uses nth-child delay */
+  .stagger-children>*:nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  .stagger-children>*:nth-child(2) {
+    animation-delay: 60ms;
+  }
+
+  .stagger-children>*:nth-child(3) {
+    animation-delay: 120ms;
+  }
+
+  .stagger-children>*:nth-child(4) {
+    animation-delay: 180ms;
+  }
+
+  .stagger-children>*:nth-child(5) {
+    animation-delay: 240ms;
+  }
+
+  .stagger-children>*:nth-child(6) {
+    animation-delay: 300ms;
+  }
+
+  /* ─── Enhanced skeleton shimmer ─── */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent 25%, rgba(0, 0, 0, 0.04) 50%, transparent 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* ─── Tabular numeric font ─── */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 
   /* Scrollbar styling - dark mode aware */

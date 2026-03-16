@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { DocumentEntityType, Prisma } from '@prisma/client';
@@ -16,12 +12,26 @@ export class DocumentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
+
+  /**
+   * Validate storage key to prevent path traversal attacks.
+   */
+  private validateStorageKey(key: string): void {
+    if (!key || /[\/\\]|\.\./.test(key)) {
+      throw new BadRequestException('Invalid storage key: path traversal characters not allowed');
+    }
+    if (!/^[a-zA-Z0-9\-_.]+$/.test(key)) {
+      throw new BadRequestException('Invalid storage key format');
+    }
+  }
 
   /**
    * Uploads a document (stores metadata).
    */
   async upload(userId: string, dto: UploadDocumentDto) {
+    this.validateStorageKey(dto.storageKey);
+
     const document = await this.prisma.document.create({
       data: {
         name: dto.name,
@@ -179,9 +189,7 @@ export class DocumentService {
     const packageIds = order.packages.map((p) => p.id);
 
     // Build OR conditions for all related entities
-    const orConditions: any[] = [
-      { entityType: 'ORDER' as DocumentEntityType, entityId: orderId },
-    ];
+    const orConditions: any[] = [{ entityType: 'ORDER' as DocumentEntityType, entityId: orderId }];
 
     if (packageIds.length > 0) {
       orConditions.push({
@@ -227,9 +235,7 @@ export class DocumentService {
       grouped[category].push(doc);
     }
 
-    this.logger.log(
-      `Order document hub for ${order.code}: ${documents.length} documents found`,
-    );
+    this.logger.log(`Order document hub for ${order.code}: ${documents.length} documents found`);
 
     return {
       orderId,
@@ -242,13 +248,18 @@ export class DocumentService {
   /**
    * Adds a new version of a document.
    */
-  async addVersion(id: string, dto: {
-    fileName: string;
-    fileSize: number;
-    mimeType: string;
-    storageKey: string;
-    uploadedBy: string;
-  }) {
+  async addVersion(
+    id: string,
+    dto: {
+      fileName: string;
+      fileSize: number;
+      mimeType: string;
+      storageKey: string;
+      uploadedBy: string;
+    },
+  ) {
+    this.validateStorageKey(dto.storageKey);
+
     const document = await this.findById(id);
 
     // Preserve current version info before overwriting
@@ -275,9 +286,7 @@ export class DocumentService {
       },
     });
 
-    this.logger.log(
-      `Document ${document.name} updated to version ${updated.version}`,
-    );
+    this.logger.log(`Document ${document.name} updated to version ${updated.version}`);
 
     return updated;
   }

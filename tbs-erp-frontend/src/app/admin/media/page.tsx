@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { mediaApi, Media } from '@/lib/api/cms';
+import { mediaApi, Media, MediaFilters } from '@/lib/api/cms';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,7 @@ export default function MediaLibraryPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['media', { type, folder, search }],
     queryFn: () => mediaApi.list({
-      type: (type && type !== 'all') ? type as any : undefined,
+      type: (type && type !== 'all') ? type as MediaFilters['type'] : undefined,
       folder: folder || undefined,
       search: search || undefined
     }),
@@ -63,7 +63,7 @@ export default function MediaLibraryPage() {
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     uploadMutation.mutate(acceptedFiles);
-  }, [folder]);
+  }, [uploadMutation]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -182,6 +182,8 @@ export default function MediaLibraryPage() {
             {data?.data.data.map((media: Media) => (
               <div
                 key={media.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => {
                   if (selected.includes(media.id)) {
                     setSelected(selected.filter(id => id !== media.id));
@@ -189,6 +191,7 @@ export default function MediaLibraryPage() {
                     setSelected([...selected, media.id]);
                   }
                 }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (selected.includes(media.id)) { setSelected(selected.filter(id => id !== media.id)); } else { setSelected([...selected, media.id]); } } }}
                 className={`
                   relative group cursor-pointer rounded-lg border-2 overflow-hidden
                   transition-all hover:border-primary
@@ -225,6 +228,8 @@ export default function MediaLibraryPage() {
             {data?.data.data.map((media: Media) => (
               <div
                 key={media.id}
+                role="button"
+                tabIndex={0}
                 className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 cursor-pointer"
                 onClick={() => {
                   if (selected.includes(media.id)) {
@@ -233,6 +238,7 @@ export default function MediaLibraryPage() {
                     setSelected([...selected, media.id]);
                   }
                 }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (selected.includes(media.id)) { setSelected(selected.filter(id => id !== media.id)); } else { setSelected([...selected, media.id]); } } }}
               >
                 <input
                   type="checkbox"

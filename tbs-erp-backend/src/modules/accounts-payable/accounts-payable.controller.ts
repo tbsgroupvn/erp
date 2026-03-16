@@ -1,20 +1,9 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginated } from '@common/decorators/api-paginated.decorator';
 import { BaseResponse } from '@common/dto/base-response.dto';
@@ -24,22 +13,21 @@ import { ApQueryDto } from './dto/ap-query.dto';
 
 @ApiTags('Finance - Accounts Payable')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('ap')
 export class AccountsPayableController {
   constructor(private readonly apService: AccountsPayableService) {}
 
   @Post()
+  @Roles(UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT_COST, UserRole.CFO)
   @ApiOperation({ summary: 'Create a new accounts payable record' })
-  async create(
-    @Body() dto: CreateApDto,
-    @CurrentUser('id') userId: string,
-  ) {
+  async create(@Body() dto: CreateApDto, @CurrentUser('id') userId: string) {
     const ap = await this.apService.createPayable(dto, userId);
     return BaseResponse.ok(ap, 'Accounts payable created successfully');
   }
 
   @Get()
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT_COST)
   @ApiOperation({ summary: 'List accounts payable with pagination' })
   @ApiPaginated()
   async findAll(@Query() query: ApQueryDto) {
@@ -47,6 +35,7 @@ export class AccountsPayableController {
   }
 
   @Get('summary')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT_COST)
   @ApiOperation({ summary: 'Get AP summary (total open, overdue)' })
   async getSummary() {
     const summary = await this.apService.getSummary();
@@ -54,6 +43,7 @@ export class AccountsPayableController {
   }
 
   @Get('by-vendor/:vendorId')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT_COST)
   @ApiOperation({ summary: 'Get all payables for a vendor' })
   @ApiParam({ name: 'vendorId', description: 'Vendor ID' })
   async getByVendor(@Param('vendorId') vendorId: string) {
@@ -62,6 +52,7 @@ export class AccountsPayableController {
   }
 
   @Get(':id')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT_COST)
   @ApiOperation({ summary: 'Get a single AP record by ID' })
   @ApiParam({ name: 'id', description: 'AP record ID' })
   async findOne(@Param('id') id: string) {
@@ -70,18 +61,14 @@ export class AccountsPayableController {
   }
 
   @Patch(':id/payment')
+  @Roles(UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT_COST, UserRole.CFO)
   @ApiOperation({ summary: 'Record a payment against an AP record' })
   @ApiParam({ name: 'id', description: 'AP record ID' })
   async recordPayment(
     @Param('id') id: string,
     @Body() body: { amount: number; reference?: string; note?: string },
   ) {
-    const ap = await this.apService.recordPayment(
-      id,
-      body.amount,
-      body.reference,
-      body.note,
-    );
+    const ap = await this.apService.recordPayment(id, body.amount, body.reference, body.note);
     return BaseResponse.ok(ap, 'Payment recorded successfully');
   }
 }

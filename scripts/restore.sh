@@ -18,6 +18,7 @@
 #   POSTGRES_USER     - Database user (default: postgres)
 #   PGPASSWORD        - Database password (must be set)
 #   BACKEND_SERVICE   - Docker service name for backend (default: backend)
+#   GPG_PASSPHRASE_FILE - Path to GPG passphrase file for decryption (required for .gpg backups)
 # ============================================
 
 set -euo pipefail
@@ -164,11 +165,26 @@ stop_backend_services() {
 restore_database() {
   local work_file="$BACKUP_FILE"
 
+  # Decrypt GPG-encrypted backup if needed
+  if [[ "$BACKUP_FILE" == *.gpg ]]; then
+    if [ -z "${GPG_PASSPHRASE_FILE:-}" ] || [ ! -f "${GPG_PASSPHRASE_FILE:-}" ]; then
+      log_error "Backup is GPG-encrypted but GPG_PASSPHRASE_FILE is not set or file not found."
+      exit 1
+    fi
+    log_info "Decrypting GPG-encrypted backup..."
+    local decrypted_file="${BACKUP_FILE%.gpg}"
+    gpg --batch --yes --decrypt \
+        --passphrase-file "$GPG_PASSPHRASE_FILE" \
+        -o "$decrypted_file" \
+        "$BACKUP_FILE"
+    work_file="$decrypted_file"
+  fi
+
   # Decompress if needed
-  if [[ "$BACKUP_FILE" == *.gz ]]; then
+  if [[ "$work_file" == *.gz ]]; then
     log_info "Decompressing backup..."
-    local decompressed_file="${BACKUP_FILE%.gz}"
-    gunzip -k -f "$BACKUP_FILE"
+    local decompressed_file="${work_file%.gz}"
+    gunzip -k -f "$work_file"
     work_file="$decompressed_file"
   fi
 
@@ -197,8 +213,15 @@ restore_database() {
       log_warn "pg_restore completed with warnings (this is often normal)."
     }
 
-  # Clean up decompressed file if we created one
-  if [[ "$BACKUP_FILE" == *.gz ]] && [ -f "${BACKUP_FILE%.gz}" ]; then
+  # Clean up intermediate files
+  if [[ "$BACKUP_FILE" == *.gpg ]] && [ -f "${BACKUP_FILE%.gpg}" ]; then
+    rm -f "${BACKUP_FILE%.gpg}"
+    # Also clean decompressed if it was .gz.gpg
+    local base="${BACKUP_FILE%.gpg}"
+    if [[ "$base" == *.gz ]] && [ -f "${base%.gz}" ]; then
+      rm -f "${base%.gz}"
+    fi
+  elif [[ "$BACKUP_FILE" == *.gz ]] && [ -f "${BACKUP_FILE%.gz}" ]; then
     rm -f "${BACKUP_FILE%.gz}"
   fi
 

@@ -1,9 +1,10 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { blogPostsApi, blogCategoriesApi } from '@/lib/api/cms';
+import { blogPostsApi, blogCategoriesApi, BlogCategory } from '@/lib/api/cms';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,18 +64,18 @@ export default function NewBlogPostPage() {
       queryClient.invalidateQueries({ queryKey: ['blog-posts'] });
       router.push('/admin/blog/posts');
     },
-    onError: (error: any) => {
+    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
       toast.error(error?.response?.data?.message || 'Không thể tạo bài viết');
     },
   });
 
   const categories = categoriesData?.data?.data || [];
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: string, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
 
     // Auto-generate slug from title
-    if (field === 'title' && !formData.slug) {
+    if (field === 'title' && !formData.slug && typeof value === 'string') {
       const slug = value
         .toLowerCase()
         .normalize('NFD')
@@ -121,7 +122,7 @@ export default function NewBlogPostPage() {
     });
   };
 
-  const selectedCategory = categories.find((cat: any) => cat.id === formData.categoryId);
+  const selectedCategory = categories.find((cat: BlogCategory) => cat.id === formData.categoryId);
 
   return (
     <>
@@ -143,10 +144,13 @@ export default function NewBlogPostPage() {
             {/* Featured Image */}
             {formData.featuredImage && (
               <div className="aspect-video bg-slate-100 rounded-lg overflow-hidden">
-                <img
+                <Image
                   src={formData.featuredImage}
                   alt={formData.title}
+                  width={800}
+                  height={450}
                   className="w-full h-full object-cover"
+                  unoptimized
                 />
               </div>
             )}
@@ -406,10 +410,13 @@ Hỗ trợ Markdown:
             <CardContent className="space-y-4">
               {formData.featuredImage ? (
                 <div className="relative aspect-video bg-slate-100 rounded-lg overflow-hidden">
-                  <img
+                  <Image
                     src={formData.featuredImage}
                     alt="Featured"
+                    width={800}
+                    height={450}
                     className="w-full h-full object-cover"
+                    unoptimized
                   />
                   <button
                     onClick={() => handleChange('featuredImage', '')}
@@ -468,7 +475,7 @@ Hỗ trợ Markdown:
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Không có danh mục</SelectItem>
-                  {categories.map((cat: any) => (
+                  {categories.map((cat: BlogCategory) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       {cat.name}
                     </SelectItem>
@@ -493,7 +500,7 @@ Hỗ trợ Markdown:
             <CardContent>
               <Select
                 value={formData.status}
-                onValueChange={(value: any) => handleChange('status', value)}
+                onValueChange={(value: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED') => handleChange('status', value)}
               >
                 <SelectTrigger>
                   <SelectValue />

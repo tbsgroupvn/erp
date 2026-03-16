@@ -1,11 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsDateString,
-} from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsDateString } from 'class-validator';
 import { TrackingEventType } from '@prisma/client';
 
 // Re-export for convenience

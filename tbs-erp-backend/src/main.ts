@@ -14,8 +14,11 @@ import { TransformInterceptor } from '@common/interceptors/transform.interceptor
 import { LoggingInterceptor } from '@common/interceptors/logging.interceptor';
 import { MetricsInterceptor } from '@common/interceptors/metrics.interceptor';
 import { PerformanceInterceptor } from '@common/interceptors/performance.interceptor';
+import { AuditLogInterceptor } from '@common/interceptors/audit-log.interceptor';
 import { MetricsService } from '@core/metrics/metrics.service';
 import { ElkLoggerService } from '@core/logger/elk-logger.service';
+import { PrismaService } from '@core/database/prisma.service';
+import { RedisIoAdapter } from '@core/websocket/redis-io.adapter';
 import { initSentry } from '@config/sentry.config';
 import * as compression from 'compression';
 import { getCompressionOptions } from '@common/middleware/compression.middleware';
@@ -50,8 +53,12 @@ async function bootstrap() {
   // CORS
   const corsOrigins = configService.get<string[]>('app.corsOrigins');
   app.enableCors({
-    origin: corsOrigins,
+    origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : false,
     credentials: true, // Required for cookies to be sent cross-origin
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Request-ID'],
+    exposedHeaders: ['X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+    maxAge: 86400, // 24h preflight cache
   });
 
   // Global pipes
@@ -60,20 +67,22 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      transformOptions: { enableImplicitConversion: true },
+      transformOptions: { enableImplicitConversion: false },
     }),
   );
 
   // Global filters
   app.useGlobalFilters(new HttpExceptionFilter(), new PrismaExceptionFilter());
 
-  // Global interceptors (MetricsInterceptor and PerformanceInterceptor require DI)
+  // Global interceptors (MetricsInterceptor, PerformanceInterceptor, AuditLogInterceptor require DI)
   const metricsService = app.get(MetricsService);
+  const prismaService = app.get(PrismaService);
   app.useGlobalInterceptors(
     new TransformInterceptor(),
     new LoggingInterceptor(),
     new MetricsInterceptor(metricsService),
     new PerformanceInterceptor(metricsService),
+    new AuditLogInterceptor(prismaService),
   );
 
   // Use structured ELK logger if enabled (falls back to console internally)
@@ -84,7 +93,8 @@ async function bootstrap() {
   const appTitle = configService.get<string>('branding.appTitle') || 'ERP System';
   const swaggerConfig = new DocumentBuilder()
     .setTitle(`${appTitle} API`)
-    .setDescription(`
+    .setDescription(
+      `
 ## ${appTitle} API
 
 ### Authentication
@@ -104,7 +114,8 @@ All endpoints require Bearer token authentication unless marked as public.
 - 409: Conflict - Duplicate resource
 - 429: Too Many Requests - Rate limit exceeded
 - 500: Internal Server Error
-    `)
+    `,
+    )
     .setVersion('1.0.0')
     .addBearerAuth({
       type: 'http',
@@ -133,7 +144,7 @@ All endpoints require Bearer token authentication unless marked as public.
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  if (configService.get<string>('app.env') !== 'production') {
+  if (!['production', 'staging'].includes(configService.get<string>('app.env', 'development'))) {
     SwaggerModule.setup('api/v1/docs', app, document, {
       swaggerOptions: {
         persistAuthorization: true,
@@ -144,7 +155,27 @@ All endpoints require Bearer token authentication unless marked as public.
     });
   }
 
-  // Health check
+  // Graceful shutdown — ensures in-flight requests complete before Docker kills the process
+  app.enableShutdownHooks();
+
+  // WebSocket Redis adapter for horizontal scaling across multiple backend instances.
+  // Falls back gracefully to in-memory adapter when @socket.io/redis-adapter is not
+  // installed (development without Redis pub/sub) or when Redis is unreachable.
+  // To enable: npm install @socket.io/redis-adapter  (redis is already in package.json)
+  const redisIoAdapter = new RedisIoAdapter(app);
+  try {
+    await redisIoAdapter.connectToRedis();
+    app.useWebSocketAdapter(redisIoAdapter);
+  } catch (err) {
+    const logger = new Logger('Bootstrap');
+    logger.warn(
+      `Redis IO adapter failed to connect (${err.message}). ` +
+      'Falling back to default in-memory WebSocket adapter. ' +
+      'Run: npm install @socket.io/redis-adapter to enable horizontal scaling.',
+    );
+    // The default in-memory adapter is used automatically when useWebSocketAdapter is not called.
+  }
+
   const port = configService.get<number>('app.port') || 3000;
   await app.listen(port);
 
@@ -152,7 +183,7 @@ All endpoints require Bearer token authentication unless marked as public.
   logger.log(`${appTitle} Backend running on http://localhost:${port}`);
   logger.log(`GraphQL endpoint: http://localhost:${port}/graphql`);
   logger.log(`WebSocket endpoint: ws://localhost:${port}/ws`);
-  if (configService.get<string>('app.env') !== 'production') {
+  if (!['production', 'staging'].includes(configService.get<string>('app.env', 'development'))) {
     logger.log(`Swagger docs: http://localhost:${port}/api/v1/docs`);
     logger.log(`GraphQL Playground: http://localhost:${port}/graphql`);
     logger.log(`Bull Board: http://localhost:${port}/admin/queues`);

@@ -18,8 +18,33 @@ import { PrismaService } from '@core/database/prisma.service';
  */
 const CUD_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
-const SENSITIVE_FIELDS = ['password', 'currentPassword', 'newPassword', 'passwordHash', 'token', 'refreshToken', 'resetToken', 'apiKey', 'clientSecret', 'secret', 'accessToken', 'creditCard', 'cardNumber', 'cvv', 'bankAccount', 'taxId', 'insuranceId', 'twoFactorSecret'];
-const EXCLUDED_PATHS = ['/auth/login', '/auth/register', '/auth/change-password', '/auth/reset-password', '/auth/forgot-password'];
+const SENSITIVE_FIELDS = [
+  'password',
+  'currentPassword',
+  'newPassword',
+  'passwordHash',
+  'token',
+  'refreshToken',
+  'resetToken',
+  'apiKey',
+  'clientSecret',
+  'secret',
+  'accessToken',
+  'creditCard',
+  'cardNumber',
+  'cvv',
+  'bankAccount',
+  'taxId',
+  'insuranceId',
+  'twoFactorSecret',
+];
+const EXCLUDED_PATHS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/change-password',
+  '/auth/reset-password',
+  '/auth/forgot-password',
+];
 
 /**
  * Maps HTTP methods to audit log action strings.
@@ -51,9 +76,7 @@ function extractEntityFromUrl(url: string): string {
 
   // Skip common prefixes like 'api', 'v1', etc.
   const prefixes = new Set(['api', 'v1', 'v2']);
-  const resourceSegments = segments.filter(
-    (s) => !prefixes.has(s.toLowerCase()),
-  );
+  const resourceSegments = segments.filter((s) => !prefixes.has(s.toLowerCase()));
 
   if (resourceSegments.length === 0) {
     return 'Unknown';
@@ -83,9 +106,7 @@ function extractEntityIdFromUrl(url: string): string | undefined {
   const path = url.split('?')[0];
   const segments = path.split('/').filter(Boolean);
   const prefixes = new Set(['api', 'v1', 'v2']);
-  const resourceSegments = segments.filter(
-    (s) => !prefixes.has(s.toLowerCase()),
-  );
+  const resourceSegments = segments.filter((s) => !prefixes.has(s.toLowerCase()));
 
   // The ID is typically the second segment: /orders/:id
   if (resourceSegments.length >= 2) {
@@ -150,15 +171,12 @@ export class AuditLogInterceptor implements NestInterceptor {
         next: async (responseData) => {
           try {
             // For delete operations, the response may contain the deleted record
-            const oldData =
-              method.toUpperCase() === 'DELETE' ? responseData : null;
+            const oldData = method.toUpperCase() === 'DELETE' ? responseData : null;
 
             // Determine the actual entity ID from the response if not in URL
             const resolvedEntityId =
               entityId ||
-              (responseData &&
-              typeof responseData === 'object' &&
-              'id' in responseData
+              (responseData && typeof responseData === 'object' && 'id' in responseData
                 ? String((responseData as { id: unknown }).id)
                 : undefined);
 
@@ -184,10 +202,7 @@ export class AuditLogInterceptor implements NestInterceptor {
             });
           } catch (error) {
             // Audit logging failures should not break the main request
-            this.logger.error(
-              `Failed to create audit log: ${error.message}`,
-              error.stack,
-            );
+            this.logger.error(`Failed to create audit log: ${error.message}`, error.stack);
           }
         },
         error: () => {

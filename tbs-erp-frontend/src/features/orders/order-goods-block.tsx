@@ -1,5 +1,6 @@
 'use client';
 
+import NextImage from 'next/image';
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -13,11 +14,48 @@ import {
   SUPPLIER_ORDER_STATUS_COLORS,
 } from '@/lib/utils/constants';
 import { formatCurrency, formatWeight } from '@/lib/utils/format';
-import type { OrderStatus, ServiceType, ClearanceType } from '@/lib/types';
+import { InfoTooltip } from '@/components/shared/info-tooltip';
+import type { OrderStatus, ServiceType, ClearanceType, MasterOrder, OrderItem } from '@/lib/types';
 import type { SupplierOrderStatus } from '@/lib/types/enums';
+import type { Currency } from '@/lib/types/enums';
+import type { SupplierOrder } from '@/lib/types';
+
+interface QCPhoto {
+  url?: string;
+  thumbnailUrl?: string;
+}
+
+interface PackageSummary {
+  id: string;
+  code?: string;
+  trackingNumber?: string;
+  cnWeight?: number;
+  weightCN?: number;
+  vnWeight?: number;
+  weightVN?: number;
+  status?: string;
+}
+
+interface SubOrderWithRelations {
+  id: string;
+  code: string;
+  status: string;
+  serviceType: string;
+  clearanceType: string;
+  totalAmount: number;
+  currency: Currency;
+  items?: OrderItem[];
+  packages?: PackageSummary[];
+  qcPhotos?: (QCPhoto | string)[];
+  supplierOrders?: SupplierOrder[];
+}
+
+interface MasterOrderWithGoods extends Omit<MasterOrder, 'subOrders'> {
+  subOrders: SubOrderWithRelations[];
+}
 
 interface OrderGoodsBlockProps {
-  order: any;
+  order: MasterOrderWithGoods;
 }
 
 export function OrderGoodsBlock({ order }: OrderGoodsBlockProps) {
@@ -26,7 +64,7 @@ export function OrderGoodsBlock({ order }: OrderGoodsBlockProps) {
   return (
     <div className="space-y-6">
       {/* Sub Orders with items */}
-      {order.subOrders?.map((subOrder: any) => {
+      {order.subOrders?.map((subOrder: SubOrderWithRelations) => {
         const isExpanded = expandedSubOrder === subOrder.id;
         const subStatus = subOrder.status as OrderStatus;
         const clearance = subOrder.clearanceType as ClearanceType;
@@ -66,25 +104,25 @@ export function OrderGoodsBlock({ order }: OrderGoodsBlockProps) {
                 {/* Items Table */}
                 {subOrder.items && subOrder.items.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-semibold mb-2">Hang hoa ({subOrder.items.length})</h4>
+                    <h4 className="text-sm font-semibold mb-2">Hàng hóa ({subOrder.items.length})</h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b text-left text-muted-foreground">
-                            <th className="pb-2 font-medium">San pham</th>
+                            <th className="pb-2 font-medium">Sản phẩm</th>
                             <th className="pb-2 font-medium text-center">SL</th>
-                            <th className="pb-2 font-medium text-right">Don gia</th>
-                            <th className="pb-2 font-medium text-right">Thanh tien</th>
+                            <th className="pb-2 font-medium text-right">Đơn giá</th>
+                            <th className="pb-2 font-medium text-right">Thành tiền</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {subOrder.items.map((item: any) => (
+                          {subOrder.items.map((item: OrderItem) => (
                             <tr key={item.id} className="border-b">
                               <td className="py-2">
                                 <p>{item.productName}</p>
                                 {item.productUrl && (
                                   <a href={item.productUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">
-                                    Link san pham
+                                    Link sản phẩm
                                   </a>
                                 )}
                               </td>
@@ -102,20 +140,33 @@ export function OrderGoodsBlock({ order }: OrderGoodsBlockProps) {
                 {/* Packages Table */}
                 {subOrder.packages && subOrder.packages.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-semibold mb-2">Kien hang ({subOrder.packages.length})</h4>
+                    <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+                      Kiện hàng ({subOrder.packages.length})
+                      <InfoTooltip tipKey="chargeable-weight" />
+                    </h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b text-left text-muted-foreground">
-                            <th className="pb-2 font-medium">Ma kien</th>
-                            <th className="pb-2 font-medium text-right">KL TQ (kg)</th>
-                            <th className="pb-2 font-medium text-right">KL VN (kg)</th>
-                            <th className="pb-2 font-medium text-right">Chenh lech</th>
-                            <th className="pb-2 font-medium">Trang thai</th>
+                            <th className="pb-2 font-medium">Mã kiện</th>
+                            <th className="pb-2 font-medium text-right">
+                              <span className="inline-flex items-center justify-end gap-1">
+                                KL TQ (kg)
+                                <InfoTooltip tipKey="cn-weight" />
+                              </span>
+                            </th>
+                            <th className="pb-2 font-medium text-right">
+                              <span className="inline-flex items-center justify-end gap-1">
+                                KL VN (kg)
+                                <InfoTooltip tipKey="vn-weight" />
+                              </span>
+                            </th>
+                            <th className="pb-2 font-medium text-right">Chênh lệch</th>
+                            <th className="pb-2 font-medium">Trạng thái</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {subOrder.packages.map((pkg: any) => {
+                          {subOrder.packages.map((pkg: PackageSummary) => {
                             const cnWeight = pkg.cnWeight ?? pkg.weightCN ?? 0;
                             const vnWeight = pkg.vnWeight ?? pkg.weightVN ?? 0;
                             const variance = cnWeight > 0 ? ((vnWeight - cnWeight) / cnWeight * 100) : 0;
@@ -148,21 +199,24 @@ export function OrderGoodsBlock({ order }: OrderGoodsBlockProps) {
                   <div>
                     <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
                       <ImageIcon className="h-4 w-4" />
-                      Anh QC ({subOrder.qcPhotos.length})
+                      Ảnh QC ({subOrder.qcPhotos.length})
                     </h4>
                     <div className="flex flex-wrap gap-2">
-                      {subOrder.qcPhotos.map((photo: any, idx: number) => (
+                      {subOrder.qcPhotos.map((photo: QCPhoto | string, idx: number) => (
                         <a
                           key={idx}
-                          href={photo.url || photo}
+                          href={typeof photo === 'string' ? photo : (photo.url ?? '')}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="block h-20 w-20 rounded-md border overflow-hidden hover:ring-2 hover:ring-primary transition-all"
                         >
-                          <img
-                            src={typeof photo === 'string' ? photo : photo.thumbnailUrl || photo.url}
+                          <NextImage
+                            src={typeof photo === 'string' ? photo : (photo.thumbnailUrl || photo.url || '')}
                             alt={`QC ${idx + 1}`}
+                            width={80}
+                            height={80}
                             className="h-full w-full object-cover"
+                            unoptimized
                           />
                         </a>
                       ))}
@@ -173,9 +227,12 @@ export function OrderGoodsBlock({ order }: OrderGoodsBlockProps) {
                 {/* Supplier Orders Summary */}
                 {subOrder.supplierOrders && subOrder.supplierOrders.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-semibold mb-2">Don dat NCC ({subOrder.supplierOrders.length})</h4>
+                    <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+                      Đơn đặt NCC ({subOrder.supplierOrders.length})
+                      <InfoTooltip tipKey="supplier-order" />
+                    </h4>
                     <div className="space-y-2">
-                      {subOrder.supplierOrders.map((so: any) => (
+                      {subOrder.supplierOrders.map((so: SupplierOrder) => (
                         <div key={so.id} className="flex items-center justify-between rounded-md border p-3">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{so.code}</span>
@@ -187,9 +244,9 @@ export function OrderGoodsBlock({ order }: OrderGoodsBlockProps) {
                           </div>
                           <span className="text-sm font-medium">
                             {so.actualPriceCNY != null
-                              ? formatCurrency(so.actualPriceCNY, 'CNY' as any)
+                              ? formatCurrency(so.actualPriceCNY, 'CNY')
                               : so.quotedPriceCNY != null
-                                ? formatCurrency(so.quotedPriceCNY, 'CNY' as any)
+                                ? formatCurrency(so.quotedPriceCNY, 'CNY')
                                 : '---'}
                           </span>
                         </div>
@@ -205,7 +262,7 @@ export function OrderGoodsBlock({ order }: OrderGoodsBlockProps) {
 
       {(!order.subOrders || order.subOrders.length === 0) && (
         <div className="rounded-lg border bg-card p-6 text-center">
-          <p className="text-sm text-muted-foreground">Chua co don con nao</p>
+          <p className="text-sm text-muted-foreground">Chưa có đơn con nào</p>
         </div>
       )}
     </div>

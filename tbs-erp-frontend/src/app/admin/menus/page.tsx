@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { menusApi, Menu, MenuItem } from '@/lib/api/cms';
+import { menusApi, Menu, MenuItem, CreateMenuDto, CreateMenuItemDto } from '@/lib/api/cms';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,7 +60,7 @@ export default function MenusPage() {
   });
 
   const createItemMutation = useMutation({
-    mutationFn: (data: any) => menusApi.createMenuItem(selectedMenuId!, data),
+    mutationFn: (data: CreateMenuItemDto) => menusApi.createMenuItem(selectedMenuId!, data),
     onSuccess: () => {
       toast.success('Đã thêm mục menu thành công');
       queryClient.invalidateQueries({ queryKey: ['menu', selectedMenuId] });
@@ -87,7 +87,7 @@ export default function MenusPage() {
   });
 
   const handleCreateMenu = () => {
-    createMenuMutation.mutate(newMenu as any);
+    createMenuMutation.mutate(newMenu as CreateMenuDto);
   };
 
   const handleCreateItem = () => {

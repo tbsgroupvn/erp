@@ -6,11 +6,7 @@ import { PurchaseEventListener } from './listeners/purchase-event.listener';
 
 @Module({
   controllers: [AccountsPayableController],
-  providers: [
-    AccountsPayableService,
-    AccountsPayableRepository,
-    PurchaseEventListener,
-  ],
+  providers: [AccountsPayableService, AccountsPayableRepository, PurchaseEventListener],
   exports: [AccountsPayableService, AccountsPayableRepository],
 })
 export class AccountsPayableModule {}

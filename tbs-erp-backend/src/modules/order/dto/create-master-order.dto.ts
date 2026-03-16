@@ -9,12 +9,7 @@ import {
   ArrayMinSize,
   ValidateNested,
 } from 'class-validator';
-import {
-  ServiceType,
-  ShippingRoute,
-  Branch,
-  ClearanceType,
-} from '@prisma/client';
+import { ServiceType, ShippingRoute, Branch, ClearanceType } from '@prisma/client';
 import { CreateOrderItemDto } from './create-order.dto';
 
 export class CreateSubOrderDto {

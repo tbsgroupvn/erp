@@ -14,14 +14,10 @@ export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
  * Short descriptions for each service type.
  */
 export const SERVICE_TYPE_DESCRIPTIONS: Record<ServiceType, string> = {
-  [ServiceType.VCT]:
-    'Dịch vụ vận chuyển hàng hóa từ Trung Quốc về Việt Nam',
-  [ServiceType.MHH]:
-    'Dịch vụ mua hàng hộ trên các sàn thương mại điện tử Trung Quốc',
-  [ServiceType.UTXNK]:
-    'Dịch vụ ủy thác xuất nhập khẩu, thông quan chính ngạch',
-  [ServiceType.LCLCN]:
-    'Dịch vụ vận chuyển hàng lẻ (LCL) chính ngạch có chứng từ đầy đủ',
+  [ServiceType.VCT]: 'Dịch vụ vận chuyển hàng hóa từ Trung Quốc về Việt Nam',
+  [ServiceType.MHH]: 'Dịch vụ mua hàng hộ trên các sàn thương mại điện tử Trung Quốc',
+  [ServiceType.UTXNK]: 'Dịch vụ ủy thác xuất nhập khẩu, thông quan chính ngạch',
+  [ServiceType.LCLCN]: 'Dịch vụ vận chuyển hàng lẻ (LCL) chính ngạch có chứng từ đầy đủ',
 };
 
 /**

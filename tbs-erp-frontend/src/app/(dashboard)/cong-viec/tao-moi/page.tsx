@@ -72,7 +72,7 @@ export default function TaoMoiCongViecPage() {
         <div className="rounded-lg border bg-card p-6 space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2 space-y-2">
-              <label className="text-sm font-medium">Tiêu đề *</label>
+              <p className="text-sm font-medium">Tiêu đề *</p>
               <input
                 {...register('title')}
                 placeholder="Nhập tiêu đề công việc"
@@ -83,7 +83,7 @@ export default function TaoMoiCongViecPage() {
               )}
             </div>
             <div className="sm:col-span-2 space-y-2">
-              <label className="text-sm font-medium">Mô tả</label>
+              <p className="text-sm font-medium">Mô tả</p>
               <textarea
                 {...register('description')}
                 rows={4}
@@ -92,7 +92,7 @@ export default function TaoMoiCongViecPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Người thực hiện *</label>
+              <p className="text-sm font-medium">Người thực hiện *</p>
               <input
                 {...register('assigneeId')}
                 placeholder="ID người thực hiện"
@@ -103,7 +103,7 @@ export default function TaoMoiCongViecPage() {
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Ưu tiên *</label>
+              <p className="text-sm font-medium">Ưu tiên *</p>
               <select
                 {...register('priority')}
                 className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -114,7 +114,7 @@ export default function TaoMoiCongViecPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Hạn hoàn thành</label>
+              <p className="text-sm font-medium">Hạn hoàn thành</p>
               <input
                 {...register('dueDate')}
                 type="date"
@@ -122,7 +122,7 @@ export default function TaoMoiCongViecPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tags</label>
+              <p className="text-sm font-medium">Tags</p>
               <input
                 {...register('tags')}
                 placeholder="tag1, tag2, tag3"

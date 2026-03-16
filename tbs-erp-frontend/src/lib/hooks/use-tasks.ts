@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { tasksApi } from '@/lib/api/tasks.api';
-import type { TaskQueryParams, CreateTaskDto, UpdateTaskDto } from '@/lib/types';
+import type { TaskQueryParams, CreateTaskDto, UpdateTaskDto, Task } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
 // Query key factory
@@ -16,6 +16,7 @@ export const taskKeys = {
   myList: (params?: TaskQueryParams) => [...taskKeys.myTasks(), params] as const,
   details: () => [...taskKeys.all, 'detail'] as const,
   detail: (id: string) => [...taskKeys.details(), id] as const,
+  overdue: () => [...taskKeys.all, 'overdue'] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -41,6 +42,13 @@ export function useTask(id: string) {
     queryKey: taskKeys.detail(id),
     queryFn: () => tasksApi.getById(id),
     enabled: !!id,
+  });
+}
+
+export function useOverdueTasks() {
+  return useQuery({
+    queryKey: taskKeys.overdue(),
+    queryFn: () => tasksApi.getOverdue(),
   });
 }
 
@@ -71,6 +79,7 @@ export function useUpdateTask() {
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: taskKeys.detail(id) });
       qc.invalidateQueries({ queryKey: taskKeys.lists() });
+      qc.invalidateQueries({ queryKey: taskKeys.myTasks() });
       toast.success('Cập nhật công việc thành công');
     },
     onError: () => {
@@ -107,6 +116,53 @@ export function useAddComment() {
     },
     onError: () => {
       toast.error('Không thể thêm bình luận');
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Optimistic status update (for Kanban drag & drop)
+// ---------------------------------------------------------------------------
+
+export function useOptimisticTaskStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      tasksApi.changeStatus(id, status),
+    onMutate: async ({ id, status }) => {
+      // Cancel any in-flight queries
+      await qc.cancelQueries({ queryKey: taskKeys.lists() });
+
+      // Snapshot all list queries
+      const previousData = qc.getQueriesData<{ data: Task[] }>({ queryKey: taskKeys.lists() });
+
+      // Optimistically update every cached list
+      qc.setQueriesData<{ data: Task[]; meta?: unknown }>(
+        { queryKey: taskKeys.lists() },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.map((t) =>
+              t.id === id ? { ...t, status: status as Task['status'] } : t,
+            ),
+          };
+        },
+      );
+
+      return { previousData };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousData) {
+        context.previousData.forEach(([key, value]) => {
+          qc.setQueryData(key, value);
+        });
+      }
+      toast.error('Không thể cập nhật trạng thái');
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: taskKeys.lists() });
+      qc.invalidateQueries({ queryKey: taskKeys.myTasks() });
     },
   });
 }

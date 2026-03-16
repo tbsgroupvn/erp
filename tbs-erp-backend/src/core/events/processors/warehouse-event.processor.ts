@@ -2,11 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  DomainEvent,
-  DomainEventType,
-  PackageReceivedPayload,
-} from '../domain-events';
+import { DomainEvent, DomainEventType, PackageReceivedPayload } from '../domain-events';
 
 /**
  * Processes warehouse-related domain events from the 'warehouse-events' queue.
@@ -31,7 +27,7 @@ export class WarehouseEventProcessor extends WorkerHost {
     const event = job.data;
     this.logger.log(
       `Processing ${event.type} (jobId: ${job.id}, ` +
-      `correlationId: ${event.metadata.correlationId})`,
+        `correlationId: ${event.metadata.correlationId})`,
     );
 
     switch (event.type) {
@@ -74,9 +70,7 @@ export class WarehouseEventProcessor extends WorkerHost {
    * 2. Notify sales person
    * 3. Update dashboard warehouse stats
    */
-  private async handlePackageReceivedCN(
-    event: DomainEvent<PackageReceivedPayload>,
-  ): Promise<void> {
+  private async handlePackageReceivedCN(event: DomainEvent<PackageReceivedPayload>): Promise<void> {
     const { packageId, trackingCode, orderId, weight } = event.payload;
 
     this.logger.log(`Package received at CN warehouse: ${trackingCode} (order: ${orderId})`);
@@ -155,9 +149,7 @@ export class WarehouseEventProcessor extends WorkerHost {
    * 2. Notify customer
    * 3. Dashboard update
    */
-  private async handlePackageReceivedVN(
-    event: DomainEvent<PackageReceivedPayload>,
-  ): Promise<void> {
+  private async handlePackageReceivedVN(event: DomainEvent<PackageReceivedPayload>): Promise<void> {
     const { packageId, trackingCode, orderId, weight } = event.payload;
 
     this.logger.log(`Package received at VN warehouse: ${trackingCode} (order: ${orderId})`);

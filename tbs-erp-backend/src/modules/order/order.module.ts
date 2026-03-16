@@ -3,6 +3,8 @@ import { OrderController } from './order.controller';
 import { MasterOrderController } from './master-order.controller';
 import { ServiceFeeConfigController } from './service-fee-config.controller';
 import { OrderService } from './order.service';
+import { OrderStatusService } from './order-status.service';
+import { OrderCancellationService } from './order-cancellation.service';
 import { MasterOrderService } from './master-order.service';
 import { OrderRepository } from './order.repository';
 import { MasterOrderRepository } from './master-order.repository';
@@ -14,19 +16,31 @@ import { MHHPriceCalculatorService } from './domain/mhh-price-calculator.service
 import { MHHIssueService } from './domain/mhh-issue.service';
 import { ExtraChargeService } from './domain/extra-charge.service';
 import { ThreeWayMatchingService } from './domain/three-way-matching.service';
+import { PenaltyCalculatorService } from './domain/penalty-calculator.service';
+import { ReturnRequestService } from './domain/return-request.service';
 import { PaymentReceivedListener } from './listeners/payment-received.listener';
 import { WarehouseUpdatedListener } from './listeners/warehouse-updated.listener';
+import { CancelApprovalListener } from './listeners/cancel-approval.listener';
+import { ReturnApprovalListener } from './listeners/return-approval.listener';
+import { ExtraChargeApprovalListener } from './listeners/extra-charge-approval.listener';
+import { MhhIssueResolutionListener } from './listeners/mhh-issue-resolution.listener';
 import { CreditCheckGuard } from './guards/credit-check.guard';
 import { OrderCompletionSaga } from './sagas/order-completion.saga';
 import { ServiceFeeConfigService } from './service-fee-config.service';
 import { AccountsReceivableModule } from '@modules/accounts-receivable/accounts-receivable.module';
 import { ExchangeRateModule } from '@modules/exchange-rate/exchange-rate.module';
+import { CustomsDeclarationModule } from '@modules/customs-declaration/customs-declaration.module';
+import { CrmModule } from '@modules/crm/crm.module';
+import { ApprovalModule } from '@modules/approval/approval.module';
+import { NotificationModule } from '@modules/notification/notification.module';
 
 @Module({
-  imports: [AccountsReceivableModule, ExchangeRateModule],
+  imports: [AccountsReceivableModule, ExchangeRateModule, CustomsDeclarationModule, CrmModule, ApprovalModule, NotificationModule],
   controllers: [OrderController, MasterOrderController, ServiceFeeConfigController],
   providers: [
     OrderService,
+    OrderStatusService,
+    OrderCancellationService,
     MasterOrderService,
     OrderRepository,
     MasterOrderRepository,
@@ -40,12 +54,20 @@ import { ExchangeRateModule } from '@modules/exchange-rate/exchange-rate.module'
     ThreeWayMatchingService,
     PaymentReceivedListener,
     WarehouseUpdatedListener,
+    CancelApprovalListener,
+    ReturnApprovalListener,
+    ExtraChargeApprovalListener,
+    MhhIssueResolutionListener,
+    PenaltyCalculatorService,
+    ReturnRequestService,
     CreditCheckGuard,
     OrderCompletionSaga,
     ServiceFeeConfigService,
   ],
   exports: [
     OrderService,
+    OrderStatusService,
+    OrderCancellationService,
     MasterOrderService,
     OrderReadService,
     OrderStatusMachine,
@@ -57,6 +79,8 @@ import { ExchangeRateModule } from '@modules/exchange-rate/exchange-rate.module'
     ThreeWayMatchingService,
     OrderCompletionSaga,
     ServiceFeeConfigService,
+    PenaltyCalculatorService,
+    ReturnRequestService,
   ],
 })
 export class OrderModule {}

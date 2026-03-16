@@ -11,28 +11,25 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
 import { DocumentService } from './document.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { DocumentQueryDto } from './dto/document-query.dto';
+import { AddVersionDto } from './dto/add-version.dto';
 
 @ApiTags('Documents')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('documents')
 export class DocumentController {
-  constructor(private readonly documentService: DocumentService) {}
+  constructor(private readonly documentService: DocumentService) { }
 
   @Post()
   @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 uploads per minute
@@ -49,12 +46,7 @@ export class DocumentController {
   @ApiResponse({ status: 200, description: 'Documents retrieved successfully' })
   async findAll(@Query() query: DocumentQueryDto) {
     const result = await this.documentService.findAll(query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get('order/:orderId/hub')
@@ -75,10 +67,7 @@ export class DocumentController {
   @ApiOperation({ summary: 'Get documents by entity' })
   @ApiParam({ name: 'entityType', description: 'Entity type (ORDER, CUSTOMER, etc.)' })
   @ApiParam({ name: 'entityId', description: 'Entity ID' })
-  async getByEntity(
-    @Param('entityType') entityType: string,
-    @Param('entityId') entityId: string,
-  ) {
+  async getByEntity(@Param('entityType') entityType: string, @Param('entityId') entityId: string) {
     const documents = await this.documentService.getByEntity(entityType, entityId);
     return BaseResponse.ok(documents);
   }
@@ -100,6 +89,8 @@ export class DocumentController {
   }
 
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.DIRECTOR_OPERATIONS, UserRole.WAREHOUSE_MANAGER)
   @ApiOperation({ summary: 'Soft delete a document' })
   @ApiParam({ name: 'id', description: 'Document ID' })
   async delete(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
@@ -114,7 +105,7 @@ export class DocumentController {
   @ApiParam({ name: 'id', description: 'Document ID' })
   async addVersion(
     @Param('id') id: string,
-    @Body() body: { fileName: string; fileSize: number; mimeType: string; storageKey: string },
+    @Body() body: AddVersionDto,
     @CurrentUser() user: ICurrentUser,
   ) {
     const result = await this.documentService.addVersion(id, {

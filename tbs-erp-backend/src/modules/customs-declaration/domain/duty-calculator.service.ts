@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
@@ -56,16 +52,15 @@ export class DutyCalculatorService {
     const lineValue = line.declaredTotalValue;
 
     // Avoid division by zero when totalDeclaredValue is 0
-    const proportion = totalDeclaredValue > 0
-      ? lineValue / totalDeclaredValue
-      : 0;
+    const proportion = totalDeclaredValue > 0 ? lineValue / totalDeclaredValue : 0;
 
     // Proportional freight and insurance allocation
     const proportionalFreight = Math.round(freight * proportion * 100) / 100;
     const proportionalInsurance = Math.round(insurance * proportion * 100) / 100;
 
     // CIF value = line declared value + proportional freight + proportional insurance
-    const cifValue = Math.round((lineValue + proportionalFreight + proportionalInsurance) * 100) / 100;
+    const cifValue =
+      Math.round((lineValue + proportionalFreight + proportionalInsurance) * 100) / 100;
 
     // Import duty = CIF * import duty rate
     const importDuty = Math.round(cifValue * line.importDutyRate * 100) / 100;
@@ -84,9 +79,8 @@ export class DutyCalculatorService {
     const antiDumpingDuty = 0;
 
     // Total line tax
-    const lineTotalTax = Math.round(
-      (importDuty + specialTax + vat + environmentalTax + antiDumpingDuty) * 100,
-    ) / 100;
+    const lineTotalTax =
+      Math.round((importDuty + specialTax + vat + environmentalTax + antiDumpingDuty) * 100) / 100;
 
     return {
       cifValue,
@@ -115,9 +109,7 @@ export class DutyCalculatorService {
     });
 
     if (!declaration) {
-      throw new NotFoundException(
-        `Customs declaration with ID ${declarationId} not found`,
-      );
+      throw new NotFoundException(`Customs declaration with ID ${declarationId} not found`);
     }
 
     const freight = Number(declaration.declaredFreight);
@@ -139,9 +131,7 @@ export class DutyCalculatorService {
       const breakdown = this.calculateLineDuty(
         {
           declaredTotalValue: Number(line.declaredTotalValue),
-          declaredNetWeight: line.declaredNetWeight
-            ? Number(line.declaredNetWeight)
-            : undefined,
+          declaredNetWeight: line.declaredNetWeight ? Number(line.declaredNetWeight) : undefined,
           importDutyRate: Number(line.importDutyRate),
           vatRate: Number(line.vatRate),
           specialTaxRate: Number(line.specialTaxRate),
@@ -176,12 +166,18 @@ export class DutyCalculatorService {
     totalSpecialTax = Math.round(totalSpecialTax * 100) / 100;
     totalEnvironmentalTax = Math.round(totalEnvironmentalTax * 100) / 100;
     totalAntiDumpingDuty = Math.round(totalAntiDumpingDuty * 100) / 100;
-    const totalPayable = Math.round(
-      (totalImportDuty + totalVat + totalSpecialTax + totalEnvironmentalTax + totalAntiDumpingDuty) * 100,
-    ) / 100;
+    const totalPayable =
+      Math.round(
+        (totalImportDuty +
+          totalVat +
+          totalSpecialTax +
+          totalEnvironmentalTax +
+          totalAntiDumpingDuty) *
+          100,
+      ) / 100;
 
     // Execute all line updates and the header update in a transaction
-    const [, ...updatedLines] = await this.prisma.$transaction([
+    await this.prisma.$transaction([
       // Update header totals
       this.prisma.customsDeclaration.update({
         where: { id: declarationId },

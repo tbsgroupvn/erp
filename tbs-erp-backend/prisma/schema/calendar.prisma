@@ -1,0 +1,91 @@
+// ============================================
+// CALENDAR — Lich & Quan ly su kien
+// ============================================
+
+enum EventVisibility {
+  PUBLIC    // Moi nguoi trong cong ty thay
+  TEAM      // Chi team/phong ban
+  PRIVATE   // Chi chu va nguoi duoc moi
+}
+
+enum ParticipantStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+}
+
+enum RoomStatus {
+  AVAILABLE
+  MAINTENANCE
+  DEACTIVATED
+}
+
+model CalendarEvent {
+  id          String          @id @default(cuid())
+  title       String
+  description String?
+  location    String?
+  color       String?         @default("#3b82f6")
+  allDay      Boolean         @default(false) @map("all_day")
+  startAt     DateTime        @map("start_at")
+  endAt       DateTime        @map("end_at")
+  recurrence  String?         // iCal RRULE string, nullable = one-time
+  visibility  EventVisibility @default(PUBLIC)
+
+  organizerId String          @map("organizer_id")
+  organizer   User            @relation("CalendarEventOrganizer", fields: [organizerId], references: [id])
+
+  roomId      String?         @map("room_id")
+  room        MeetingRoom?    @relation(fields: [roomId], references: [id])
+
+  participants EventParticipant[]
+  reminders    EventReminder[]
+
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  deletedAt   DateTime?       @map("deleted_at")
+
+  @@index([organizerId])
+  @@index([startAt, endAt])
+  @@index([roomId])
+  @@map("calendar_events")
+}
+
+model EventParticipant {
+  id          String            @id @default(cuid())
+  eventId     String            @map("event_id")
+  event       CalendarEvent     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId      String            @map("user_id")
+  user        User              @relation("CalendarEventParticipant", fields: [userId], references: [id])
+  status      ParticipantStatus @default(INVITED)
+  respondedAt DateTime?         @map("responded_at")
+
+  @@unique([eventId, userId])
+  @@index([userId])
+  @@map("event_participants")
+}
+
+model EventReminder {
+  id            String        @id @default(cuid())
+  eventId       String        @map("event_id")
+  event         CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  minutesBefore Int           @map("minutes_before")
+  sent          Boolean       @default(false)
+
+  @@map("event_reminders")
+}
+
+model MeetingRoom {
+  id        String     @id @default(cuid())
+  name      String
+  location  String?
+  capacity  Int
+  features  String[]
+  status    RoomStatus @default(AVAILABLE)
+  events    CalendarEvent[]
+
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  @@map("meeting_rooms")
+}

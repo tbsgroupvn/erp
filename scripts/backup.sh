@@ -15,6 +15,7 @@
 #   BACKUP_DIR        - Backup directory (default: /backups)
 #   S3_BUCKET         - S3 bucket for remote backup (optional)
 #   S3_ENDPOINT       - S3-compatible endpoint URL (optional)
+#   GPG_PASSPHRASE_FILE - Path to GPG passphrase file for encryption (optional)
 #
 # Retention policy:
 #   daily   - kept for 7 days
@@ -159,6 +160,27 @@ create_backup() {
   sha256sum "$compressed_file" > "$checksum_file"
   log_info "Checksum saved: ${checksum_file}"
 
+  # Encrypt backup with GPG if passphrase file is provided
+  if [ -n "${GPG_PASSPHRASE_FILE:-}" ] && [ -f "${GPG_PASSPHRASE_FILE}" ]; then
+    log_info "Encrypting backup with GPG (AES256)..."
+    local encrypted_file="${compressed_file}.gpg"
+    gpg --batch --yes --symmetric --cipher-algo AES256 \
+        --passphrase-file "$GPG_PASSPHRASE_FILE" \
+        -o "$encrypted_file" \
+        "$compressed_file"
+    rm -f "$compressed_file"
+    compressed_file="$encrypted_file"
+
+    # Update checksum for encrypted file
+    sha256sum "$compressed_file" > "${compressed_file}.sha256"
+    rm -f "$checksum_file"
+    checksum_file="${compressed_file}.sha256"
+
+    local encrypted_size
+    encrypted_size=$(du -h "$compressed_file" | cut -f1)
+    log_info "Encrypted backup: ${encrypted_size}"
+  fi
+
   # Reset trap
   trap - ERR
 
@@ -176,15 +198,16 @@ rotate_backups() {
   esac
 
   # Find and sort backups by modification time (newest first)
+  # Match both .dump.gz and .dump.gz.gpg (encrypted)
   local backup_count
-  backup_count=$(find "$BACKUP_DIR" -name "${BACKUP_TYPE}_${DB_NAME}_*.dump.gz" -type f | wc -l)
+  backup_count=$(find "$BACKUP_DIR" \( -name "${BACKUP_TYPE}_${DB_NAME}_*.dump.gz" -o -name "${BACKUP_TYPE}_${DB_NAME}_*.dump.gz.gpg" \) -type f | wc -l)
 
   if [ "$backup_count" -gt "$keep_count" ]; then
     local to_delete=$((backup_count - keep_count))
     log_info "Removing $to_delete old ${BACKUP_TYPE} backup(s) (keeping $keep_count)..."
 
     # Delete oldest backups (and their checksums)
-    find "$BACKUP_DIR" -name "${BACKUP_TYPE}_${DB_NAME}_*.dump.gz" -type f \
+    find "$BACKUP_DIR" \( -name "${BACKUP_TYPE}_${DB_NAME}_*.dump.gz" -o -name "${BACKUP_TYPE}_${DB_NAME}_*.dump.gz.gpg" \) -type f \
       | sort \
       | head -n "$to_delete" \
       | while read -r old_backup; do

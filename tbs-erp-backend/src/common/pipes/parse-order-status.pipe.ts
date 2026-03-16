@@ -1,9 +1,4 @@
-import {
-  ArgumentMetadata,
-  BadRequestException,
-  Injectable,
-  PipeTransform,
-} from '@nestjs/common';
+import { ArgumentMetadata, BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 
 /**
@@ -26,9 +21,7 @@ export class ParseOrderStatusPipe implements PipeTransform<string, OrderStatus> 
 
   transform(value: string, metadata: ArgumentMetadata): OrderStatus {
     if (!value) {
-      throw new BadRequestException(
-        `${metadata.data || 'status'} is required.`,
-      );
+      throw new BadRequestException(`${metadata.data || 'status'} is required.`);
     }
 
     const uppercased = value.toUpperCase().trim();

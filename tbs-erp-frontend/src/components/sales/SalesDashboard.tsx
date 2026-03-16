@@ -371,9 +371,9 @@ export const SalesDashboard: React.FC = () => {
           <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <p className="block text-sm font-medium text-slate-700">
                   Khách hàng
-                </label>
+                </p>
                 <input
                   type="text"
                   value={filters.customer}
@@ -383,9 +383,9 @@ export const SalesDashboard: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <p className="block text-sm font-medium text-slate-700">
                   Trạng thái đơn
-                </label>
+                </p>
                 <select
                   value={filters.orderStatus}
                   onChange={(e) => setFilters({ ...filters, orderStatus: e.target.value })}
@@ -399,9 +399,9 @@ export const SalesDashboard: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <p className="block text-sm font-medium text-slate-700">
                   Trạng thái thanh toán
-                </label>
+                </p>
                 <select
                   value={filters.paymentStatus}
                   onChange={(e) => setFilters({ ...filters, paymentStatus: e.target.value })}
@@ -414,9 +414,9 @@ export const SalesDashboard: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <p className="block text-sm font-medium text-slate-700">
                   Từ ngày - Đến ngày
-                </label>
+                </p>
                 <div className="mt-1 flex gap-2">
                   <input
                     type="date"

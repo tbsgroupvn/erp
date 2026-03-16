@@ -90,7 +90,6 @@ model User {
   contracts          Contract[]         @relation("ContractSale")
 
   // System relations
-  notifications      NotificationRecord[]
   tasksAssigned      Task[]             @relation("TaskAssignee")
   tasksCreated       Task[]             @relation("TaskCreator")
   taskComments       TaskComment[]
@@ -101,10 +100,16 @@ model User {
   pagesAuthored      Page[]             @relation("PageAuthor")
   mediaUploaded      Media[]            @relation("MediaUploader")
 
+  // Calendar relations
+  calendarEventsOrganized  CalendarEvent[]     @relation("CalendarEventOrganizer")
+  calendarParticipations   EventParticipant[]  @relation("CalendarEventParticipant")
+
   // Compliance relations
   consents           UserConsent[]
 
   @@index([resetToken, resetTokenExpiry]) // Fast lookup for password reset
+  @@index([leaderId])
+  @@index([role])
   @@map("users")
 }
 
@@ -138,7 +143,7 @@ model AuditLog {
   sessionId  String?  @map("session_id")   // Layer 2C: Session tracking
   createdAt  DateTime @default(now()) @map("created_at")
 
-  user       User     @relation(fields: [userId], references: [id])
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([entity, entityId])
   @@index([userId, createdAt])
@@ -177,7 +182,7 @@ model AuditLogArchive {
 model UserConsent {
   id          String    @id @default(cuid())
   userId      String    @map("user_id")
-  user        User      @relation(fields: [userId], references: [id])
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   consentType String    @map("consent_type") // data_processing, marketing, analytics, third_party_sharing
   granted     Boolean
   grantedAt   DateTime? @map("granted_at")

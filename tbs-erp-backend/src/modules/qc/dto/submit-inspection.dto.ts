@@ -1,12 +1,4 @@
-import {
-  IsInt,
-  IsOptional,
-  IsString,
-  IsArray,
-  IsObject,
-  Min,
-  Max,
-} from 'class-validator';
+import { IsInt, IsOptional, IsString, IsArray, IsObject, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SubmitInspectionDto {

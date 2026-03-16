@@ -1,15 +1,10 @@
-import {
-  Injectable,
-  Logger,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { StockMovementType } from '@prisma/client';
 import { CreateStockItemDto } from './dto/create-stock-item.dto';
 import { RecordMovementDto } from './dto/record-movement.dto';
-import { InventoryQueryDto, MovementHistoryQueryDto } from './dto/inventory-query.dto';
+import { MovementHistoryQueryDto } from './dto/inventory-query.dto';
 import { StocktakeDto } from './dto/stocktake.dto';
 
 @Injectable()
@@ -19,7 +14,7 @@ export class InventoryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   /**
    * Registers a new stock item (packaging materials, supplies, etc.).
@@ -95,7 +90,8 @@ export class InventoryService {
         data: {
           itemId: dto.itemId,
           type: dto.type,
-          quantity: dto.type === StockMovementType.ISSUE ? -Math.abs(dto.quantity) : Math.abs(dto.quantity),
+          quantity:
+            dto.type === StockMovementType.ISSUE ? -Math.abs(dto.quantity) : Math.abs(dto.quantity),
           reference: dto.reference,
           notes: dto.notes,
           createdBy: userId,
@@ -113,7 +109,10 @@ export class InventoryService {
     });
 
     // Emit low stock alert if applicable
-    if (Number(result.item.currentQty) <= Number(result.item.minLevel) && Number(result.item.minLevel) > 0) {
+    if (
+      Number(result.item.currentQty) <= Number(result.item.minLevel) &&
+      Number(result.item.minLevel) > 0
+    ) {
       this.eventEmitter.emit('inventory.low.stock', {
         itemId: result.item.id,
         code: result.item.code,
@@ -123,9 +122,7 @@ export class InventoryService {
       });
     }
 
-    this.logger.log(
-      `Stock movement: ${dto.type} ${dto.quantity} of ${item.code} by ${userId}`,
-    );
+    this.logger.log(`Stock movement: ${dto.type} ${dto.quantity} of ${item.code} by ${userId}`);
 
     return result;
   }

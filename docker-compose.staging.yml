@@ -1,28 +1,32 @@
 # ============================================
 # TBS ERP - Staging Environment
+# Based on docker-compose.selfhost.yml with staging overrides.
+# Usage: docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
+# Container prefix: tbs_staging_
+# Ports: backend 3101:3000, frontend 3100:3000, PostgreSQL 5434:5432
 # ============================================
-
-version: '3.8'
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: tbs_erp_postgres_staging
+    container_name: tbs_staging_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      - pgdata_staging:/var/lib/postgresql/data
+      POSTGRES_USER: ${POSTGRES_USER:-erp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-erp_db_staging}
     command: postgres -c password_encryption=scram-sha-256
+    ports:
+      - '5434:5432'
+    volumes:
+      - tbs_staging_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-erp_user} -d ${POSTGRES_DB:-erp_db_staging}']
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - tbs_network
+      - tbs_staging_network
     deploy:
       resources:
         limits:
@@ -31,59 +35,63 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: tbs_erp_redis_staging
+    container_name: tbs_staging_redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required} --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
-      - redisdata_staging:/data
+      - tbs_staging_redisdata:/data
     healthcheck:
       test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - tbs_network
+      - tbs_staging_network
     deploy:
       resources:
         limits:
           cpus: '0.5'
-          memory: 256M
+          memory: 512M
 
   backend:
-    image: ghcr.io/${GITHUB_REPOSITORY}-backend:staging
-    container_name: tbs_erp_backend_staging
+    image: ghcr.io/${GITHUB_REPOSITORY:-tbs-erp/tbs-erp}-backend:staging
+    container_name: tbs_staging_backend
     restart: unless-stopped
+    ports:
+      - '3101:3000'
     environment:
-      NODE_ENV: production
+      NODE_ENV: staging
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erp_db_staging}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      JWT_EXPIRES_IN: 15m
-      JWT_REFRESH_EXPIRES_IN: 7d
-      CORS_ORIGINS: https://staging.tbslogistics.com
-      FRONTEND_URL: https://staging.tbslogistics.com
-      # REQUIRED: Sentry DSN for error tracking
-      SENTRY_DSN: ${SENTRY_DSN:?SENTRY_DSN is required for staging deployment}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://staging.tbslogistics.com}
+      FRONTEND_URL: ${FRONTEND_URL:-https://staging.tbslogistics.com}
+      # Encryption
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:?FIELD_ENCRYPTION_KEY is required}
+      FIELD_ENCRYPTION_KEY_VERSION: ${FIELD_ENCRYPTION_KEY_VERSION:-v1}
+      TWO_FA_ENCRYPTION_KEY: ${TWO_FA_ENCRYPTION_KEY:?TWO_FA_ENCRYPTION_KEY is required}
+      TWO_FA_ENCRYPTION_SALT: ${TWO_FA_ENCRYPTION_SALT:?TWO_FA_ENCRYPTION_SALT is required}
+      # Sentry error tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_TRACES_SAMPLE_RATE: '1.0'
       SENTRY_PROFILES_SAMPLE_RATE: '0.5'
+      # App metadata
       APP_ENV: staging
       GIT_SHA: ${GIT_SHA:-}
-      LOG_LEVEL: debug
-      # BullMQ (uses same Redis instance)
-      BULLMQ_REDIS_HOST: redis
-      BULLMQ_REDIS_PORT: 6379
-      BULLMQ_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
       # GraphQL (enabled in staging for testing)
       GRAPHQL_PLAYGROUND: 'true'
       GRAPHQL_INTROSPECTION: 'true'
-      # Field-Level Encryption
-      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
-      FIELD_ENCRYPTION_KEY_VERSION: ${FIELD_ENCRYPTION_KEY_VERSION:-v1}
-      TWO_FA_ENCRYPTION_KEY: ${TWO_FA_ENCRYPTION_KEY}
+      # BullMQ
+      BULLMQ_REDIS_HOST: redis
+      BULLMQ_REDIS_PORT: 6379
+      BULLMQ_REDIS_PASSWORD: ${REDIS_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
@@ -96,7 +104,7 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - tbs_network
+      - tbs_staging_network
     volumes:
       - ./logs/backend:/app/logs
     deploy:
@@ -112,12 +120,14 @@ services:
       - "traefik.http.services.backend-staging.loadbalancer.server.port=3000"
 
   frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY}-frontend:staging
-    container_name: tbs_erp_frontend_staging
+    image: ghcr.io/${GITHUB_REPOSITORY:-tbs-erp/tbs-erp}-frontend:staging
+    container_name: tbs_staging_frontend
     restart: unless-stopped
+    ports:
+      - '3100:3000'
     environment:
-      NODE_ENV: production
-      NEXT_PUBLIC_API_URL: https://staging-api.tbslogistics.com/api/v1
+      NODE_ENV: staging
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://staging-api.tbslogistics.com/api/v1}
       NEXT_TELEMETRY_DISABLED: 1
     depends_on:
       backend:
@@ -129,7 +139,7 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - tbs_network
+      - tbs_staging_network
     deploy:
       resources:
         limits:
@@ -142,12 +152,30 @@ services:
       - "traefik.http.routers.frontend-staging.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend-staging.loadbalancer.server.port=3000"
 
+  # ============================================
+  # MIGRATE - One-off migration & seed
+  # Run manually: docker compose -f docker-compose.staging.yml run --rm migrate
+  # ============================================
+  migrate:
+    image: ghcr.io/${GITHUB_REPOSITORY:-tbs-erp/tbs-erp}-backend:staging
+    container_name: tbs_staging_migrate
+    profiles: ['migrate']
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erp_db_staging}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - tbs_staging_network
+    working_dir: /app
+    command: sh -c "npx prisma migrate deploy"
+
 networks:
-  tbs_network:
+  tbs_staging_network:
     driver: bridge
 
 volumes:
-  pgdata_staging:
-    name: tbs_erp_pgdata_staging
-  redisdata_staging:
-    name: tbs_erp_redisdata_staging
+  tbs_staging_pgdata:
+    name: tbs_staging_pgdata
+  tbs_staging_redisdata:
+    name: tbs_staging_redisdata

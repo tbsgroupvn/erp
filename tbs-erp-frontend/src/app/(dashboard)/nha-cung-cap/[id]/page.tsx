@@ -130,7 +130,7 @@ export default function VendorDetailPage() {
         <h3 className="text-lg font-semibold mb-4">Đánh giá</h3>
         <div className="flex items-center gap-4 mb-6">
           <div className="text-center">
-            <p className="text-3xl font-bold">{(vendor.averageRating || 0).toFixed(1)}</p>
+            <p className="text-3xl font-bold">{Number(vendor.averageRating || 0).toFixed(1)}</p>
             <div className="flex items-center gap-0.5 mt-1">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star
@@ -147,7 +147,7 @@ export default function VendorDetailPage() {
           <h4 className="text-sm font-medium mb-3">Đánh giá nhà cung cấp</h4>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Điểm</label>
+              <p className="text-xs text-muted-foreground">Điểm</p>
               <select
                 value={ratingScore}
                 onChange={(e) => setRatingScore(Number(e.target.value))}
@@ -159,7 +159,7 @@ export default function VendorDetailPage() {
               </select>
             </div>
             <div className="flex-1 min-w-[200px] space-y-1">
-              <label className="text-xs text-muted-foreground">Nhận xét</label>
+              <p className="text-xs text-muted-foreground">Nhận xét</p>
               <input
                 type="text"
                 value={ratingComment}

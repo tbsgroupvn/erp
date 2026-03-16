@@ -1,0 +1,207 @@
+{
+    "meta": {
+        "schema_version": "1.1.0",
+        "awf_version": "4.0.0"
+    },
+    "project": {
+        "name": "TBS ERP → Workplace Platform",
+        "type": "Monorepo (Frontend UI / Backend API)",
+        "status": "Development & Workplace Transformation"
+    },
+    "tech_stack": {
+        "frontend": {
+            "framework": "Next.js 14 (App Router)",
+            "language": "TypeScript",
+            "styling": "TailwindCSS + shadcn/ui + Radix UI",
+            "state": "TanStack Query + React Hook Form + Zod"
+        },
+        "backend": {
+            "framework": "NestJS 10",
+            "language": "TypeScript",
+            "database_orm": "Prisma 6"
+        },
+        "database": {
+            "engine": "PostgreSQL 16",
+            "cache": "Redis (ioredis)",
+            "queue": "BullMQ",
+            "file_storage": "MinIO (S3-compatible, self-hosted) — PLANNED"
+        },
+        "realtime": {
+            "protocol": "Socket.IO WebSocket",
+            "namespace": "/ws",
+            "existing_events": [
+                "chat:join",
+                "chat:typing",
+                "chat:mark:read",
+                "chat:message:new",
+                "chat:message:edited",
+                "chat:message:deleted"
+            ]
+        }
+    },
+    "database_schema": {
+        "summary": "Core ERP Logistics + Workplace Platform modules. 23 Prisma schema files covering auth, orders, finance, warehouse, chat, calendar, drive, bulletin.",
+        "schema_files": [
+            "auth.prisma",
+            "chat.prisma",
+            "calendar.prisma",
+            "system.prisma",
+            "order.prisma",
+            "finance.prisma",
+            "warehouse.prisma",
+            "hr.prisma",
+            "crm.prisma",
+            "cms.prisma",
+            "logistics.prisma",
+            "container.prisma",
+            "customs.prisma",
+            "integration.prisma",
+            "tracking.prisma",
+            "complaint.prisma",
+            "support-ticket.prisma",
+            "blog.prisma",
+            "common.prisma",
+            "rate-card.prisma",
+            "cost-adjustment.prisma",
+            "carrier-reconciliation.prisma",
+            "operation-cost.prisma"
+        ],
+        "workplace_models_planned": [
+            "StoredFile (MinIO wrapper)",
+            "ChatAttachment",
+            "ChatReaction",
+            "ChatPinnedMessage",
+            "ChatBookmark",
+            "CalendarEvent",
+            "EventParticipant",
+            "DriveFolder",
+            "DriveFile",
+            "DriveFileVersion",
+            "DriveShare",
+            "BulletinPost",
+            "BulletinReaction",
+            "BulletinComment",
+            "PushSubscription"
+        ],
+        "existing_chat_models": [
+            "ChatConversation (DIRECT/GROUP)",
+            "ChatParticipant (OWNER/MEMBER)",
+            "ChatMessage (reply support)"
+        ],
+        "relationships_explained": "User → ChatParticipant → ChatConversation. ChatMessage can reply to another ChatMessage. Task, Approval, Notification link to User via assigneeId/requestedBy. Workplace models extend this: CalendarEvent has EventParticipants, DriveFile links to StoredFile, BulletinPost has reactions/comments."
+    },
+    "api_endpoints": [
+        {
+            "path": "/api/v1/auth/*",
+            "explained": "JWT Auth with 15+ roles, 2FA planned"
+        },
+        {
+            "path": "/api/v1/approvals/*",
+            "explained": "Multi-step approval with graph-based flow builder, delegation, CC, SLA"
+        },
+        {
+            "path": "/api/v1/orders/*",
+            "explained": "Import order lifecycle management"
+        },
+        {
+            "path": "/api/v1/chat/*",
+            "explained": "DM, group chat, send/edit/delete messages, participants, search, unread count"
+        },
+        {
+            "path": "/api/v1/notifications/*",
+            "explained": "Notification rules engine, escalation, in-app + WebSocket push"
+        },
+        {
+            "path": "/api/v1/tasks/*",
+            "explained": "Task CRUD with comments, priority, status tracking"
+        },
+        {
+            "path": "/api/v1/documents/*",
+            "explained": "Document metadata CRUD (no real file storage yet)"
+        },
+        {
+            "path": "/api/v1/storage/* (PLANNED)",
+            "explained": "MinIO file upload/download/presigned URLs"
+        },
+        {
+            "path": "/api/v1/calendar/* (PLANNED)",
+            "explained": "Calendar events, RSVP, free/busy, reminders"
+        },
+        {
+            "path": "/api/v1/drive/* (PLANNED)",
+            "explained": "File/folder management, sharing, versioning, trash"
+        },
+        {
+            "path": "/api/v1/bulletin/* (PLANNED)",
+            "explained": "Company news feed, reactions, comments"
+        },
+        {
+            "path": "/api/v1/push/* (PLANNED)",
+            "explained": "Web Push subscription for PWA notifications"
+        }
+    ],
+    "business_rules": [
+        "Quyết định phê duyệt theo Role. Flow builder visual cho approval graph.",
+        "Data phải paginated qua PaginatedResponse (data: [...], total: n).",
+        "PostgreSQL + Redis caching layer cho performance.",
+        "Chat WebSocket shares /ws namespace — clients must authenticate via JWT on connection.",
+        "File storage sẽ dùng MinIO (S3-compatible) — self-hosted, không phụ thuộc cloud."
+    ],
+    "features": [
+        "Authentication (JWT + RBAC 15+ roles)",
+        "Approval Engine (Graph Flow Builder, Delegation, SLA)",
+        "Order Processing (MHH, 3-way matching, extra charges)",
+        "Financial Netting & Reconciliation",
+        "Chat (DM, Group — existing, being upgraded to full Messenger)",
+        "Calendar (PLANNED — events, RSVP, reminders)",
+        "Drive / Document Management (PLANNED — MinIO, folders, versions)",
+        "Company Bulletin (PLANNED — news feed, reactions)",
+        "Mobile PWA (PLANNED — push notifications, offline, bottom nav)",
+        "Task Management (existing CRUD, Kanban/Gantt PLANNED)",
+        "Attendance (existing check-in/leave, GPS PLANNED)"
+    ],
+    "knowledge_items": {
+        "patterns": [
+            "NestJS Module CQRS Approach",
+            "Event-Driven BullMQ Dispatching",
+            "Socket.IO room-based broadcasting (user:{userId}, chat:{conversationId})",
+            "Prisma multi-schema files with @@map table naming"
+        ],
+        "gotchas": [
+            "Luôn giải nén Response Base bằng (data.data) ở Client",
+            "Backend crash thường do thiếu @as-integrations/express hoặc lỗi Redis connection",
+            "ChatGateway shares /ws namespace with WsGateway — careful with event naming",
+            "Prisma schema split across 23 files — run prisma generate after any change"
+        ],
+        "conventions": [
+            "API Routes: /api/v1/[resource]",
+            "Prisma @@map uses snake_case table names",
+            "Frontend routes use Vietnamese slugs: phe-duyet, cong-viec, cham-cong",
+            "WebSocket events use colon-separated namespaces: chat:message:new"
+        ]
+    },
+    "workplace_transformation": {
+        "brief": "docs/BRIEF.md",
+        "plan": "plans/260308-2057-workplace-platform/plan.md",
+        "design": "docs/design/WORKPLACE_DESIGN.md",
+        "phases": {
+            "mvp": [
+                "01-file-storage",
+                "02-chat",
+                "03-calendar",
+                "04-drive",
+                "05-bulletin",
+                "06-pwa"
+            ],
+            "advanced": [
+                "07-kanban",
+                "08-gps-attendance",
+                "09-export",
+                "10-video-call",
+                "11-okr",
+                "12-wiki"
+            ],
+            "total_estimated_days": "35-45"
+        }
+    }
+}

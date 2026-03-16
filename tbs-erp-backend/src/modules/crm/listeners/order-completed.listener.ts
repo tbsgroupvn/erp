@@ -30,17 +30,12 @@ export class OrderCompletedListener {
 
     try {
       // Increment order stats
-      await this.crmRepository.incrementOrderStats(
-        event.customerId,
-        event.totalAmount,
-      );
+      await this.crmRepository.incrementOrderStats(event.customerId, event.totalAmount);
 
       // Re-evaluate tier
       await this.crmService.updateTier(event.customerId);
 
-      this.logger.log(
-        `Customer ${event.customerId} stats updated after order ${event.orderId}`,
-      );
+      this.logger.log(`Customer ${event.customerId} stats updated after order ${event.orderId}`);
     } catch (error) {
       this.logger.error(
         `Failed to process order.completed for customer ${event.customerId}: ${error.message}`,

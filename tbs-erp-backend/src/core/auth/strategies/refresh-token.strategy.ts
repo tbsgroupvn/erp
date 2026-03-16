@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Strategy } from 'passport-jwt';
 import { Request } from 'express';
 import { PrismaService } from '@core/database/prisma.service';
 
@@ -28,10 +28,7 @@ const cookieExtractor = (req: Request): string | null => {
 };
 
 @Injectable()
-export class RefreshTokenStrategy extends PassportStrategy(
-  Strategy,
-  'jwt-refresh',
-) {
+export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
@@ -39,15 +36,12 @@ export class RefreshTokenStrategy extends PassportStrategy(
     super({
       jwtFromRequest: cookieExtractor, // Read from HttpOnly cookie instead of body
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('jwt.refreshSecret'),
-      passReqToCallback: true,
+      secretOrKey: configService.getOrThrow<string>('jwt.refreshSecret'),
+      passReqToCallback: true as const,
     });
   }
 
-  async validate(
-    req: Request,
-    payload: RefreshTokenPayload,
-  ): Promise<RefreshTokenUser> {
+  async validate(req: Request, payload: RefreshTokenPayload): Promise<RefreshTokenUser> {
     // Read refresh token from HttpOnly cookie
     const refreshToken = req.cookies?.['refreshToken'];
 

@@ -219,3 +219,4 @@ export {
 export { useDebounce } from './use-debounce';
 export { usePagination } from './use-pagination';
 export type { UsePaginationReturn } from './use-pagination';
+export { useCountUp } from './use-count-up';

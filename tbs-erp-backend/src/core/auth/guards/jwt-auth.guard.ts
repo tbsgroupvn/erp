@@ -1,8 +1,4 @@
-import {
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { JsonWebTokenError, TokenExpiredError } from '@nestjs/jwt';
@@ -25,31 +21,21 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
-  handleRequest<TUser>(
-    err: Error | null,
-    user: TUser | false,
-    info: Error | undefined,
-  ): TUser {
+  handleRequest<TUser>(err: Error | null, user: TUser | false, info: Error | undefined): TUser {
     if (err) {
       throw new UnauthorizedException(err.message);
     }
 
     if (info instanceof TokenExpiredError) {
-      throw new UnauthorizedException(
-        'Access token has expired. Please refresh your token.',
-      );
+      throw new UnauthorizedException('Access token has expired. Please refresh your token.');
     }
 
     if (info instanceof JsonWebTokenError) {
-      throw new UnauthorizedException(
-        'Invalid access token. Please log in again.',
-      );
+      throw new UnauthorizedException('Invalid access token. Please log in again.');
     }
 
     if (!user) {
-      throw new UnauthorizedException(
-        'Authentication token is missing or invalid. Please log in.',
-      );
+      throw new UnauthorizedException('Authentication token is missing or invalid. Please log in.');
     }
 
     return user;

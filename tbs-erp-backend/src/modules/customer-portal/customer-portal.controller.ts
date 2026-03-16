@@ -9,17 +9,11 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
-import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
 import { CustomerPortalService } from './customer-portal.service';
 import { SubmitPreAlertDto } from './dto/submit-pre-alert.dto';
@@ -29,9 +23,10 @@ import { CustomerOrderQueryDto } from './dto/portal-query.dto';
 /**
  * Customer Portal APIs.
  *
- * In production, these would use a separate CustomerAuthGuard
- * that validates the customer token and extracts the customerId.
- * For now, the customerId is passed as a path parameter.
+ * Ownership verification: if the authenticated user is an impersonated customer
+ * (isImpersonation=true, user.id = customerId), they can only access their own
+ * data. Internal staff (non-impersonation) can access any customer's data as
+ * they already pass through RBAC checks.
  */
 @ApiTags('Customer Portal')
 @ApiBearerAuth()
@@ -40,6 +35,22 @@ import { CustomerOrderQueryDto } from './dto/portal-query.dto';
 export class CustomerPortalController {
   constructor(private readonly portalService: CustomerPortalService) {}
 
+  /**
+   * Verify that the authenticated user is allowed to access data for the
+   * given customerId. Impersonated customer tokens have user.id set to the
+   * target customerId — they must only access their own resources.
+   */
+  private verifyOwnership(
+    user: { id: string; isImpersonation?: boolean },
+    customerId: string,
+  ): void {
+    if (user.isImpersonation && user.id !== customerId) {
+      throw new ForbiddenException(
+        'Access denied: you can only access your own data',
+      );
+    }
+  }
+
   @Get(':customerId/orders')
   @ApiOperation({ summary: 'Get customer orders' })
   @ApiParam({ name: 'customerId', description: 'Customer ID' })
@@ -47,14 +58,11 @@ export class CustomerPortalController {
   async getMyOrders(
     @Param('customerId') customerId: string,
     @Query() query: CustomerOrderQueryDto,
+    @CurrentUser() user: { id: string; isImpersonation?: boolean },
   ) {
+    this.verifyOwnership(user, customerId);
     const result = await this.portalService.getMyOrders(customerId, query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get(':customerId/orders/:orderId')
@@ -64,7 +72,9 @@ export class CustomerPortalController {
   async getOrderDetail(
     @Param('customerId') customerId: string,
     @Param('orderId') orderId: string,
+    @CurrentUser() user: { id: string; isImpersonation?: boolean },
   ) {
+    this.verifyOwnership(user, customerId);
     const order = await this.portalService.getOrderDetail(customerId, orderId);
     return BaseResponse.ok(order);
   }
@@ -72,7 +82,11 @@ export class CustomerPortalController {
   @Get(':customerId/wallet')
   @ApiOperation({ summary: 'Get wallet balance and transactions' })
   @ApiParam({ name: 'customerId', description: 'Customer ID' })
-  async getMyWallet(@Param('customerId') customerId: string) {
+  async getMyWallet(
+    @Param('customerId') customerId: string,
+    @CurrentUser() user: { id: string; isImpersonation?: boolean },
+  ) {
+    this.verifyOwnership(user, customerId);
     const wallet = await this.portalService.getMyWallet(customerId);
     return BaseResponse.ok(wallet);
   }
@@ -85,7 +99,9 @@ export class CustomerPortalController {
   async submitPreAlert(
     @Param('customerId') customerId: string,
     @Body() dto: SubmitPreAlertDto,
+    @CurrentUser() user: { id: string; isImpersonation?: boolean },
   ) {
+    this.verifyOwnership(user, customerId);
     const result = await this.portalService.submitPreAlert(customerId, dto);
     return BaseResponse.ok(result, 'Pre-alert submitted');
   }
@@ -93,7 +109,11 @@ export class CustomerPortalController {
   @Get(':customerId/pre-alerts')
   @ApiOperation({ summary: 'Get customer pre-alerts' })
   @ApiParam({ name: 'customerId', description: 'Customer ID' })
-  async getMyPreAlerts(@Param('customerId') customerId: string) {
+  async getMyPreAlerts(
+    @Param('customerId') customerId: string,
+    @CurrentUser() user: { id: string; isImpersonation?: boolean },
+  ) {
+    this.verifyOwnership(user, customerId);
     const preAlerts = await this.portalService.getMyPreAlerts(customerId);
     return BaseResponse.ok(preAlerts);
   }
@@ -105,7 +125,9 @@ export class CustomerPortalController {
   async getShipmentTracking(
     @Param('customerId') customerId: string,
     @Param('packageId') packageId: string,
+    @CurrentUser() user: { id: string; isImpersonation?: boolean },
   ) {
+    this.verifyOwnership(user, customerId);
     const tracking = await this.portalService.getShipmentTracking(customerId, packageId);
     return BaseResponse.ok(tracking);
   }
@@ -113,7 +135,11 @@ export class CustomerPortalController {
   @Get(':customerId/invoices')
   @ApiOperation({ summary: 'Get customer invoices' })
   @ApiParam({ name: 'customerId', description: 'Customer ID' })
-  async getMyInvoices(@Param('customerId') customerId: string) {
+  async getMyInvoices(
+    @Param('customerId') customerId: string,
+    @CurrentUser() user: { id: string; isImpersonation?: boolean },
+  ) {
+    this.verifyOwnership(user, customerId);
     const invoices = await this.portalService.getMyInvoices(customerId);
     return BaseResponse.ok(invoices);
   }
@@ -121,7 +147,11 @@ export class CustomerPortalController {
   @Get(':customerId/notifications')
   @ApiOperation({ summary: 'Get customer notifications' })
   @ApiParam({ name: 'customerId', description: 'Customer ID' })
-  async getMyNotifications(@Param('customerId') customerId: string) {
+  async getMyNotifications(
+    @Param('customerId') customerId: string,
+    @CurrentUser() user: { id: string; isImpersonation?: boolean },
+  ) {
+    this.verifyOwnership(user, customerId);
     const notifications = await this.portalService.getMyNotifications(customerId);
     return BaseResponse.ok(notifications);
   }
@@ -132,7 +162,9 @@ export class CustomerPortalController {
   async updateProfile(
     @Param('customerId') customerId: string,
     @Body() dto: UpdateCustomerProfileDto,
+    @CurrentUser() user: { id: string; isImpersonation?: boolean },
   ) {
+    this.verifyOwnership(user, customerId);
     const customer = await this.portalService.updateProfile(customerId, dto);
     return BaseResponse.ok(customer, 'Profile updated');
   }

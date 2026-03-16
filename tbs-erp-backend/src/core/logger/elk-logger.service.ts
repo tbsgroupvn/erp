@@ -1,6 +1,7 @@
 import { LoggerService, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as net from 'net';
+import * as os from 'os';
 
 /**
  * Structured log levels in order of severity.
@@ -51,15 +52,11 @@ export class ElkLoggerService implements LoggerService, OnModuleDestroy {
   private readonly hostname: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.logstashHost = this.configService.get<string>(
-      'LOGSTASH_HOST',
-      'logstash',
-    );
+    this.logstashHost = this.configService.get<string>('LOGSTASH_HOST', 'logstash');
     this.logstashPort = this.configService.get<number>('LOGSTASH_PORT', 5000);
     this.enabled = this.configService.get<boolean>('ELK_ENABLED', false);
-    this.environment =
-      this.configService.get<string>('NODE_ENV') || 'development';
-    this.hostname = require('os').hostname();
+    this.environment = this.configService.get<string>('NODE_ENV') || 'development';
+    this.hostname = os.hostname();
 
     if (this.enabled) {
       this.connect();
@@ -130,12 +127,7 @@ export class ElkLoggerService implements LoggerService, OnModuleDestroy {
 
   // ─── Private Methods ───
 
-  private writeLog(
-    level: LogLevel,
-    message: string,
-    context?: string,
-    stack?: string,
-  ): void {
+  private writeLog(level: LogLevel, message: string, context?: string, stack?: string): void {
     const entry: LogEntry = {
       '@timestamp': new Date().toISOString(),
       level,
@@ -212,9 +204,7 @@ export class ElkLoggerService implements LoggerService, OnModuleDestroy {
 
     this.client.connect(this.logstashPort, this.logstashHost, () => {
       this.connected = true;
-      console.log(
-        `[ElkLogger] Connected to Logstash at ${this.logstashHost}:${this.logstashPort}`,
-      );
+      console.log(`[ElkLogger] Connected to Logstash at ${this.logstashHost}:${this.logstashPort}`);
       this.drainBuffer();
     });
 

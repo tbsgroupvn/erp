@@ -102,4 +102,57 @@ export const DomainEvents = {
   // COD
   COD_COLLECTED: 'cod.collected',
   COD_REMITTED: 'cod.remitted',
+
+  // Warehouse
+  PACKAGE_RECEIVED_CN: 'package.received.cn',
+  PACKAGE_RECEIVED_VN: 'package.received.vn',
+
+  // Employee
+  EMPLOYEE_STATUS_CHANGED: 'employee.status.changed',
+
+  // Support
+  SUPPORT_TICKET_CREATED: 'support.ticket.created',
+  SUPPORT_TICKET_RESPONDED: 'support.ticket.responded',
+
+  // Escalation
+  ESCALATION_TRIGGERED: 'escalation.triggered',
 } as const;
+
+// Extended event interfaces
+
+export interface EmployeeStatusChangedEvent {
+  employeeId: string;
+  fromStatus: string;
+  toStatus: string;
+  changedBy: string;
+}
+
+export interface PackageReceivedCNEvent {
+  packageId: string;
+  orderId: string;
+  trackingNumberCN?: string;
+  receivedBy: string;
+}
+
+export interface PackageReceivedVNEvent {
+  packageId: string;
+  orderId: string;
+  receivedBy: string;
+}
+
+export interface SupportTicketCreatedEvent {
+  ticketId: string;
+  ticketCode: string;
+  customerId: string;
+  assignedTo?: string;
+  category: string;
+}
+
+export interface EscalationTriggeredEvent {
+  ruleId: string;
+  eventType: string;
+  referenceId: string;
+  referenceCode?: string;
+  recipientRole: string;
+  message: string;
+}

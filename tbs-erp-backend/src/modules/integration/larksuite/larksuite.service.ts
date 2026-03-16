@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotImplementedException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotImplementedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LarkNotificationDto } from './dto/lark-notification.dto';
 import { LarkApprovalDto } from './dto/lark-approval.dto';
@@ -46,7 +42,7 @@ export class LarkSuiteService {
     if (!this.enabled) {
       throw new NotImplementedException(
         'LarkSuite integration pending configuration. ' +
-        'Set LARK_INTEGRATION_ENABLED=true and configure LARK_APP_ID and LARK_APP_SECRET.',
+          'Set LARK_INTEGRATION_ENABLED=true and configure LARK_APP_ID and LARK_APP_SECRET.',
       );
     }
 
@@ -60,7 +56,7 @@ export class LarkSuiteService {
     // 7. Return sync summary
     throw new NotImplementedException(
       'LarkSuite employee sync is pending API integration. ' +
-      'Requires LarkSuite app with contact:contact scope.',
+        'Requires LarkSuite app with contact:contact scope.',
     );
   }
 
@@ -71,13 +67,13 @@ export class LarkSuiteService {
   async sendNotification(dto: LarkNotificationDto): Promise<void> {
     this.logger.log(
       `Sending LarkSuite notification: targetType=${dto.targetType}, ` +
-      `targetId=${dto.targetId}, messageType=${dto.messageType}`,
+        `targetId=${dto.targetId}, messageType=${dto.messageType}`,
     );
 
     if (!this.enabled) {
       throw new NotImplementedException(
         'LarkSuite integration pending configuration. ' +
-        'Set LARK_INTEGRATION_ENABLED=true and configure LARK_APP_ID and LARK_APP_SECRET.',
+          'Set LARK_INTEGRATION_ENABLED=true and configure LARK_APP_ID and LARK_APP_SECRET.',
       );
     }
 
@@ -89,7 +85,7 @@ export class LarkSuiteService {
     // 5. Handle mentions if specified
     throw new NotImplementedException(
       'LarkSuite notification sending is pending API integration. ' +
-      'Requires LarkSuite app with im:message scope.',
+        'Requires LarkSuite app with im:message scope.',
     );
   }
 
@@ -103,7 +99,7 @@ export class LarkSuiteService {
     if (!this.enabled) {
       throw new NotImplementedException(
         'LarkSuite integration pending configuration. ' +
-        'Set LARK_INTEGRATION_ENABLED=true and configure LARK_APP_ID and LARK_APP_SECRET.',
+          'Set LARK_INTEGRATION_ENABLED=true and configure LARK_APP_ID and LARK_APP_SECRET.',
       );
     }
 
@@ -115,7 +111,7 @@ export class LarkSuiteService {
     // 5. Return the events list
     throw new NotImplementedException(
       'LarkSuite calendar sync is pending API integration. ' +
-      'Requires LarkSuite app with calendar:calendar scope.',
+        'Requires LarkSuite app with calendar:calendar scope.',
     );
   }
 
@@ -127,13 +123,13 @@ export class LarkSuiteService {
   async createApproval(dto: LarkApprovalDto): Promise<LarkApprovalResult> {
     this.logger.log(
       `Creating LarkSuite approval: code=${dto.approvalCode}, ` +
-      `initiator=${dto.initiatorUserId}, erpRef=${dto.erpReference || 'N/A'}`,
+        `initiator=${dto.initiatorUserId}, erpRef=${dto.erpReference || 'N/A'}`,
     );
 
     if (!this.enabled) {
       throw new NotImplementedException(
         'LarkSuite integration pending configuration. ' +
-        'Set LARK_INTEGRATION_ENABLED=true and configure LARK_APP_ID and LARK_APP_SECRET.',
+          'Set LARK_INTEGRATION_ENABLED=true and configure LARK_APP_ID and LARK_APP_SECRET.',
       );
     }
 
@@ -146,7 +142,7 @@ export class LarkSuiteService {
     // 6. Return the approval result
     throw new NotImplementedException(
       'LarkSuite approval creation is pending API integration. ' +
-      'Requires LarkSuite app with approval:approval scope.',
+        'Requires LarkSuite app with approval:approval scope.',
     );
   }
 
@@ -161,7 +157,7 @@ export class LarkSuiteService {
     if (!this.enabled) {
       throw new NotImplementedException(
         'LarkSuite integration pending configuration. ' +
-        'Set LARK_INTEGRATION_ENABLED=true and configure LARK_APP_ID and LARK_APP_SECRET.',
+          'Set LARK_INTEGRATION_ENABLED=true and configure LARK_APP_ID and LARK_APP_SECRET.',
       );
     }
 
@@ -173,7 +169,7 @@ export class LarkSuiteService {
     // 5. Return mapped user info
     throw new NotImplementedException(
       'LarkSuite user mapping is pending API integration. ' +
-      'Requires LarkSuite app with contact:contact.base:readonly scope.',
+        'Requires LarkSuite app with contact:contact.base:readonly scope.',
     );
   }
 }

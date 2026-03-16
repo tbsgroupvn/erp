@@ -38,6 +38,7 @@ export interface Package {
   deliveredAt: string | null;
 
   containerId: string | null;
+  weightConfirmedAt: string | null;
   note: string | null;
   createdAt: string;
   updatedAt: string;

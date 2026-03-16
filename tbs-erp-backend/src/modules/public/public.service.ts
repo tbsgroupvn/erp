@@ -39,9 +39,7 @@ export class PublicService {
 
     if (existingCustomer) {
       // Customer exists - add new contact
-      this.logger.log(
-        `Customer exists (${existingCustomer.code}), adding new contact`,
-      );
+      this.logger.log(`Customer exists (${existingCustomer.code}), adding new contact`);
 
       const contact = await this.prisma.contact.create({
         data: {
@@ -63,9 +61,7 @@ export class PublicService {
         message: dto.message,
       });
 
-      this.logger.log(
-        `Lead captured for existing customer: ${existingCustomer.code}`,
-      );
+      this.logger.log(`Lead captured for existing customer: ${existingCustomer.code}`);
 
       return {
         customer: existingCustomer,
@@ -85,12 +81,8 @@ export class PublicService {
           phone: normalizedPhone,
           email: dto.email,
           tier: CustomerTier.NEW,
-          depositRate: this.customerTierService.getDepositRate(
-            CustomerTier.NEW,
-          ),
-          creditLimit: this.customerTierService.getCreditLimit(
-            CustomerTier.NEW,
-          ),
+          depositRate: this.customerTierService.getDepositRate(CustomerTier.NEW),
+          creditLimit: this.customerTierService.getCreditLimit(CustomerTier.NEW),
           note: dto.message
             ? `Lead from website - Service: ${dto.service}\nMessage: ${dto.message}`
             : `Lead from website - Service: ${dto.service}`,
@@ -327,6 +319,62 @@ export class PublicService {
 
     // Not found
     return null;
+  }
+
+  /**
+   * Get active service fee configs for the public pricing page.
+   * Returns only public-safe fields (no internal IDs, createdBy, etc.)
+   */
+  async getPublicServiceFees() {
+    const configs = await this.prisma.serviceFeeConfig.findMany({
+      where: { isActive: true },
+      orderBy: [{ serviceType: 'asc' }, { priority: 'desc' }],
+      select: {
+        serviceType: true,
+        name: true,
+        customerTier: true,
+        feePercent: true,
+        minFeeAmount: true,
+        maxFeeAmount: true,
+        minOrderValue: true,
+        maxOrderValue: true,
+        minQuantity: true,
+        productCategory: true,
+        priority: true,
+        note: true,
+      },
+    });
+
+    return configs;
+  }
+
+  /**
+   * Get aggregate stats for the public website "success metrics" section.
+   * Returns total active customers, total completed orders, and years of operation.
+   */
+  async getPublicStats(): Promise<{
+    totalCustomers: number;
+    totalCompletedOrders: number;
+    yearsOfOperation: number;
+  }> {
+    const [totalCustomers, totalCompletedOrders] = await Promise.all([
+      this.prisma.customer.count({
+        where: { isActive: true },
+      }),
+      this.prisma.order.count({
+        where: { status: OrderStatus.COMPLETED },
+      }),
+    ]);
+
+    // TBS was founded in 2014
+    const foundingYear = 2014;
+    const yearsOfOperation = new Date().getFullYear() - foundingYear;
+
+    return {
+      totalCustomers,
+      totalCompletedOrders,
+      yearsOfOperation,
+    };
   }
 
   /**

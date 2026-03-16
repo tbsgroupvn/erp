@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, X, ArrowRight, Package } from 'lucide-react';
+import { Plus, X, ArrowRight, Package, Layers, ExternalLink } from 'lucide-react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable } from '@/components/shared/data-table';
+import { ErrorState } from '@/components/shared/error-state';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,13 +19,31 @@ import {
   useContainers,
   useCreateContainer,
   useUpdateContainerStatus,
+  useConsolidationPlan,
 } from '@/lib/hooks/use-containers';
 import { useAddPackagesToContainer } from '@/lib/hooks/use-warehouse';
 import { formatDate } from '@/lib/utils/format';
 import { SHIPPING_ROUTE_LABELS } from '@/lib/utils/constants';
 import { ShippingRoute } from '@/lib/types';
+import { cn } from '@/lib/utils/cn';
 import type { Container, ContainerQueryParams, CreateContainerDto } from '@/lib/types';
 import type { ColumnDef } from '@tanstack/react-table';
+
+const TrackingTabContent = dynamic(
+  () => import('./_components/tracking-tab').then((m) => ({ default: m.TrackingTab })),
+  { ssr: false, loading: () => <div className="py-12 text-center text-sm text-muted-foreground">Đang tải...</div> },
+);
+
+// ---------------------------------------------------------------------------
+// Tab definitions
+// ---------------------------------------------------------------------------
+
+const TABS = [
+  { key: 'default', label: 'Container' },
+  { key: 'tracking', label: 'Theo dõi' },
+] as const;
+
+type TabKey = (typeof TABS)[number]['key'];
 
 // ---------------------------------------------------------------------------
 // Status labels & colors
@@ -35,6 +56,7 @@ const CONTAINER_STATUS_LABELS: Record<string, string> = {
   ON_HOLD_BORDER: 'Giữ biên giới',
   ARRIVED: 'Đã đến',
   CUSTOMS: 'Thông quan',
+  CUSTOMS_HOLD: 'Giữ hải quan',
   COMPLETED: 'Hoàn thành',
 };
 
@@ -45,6 +67,7 @@ const CONTAINER_STATUS_COLORS: Record<string, string> = {
   ON_HOLD_BORDER: 'bg-red-100 text-red-700',
   ARRIVED: 'bg-emerald-100 text-emerald-700',
   CUSTOMS: 'bg-amber-100 text-amber-700',
+  CUSTOMS_HOLD: 'bg-orange-100 text-orange-700',
   COMPLETED: 'bg-green-100 text-green-700',
 };
 
@@ -61,21 +84,21 @@ const STATUS_FLOW: Container['status'][] = [
   'COMPLETED',
 ];
 
-/** Map of valid next statuses from each status (supports branching for ON_HOLD_BORDER) */
+/** Map of valid next statuses from each status (supports branching for ON_HOLD_BORDER, CUSTOMS_HOLD) */
 const STATUS_TRANSITIONS: Partial<Record<Container['status'], Container['status'][]>> = {
   PLANNING: ['LOADING'],
   LOADING: ['IN_TRANSIT'],
   IN_TRANSIT: ['ARRIVED', 'ON_HOLD_BORDER'],
   ON_HOLD_BORDER: ['ARRIVED'],
   ARRIVED: ['CUSTOMS'],
-  CUSTOMS: ['COMPLETED'],
+  CUSTOMS: ['COMPLETED', 'CUSTOMS_HOLD'],
+  CUSTOMS_HOLD: ['COMPLETED'],
 };
 
-function getNextStatus(current: Container['status']): Container['status'] | null {
-  const idx = STATUS_FLOW.indexOf(current);
-  if (idx === -1 || idx >= STATUS_FLOW.length - 1) return null;
-  return STATUS_FLOW[idx + 1];
-}
+const ALL_CONTAINER_STATUSES: Container['status'][] = [
+  'PLANNING', 'LOADING', 'IN_TRANSIT', 'ON_HOLD_BORDER',
+  'ARRIVED', 'CUSTOMS', 'CUSTOMS_HOLD', 'COMPLETED',
+];
 
 function getAvailableTransitions(current: Container['status']): Container['status'][] {
   return STATUS_TRANSITIONS[current] ?? [];
@@ -113,6 +136,7 @@ type AddPackagesFormData = z.infer<typeof addPackagesSchema>;
 
 function ContainerRowActions({ container }: { container: Container }) {
   const [showAddPackages, setShowAddPackages] = useState(false);
+  const router = useRouter();
   const updateStatus = useUpdateContainerStatus();
   const addPackages = useAddPackagesToContainer();
 
@@ -148,11 +172,19 @@ function ContainerRowActions({ container }: { container: Container }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push(`/container/${container.id}`)}
+        >
+          <ExternalLink className="mr-1 h-3 w-3" />
+          Chi tiết
+        </Button>
         {availableTransitions.map((nextStatus) => (
           <Button
             key={nextStatus}
-            variant={nextStatus === 'ON_HOLD_BORDER' ? 'destructive' : 'outline'}
+            variant={nextStatus === 'ON_HOLD_BORDER' || nextStatus === 'CUSTOMS_HOLD' ? 'destructive' : 'outline'}
             size="sm"
             onClick={() => onUpdateStatus(nextStatus)}
             disabled={updateStatus.isPending}
@@ -215,21 +247,117 @@ function ContainerRowActions({ container }: { container: Container }) {
 }
 
 // ---------------------------------------------------------------------------
-// Page component
+// Consolidation Plan Component
 // ---------------------------------------------------------------------------
 
-export default function ContainerPage() {
+function ConsolidationPlanSection() {
+  const { data: suggestions, isLoading } = useConsolidationPlan();
+  const addPackages = useAddPackagesToContainer();
+  const [selectedContainerId, setSelectedContainerId] = useState('');
+
+  if (isLoading) {
+    return (
+      <Card className="mb-6">
+        <CardContent className="py-6 text-center text-muted-foreground">
+          Đang tải gợi ý gom hàng...
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!suggestions || suggestions.length === 0) {
+    return (
+      <Card className="mb-6">
+        <CardContent className="py-6 text-center text-muted-foreground">
+          Khong co kien hang chua ghep container.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="mb-6 space-y-4">
+      {suggestions.map((group) => (
+        <Card key={group.shippingRoute}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Layers className="h-4 w-4" />
+              Tuyen {SHIPPING_ROUTE_LABELS[group.shippingRoute] || group.shippingRoute}
+              <span className="ml-auto text-sm font-normal text-muted-foreground">
+                {group.totalPackages} kien | {group.totalWeight.toFixed(1)} kg |
+                De xuat {group.suggestedContainers} container (fill ~{group.fillRate}%)
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-3 max-h-48 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="pb-2 font-medium">Ma kien</th>
+                    <th className="pb-2 font-medium">Don hang</th>
+                    <th className="pb-2 text-right font-medium">TL tinh phi (kg)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.packages.map((pkg) => (
+                    <tr key={pkg.id} className="border-b last:border-0">
+                      <td className="py-1.5 font-medium">{pkg.code}</td>
+                      <td className="py-1.5">{pkg.orderId}</td>
+                      <td className="py-1.5 text-right">{pkg.chargeableWeight.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-2">
+              <Label htmlFor={`cont-${group.shippingRoute}`} className="whitespace-nowrap text-xs">
+                Ghep vao container:
+              </Label>
+              <Input
+                id={`cont-${group.shippingRoute}`}
+                placeholder="Nhap ID container dang mo"
+                value={selectedContainerId}
+                onChange={(e) => setSelectedContainerId(e.target.value)}
+                className="h-8 max-w-xs text-xs"
+              />
+              <Button
+                size="sm"
+                disabled={!selectedContainerId || addPackages.isPending}
+                onClick={() => {
+                  const pkgIds = group.packages.map((p) => p.id);
+                  addPackages.mutate(
+                    { id: selectedContainerId, packageIds: pkgIds },
+                    { onSuccess: () => setSelectedContainerId('') },
+                  );
+                }}
+              >
+                Ghep tat ca
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Container list tab (default)
+// ---------------------------------------------------------------------------
+
+function ContainerListTab() {
   const [page, setPage] = useState(1);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showConsolidation, setShowConsolidation] = useState(false);
   const [statusFilter, setStatusFilter] = useState<Container['status'] | ''>('');
   const [routeFilter, setRouteFilter] = useState<ShippingRoute | ''>('');
 
-  // Build query params
   const queryParams: ContainerQueryParams = { page, limit: 20 };
   if (statusFilter) queryParams.status = statusFilter;
   if (routeFilter) queryParams.shippingRoute = routeFilter;
 
-  const { data, isLoading } = useContainers(queryParams);
+  const { data, isLoading, error, refetch } = useContainers(queryParams);
   const createContainer = useCreateContainer();
 
   const form = useForm<CreateContainerFormData>({
@@ -246,6 +374,10 @@ export default function ContainerPage() {
       estimatedArrivalAt: '',
     },
   });
+
+  if (error) {
+    return <ErrorState error={error as Error} onRetry={() => void refetch()} />;
+  }
 
   const onSubmitCreate = (formData: CreateContainerFormData) => {
     const payload: CreateContainerDto = {
@@ -267,10 +399,6 @@ export default function ContainerPage() {
       },
     });
   };
-
-  // ---------------------------------------------------------------------------
-  // Columns (defined inside component so row actions have access to hooks)
-  // ---------------------------------------------------------------------------
 
   const columns: ColumnDef<Container>[] = [
     {
@@ -305,7 +433,10 @@ export default function ContainerPage() {
     {
       accessorKey: 'totalWeight',
       header: 'Trọng lượng (kg)',
-      cell: ({ row }) => <span>{row.original.totalWeight?.toFixed(1) ?? '---'}</span>,
+      cell: ({ row }) => {
+        const w = row.original.totalWeight;
+        return <span>{w != null ? Number(w).toFixed(1) : '---'}</span>;
+      },
     },
     {
       accessorKey: 'estimatedArrivalAt',
@@ -332,7 +463,15 @@ export default function ContainerPage() {
 
   return (
     <div>
-      <PageHeader title="Container" description="Quản lý container vận chuyển">
+      {/* Header actions for the default tab */}
+      <div className="mb-4 flex items-center justify-end gap-2">
+        <Button
+          variant={showConsolidation ? 'secondary' : 'outline'}
+          onClick={() => setShowConsolidation((prev) => !prev)}
+        >
+          <Layers className="mr-2 h-4 w-4" />
+          {showConsolidation ? 'An goi y' : 'Goi y gom hang'}
+        </Button>
         <Button
           onClick={() => setShowCreateForm((prev) => !prev)}
           variant={showCreateForm ? 'outline' : 'default'}
@@ -345,15 +484,13 @@ export default function ContainerPage() {
           ) : (
             <>
               <Plus className="mr-2 h-4 w-4" />
-              Tạo container
+              Tao container
             </>
           )}
         </Button>
-      </PageHeader>
+      </div>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Create Container Form                                              */}
-      {/* ------------------------------------------------------------------ */}
+      {/* Create Container Form */}
       {showCreateForm && (
         <Card className="mb-6">
           <CardHeader>
@@ -361,7 +498,6 @@ export default function ContainerPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={form.handleSubmit(onSubmitCreate)} className="space-y-4">
-              {/* Row 1: shippingRoute, origin, destination */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <Label htmlFor="shippingRoute">
@@ -406,7 +542,6 @@ export default function ContainerPage() {
                 </div>
               </div>
 
-              {/* Row 2: carrier, bookingRef, vesselName */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <Label htmlFor="carrier">Hãng vận chuyển</Label>
@@ -439,7 +574,6 @@ export default function ContainerPage() {
                 </div>
               </div>
 
-              {/* Row 3: maxCapacity, estimatedDepartureAt, estimatedArrivalAt */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <Label htmlFor="maxCapacity">Sức chứa tối đa (kg)</Label>
@@ -478,7 +612,6 @@ export default function ContainerPage() {
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex items-center gap-3 pt-2">
                 <Button type="submit" disabled={createContainer.isPending}>
                   {createContainer.isPending ? 'Đang tạo...' : 'Tạo container'}
@@ -499,9 +632,10 @@ export default function ContainerPage() {
         </Card>
       )}
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Filters                                                            */}
-      {/* ------------------------------------------------------------------ */}
+      {/* Consolidation Plan */}
+      {showConsolidation && <ConsolidationPlanSection />}
+
+      {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <Label htmlFor="statusFilter" className="whitespace-nowrap text-sm">
@@ -517,7 +651,7 @@ export default function ContainerPage() {
             className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <option value="">Tất cả</option>
-            {[...STATUS_FLOW.slice(0, 3), 'ON_HOLD_BORDER' as Container['status'], ...STATUS_FLOW.slice(3)].map((status) => (
+            {ALL_CONTAINER_STATUSES.map((status) => (
               <option key={status} value={status}>
                 {CONTAINER_STATUS_LABELS[status]}
               </option>
@@ -548,9 +682,6 @@ export default function ContainerPage() {
         </div>
       </div>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Data Table                                                         */}
-      {/* ------------------------------------------------------------------ */}
       <DataTable
         columns={columns}
         data={data?.data ?? []}
@@ -560,5 +691,62 @@ export default function ContainerPage() {
         isLoading={isLoading}
       />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page component
+// ---------------------------------------------------------------------------
+
+function ContainerPageInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const activeTab = (searchParams.get('tab') ?? 'default') as TabKey;
+
+  const setTab = (tab: TabKey) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === 'default') params.delete('tab');
+    else params.set('tab', tab);
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  return (
+    <div>
+      <PageHeader title="Container" description="Quản lý container vận chuyển" infoKey="container" />
+
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b mb-6">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={cn(
+              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+              activeTab === t.key
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'default' && <ContainerListTab />}
+      {activeTab === 'tracking' && (
+        <Suspense fallback={<div className="py-12 text-center text-sm text-muted-foreground">Đang tải...</div>}>
+          <TrackingTabContent />
+        </Suspense>
+      )}
+    </div>
+  );
+}
+
+export default function ContainerPage() {
+  return (
+    <Suspense>
+      <ContainerPageInner />
+    </Suspense>
   );
 }

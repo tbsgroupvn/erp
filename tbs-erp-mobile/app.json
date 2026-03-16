@@ -1,0 +1,8 @@
+{
+  "name": "TbsErpMobile",
+  "displayName": "TBS ERP",
+  "version": "1.0.0",
+  "buildNumber": 1,
+  "bundleIdentifier": "vn.tbs.erp.mobile",
+  "applicationId": "vn.tbs.erp.mobile"
+}

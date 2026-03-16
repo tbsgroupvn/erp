@@ -1,11 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNotEmpty,
-  IsDateString,
-  IsOptional,
-  IsBoolean,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsDateString, IsOptional, IsBoolean } from 'class-validator';
 
 export class BankReconcileDto {
   @ApiProperty({ description: 'Bank code to reconcile (e.g., VCB, TCB, BIDV)', example: 'VCB' })
@@ -22,7 +16,8 @@ export class BankReconcileDto {
   endDate: string;
 
   @ApiPropertyOptional({
-    description: 'Specific bank account number to reconcile (if omitted, all accounts for the bank)',
+    description:
+      'Specific bank account number to reconcile (if omitted, all accounts for the bank)',
   })
   @IsOptional()
   @IsString()

@@ -307,18 +307,18 @@ p {
     <div class="logo-line"></div>
 
     <div class="meta">
-        <strong>Phiên bản:</strong> 3.0<br>
-        <strong>Ngày cập nhật:</strong> 24/02/2026<br>
+        <strong>Phiên bản:</strong> 4.0<br>
+        <strong>Ngày cập nhật:</strong> 04/03/2026<br>
         <strong>Loại tài liệu:</strong> Nội bộ &mdash; Chuyển giao hệ thống<br>
         <strong>Kiến trúc:</strong> NestJS + Next.js 14 + PostgreSQL + Redis<br>
     </div>
 
     <div class="badge-row">
-        <span class="badge">65+ Phân hệ</span>
-        <span class="badge">95+ Mô hình</span>
-        <span class="badge">7 Máy trạng thái</span>
+        <span class="badge">64 Phân hệ</span>
+        <span class="badge">142 Mô hình</span>
+        <span class="badge">9 Máy trạng thái</span>
         <span class="badge">22 Vai trò</span>
-        <span class="badge">350+ Điểm cuối API</span>
+        <span class="badge">603+ Điểm cuối API</span>
     </div>
 </div>
 
@@ -340,7 +340,7 @@ p {
 <li>2.1 Tổng quan kiến trúc</li>
 <li>2.2 Kiến trúc máy chủ</li>
 <li>2.3 Kiến trúc giao diện</li>
-<li>2.4 Lược đồ Cơ sở dữ liệu (17 tệp)</li>
+<li>2.4 Lược đồ Cơ sở dữ liệu (21 tệp, 142 mô hình, 89 kiểu liệt kê)</li>
 <li>2.5 Tính năng bảo mật</li>
 <li>2.6 Năm Nguyên tắc Kiến trúc Lõi</li>
 <li>2.7 Máy trạng thái nghiệp vụ</li>
@@ -418,11 +418,13 @@ p {
 <li>9.6 Hỗ trợ kỹ thuật</li>
 </ol>
 </li>
-<li>PHỤ LỤC<ul>
-<li>A. Danh sách kiểu liệt kê đầy đủ</li>
-<li>B. Quy tắc mã định danh</li>
-<li>C. Sơ đồ quan hệ chính</li>
-</ul>
+<li>
+<ol>
+<li>HỆ THỐNG TÍCH HỢP &amp; XỬ LÝ NỀN</li>
+<li>10.1 Kiến trúc sự kiện</li>
+<li>10.2 Outbox Pattern (Đảm bảo gửi sự kiện)</li>
+<li>10.3 Hàng đợi tác vụ nền (BullMQ)</li>
+</ol>
 </li>
 </ul>
 </div>
@@ -447,40 +449,56 @@ p {
 </thead>
 <tbody>
 <tr>
-<td>Phân hệ nghiệp vụ</td>
-<td>65+</td>
+<td>Phân hệ nghiệp vụ (backend)</td>
+<td>64</td>
 </tr>
 <tr>
-<td>Mô hình dữ liệu</td>
-<td>95+</td>
+<td>Mô hình dữ liệu (Prisma)</td>
+<td>142</td>
 </tr>
 <tr>
-<td>Kiểu liệt kê</td>
-<td>50+</td>
+<td>Kiểu liệt kê (Enum)</td>
+<td>89</td>
 </tr>
 <tr>
 <td>Vai trò người dùng</td>
 <td>22</td>
 </tr>
 <tr>
-<td>Trang tổng quan (nội bộ)</td>
-<td>40+</td>
+<td>Trang giao diện nội bộ</td>
+<td>106</td>
 </tr>
 <tr>
-<td>Trang tổng quan (website)</td>
-<td>26</td>
+<td>Trang quản trị CMS</td>
+<td>16</td>
 </tr>
 <tr>
-<td>Dịch vụ lõi</td>
-<td>18</td>
+<td>Điểm cuối API (HTTP)</td>
+<td>603+</td>
+</tr>
+<tr>
+<td>Bộ lắng nghe sự kiện</td>
+<td>116</td>
+</tr>
+<tr>
+<td>Tác vụ định kỳ (Cron)</td>
+<td>31</td>
 </tr>
 <tr>
 <td>Máy trạng thái nghiệp vụ</td>
-<td>7</td>
+<td>9</td>
 </tr>
 <tr>
 <td>Luồng phê duyệt mặc định</td>
 <td>18</td>
+</tr>
+<tr>
+<td>Hook giao diện (React)</td>
+<td>48</td>
+</tr>
+<tr>
+<td>Module API giao diện</td>
+<td>54</td>
 </tr>
 </tbody>
 </table>
@@ -562,11 +580,11 @@ p {
 │   │   ├── sms/                 # Nhà cung cấp tin nhắn (mã xác thực)
 │   │   ├── vault/               # Quản lý khóa bí mật
 │   │   └── websocket/           # Thông báo thời gian thực
-│   ├── modules/                 # 59 phân hệ nghiệp vụ
+│   ├── modules/                 # 64 phân hệ nghiệp vụ
 │   ├── common/                  # Bộ bảo vệ, bộ chặn, bộ trang trí, tiện ích
 │   └── config/                  # Cấu hình ứng dụng, nghiệp vụ, thương hiệu
 ├── prisma/
-│   ├── schema/                  # 17 tệp lược đồ
+│   ├── schema/                  # 21 tệp lược đồ
 │   └── seed/                    # Dữ liệu mẫu (vai trò, demo)
 </code></pre>
 <h3>2.3 Kiến trúc giao diện</h3>
@@ -574,7 +592,8 @@ p {
 ├── src/
 │   ├── app/
 │   │   ├── (auth)/              # Đăng nhập, đăng ký
-│   │   ├── (dashboard)/         # 33+ trang tổng quan
+│   │   ├── (dashboard)/         # 106 trang nội bộ
+│   │   ├── admin/               # 16 trang quản trị CMS
 │   │   └── (public)/            # Trang công khai
 │   ├── components/
 │   │   ├── layout/              # Thanh bên, thanh trên
@@ -588,7 +607,7 @@ p {
 │       ├── types/               # Kiểu dữ liệu
 │       └── utils/               # Hàm trợ giúp, kiểm tra, hằng số
 </code></pre>
-<h3>2.4 Lược đồ Cơ sở dữ liệu (17 tệp)</h3>
+<h3>2.4 Lược đồ Cơ sở dữ liệu (21 tệp, 142 mô hình, 89 kiểu liệt kê)</h3>
 <table>
 <thead>
 <tr>
@@ -606,32 +625,32 @@ p {
 <tr>
 <td><code>auth.prisma</code></td>
 <td>Xác thực, Phân quyền, Kiểm toán, Đồng ý, Đăng nhập hộ</td>
-<td>User, Session, AuditLog, UserConsent, DataRetentionReport, ImpersonationLog</td>
+<td>User, Session, AuditLog, AuditLogArchive, UserConsent, DataRetentionReport, ImpersonationLog</td>
 </tr>
 <tr>
 <td><code>common.prisma</code></td>
 <td>Kiểu liệt kê dùng chung</td>
-<td>45+ enums</td>
+<td>89 enums</td>
 </tr>
 <tr>
 <td><code>order.prisma</code></td>
 <td>Đơn hàng, Báo giá, Hợp đồng, MHH</td>
-<td>MasterOrder, Order, OrderItem, OrderExtraCharge, Quotation, Contract, SupplierOrder, MHHIssue, ServiceFeeConfig, QCInspection</td>
+<td>MasterOrder, Order, OrderItem, OrderExtraCharge, OrderStatusHistory, PreAlert, Contract, Quotation, QuotationItem, QuotationTemplate, SupplierOrder, MHHIssue, ServiceFeeConfig, ReturnRequest, CancelPenaltyConfig</td>
 </tr>
 <tr>
 <td><code>crm.prisma</code></td>
-<td>Khách hàng, Ví điện tử</td>
-<td>Customer, Contact, Wallet, WalletTransaction</td>
+<td>Khách hàng, Ví điện tử, CRM mở rộng</td>
+<td>Customer, Contact, Wallet, WalletTransaction, CustomerInteractionNote, Lead, LeadNote</td>
 </tr>
 <tr>
 <td><code>finance.prisma</code></td>
-<td>Kế toán, Thu chi, Hóa đơn</td>
-<td>AccountReceivable (chỉ mục orderId), AccountPayable, PaymentVoucher, CashTransaction (chỉ mục voucherId), Invoice, InvoiceItem, ExchangeRate, DebtNetting, CommissionRecord, PurchaseRequest (chỉ mục orderId), PurchaseOrder (chỉ mục orderId), JournalEntry, PaymentAllocation, UnallocatedFundClaim</td>
+<td>Kế toán, Thu chi, Hóa đơn (26 mô hình)</td>
+<td>AccountReceivable, AccountPayable, PaymentVoucher, CashTransaction, Invoice, InvoiceItem, ExchangeRate, DebtNetting, DebtNettingItem, ChartOfAccount, JournalEntry, JournalEntryLine, CommissionRule, CommissionRecord, PurchaseRequest, PurchaseRequestItem, PurchaseOrder, StockItem, StockMovement, CODRecord, ClosedPeriod, PaymentAllocation, PaymentAllocationDetail, ARAgingSnapshot, UnallocatedFundClaim, BankWebhookTransaction</td>
 </tr>
 <tr>
 <td><code>warehouse.prisma</code></td>
 <td>Kho TQ/VN, QC</td>
-<td>Package, LostAndFound, QCInspection</td>
+<td>Package, WeightAuditLog, LostAndFound, QCPhotoGuideline, PackageConsolidation, StorageLocation, InventoryCount, InventoryCountItem, QCInspection</td>
 </tr>
 <tr>
 <td><code>container.prisma</code></td>
@@ -641,12 +660,12 @@ p {
 <tr>
 <td><code>logistics.prisma</code></td>
 <td>Xe, Tài xế, Giao hàng</td>
-<td>Vehicle, Driver, Delivery, VehicleMaintenance, FuelRecord, CODRecord</td>
+<td>Vehicle, Driver, Delivery, DeliveryPackage, VehicleMaintenance, FuelRecord</td>
 </tr>
 <tr>
 <td><code>hr.prisma</code></td>
-<td>Nhân sự, Lương, Chấm công</td>
-<td>Employee, Attendance, LeaveRequest, OvertimeRequest, PayrollRecord</td>
+<td>Nhân sự, Lương, Chấm công, Tuyển dụng</td>
+<td>Employee, Attendance, LeaveRequest, OvertimeRequest, PayrollRecord, TrainingRecord, Candidate, OnboardingChecklist, PerformanceNote</td>
 </tr>
 <tr>
 <td><code>complaint.prisma</code></td>
@@ -655,8 +674,8 @@ p {
 </tr>
 <tr>
 <td><code>system.prisma</code></td>
-<td>Phê duyệt, Thông báo, Task, Vendor, Webhook</td>
-<td>ApprovalFlowDefinition, Approval, ApprovalStep, Document, Task, Vendor, WebhookEndpoint, ApiKey</td>
+<td>Phê duyệt, Thông báo, Task, Vendor, Webhook (23 mô hình)</td>
+<td>ApprovalFlowDefinition, ApprovalFlowNode, ApprovalFlowEdge, Approval, ApprovalStep, ApprovalCC, ApprovalComment, ApprovalActionLog, ApprovalDelegation, Notification, NotificationRule, EscalationRule, Document, Task, TaskComment, Vendor, VendorRating, LegalDocument, WebhookEndpoint, WebhookDelivery, ApiKey, RevenueTarget, ResponseTemplate</td>
 </tr>
 <tr>
 <td><code>tracking.prisma</code></td>
@@ -671,17 +690,37 @@ p {
 <tr>
 <td><code>blog.prisma</code></td>
 <td>Blog nội bộ</td>
-<td>BlogPost, BlogComment</td>
+<td>BlogCategory, BlogPost, BlogComment</td>
 </tr>
 <tr>
 <td><code>customs.prisma</code></td>
-<td>Khai báo hải quan</td>
-<td>CustomsDeclaration, CustomsDeclarationLine (hỗ trợ xóa mềm), HSCodeLibrary</td>
+<td>Khai báo hải quan (11 mô hình)</td>
+<td>CustomsDeclaration, CustomsDeclarationLine, CustomsLineSourceItem, HSCodeLibrary, HSCodeKeyword, ComplianceAlert, CustomsTaxAllocation, CustomsStatusHistory, ComplianceRule, CustomsDocumentChecklist, CustomsServiceRate</td>
 </tr>
 <tr>
 <td><code>cms.prisma</code></td>
 <td>CMS Website</td>
-<td>Page, Menu, Media, Contact, Newsletter, FAQ</td>
+<td>Page, Media, Menu, MenuItem, SiteSetting, Redirect, ContactSubmission, NewsletterSubscription, FAQ</td>
+</tr>
+<tr>
+<td><code>integration.prisma</code></td>
+<td>Tích hợp, Outbox, Đối soát</td>
+<td>OutboxEvent, DeadLetterEvent, ReconciliationRun, ReconciliationItem, BatchJob, SyncLog</td>
+</tr>
+<tr>
+<td><code>support-ticket.prisma</code></td>
+<td>Phiếu hỗ trợ khách hàng</td>
+<td>SupportTicket, TicketResponse</td>
+</tr>
+<tr>
+<td><code>carrier-reconciliation.prisma</code></td>
+<td>Đối soát hãng vận chuyển</td>
+<td>CarrierReconciliation, CarrierReconItem</td>
+</tr>
+<tr>
+<td><code>cost-adjustment.prisma</code></td>
+<td>Điều chỉnh chi phí</td>
+<td>CostAdjustment</td>
 </tr>
 </tbody>
 </table>
@@ -739,7 +778,7 @@ p {
 <li>Tự động thử lại khi thất bại, không ảnh hưởng hiệu năng luồng chính</li>
 </ul>
 <h3>2.7 Máy trạng thái nghiệp vụ</h3>
-<p>Hệ thống sử dụng 7 máy trạng thái để cưỡng chế quy trình nghiệp vụ một chiều:</p>
+<p>Hệ thống sử dụng 9 máy trạng thái để cưỡng chế quy trình nghiệp vụ một chiều:</p>
 <table>
 <thead>
 <tr>
@@ -750,6 +789,11 @@ p {
 </thead>
 <tbody>
 <tr>
+<td>Đơn hàng</td>
+<td>Vòng đời đơn hàng (13 giai đoạn)</td>
+<td>NHÁP → CHỜ CỌC → MUA HÀNG → XÁC NHẬN → ĐÃ THANH TOÁN → SẴN SÀNG → ĐÃ GIAO TQ → ĐÃ ĐẾN TQ → HOÀN THÀNH (+TẠM GIỮ, SỰ CỐ, HỦY)</td>
+</tr>
+<tr>
 <td>Đơn nhà cung cấp</td>
 <td>Đơn mua hàng từ nhà cung cấp Trung Quốc</td>
 <td>NHÁP → BÁO GIÁ → ĐÃ ĐẶT → XÁC NHẬN → GIAO 1 PHẦN → ĐÃ GIAO TQ → ĐÃ NHẬN TQ</td>
@@ -757,7 +801,7 @@ p {
 <tr>
 <td>Container</td>
 <td>Quản lý container vận chuyển</td>
-<td>LÊN KẾ HOẠCH → ĐANG TẢI → VẬN CHUYỂN → ĐÃ ĐẾN → THÔNG QUAN → HOÀN THÀNH</td>
+<td>LÊN KẾ HOẠCH → ĐANG TẢI → VẬN CHUYỂN → ĐÃ ĐẾN → THÔNG QUAN → HOÀN THÀNH (+KẸT CỬA KHẨU)</td>
 </tr>
 <tr>
 <td>Báo giá</td>
@@ -783,6 +827,11 @@ p {
 <td>Kho Việt Nam</td>
 <td>Trạng thái kiện hàng tại kho VN</td>
 <td>ĐÃ NHẬN → ĐÃ PHÂN LOẠI → SẴN SÀNG → ĐÃ GIAO</td>
+</tr>
+<tr>
+<td>Khai báo hải quan</td>
+<td>Quy trình thông quan</td>
+<td>NHÁP → ĐÃ NỘP → ĐANG XEM XÉT → ĐÃ DUYỆT/TỪ CHỐI → ĐÃ THÔNG QUAN/GIỮ LẠI</td>
 </tr>
 </tbody>
 </table>
@@ -1443,16 +1492,88 @@ p {
 <td>Cho phép chọn một số kiện để giao trước (không bắt buộc giao hết cùng lúc)</td>
 </tr>
 <tr>
-<td>Hàng hoàn trả</td>
+<td>Hàng hoàn trả (RTO)</td>
 <td>Tab riêng hiển thị hàng giao thất bại được trả về kho</td>
 </tr>
 <tr>
 <td>Hàng vô chủ</td>
 <td>Quản lý hàng không xác định được chủ</td>
 </tr>
+<tr>
+<td>Kiểm kê kho</td>
+<td><code>/kho-viet-nam/kiem-ke</code> — Kiểm kê tồn kho theo vị trí lưu trữ</td>
+</tr>
+<tr>
+<td>Phiếu xuất hàng</td>
+<td><code>/kho-viet-nam/pick-list</code> — Tạo phiếu xuất hàng theo lô</td>
+</tr>
+<tr>
+<td>Gộp kiện TQ</td>
+<td><code>/kho-trung-quoc/gop-kien</code> — Gộp nhiều kiện nhỏ thành 1 kiện lớn</td>
+</tr>
 </tbody>
 </table>
 <p><strong>Máy trạng thái kho Việt Nam:</strong> <code>ĐÃ NHẬN</code> → <code>ĐÃ PHÂN LOẠI</code> → <code>SẴN SÀNG</code> → <code>ĐÃ GIAO</code> — cưỡng chế bởi máy trạng thái.</p>
+<p><strong>Quy trình giao thất bại &amp; hoàn trả (RTO):</strong></p>
+<p>Khi tài xế giao hàng thất bại (khách không có nhà, từ chối nhận, địa chỉ sai), hệ thống thực hiện luồng hoàn trả hoàn chỉnh:</p>
+<pre><code>1. Tài xế bấm &quot;Giao thất bại&quot;
+   POST /warehouse-vn/deliveries/:id/failed
+   - Chọn lý do: KH_KHONG_CO_NHA | KH_TU_CHOI | DIA_CHI_SAI | KHAC
+   - Nhập ghi chú, đính kèm ảnh bằng chứng
+   → Delivery: ĐANG GIAO → THẤT BẠI → TRẢ VỀ KHO (tự động)
+   → Gửi thông báo khẩn cấp cho Sale + CSKH
+
+2. Hàng về kho VN → Nhân viên kho scan nhận
+   POST /warehouse-vn/deliveries/:id/rto/receive
+   → Delivery: TRẢ VỀ KHO → ĐÃ NHẬN LẠI
+   → Gửi thông báo Sale + CSKH: &quot;Hàng đã về kho, phí lưu kho tính từ ngày...&quot;
+
+3. Phí lưu kho tự động tích lũy
+   - Cron chạy hàng đêm @midnight: accrueStorageFees()
+   - Phí: 10.000 VND/ngày (cấu hình qua RTO_DAILY_STORAGE_RATE)
+   - Nhắc nhở tự động: 7 ngày (bình thường), 14 ngày (cao), 30 ngày (khẩn cấp → CEO/COO)
+
+4. Lên lịch giao lại
+   POST /warehouse-vn/deliveries/:id/rto/reschedule
+   - Chọn ngày giao (phải là tương lai)
+   - Tự động tính phí lưu kho = số ngày × 10.000 VND
+   - Tạo phụ phí RTO_STORAGE → quy trình phê duyệt tự động
+   - Tạo delivery mới với ngày giao mới
+   → Giao lại thành công → ĐÃ GIAO
+
+5. Hàng tồn &gt;30 ngày → Cảnh báo CEO/COO để quyết định xử lý
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Endpoint RTO</th>
+<th>Vai trò</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /deliveries/:id/failed</code></td>
+<td>DRIVER, WH_VN_MANAGER, WH_VN_STAFF</td>
+<td>Báo giao thất bại</td>
+</tr>
+<tr>
+<td><code>POST /deliveries/:id/rto/initiate</code></td>
+<td>DRIVER, WH_VN_MANAGER, WH_VN_STAFF</td>
+<td>Khởi tạo trả hàng</td>
+</tr>
+<tr>
+<td><code>POST /deliveries/:id/rto/receive</code></td>
+<td>WH_VN_MANAGER, WH_VN_STAFF</td>
+<td>Kho nhận hàng hoàn</td>
+</tr>
+<tr>
+<td><code>POST /deliveries/:id/rto/reschedule</code></td>
+<td>WH_VN_MANAGER, WH_VN_STAFF, SALE</td>
+<td>Lên lịch giao lại</td>
+</tr>
+</tbody>
+</table>
 <h4>4.8 Container</h4>
 <p><strong>Trang:</strong> <code>/container</code></p>
 <table>
@@ -2503,6 +2624,215 @@ p {
 </tr>
 </tbody>
 </table>
+<h4>4.48 Hỗ trợ khách hàng</h4>
+<p><strong>Trang:</strong> <code>/ho-tro</code></p>
+<table>
+<thead>
+<tr>
+<th>Chức năng</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tạo phiếu hỗ trợ</td>
+<td><code>/ho-tro/tao-moi</code> — Loại: Hỏi đáp, Khiếu nại, Yêu cầu kỹ thuật</td>
+</tr>
+<tr>
+<td>Chi tiết</td>
+<td><code>/ho-tro/[id]</code> — Xem lịch sử trao đổi, phản hồi</td>
+</tr>
+<tr>
+<td>Ghi chú khách hàng</td>
+<td><code>/khach-hang/[id]/ho-tro</code> — Lịch sử tương tác với khách hàng</td>
+</tr>
+<tr>
+<td>Mẫu phản hồi</td>
+<td>Mẫu phản hồi nhanh cho các câu hỏi thường gặp</td>
+</tr>
+</tbody>
+</table>
+<h4>4.49 Khách hàng tiềm năng (Leads)</h4>
+<p><strong>Trang:</strong> <code>/khach-hang/tiem-nang</code></p>
+<table>
+<thead>
+<tr>
+<th>Chức năng</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tạo khách tiềm năng</td>
+<td>Nhập thông tin khách hàng tiềm năng</td>
+</tr>
+<tr>
+<td>Theo dõi</td>
+<td>Trạng thái: MỚI → LIÊN HỆ → ĐÀM PHÁN → CHUYỂN ĐỔI / KHÔNG QUAN TÂM</td>
+</tr>
+<tr>
+<td>Ghi chú</td>
+<td>Ghi chú từng lần tương tác</td>
+</tr>
+<tr>
+<td>Chuyển đổi</td>
+<td>Chuyển đổi thành khách hàng chính thức khi ký hợp đồng</td>
+</tr>
+</tbody>
+</table>
+<h4>4.50 Báo cáo nâng cao</h4>
+<p><strong>Trang:</strong> <code>/bao-cao/*</code></p>
+<table>
+<thead>
+<tr>
+<th>Trang</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/bao-cao/lai-lo-don-hang</code></td>
+<td>Lãi lỗ theo từng đơn hàng — so sánh doanh thu vs chi phí</td>
+</tr>
+<tr>
+<td><code>/bao-cao/bien-loi-nhuan</code></td>
+<td>Biên lợi nhuận theo tháng/quý/năm</td>
+</tr>
+<tr>
+<td><code>/bao-cao/chenh-lech-ty-gia</code></td>
+<td>Chênh lệch tỷ giá — so sánh tỷ giá chốt đơn vs thanh toán</td>
+</tr>
+<tr>
+<td><code>/bao-cao/du-bao-dong-tien</code></td>
+<td>Dự báo dòng tiền 30/60/90 ngày</td>
+</tr>
+</tbody>
+</table>
+<h4>4.51 Bảng tổng quan chuyên biệt</h4>
+<p><strong>Trang:</strong> <code>/tong-quan/*</code></p>
+<table>
+<thead>
+<tr>
+<th>Trang</th>
+<th>Vai trò</th>
+<th>Nội dung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/tong-quan/kinh-doanh</code></td>
+<td>GĐ KD, Trưởng KD, Sale</td>
+<td>Mục tiêu doanh thu, đơn mới, tỷ lệ chuyển đổi</td>
+</tr>
+<tr>
+<td><code>/tong-quan/cskh</code></td>
+<td>CSKH</td>
+<td>Phiếu hỗ trợ, SLA, khiếu nại, phản hồi KH</td>
+</tr>
+</tbody>
+</table>
+<h4>4.52 Cài đặt nâng cao</h4>
+<table>
+<thead>
+<tr>
+<th>Trang</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/cai-dat/thong-bao</code></td>
+<td>Cấu hình quy tắc thông báo — kênh, mức ưu tiên, điều kiện gửi</td>
+</tr>
+<tr>
+<td><code>/cai-dat/leo-thang</code></td>
+<td>Cấu hình quy tắc leo thang tự động — thời gian, cấp trên</td>
+</tr>
+</tbody>
+</table>
+<h4>4.53 Đối soát hãng vận chuyển</h4>
+<table>
+<thead>
+<tr>
+<th>Chức năng</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tạo đợt đối soát</td>
+<td>So khớp chi phí vận chuyển thực tế với hãng</td>
+</tr>
+<tr>
+<td>So khớp tự động</td>
+<td>Hệ thống tự động so khớp theo mã vận đơn</td>
+</tr>
+<tr>
+<td>Xử lý chênh lệch</td>
+<td>Đánh dấu thiếu/thừa, liên hệ hãng bổ sung</td>
+</tr>
+</tbody>
+</table>
+<h4>4.54 Đóng kỳ kế toán</h4>
+<p><strong>Trang:</strong> <code>/tai-chinh/dong-ky</code></p>
+<table>
+<thead>
+<tr>
+<th>Chức năng</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Đóng kỳ tháng</td>
+<td>Khóa kỳ kế toán — không cho phép tạo bút toán/phiếu sau khi đóng</td>
+</tr>
+<tr>
+<td>Mở lại kỳ</td>
+<td>Chỉ CEO/CFO mới có quyền mở lại kỳ đã đóng</td>
+</tr>
+<tr>
+<td>Bút toán tỷ giá</td>
+<td>Tự động tạo bút toán chênh lệch tỷ giá cuối kỳ</td>
+</tr>
+</tbody>
+</table>
+<h4>4.55 Bảng giá dịch vụ hải quan</h4>
+<p><strong>Trang:</strong> <code>/thong-quan/bang-gia</code></p>
+<table>
+<thead>
+<tr>
+<th>Chức năng</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bảng giá dịch vụ</td>
+<td>Cấu hình giá dịch vụ thông quan theo loại hàng</td>
+</tr>
+<tr>
+<td>Tra cứu mã HS</td>
+<td><code>/thong-quan/tra-cuu-hs</code> — Tra cứu mã HS Code theo từ khóa, gợi ý tự động</td>
+</tr>
+</tbody>
+</table>
+<h4>4.56 Tối ưu lộ trình giao hàng</h4>
+<p><strong>Trang:</strong> <code>/giao-hang/toi-uu-lo-trinh</code></p>
+<table>
+<thead>
+<tr>
+<th>Chức năng</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tối ưu tuyến đường</td>
+<td>Gom nhóm phiếu giao theo khu vực, tối ưu thứ tự giao</td>
+</tr>
+</tbody>
+</table>
 <hr />
 <h2>5. QUY TRÌNH NGHIỆP VỤ CHÍNH</h2>
 <h3>5.1 Vòng đời đơn hàng (13 giai đoạn)</h3>
@@ -3196,6 +3526,200 @@ chmod +x scripts/setup.sh
 3. Gộp vào nhánh chính
 4. Chạy <code>scripts/update.sh</code> trên server</p>
 <hr />
+<h2>10. HỆ THỐNG TÍCH HỢP &amp; XỬ LÝ NỀN</h2>
+<h3>10.1 Kiến trúc sự kiện</h3>
+<p>Hệ thống sử dụng kiến trúc hướng sự kiện (Event-Driven Architecture) với 116 bộ lắng nghe sự kiện phân bố trên toàn bộ module. Các sự kiện chính:</p>
+<table>
+<thead>
+<tr>
+<th>Nhóm sự kiện</th>
+<th>Ví dụ</th>
+<th>Hành động</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Đơn hàng</td>
+<td><code>order.completed</code>, <code>order.cancelled</code></td>
+<td>Tạo công nợ, tính hoa hồng, cập nhật KPI</td>
+</tr>
+<tr>
+<td>Thanh toán</td>
+<td><code>payment.received</code>, <code>payment.allocated</code></td>
+<td>Cập nhật công nợ, kiểm tra cọc, mở khóa đơn</td>
+</tr>
+<tr>
+<td>Kho</td>
+<td><code>package.received</code>, <code>package.shipped</code></td>
+<td>Cập nhật trạng thái đơn, thông báo KH</td>
+</tr>
+<tr>
+<td>Container</td>
+<td><code>container.arrived</code>, <code>container.customs</code></td>
+<td>Cập nhật kiện, thông quan, thông báo</td>
+</tr>
+<tr>
+<td>Giao hàng</td>
+<td><code>delivery.failed</code>, <code>delivery.rto.received</code></td>
+<td>Thông báo Sale/CSKH, tính phí lưu kho</td>
+</tr>
+<tr>
+<td>Phê duyệt</td>
+<td><code>approval.completed</code>, <code>approval.rejected</code></td>
+<td>Thực thi hành động, thông báo người yêu cầu</td>
+</tr>
+<tr>
+<td>Tài chính</td>
+<td><code>cost.allocated</code>, <code>ar.overdue</code></td>
+<td>Phân bổ chi phí, cảnh báo nợ</td>
+</tr>
+</tbody>
+</table>
+<h3>10.2 Outbox Pattern (Đảm bảo gửi sự kiện)</h3>
+<p>Hệ thống sử dụng mẫu Outbox để đảm bảo sự kiện không bị mất khi xử lý giao dịch:
+- Sự kiện được ghi vào bảng <code>OutboxEvent</code> trong cùng giao dịch CSDL
+- Dịch vụ nền quét bảng Outbox định kỳ (mỗi 10 giây) và phát sự kiện
+- Tự động thử lại tối đa 5 lần với khoảng cách tăng dần
+- Sự kiện thất bại sau 5 lần → chuyển sang hàng đợi thư chết (Dead Letter Queue)</p>
+<h3>10.3 Hàng đợi tác vụ nền (BullMQ)</h3>
+<table>
+<thead>
+<tr>
+<th>Hàng đợi</th>
+<th>Mục đích</th>
+<th>Timeout</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>finance-events</code></td>
+<td>Phân bổ chi phí, tạo bút toán</td>
+<td>60 giây</td>
+</tr>
+<tr>
+<td><code>notification-events</code></td>
+<td>Gửi thông báo đa kênh</td>
+<td>30 giây</td>
+</tr>
+<tr>
+<td><code>warehouse-events</code></td>
+<td>Cập nhật trạng thái kho</td>
+<td>30 giây</td>
+</tr>
+<tr>
+<td><code>order-events</code></td>
+<td>Saga hoàn thành đơn</td>
+<td>120 giây</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Giám sát hàng đợi:</strong>
+- BullBoard UI có xác thực (chỉ CEO, COO, DIRECTOR_OPERATIONS)
+- Tự động cảnh báo khi hàng đợi có &gt;100 tác vụ chờ
+- Dead Letter Queue với giao diện replay</p>
+<h3>10.4 Tác vụ định kỳ (31 Cron Jobs)</h3>
+<table>
+<thead>
+<tr>
+<th>Thời gian</th>
+<th>Tác vụ</th>
+<th>Module</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hàng đêm @midnight</td>
+<td>Tính phí lưu kho RTO</td>
+<td>warehouse-vn</td>
+</tr>
+<tr>
+<td>Hàng đêm @midnight</td>
+<td>Chụp ảnh tuổi nợ phải thu</td>
+<td>accounts-receivable</td>
+</tr>
+<tr>
+<td>8:00 sáng hàng ngày</td>
+<td>Cưỡng chế COD 24h (chặn tài xế)</td>
+<td>cod</td>
+</tr>
+<tr>
+<td>9:00 sáng ngày thường</td>
+<td>Nhắc nhở RTO tồn kho (7/14/30 ngày)</td>
+<td>notification</td>
+</tr>
+<tr>
+<td>Mỗi 5 phút</td>
+<td>Quét Outbox gửi sự kiện</td>
+<td>events/outbox</td>
+</tr>
+<tr>
+<td>Mỗi 10 phút</td>
+<td>Giám sát Dead Letter Queue</td>
+<td>events/dlq-monitor</td>
+</tr>
+<tr>
+<td>Mỗi giờ</td>
+<td>Đồng bộ tỷ giá (USD)</td>
+<td>exchange-rate</td>
+</tr>
+<tr>
+<td>Mỗi giờ</td>
+<td>Làm nóng bộ nhớ đệm</td>
+<td>cache</td>
+</tr>
+<tr>
+<td>Mỗi ngày</td>
+<td>Kiểm tra chứng chỉ đào tạo sắp hết hạn</td>
+<td>employee</td>
+</tr>
+<tr>
+<td>Mỗi ngày</td>
+<td>Kiểm tra báo giá hết hạn</td>
+<td>quotation</td>
+</tr>
+<tr>
+<td>Mỗi ngày</td>
+<td>Tự động đóng kênh hải quan quá hạn</td>
+<td>customs-declaration</td>
+</tr>
+<tr>
+<td>Cuối tháng</td>
+<td>Leo thang phê duyệt quá hạn</td>
+<td>approval</td>
+</tr>
+</tbody>
+</table>
+<h3>10.5 Đối soát &amp; Reconciliation</h3>
+<table>
+<thead>
+<tr>
+<th>Loại đối soát</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Đối soát hãng vận chuyển</td>
+<td>So khớp chi phí vận chuyển thực tế vs hóa đơn hãng</td>
+</tr>
+<tr>
+<td>Đối soát ngân hàng</td>
+<td>So khớp giao dịch ngân hàng với phiếu thu/chi</td>
+</tr>
+<tr>
+<td>Đối soát tỷ giá</td>
+<td>Tính chênh lệch tỷ giá giữa thời điểm chốt đơn và thanh toán</td>
+</tr>
+</tbody>
+</table>
+<h3>10.6 Circuit Breaker &amp; Retry</h3>
+<ul>
+<li>Các lời gọi API bên ngoài (ngân hàng, hải quan, SMS) có Circuit Breaker</li>
+<li>Trạng thái: CLOSED → OPEN (sau 5 lỗi liên tiếp) → HALF_OPEN (thử lại sau 30 giây)</li>
+<li>Webhook retry: tối đa 5 lần, tăng dần (1s, 4s, 16s, 64s, 256s)</li>
+<li>Timeout cấu hình theo từng API: <code>integration-timeout.config.ts</code></li>
+</ul>
+<hr />
 <h2>PHỤ LỤC</h2>
 <h3>A. Danh sách kiểu liệt kê đầy đủ</h3>
 <details open>
@@ -3228,6 +3752,15 @@ chmod +x scripts/setup.sh
 | AccountStatus | OPEN, PARTIAL, PAID, OVERDUE, WRITTEN_OFF, CANCELLED |
 | FulfillmentStatus | NONE, PARTIAL, FULL |
 | PackageIndependentStatus | NORMAL, CONFISCATED_BY_CUSTOMS, HIGH_RISK_HOLD |
+| PreAlertStatus | PENDING, MATCHED, EXPIRED |
+| ReturnRequestStatus | PENDING, APPROVED, REJECTED, COMPLETED, CANCELLED |
+| CustomsDeclarationStatus | DRAFT, SUBMITTED, REVIEWING, APPROVED, REJECTED, CLEARED, HELD |
+| CustomsChannel | GREEN, YELLOW, RED |
+| OutboxStatus | PENDING, SENT, FAILED |
+| ReconRunStatus | PENDING, PROCESSING, COMPLETED, FAILED |
+| BatchJobStatus | PENDING, PROCESSING, COMPLETED, FAILED |
+| CostAdjustmentStatus | PENDING, APPROVED, REJECTED |
+| CarrierReconStatus | DRAFT, PROCESSING, COMPLETED, DISPUTED |
 
 </details>
 
@@ -3300,41 +3833,57 @@ chmod +x scripts/setup.sh
 </table>
 <h3>C. Sơ đồ quan hệ chính</h3>
 <pre><code>Customer ──┬── Order ──┬── OrderItem ──── SupplierOrder
+           │           ├── OrderExtraCharge
+           │           ├── OrderStatusHistory
            │           ├── Package ────── TrackingEvent
-           │           ├── Delivery ───── CODRecord
+           │           ├── Delivery ──┬── DeliveryPackage
+           │           │              └── CODRecord
            │           ├── PaymentVoucher
-           │           ├── AccountReceivable
+           │           ├── AccountReceivable ── ARAgingSnapshot
            │           ├── Complaint
            │           ├── QCInspection
            │           ├── MHHIssue
+           │           ├── ReturnRequest
            │           └── CostAllocation
            │
-           ├── Contract ── PaymentAllocation
-           ├── Quotation
-           ├── Wallet ──── WalletTransaction
-           └── Contact
+           ├── Contract ── PaymentAllocation ── PaymentAllocationDetail
+           ├── Quotation ── QuotationItem
+           ├── Wallet ──── WalletTransaction ── BankWebhookTransaction
+           ├── Contact
+           ├── CustomerInteractionNote
+           ├── Lead ──── LeadNote
+           └── SupportTicket ── TicketResponse
 
 User ──┬── Session
-       ├── AuditLog
+       ├── AuditLog ──── AuditLogArchive
        ├── Employee ──┬── Attendance
        │              ├── LeaveRequest
        │              ├── PayrollRecord
-       │              └── OvertimeRequest
-       ├── Task
+       │              ├── OvertimeRequest
+       │              ├── TrainingRecord
+       │              └── PerformanceNote
+       ├── Task ──── TaskComment
        ├── Notification
        └── Document
 
-Container ──┬── Package
+Container ──┬── Package ── PackageConsolidation
             ├── Order
             ├── TrackingEvent
-            └── OperationCost
+            └── OperationCost ── CostAdjustment
 
 ApprovalFlowDefinition ──┬── ApprovalFlowNode
                          ├── ApprovalFlowEdge
                          └── Approval ──┬── ApprovalStep
                                         ├── ApprovalComment
                                         ├── ApprovalCC
-                                        └── ApprovalActionLog
+                                        ├── ApprovalActionLog
+                                        └── ApprovalDelegation
+
+OutboxEvent ── DeadLetterEvent
+ReconciliationRun ── ReconciliationItem
+CarrierReconciliation ── CarrierReconItem
+BatchJob
+SyncLog
 </code></pre>
 <h3>D. Website công khai</h3>
 <p>Cả ERP Frontend và CMS Frontend đều có hệ thống trang công khai cho khách hàng:</p>
@@ -3477,7 +4026,8 @@ ApprovalFlowDefinition ──┬── ApprovalFlowNode
    ├── /don-hang          (Đơn hàng)
    ├── /bao-gia           (Báo giá)
    ├── /hop-dong          (Hợp đồng)
-   └── /khach-hang        (Khách hàng)
+   ├── /khach-hang        (Khách hàng)
+   └── /khach-hang/tiem-nang (Khách tiềm năng)
 
 3. 🏭 Kho vận
    ├── /kho-trung-quoc    (Kho Trung Quốc)
@@ -3512,18 +4062,23 @@ ApprovalFlowDefinition ──┬── ApprovalFlowNode
    └── /hoa-hong          (Hoa hồng)
 
 7. 📈 Báo cáo
-   ├── /bao-cao/doanh-so  (Doanh số)
-   └── /bao-cao/tai-chinh (Tài chính)
+   ├── /bao-cao/doanh-so           (Doanh số)
+   ├── /bao-cao/tai-chinh          (Tài chính)
+   ├── /bao-cao/lai-lo-don-hang    (Lãi lỗ đơn hàng)
+   ├── /bao-cao/bien-loi-nhuan     (Biên lợi nhuận)
+   ├── /bao-cao/chenh-lech-ty-gia  (Chênh lệch tỷ giá)
+   └── /bao-cao/du-bao-dong-tien   (Dự báo dòng tiền)
 
 8. ⚙️ Hệ thống
    ├── /cong-viec         (Công việc)
    ├── /khieu-nai         (Khiếu nại)
+   ├── /ho-tro            (Hỗ trợ khách hàng)
    ├── /tai-lieu          (Tài liệu)
    ├── /thong-bao         (Thông báo)
    ├── /phe-duyet         (Phê duyệt)
    ├── /uy-quyen          (Ủy quyền)
    ├── /quan-ly-user      (Quản lý User)
-   └── /cai-dat           (Cài đặt)
+   └── /cai-dat           (Cài đặt + Thông báo + Leo thang)
 </code></pre>
 <h3>G. Trang tổng quan theo vai trò</h3>
 <p>Hệ thống tự động hiển thị trang tổng quan phù hợp dựa trên vai trò:</p>
@@ -3640,7 +4195,7 @@ ApprovalFlowDefinition ──┬── ApprovalFlowNode
 <p><strong>18. Thấu chi tạm thời (CREDIT_OVERDRAFT)</strong></p>
 <pre><code>CHIEF_ACCOUNTANT (24h) → COO (48h) → END
 </code></pre>
-<h3>I. Danh sách hàm tái sử dụng giao diện (43 hàm)</h3>
+<h3>I. Danh sách hàm tái sử dụng giao diện (48 hàm)</h3>
 <details open>
 <summary>Nhấn để xem danh sách hàm tái sử dụng</summary>
 
@@ -3700,6 +4255,13 @@ ApprovalFlowDefinition ──┬── ApprovalFlowNode
 - `use-dashboard` — Dữ liệu trang tổng quan
 - `use-reports` — Báo cáo
 
+**CRM mở rộng:**
+- `use-leads` — Khách hàng tiềm năng
+- `use-support-tickets` — Phiếu hỗ trợ
+- `use-customs-split` — Tách hải quan
+- `use-return-request` — Yêu cầu trả hàng
+- `use-sales-dashboard` — Bảng tổng quan kinh doanh
+
 **Blog/Quản trị nội dung:**
 - `use-blog-posts` — Bài viết
 - `use-draft` — Lưu nháp tự động
@@ -3708,7 +4270,7 @@ ApprovalFlowDefinition ──┬── ApprovalFlowNode
 
 <h3>J. Tham chiếu điểm cuối giao diện lập trình</h3>
 <details open>
-<summary>Nhấn để xem toàn bộ điểm cuối API (300+)</summary>
+<summary>Nhấn để xem toàn bộ điểm cuối API (603+)</summary>
 
 #### Đơn hàng — `/orders`
 | Method | Path | Mô tả |
@@ -3813,9 +4375,12 @@ ApprovalFlowDefinition ──┬── ApprovalFlowNode
 | POST | `/warehouse-vn/deliveries/:id/confirm` | Xác nhận giao hàng |
 | GET | `/warehouse-vn/delivery-plan` | Kế hoạch giao hàng |
 | POST | `/warehouse-vn/packages/:id/reweigh` | Cân lại kiện (VN weight) |
-| POST | `/warehouse-vn/rto/:deliveryId/initiate` | Khởi tạo trả hàng (RTO) |
-| POST | `/warehouse-vn/rto/:deliveryId/receive` | Nhận hàng hoàn trả |
+| POST | `/warehouse-vn/deliveries/:id/failed` | Báo giao thất bại (auto RTO) |
+| POST | `/warehouse-vn/deliveries/:id/rto/initiate` | Khởi tạo trả hàng (RTO) |
+| POST | `/warehouse-vn/deliveries/:id/rto/receive` | Nhận hàng hoàn trả |
+| POST | `/warehouse-vn/deliveries/:id/rto/reschedule` | Lên lịch giao lại |
 | GET | `/warehouse-vn/rto` | Danh sách hàng hoàn trả |
+| GET | `/warehouse-vn/rto/:deliveryId/fee-breakdown` | Chi tiết phí lưu kho |
 
 #### Tiền chờ phân bổ — `/finance/unallocated`
 | Method | Path | Mô tả |
@@ -4068,11 +4633,11 @@ ApprovalFlowDefinition ──┬── ApprovalFlowNode
 <hr />
 <blockquote>
 <p><strong>Tài liệu này được tạo tự động từ phân tích mã nguồn hệ thống.</strong>
-Phiên bản: 3.0 | Ngày: 2026-02-24</p>
+Phiên bản: 4.0 | Ngày: 2026-03-04</p>
 </blockquote>
     </div>
     <div class="doc-footer">
-        TÀI LIỆU HỆ THỐNG ERP &mdash; v3.0 &mdash; 24/02/2026 &mdash; Tạo tự động từ phân tích mã nguồn
+        TÀI LIỆU HỆ THỐNG ERP &mdash; v4.0 &mdash; 04/03/2026 &mdash; Tạo tự động từ phân tích mã nguồn
     </div>
 </body>
 </html>

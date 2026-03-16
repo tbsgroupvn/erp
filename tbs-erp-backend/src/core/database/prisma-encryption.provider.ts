@@ -9,8 +9,16 @@ import {
 /**
  * Prisma Encryption Provider
  *
- * Hooks into Prisma client extensions to automatically encrypt/decrypt PII fields.
- * Uses Prisma.$extends() instead of deprecated $use() middleware.
+ * @deprecated This provider is a non-functional stub. The actual field-level encryption
+ * is implemented in `prisma-encryption.extension.ts` via `createPrismaEncryptionExtension()`.
+ * The $extends() call in onModuleInit does NOT replace the injected PrismaService singleton,
+ * so encryption/decryption configured here has NO effect on the application.
+ *
+ * To enable encryption, use `createPrismaEncryptionExtension()` from
+ * `@core/encryption/prisma-encryption.extension` directly in the PrismaService or
+ * provide the extended client via a custom provider.
+ *
+ * This file is kept for reference only and should NOT be relied upon for security.
  */
 @Injectable()
 export class PrismaEncryptionProvider implements OnModuleInit {
@@ -19,7 +27,7 @@ export class PrismaEncryptionProvider implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryptionService: EncryptionService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     if (!this.encryptionService.isEnabled()) {
@@ -31,7 +39,7 @@ export class PrismaEncryptionProvider implements OnModuleInit {
 
     this.logger.log('Registering Prisma encryption extension for PII fields...');
 
-    const encryptionExtension = this.prisma.$extends({
+    this.prisma.$extends({
       query: {
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
@@ -58,7 +66,18 @@ export class PrismaEncryptionProvider implements OnModuleInit {
             const result = await query(args);
 
             // 3. Decrypt on read
-            if (['findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow', 'findMany', 'create', 'update', 'upsert'].includes(operation)) {
+            if (
+              [
+                'findUnique',
+                'findUniqueOrThrow',
+                'findFirst',
+                'findFirstOrThrow',
+                'findMany',
+                'create',
+                'update',
+                'upsert',
+              ].includes(operation)
+            ) {
               return this.decryptReadResult(result, encryptedFields);
             }
 
@@ -68,12 +87,12 @@ export class PrismaEncryptionProvider implements OnModuleInit {
       },
     });
 
-    // Determine how to apply the extension. 
+    // Determine how to apply the extension.
     // Since PrismaService is a singleton extending PrismaClient, we can't easily "replace" it.
     // However, for encryption to work globally, we usually need the service to *be* the extended client.
     // But NestJS singleton behavior makes this tricky.
     // A common workaround is to use the extended client for operations, OR if the app uses `this.prisma` everywhere,
-    // we might need to rely on a different approach or accept that this provider mechanism is limited 
+    // we might need to rely on a different approach or accept that this provider mechanism is limited
     // unless we change how PrismaService is provided.
 
     // BUT, the error was specifically about `$use`.
@@ -90,10 +109,21 @@ export class PrismaEncryptionProvider implements OnModuleInit {
   }
 
   // Helper methods kept for reference but unused in this "disabled" version
-  private encryptWriteArgs(params: any, encryptedFields: string[], deterministicFields: string[], operation: string): void {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private encryptWriteArgs(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _params: any,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _encryptedFields: string[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _deterministicFields: string[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _operation: string,
+  ): void {
     // ... implementation ...
   }
-  private decryptReadResult(result: any, encryptedFields: string[]): any {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private decryptReadResult(result: any, _encryptedFields: string[]): any {
     // ... implementation ...
     return result;
   }

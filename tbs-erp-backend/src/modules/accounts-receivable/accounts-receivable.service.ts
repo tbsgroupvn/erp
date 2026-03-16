@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
@@ -59,36 +54,53 @@ export class AccountsReceivableService {
    * Record a payment against an accounts receivable.
    */
   async recordPayment(arId: string, dto: RecordPaymentDto) {
-    const ar = await this.arRepository.findById(arId);
-    if (!ar) {
-      throw new NotFoundException(`AR record ${arId} not found`);
-    }
+    // Wrap in a serializable transaction to prevent double-payment race conditions.
+    // The SELECT inside the transaction implicitly locks the row via serializable isolation,
+    // so concurrent payments for the same AR are serialized and the outstanding check is atomic.
+    const { updated, ar } = await this.prisma.$transaction(
+      async (tx) => {
+        const record = await tx.accountReceivable.findUnique({
+          where: { id: arId },
+          include: { customer: true, order: true },
+        });
 
-    if (ar.status === ArStatus.PAID || ar.status === ArStatus.NETTED) {
-      throw new BadRequestException(
-        `AR ${ar.code} is already ${ar.status}. Cannot record more payments.`,
-      );
-    }
+        if (!record) {
+          throw new NotFoundException(`AR record ${arId} not found`);
+        }
 
-    const outstanding =
-      ar.amount.toNumber() - (ar.paidAmount?.toNumber() ?? 0);
+        if (record.status === ArStatus.PAID || record.status === ArStatus.NETTED) {
+          throw new BadRequestException(
+            `AR ${record.code} is already ${record.status}. Cannot record more payments.`,
+          );
+        }
 
-    if (dto.amount > outstanding) {
-      throw new BadRequestException(
-        `Payment amount (${dto.amount}) exceeds outstanding balance (${outstanding})`,
-      );
-    }
+        const outstanding = record.amount.toNumber() - (record.paidAmount?.toNumber() ?? 0);
 
-    const newPaidAmount = (ar.paidAmount?.toNumber() ?? 0) + dto.amount;
-    const isFullyPaid = newPaidAmount >= ar.amount.toNumber();
+        if (dto.amount > outstanding) {
+          throw new BadRequestException(
+            `Payment amount (${dto.amount}) exceeds outstanding balance (${outstanding})`,
+          );
+        }
 
-    const updated = await this.arRepository.update(arId, {
-      paidAmount: new Prisma.Decimal(newPaidAmount),
-      status: isFullyPaid ? ArStatus.PAID : ArStatus.PARTIAL,
-      note: dto.note
-        ? `${ar.note ?? ''}\n[Payment] ${dto.amount} - ${dto.note}`
-        : ar.note,
-    });
+        const newPaidAmount = (record.paidAmount?.toNumber() ?? 0) + dto.amount;
+        const isFullyPaid = newPaidAmount >= record.amount.toNumber();
+
+        const result = await tx.accountReceivable.update({
+          where: { id: arId },
+          data: {
+            paidAmount: new Prisma.Decimal(newPaidAmount),
+            status: isFullyPaid ? ArStatus.PAID : ArStatus.PARTIAL,
+            note: dto.note ? `${record.note ?? ''}\n[Payment] ${dto.amount} - ${dto.note}` : record.note,
+          },
+          include: { customer: true, order: true },
+        });
+
+        return { updated: result, ar: record };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    const isFullyPaid = updated.status === ArStatus.PAID;
 
     this.eventEmitter.emit('ar.payment.recorded', {
       arId: ar.id,
@@ -216,10 +228,7 @@ export class AccountsReceivableService {
    * Get aging trend for a customer (last N days).
    */
   async getCustomerAgingTrend(customerId: string, days?: number) {
-    return this.snapshotService.getCustomerAgingTrend(
-      customerId,
-      days || 30,
-    );
+    return this.snapshotService.getCustomerAgingTrend(customerId, days || 30);
   }
 
   /**
@@ -272,100 +281,99 @@ export class AccountsReceivableService {
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async checkAgingAlerts(): Promise<void> {
     const now = new Date();
-    const threeDaysFromNow = new Date(
-      now.getTime() + 3 * 24 * 60 * 60 * 1000,
-    );
-
-    // Find all open/partial receivables
-    const receivables = await this.prisma.accountReceivable.findMany({
-      where: {
-        status: { in: [ArStatus.OPEN, ArStatus.PARTIAL] },
-      },
-      include: {
-        customer: {
-          select: { id: true, fullName: true, code: true },
-        },
-        order: {
-          select: { id: true, code: true, saleId: true },
-        },
-      },
-    });
-
     let alertCount = 0;
 
-    for (const ar of receivables) {
-      const outstanding = ar.amount.toNumber() - (ar.paidAmount?.toNumber() ?? 0);
-      if (outstanding <= 0) continue;
+    // Process in cursor-based batches to avoid loading all AR records into memory at once
+    const BATCH_SIZE = 500;
+    let cursor: string | undefined;
+    let hasMore = true;
 
-      const daysUntilDue = Math.floor(
-        (ar.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-      );
-      const daysOverdue = -daysUntilDue;
+    while (hasMore) {
+      const receivables = await this.prisma.accountReceivable.findMany({
+        where: {
+          status: { in: [ArStatus.OPEN, ArStatus.PARTIAL] },
+        },
+        include: {
+          customer: {
+            select: { id: true, fullName: true, code: true },
+          },
+          order: {
+            select: { id: true, code: true, saleId: true },
+          },
+        },
+        take: BATCH_SIZE,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+        orderBy: { id: 'asc' },
+      });
 
-      const basePayload = {
-        arId: ar.id,
-        arCode: ar.code,
-        customerId: ar.customerId,
-        customerName: ar.customer?.fullName,
-        customerCode: (ar.customer as any)?.code,
-        orderId: ar.orderId,
-        orderCode: ar.order?.code,
-        saleId: ar.order?.saleId,
-        outstanding,
-        dueDate: ar.dueDate,
-        daysOverdue,
-      };
-
-      // T-3: Approaching due date — alert Sale + Leader
-      if (daysUntilDue <= 3 && daysUntilDue > 0) {
-        this.eventEmitter.emit('ar.aging.approaching', {
-          ...basePayload,
-          alertLevel: 'APPROACHING',
-          notifyRoles: ['SALE', 'SALES_LEADER'],
-        });
-        alertCount++;
+      if (receivables.length < BATCH_SIZE) {
+        hasMore = false;
+      } else {
+        cursor = receivables[receivables.length - 1].id;
       }
 
-      // T+0: Overdue — alert Sale + Leader + Finance
-      if (daysOverdue >= 0 && daysOverdue < 15) {
-        this.eventEmitter.emit('ar.aging.overdue', {
-          ...basePayload,
-          alertLevel: 'OVERDUE',
-          notifyRoles: ['SALE', 'SALES_LEADER', 'CHIEF_ACCOUNTANT'],
-        });
-        alertCount++;
-      }
+      for (const ar of receivables) {
+        const outstanding = ar.amount.toNumber() - (ar.paidAmount?.toNumber() ?? 0);
+        if (outstanding <= 0) continue;
 
-      // T+15: Seriously overdue — alert + GD KD
-      if (daysOverdue >= 15 && daysOverdue < 30) {
-        this.eventEmitter.emit('ar.aging.overdue', {
-          ...basePayload,
-          alertLevel: 'OVERDUE_15',
-          notifyRoles: [
-            'SALE',
-            'SALES_LEADER',
-            'CHIEF_ACCOUNTANT',
-            'SALES_DIRECTOR',
-          ],
-        });
-        alertCount++;
-      }
+        const daysUntilDue = Math.floor(
+          (ar.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        const daysOverdue = -daysUntilDue;
 
-      // T+30: Critical — alert + BGD
-      if (daysOverdue >= 30) {
-        this.eventEmitter.emit('ar.aging.critical', {
-          ...basePayload,
-          alertLevel: 'OVERDUE_30',
-          notifyRoles: [
-            'SALE',
-            'SALES_LEADER',
-            'CHIEF_ACCOUNTANT',
-            'SALES_DIRECTOR',
-            'COO',
-            'CEO',
-          ],
-        });
-        alertCount++;
+        const basePayload = {
+          arId: ar.id,
+          arCode: ar.code,
+          customerId: ar.customerId,
+          customerName: ar.customer?.fullName,
+          customerCode: (ar.customer as any)?.code,
+          orderId: ar.orderId,
+          orderCode: ar.order?.code,
+          saleId: ar.order?.saleId,
+          outstanding,
+          dueDate: ar.dueDate,
+          daysOverdue,
+        };
+
+        // T-3: Approaching due date — alert Sale + Leader
+        if (daysUntilDue <= 3 && daysUntilDue > 0) {
+          this.eventEmitter.emit('ar.aging.approaching', {
+            ...basePayload,
+            alertLevel: 'APPROACHING',
+            notifyRoles: ['SALE', 'SALES_LEADER'],
+          });
+          alertCount++;
+        }
+
+        // T+0: Overdue — alert Sale + Leader + Finance
+        if (daysOverdue >= 0 && daysOverdue < 15) {
+          this.eventEmitter.emit('ar.aging.overdue', {
+            ...basePayload,
+            alertLevel: 'OVERDUE',
+            notifyRoles: ['SALE', 'SALES_LEADER', 'CHIEF_ACCOUNTANT'],
+          });
+          alertCount++;
+        }
+
+        // T+15: Seriously overdue — alert + GD KD
+        if (daysOverdue >= 15 && daysOverdue < 30) {
+          this.eventEmitter.emit('ar.aging.overdue', {
+            ...basePayload,
+            alertLevel: 'OVERDUE_15',
+            notifyRoles: ['SALE', 'SALES_LEADER', 'CHIEF_ACCOUNTANT', 'SALES_DIRECTOR'],
+          });
+          alertCount++;
+        }
+
+        // T+30: Critical — alert + BGD
+        if (daysOverdue >= 30) {
+          this.eventEmitter.emit('ar.aging.critical', {
+            ...basePayload,
+            alertLevel: 'OVERDUE_30',
+            notifyRoles: ['SALE', 'SALES_LEADER', 'CHIEF_ACCOUNTANT', 'SALES_DIRECTOR', 'COO', 'CEO'],
+          });
+          alertCount++;
+        }
       }
     }
 

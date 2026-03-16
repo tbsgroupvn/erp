@@ -45,12 +45,8 @@ export class PackageEventListener {
    * When a package is removed from a container, recalculate the container totals.
    */
   @OnEvent('container.package.removed')
-  async handlePackageRemoved(
-    event: PackageRemovedFromContainerEvent,
-  ): Promise<void> {
-    this.logger.log(
-      `Package ${event.packageId} removed from container ${event.containerId}`,
-    );
+  async handlePackageRemoved(event: PackageRemovedFromContainerEvent): Promise<void> {
+    this.logger.log(`Package ${event.packageId} removed from container ${event.containerId}`);
 
     try {
       // Recalculate container totals

@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { CacheService } from '@core/cache/cache.service';
-import { Branch, OrderStatus, Prisma, UserRole } from '@prisma/client';
+import { ContainerStatus, OrderStatus, Prisma } from '@prisma/client';
 import { DashboardQueryDto } from './dto/dashboard-query.dto';
+import { DrillDownQueryDto } from './dto/drill-down.dto';
 
 /** Cache TTL for dashboard queries (5 minutes in milliseconds). */
 const DASHBOARD_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -35,16 +36,9 @@ export class DashboardService {
       cacheKey,
       async () => {
         const { start, end } = query.getDateRange();
-        const branchFilter: Prisma.OrderWhereInput = query.branch
-          ? { branch: query.branch }
-          : {};
+        const branchFilter: Prisma.OrderWhereInput = query.branch ? { branch: query.branch } : {};
 
-        const [
-          totalOrders,
-          totalRevenue,
-          newCustomers,
-          completedOrders,
-        ] = await Promise.all([
+        const [totalOrders, totalRevenue, newCustomers, completedOrders] = await Promise.all([
           this.prisma.order.count({
             where: {
               createdAt: { gte: start, lte: end },
@@ -97,9 +91,7 @@ export class DashboardService {
       cacheKey,
       async () => {
         const { start, end } = query.getDateRange();
-        const branchFilter: Prisma.OrderWhereInput = query.branch
-          ? { branch: query.branch }
-          : {};
+        const branchFilter: Prisma.OrderWhereInput = query.branch ? { branch: query.branch } : {};
 
         const dateFilter: Prisma.OrderWhereInput = {
           createdAt: { gte: start, lte: end },
@@ -172,85 +164,74 @@ export class DashboardService {
       async () => {
         const branchFilter = query.branch;
 
-        const [
-          arOpen,
-          arOverdue,
-          apOpen,
-          apOverdue,
-          cashIn,
-          cashOut,
-          pendingVouchers,
-        ] = await Promise.all([
-          this.prisma.accountReceivable.aggregate({
-            where: {
-              status: { in: ['OPEN', 'PARTIAL'] },
-              ...(branchFilter ? { order: { branch: branchFilter } } : {}),
-            },
-            _sum: { amount: true, paidAmount: true },
-            _count: true,
-          }),
-          this.prisma.accountReceivable.aggregate({
-            where: {
-              status: { in: ['OPEN', 'PARTIAL'] },
-              dueDate: { lt: new Date() },
-              ...(branchFilter ? { order: { branch: branchFilter } } : {}),
-            },
-            _sum: { amount: true, paidAmount: true },
-            _count: true,
-          }),
-          this.prisma.accountPayable.aggregate({
-            where: { status: { in: ['OPEN', 'PARTIAL'] } },
-            _sum: { amount: true, paidAmount: true },
-            _count: true,
-          }),
-          this.prisma.accountPayable.aggregate({
-            where: {
-              status: { in: ['OPEN', 'PARTIAL'] },
-              dueDate: { lt: new Date() },
-            },
-            _sum: { amount: true, paidAmount: true },
-            _count: true,
-          }),
-          this.prisma.cashTransaction.aggregate({
-            where: {
-              type: 'IN',
-              createdAt: {
-                gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+        const [arOpen, arOverdue, apOpen, apOverdue, cashIn, cashOut, pendingVouchers] =
+          await Promise.all([
+            this.prisma.accountReceivable.aggregate({
+              where: {
+                status: { in: ['OPEN', 'PARTIAL'] },
+                ...(branchFilter ? { order: { branch: branchFilter } } : {}),
               },
-            },
-            _sum: { amount: true },
-            _count: true,
-          }),
-          this.prisma.cashTransaction.aggregate({
-            where: {
-              type: 'OUT',
-              createdAt: {
-                gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+              _sum: { amount: true, paidAmount: true },
+              _count: true,
+            }),
+            this.prisma.accountReceivable.aggregate({
+              where: {
+                status: { in: ['OPEN', 'PARTIAL'] },
+                dueDate: { lt: new Date() },
+                ...(branchFilter ? { order: { branch: branchFilter } } : {}),
               },
-            },
-            _sum: { amount: true },
-            _count: true,
-          }),
-          this.prisma.paymentVoucher.count({
-            where: {
-              status: 'PENDING',
-              ...(branchFilter ? { order: { branch: branchFilter } } : {}),
-            },
-          }),
-        ]);
+              _sum: { amount: true, paidAmount: true },
+              _count: true,
+            }),
+            this.prisma.accountPayable.aggregate({
+              where: { status: { in: ['OPEN', 'PARTIAL'] } },
+              _sum: { amount: true, paidAmount: true },
+              _count: true,
+            }),
+            this.prisma.accountPayable.aggregate({
+              where: {
+                status: { in: ['OPEN', 'PARTIAL'] },
+                dueDate: { lt: new Date() },
+              },
+              _sum: { amount: true, paidAmount: true },
+              _count: true,
+            }),
+            this.prisma.cashTransaction.aggregate({
+              where: {
+                type: 'IN',
+                createdAt: {
+                  gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+                },
+              },
+              _sum: { amount: true },
+              _count: true,
+            }),
+            this.prisma.cashTransaction.aggregate({
+              where: {
+                type: 'OUT',
+                createdAt: {
+                  gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+                },
+              },
+              _sum: { amount: true },
+              _count: true,
+            }),
+            this.prisma.paymentVoucher.count({
+              where: {
+                status: 'PENDING',
+                ...(branchFilter ? { order: { branch: branchFilter } } : {}),
+              },
+            }),
+          ]);
 
         const arOutstanding =
-          (arOpen._sum.amount?.toNumber() ?? 0) -
-          (arOpen._sum.paidAmount?.toNumber() ?? 0);
+          (arOpen._sum.amount?.toNumber() ?? 0) - (arOpen._sum.paidAmount?.toNumber() ?? 0);
         const arOverdueAmount =
-          (arOverdue._sum.amount?.toNumber() ?? 0) -
-          (arOverdue._sum.paidAmount?.toNumber() ?? 0);
+          (arOverdue._sum.amount?.toNumber() ?? 0) - (arOverdue._sum.paidAmount?.toNumber() ?? 0);
         const apOutstanding =
-          (apOpen._sum.amount?.toNumber() ?? 0) -
-          (apOpen._sum.paidAmount?.toNumber() ?? 0);
+          (apOpen._sum.amount?.toNumber() ?? 0) - (apOpen._sum.paidAmount?.toNumber() ?? 0);
         const apOverdueAmount =
-          (apOverdue._sum.amount?.toNumber() ?? 0) -
-          (apOverdue._sum.paidAmount?.toNumber() ?? 0);
+          (apOverdue._sum.amount?.toNumber() ?? 0) - (apOverdue._sum.paidAmount?.toNumber() ?? 0);
 
         return {
           accountsReceivable: {
@@ -268,9 +249,7 @@ export class DashboardService {
           cashFlow: {
             monthlyInflow: cashIn._sum.amount?.toNumber() ?? 0,
             monthlyOutflow: cashOut._sum.amount?.toNumber() ?? 0,
-            netFlow:
-              (cashIn._sum.amount?.toNumber() ?? 0) -
-              (cashOut._sum.amount?.toNumber() ?? 0),
+            netFlow: (cashIn._sum.amount?.toNumber() ?? 0) - (cashOut._sum.amount?.toNumber() ?? 0),
             inflowCount: cashIn._count,
             outflowCount: cashOut._count,
           },
@@ -293,66 +272,39 @@ export class DashboardService {
       async () => {
         const branchFilter = query.branch;
 
-        const [
-          inTransit,
-          pendingDelivery,
-          warehouseCN,
-          warehouseVN,
-          delivering,
-        ] = await Promise.all([
-          this.prisma.order.count({
-            where: {
-              status: OrderStatus.IN_TRANSIT,
-              ...(branchFilter ? { branch: branchFilter } : {}),
-            },
-          }),
-          this.prisma.order.count({
-            where: {
-              status: OrderStatus.DELIVERING,
-              ...(branchFilter ? { branch: branchFilter } : {}),
-            },
-          }),
-          this.prisma.order.count({
-            where: {
-              status: OrderStatus.WAREHOUSE_CN,
-              ...(branchFilter ? { branch: branchFilter } : {}),
-            },
-          }),
-          this.prisma.order.count({
-            where: {
-              status: OrderStatus.WAREHOUSE_VN,
-              ...(branchFilter ? { branch: branchFilter } : {}),
-            },
-          }),
-          this.prisma.order.count({
-            where: {
-              status: OrderStatus.DELIVERING,
-              ...(branchFilter ? { branch: branchFilter } : {}),
-            },
-          }),
-        ]);
+        // Consolidate 7 separate count() calls into a single groupBy query
+        const warehouseStatuses = [
+          OrderStatus.WAREHOUSE_CN,
+          OrderStatus.PACKING,
+          OrderStatus.CONSOLIDATION,
+          OrderStatus.IN_TRANSIT,
+          OrderStatus.CUSTOMS,
+          OrderStatus.WAREHOUSE_VN,
+          OrderStatus.DELIVERING,
+        ];
 
-        const atCustoms = await this.prisma.order.count({
+        const grouped = await this.prisma.order.groupBy({
+          by: ['status'],
           where: {
-            status: OrderStatus.CUSTOMS,
+            status: { in: warehouseStatuses },
             ...(branchFilter ? { branch: branchFilter } : {}),
           },
+          _count: { id: true },
         });
 
-        const [packing, consolidation] = await Promise.all([
-          this.prisma.order.count({
-            where: {
-              status: OrderStatus.PACKING,
-              ...(branchFilter ? { branch: branchFilter } : {}),
-            },
-          }),
-          this.prisma.order.count({
-            where: {
-              status: OrderStatus.CONSOLIDATION,
-              ...(branchFilter ? { branch: branchFilter } : {}),
-            },
-          }),
-        ]);
+        // Build a lookup map from the single query result
+        const countByStatus = new Map(grouped.map((g) => [g.status, g._count.id]));
+        const get = (s: OrderStatus) => countByStatus.get(s) ?? 0;
+
+        const warehouseCN  = get(OrderStatus.WAREHOUSE_CN);
+        const packing      = get(OrderStatus.PACKING);
+        const consolidation = get(OrderStatus.CONSOLIDATION);
+        const inTransit    = get(OrderStatus.IN_TRANSIT);
+        const atCustoms    = get(OrderStatus.CUSTOMS);
+        const warehouseVN  = get(OrderStatus.WAREHOUSE_VN);
+        const delivering   = get(OrderStatus.DELIVERING);
+        // pendingDelivery is an alias for DELIVERING per original logic
+        const pendingDelivery = delivering;
 
         return {
           warehouseCN,
@@ -365,13 +317,7 @@ export class DashboardService {
           delivering,
           pipeline: {
             total:
-              warehouseCN +
-              packing +
-              consolidation +
-              inTransit +
-              atCustoms +
-              warehouseVN +
-              delivering,
+              warehouseCN + packing + consolidation + inTransit + atCustoms + warehouseVN + delivering,
           },
         };
       },
@@ -397,12 +343,7 @@ export class DashboardService {
           ...(branchFilter ? { branch: branchFilter } : {}),
         };
 
-        const [
-          totalEmployees,
-          byDepartment,
-          newHires,
-          resignedCount,
-        ] = await Promise.all([
+        const [totalEmployees, byDepartment, newHires, resignedCount] = await Promise.all([
           this.prisma.employee.count({ where: baseWhere }),
           this.prisma.employee.groupBy({
             by: ['departmentCode'],
@@ -446,5 +387,191 @@ export class DashboardService {
   async invalidateDashboardCaches(): Promise<void> {
     await this.cacheService.invalidateByPrefix('dashboard:');
     this.logger.debug('All dashboard caches invalidated');
+  }
+
+  /**
+   * Drill-down: lay danh sach ban ghi thuc te dang sau mot KPI.
+   * Ho tro: total_orders | ar_outstanding | containers_in_transit | active_customers
+   */
+  async getDrillDown(query: DrillDownQueryDto) {
+    const { metric, branch } = query;
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const branchFilter = branch ? { branch: branch as any } : {};
+
+    switch (metric) {
+      case 'total_orders': {
+        // Lay don hang gan nhat (tat ca trang thai)
+        const [data, total] = await Promise.all([
+          this.prisma.order.findMany({
+            where: { ...branchFilter },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+            select: {
+              id: true,
+              code: true,
+              status: true,
+              serviceType: true,
+              totalAmount: true,
+              currency: true,
+              branch: true,
+              createdAt: true,
+              customer: { select: { id: true, fullName: true, code: true } },
+            },
+          }),
+          this.prisma.order.count({ where: { ...branchFilter } }),
+        ]);
+
+        return {
+          metric,
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+          data: data.map((o) => ({
+            ...o,
+            totalAmount: o.totalAmount.toNumber(),
+          })),
+        };
+      }
+
+      case 'ar_outstanding': {
+        // Lay AR dang con no (OPEN + PARTIAL), chua qua han hoac qua han
+        const where: Prisma.AccountReceivableWhereInput = {
+          status: { in: ['OPEN', 'PARTIAL'] as any[] },
+          ...(branch ? { order: { branch: branch as any } } : {}),
+        };
+
+        const [data, total] = await Promise.all([
+          this.prisma.accountReceivable.findMany({
+            where,
+            orderBy: { dueDate: 'asc' },
+            skip,
+            take: limit,
+            select: {
+              id: true,
+              code: true,
+              amount: true,
+              paidAmount: true,
+              currency: true,
+              dueDate: true,
+              status: true,
+              createdAt: true,
+              customer: { select: { id: true, fullName: true, code: true } },
+              order: { select: { id: true, code: true } },
+            },
+          }),
+          this.prisma.accountReceivable.count({ where }),
+        ]);
+
+        return {
+          metric,
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+          data: data.map((ar) => ({
+            ...ar,
+            amount: ar.amount.toNumber(),
+            paidAmount: ar.paidAmount.toNumber(),
+            outstanding: ar.amount.sub(ar.paidAmount).toNumber(),
+            isOverdue: ar.dueDate < new Date(),
+          })),
+        };
+      }
+
+      case 'containers_in_transit': {
+        // Lay container dang IN_TRANSIT
+        const where: Prisma.ContainerWhereInput = {
+          status: ContainerStatus.IN_TRANSIT,
+        };
+
+        const [data, total] = await Promise.all([
+          this.prisma.container.findMany({
+            where,
+            orderBy: { updatedAt: 'asc' },
+            skip,
+            take: limit,
+            select: {
+              id: true,
+              code: true,
+              status: true,
+              shippingRoute: true,
+              carrier: true,
+              containerNumber: true,
+              vesselName: true,
+              voyageNumber: true,
+              portOfLoading: true,
+              portOfDischarge: true,
+              estimatedDepartureAt: true,
+              estimatedArrivalAt: true,
+              actualArrivalAt: true,
+              updatedAt: true,
+            },
+          }),
+          this.prisma.container.count({ where }),
+        ]);
+
+        return {
+          metric,
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+          data,
+        };
+      }
+
+      case 'active_customers': {
+        // Lay khach hang dang hoat dong, chua bi khoa
+        const where: Prisma.CustomerWhereInput = {
+          isActive: true,
+          isBlocked: false,
+          ...branchFilter,
+        };
+
+        const [data, total] = await Promise.all([
+          this.prisma.customer.findMany({
+            where,
+            orderBy: { totalRevenue: 'desc' },
+            skip,
+            take: limit,
+            select: {
+              id: true,
+              code: true,
+              fullName: true,
+              companyName: true,
+              phone: true,
+              tier: true,
+              totalOrders: true,
+              totalRevenue: true,
+              currentDebt: true,
+              branch: true,
+              createdAt: true,
+            },
+          }),
+          this.prisma.customer.count({ where }),
+        ]);
+
+        return {
+          metric,
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+          data: data.map((c) => ({
+            ...c,
+            totalRevenue: c.totalRevenue.toNumber(),
+            currentDebt: c.currentDebt.toNumber(),
+          })),
+        };
+      }
+
+      default:
+        return { metric, total: 0, page, limit, totalPages: 0, data: [] };
+    }
   }
 }

@@ -27,8 +27,13 @@ export class GracePeriodService {
       },
     });
 
-    this.eventEmitter.emit('approval.created', { approvalId: approval.id, type: 'GRACE_PERIOD_REQUEST' });
-    this.logger.log(`Grace period requested for customer ${customer.code}: ${requestedDays} days by ${saleId}`);
+    this.eventEmitter.emit('approval.created', {
+      approvalId: approval.id,
+      type: 'GRACE_PERIOD_REQUEST',
+    });
+    this.logger.log(
+      `Grace period requested for customer ${customer.code}: ${requestedDays} days by ${saleId}`,
+    );
     return approval;
   }
 
@@ -45,6 +50,8 @@ export class GracePeriodService {
         blockedAt: null,
       },
     });
-    this.logger.log(`Grace period granted for customer ${customerId} until ${gracePeriodUntil.toISOString()}`);
+    this.logger.log(
+      `Grace period granted for customer ${customerId} until ${gracePeriodUntil.toISOString()}`,
+    );
   }
 }

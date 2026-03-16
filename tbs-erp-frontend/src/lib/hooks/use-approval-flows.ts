@@ -6,6 +6,8 @@ import {
   approvalFlowsApi,
   approvalDelegationsApi,
 } from '@/lib/api/approval-flows.api';
+import { approvalsApi } from '@/lib/api/approvals.api';
+import { approvalKeys } from '@/lib/hooks/use-approvals';
 
 // ---------------------------------------------------------------------------
 // Query key factory
@@ -90,6 +92,7 @@ export function useDeactivateApprovalFlow() {
 }
 
 export function useTestApprovalFlow() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
       id,
@@ -98,6 +101,11 @@ export function useTestApprovalFlow() {
       id: string;
       requestData: Record<string, unknown>;
     }) => approvalFlowsApi.testFlow(id, requestData),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: flowKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: flowKeys.lists() });
+      toast.success('Test quy trình thành công');
+    },
     onError: () => {
       toast.error('Không thể test quy trình');
     },
@@ -139,6 +147,44 @@ export function useDeactivateDelegation() {
     },
     onError: () => {
       toast.error('Không thể hủy ủy quyền');
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Batch Actions
+// ---------------------------------------------------------------------------
+
+export function useBatchApprove() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ approvalIds, comment }: { approvalIds: string[]; comment?: string }) =>
+      approvalsApi.batchApprove(approvalIds, comment),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: approvalKeys.all });
+      toast.success(
+        `Đã duyệt ${result?.processed ?? 0} yêu cầu${result?.failed ? `, ${result.failed} thất bại` : ''}`,
+      );
+    },
+    onError: () => {
+      toast.error('Không thể duyệt hàng loạt. Vui lòng thử lại sau.');
+    },
+  });
+}
+
+export function useBatchReject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ approvalIds, comment }: { approvalIds: string[]; comment?: string }) =>
+      approvalsApi.batchReject(approvalIds, comment),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: approvalKeys.all });
+      toast.success(
+        `Đã từ chối ${result?.processed ?? 0} yêu cầu${result?.failed ? `, ${result.failed} thất bại` : ''}`,
+      );
+    },
+    onError: () => {
+      toast.error('Không thể từ chối hàng loạt. Vui lòng thử lại sau.');
     },
   });
 }

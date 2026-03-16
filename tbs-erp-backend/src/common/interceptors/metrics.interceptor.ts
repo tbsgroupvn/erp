@@ -1,9 +1,4 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request, Response } from 'express';
@@ -26,10 +21,7 @@ const EXCLUDED_PATHS = ['/api/v1/health', '/api/v1/metrics'];
 function normalizeRoute(url: string): string {
   const path = url.split('?')[0];
   return path
-    .replace(
-      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
-      ':id',
-    )
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ':id')
     .replace(/\/\d+/g, '/:id');
 }
 
@@ -38,6 +30,11 @@ export class MetricsInterceptor implements NestInterceptor {
   constructor(private readonly metricsService: MetricsService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    // Skip HTTP metrics for non-HTTP contexts (e.g. GraphQL)
+    if (context.getType<string>() !== 'http') {
+      return next.handle();
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
     const { method, url } = request;
 
@@ -85,10 +82,7 @@ export class MetricsInterceptor implements NestInterceptor {
     });
 
     // Record request duration
-    this.metricsService.httpRequestDuration.observe(
-      { method, route },
-      durationSeconds,
-    );
+    this.metricsService.httpRequestDuration.observe({ method, route }, durationSeconds);
 
     // Decrement active connections
     this.metricsService.activeConnections.dec();

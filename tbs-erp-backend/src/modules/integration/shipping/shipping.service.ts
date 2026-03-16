@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotImplementedException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotImplementedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ShippingRateDto } from './dto/shipping-rate.dto';
 import { PickupBookingDto } from './dto/pickup-booking.dto';
@@ -32,7 +28,10 @@ export class ShippingCarrierService {
   private readonly enabled: boolean;
 
   constructor(private readonly configService: ConfigService) {
-    this.configuredCarriers = this.configService.get<string[]>('integrations.shipping.carriers', []);
+    this.configuredCarriers = this.configService.get<string[]>(
+      'integrations.shipping.carriers',
+      [],
+    );
     this.enabled = this.configService.get<boolean>('integrations.shipping.enabled', false);
   }
 
@@ -41,14 +40,12 @@ export class ShippingCarrierService {
    * Queries the carrier's API and returns standardized tracking data.
    */
   async trackShipment(carrier: string, trackingNumber: string): Promise<TrackingResult> {
-    this.logger.log(
-      `Tracking shipment: carrier=${carrier}, trackingNumber=${trackingNumber}`,
-    );
+    this.logger.log(`Tracking shipment: carrier=${carrier}, trackingNumber=${trackingNumber}`);
 
     if (!this.enabled) {
       throw new NotImplementedException(
         'Shipping carrier integration pending configuration. ' +
-        'Set SHIPPING_INTEGRATION_ENABLED=true and configure SHIPPING_CARRIERS.',
+          'Set SHIPPING_INTEGRATION_ENABLED=true and configure SHIPPING_CARRIERS.',
       );
     }
 
@@ -59,7 +56,7 @@ export class ShippingCarrierService {
     // 4. Cache the result for a short period to avoid excessive API calls
     throw new NotImplementedException(
       `Tracking integration with ${carrier} is pending API configuration. ` +
-      'Each carrier requires specific API credentials and endpoint setup.',
+        'Each carrier requires specific API credentials and endpoint setup.',
     );
   }
 
@@ -68,19 +65,17 @@ export class ShippingCarrierService {
    * Queries multiple carriers in parallel and returns sorted rates.
    */
   async getRates(dto: ShippingRateDto): Promise<ShippingRate[]> {
-    const carriersToQuery = dto.carriers?.length
-      ? dto.carriers
-      : this.configuredCarriers;
+    const carriersToQuery = dto.carriers?.length ? dto.carriers : this.configuredCarriers;
 
     this.logger.log(
       `Getting shipping rates: from=${dto.origin.city} to=${dto.destination.city}, ` +
-      `packages=${dto.packages.length}, carriers=[${carriersToQuery.join(', ')}]`,
+        `packages=${dto.packages.length}, carriers=[${carriersToQuery.join(', ')}]`,
     );
 
     if (!this.enabled) {
       throw new NotImplementedException(
         'Shipping carrier integration pending configuration. ' +
-        'Set SHIPPING_INTEGRATION_ENABLED=true and configure SHIPPING_CARRIERS.',
+          'Set SHIPPING_INTEGRATION_ENABLED=true and configure SHIPPING_CARRIERS.',
       );
     }
 
@@ -93,7 +88,7 @@ export class ShippingCarrierService {
     // 6. Return aggregated rates
     throw new NotImplementedException(
       'Shipping rate query is pending API integration with carriers: ' +
-      `[${carriersToQuery.join(', ')}].`,
+        `[${carriersToQuery.join(', ')}].`,
     );
   }
 
@@ -104,13 +99,13 @@ export class ShippingCarrierService {
   async bookPickup(dto: PickupBookingDto): Promise<PickupResult> {
     this.logger.log(
       `Booking pickup: carrier=${dto.carrierCode}, date=${dto.pickupDate}, ` +
-      `packages=${dto.estimatedPackages}, address=${dto.city}/${dto.district}`,
+        `packages=${dto.estimatedPackages}, address=${dto.city}/${dto.district}`,
     );
 
     if (!this.enabled) {
       throw new NotImplementedException(
         'Shipping carrier integration pending configuration. ' +
-        'Set SHIPPING_INTEGRATION_ENABLED=true and configure SHIPPING_CARRIERS.',
+          'Set SHIPPING_INTEGRATION_ENABLED=true and configure SHIPPING_CARRIERS.',
       );
     }
 
@@ -224,9 +219,7 @@ export class ShippingCarrierService {
     );
 
     if (!this.enabled) {
-      this.logger.warn(
-        `Ignoring webhook from ${carrier}: shipping integration is disabled`,
-      );
+      this.logger.warn(`Ignoring webhook from ${carrier}: shipping integration is disabled`);
       return;
     }
 
@@ -238,7 +231,7 @@ export class ShippingCarrierService {
     // 5. Emit internal event for downstream processing (e.g., customer notifications)
     throw new NotImplementedException(
       `Webhook handling for ${carrier} is pending implementation. ` +
-      'Carrier-specific webhook parsers need to be configured.',
+        'Carrier-specific webhook parsers need to be configured.',
     );
   }
 }

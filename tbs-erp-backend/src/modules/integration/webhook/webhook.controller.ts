@@ -11,13 +11,15 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '@core/database/prisma.service';
 import { WebhookRetryService } from './webhook-retry.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { Roles } from '@core/rbac/decorators/roles.decorator';
+import { validateWebhookUrl } from './webhook-url-validator';
 
 /**
  * Webhook Management Controller — CRUD for webhook endpoint subscriptions.
@@ -40,7 +42,7 @@ export class WebhookController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly webhookRetryService: WebhookRetryService,
-  ) { }
+  ) {}
 
   /**
    * Register a new webhook endpoint.
@@ -54,14 +56,18 @@ export class WebhookController {
     @Body() body: { url: string; events: string[]; description?: string },
     @CurrentUser() user: { id: string },
   ) {
-    // Generate a secure random secret
+    // Validate webhook URL to prevent SSRF attacks
+    validateWebhookUrl(body.url);
+
+    // Generate a secure random secret and hash it before storage
     const rawSecret = `whsec_${randomBytes(32).toString('hex')}`;
+    const hashedSecret = await bcrypt.hash(rawSecret, 12);
 
     const endpoint = await this.prisma.webhookEndpoint.create({
       data: {
         url: body.url,
         events: body.events,
-        secret: rawSecret, // In production, consider storing the hash and returning raw once
+        secret: hashedSecret, // Store HASHED version only
         description: body.description,
         createdBy: user.id,
       },
@@ -72,9 +78,10 @@ export class WebhookController {
       url: endpoint.url,
       events: endpoint.events,
       description: endpoint.description,
-      secret: rawSecret, // Returned only once at creation
+      secret: rawSecret, // Only time the raw secret is shown
       isActive: endpoint.isActive,
       createdAt: endpoint.createdAt,
+      message: 'Save this secret now. It cannot be retrieved again.',
     };
   }
 
@@ -82,10 +89,7 @@ export class WebhookController {
    * List all webhook endpoints.
    */
   @Get()
-  async listEndpoints(
-    @Query('page') page = '1',
-    @Query('limit') limit = '20',
-  ) {
+  async listEndpoints(@Query('page') page = '1', @Query('limit') limit = '20') {
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
 
@@ -171,6 +175,11 @@ export class WebhookController {
     @Param('id') id: string,
     @Body() body: { url?: string; events?: string[]; description?: string; isActive?: boolean },
   ) {
+    // Validate new URL if provided to prevent SSRF attacks
+    if (body.url !== undefined) {
+      validateWebhookUrl(body.url);
+    }
+
     const endpoint = await this.prisma.webhookEndpoint.update({
       where: { id },
       data: {

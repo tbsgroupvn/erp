@@ -27,15 +27,22 @@ export class ApprovalSlaListener {
         `role=${event.approverRole}, deadline=${event.deadlineAt.toISOString()}`,
     );
 
-    // Emit notification event for the overdue step
-    this.eventEmitter.emit('notification.send', {
-      type: 'APPROVAL_OVERDUE',
-      title: 'Phê duyệt quá hạn',
-      body: `Yêu cầu phê duyệt ${event.referenceCode || event.referenceId} đã quá hạn xử lý.`,
-      referenceId: event.approvalId,
-      targetRole: event.approverRole,
-      targetUserId: event.assignedUserId,
-      isUrgent: true,
-    });
+    try {
+      // Emit notification event for the overdue step
+      this.eventEmitter.emit('notification.send', {
+        type: 'APPROVAL_OVERDUE',
+        title: 'Phe duyet qua han',
+        body: `Yeu cau phe duyet ${event.referenceCode || event.referenceId} da qua han xu ly.`,
+        referenceId: event.approvalId,
+        targetRole: event.approverRole,
+        targetUserId: event.assignedUserId,
+        isUrgent: true,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to process approval.step.overdue for approval ${event.approvalId}: ${error.message}`,
+        error.stack,
+      );
+    }
   }
 }

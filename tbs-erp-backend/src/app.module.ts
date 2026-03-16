@@ -14,6 +14,7 @@ import brandingConfig from '@config/branding.config';
 import { sentryConfig } from '@config/sentry.config';
 import integrationsConfig from '@config/integrations.config';
 import vaultConfig from '@config/vault.config';
+import { envValidationSchema } from '@config/env.validation';
 
 // Core
 import { DatabaseModule } from '@core/database/database.module';
@@ -29,9 +30,10 @@ import { MetricsModule } from '@core/metrics/metrics.module';
 import { LoggerModule } from '@core/logger/logger.module';
 import { EncryptionModule } from '@core/encryption/encryption.module';
 import { VaultModule } from '@core/vault/vault.module';
+import { StorageModule } from '@core/storage/storage.module';
+import { ExportModule } from '@core/export/export.module';
+import { EmailModule } from '@core/email/email.module';
 
-// Core — Architecture Upgrade: GraphQL, BullMQ, WebSocket
-import { GraphQLModule } from '@core/graphql/graphql.module';
 import { QueueModule } from '@core/queue/queue.module';
 import { BullBoardModule } from '@core/queue/bull-board.module';
 import { WsModule } from '@core/websocket/ws.module';
@@ -41,7 +43,9 @@ import { RequestIdMiddleware } from '@common/middleware/request-id.middleware';
 
 // Modules — Nhóm A: Vận hành Logistics
 import { OrderModule } from '@modules/order/order.module';
+import { OrderProjectModule } from '@modules/order-project/order-project.module';
 import { QuotationModule } from '@modules/quotation/quotation.module';
+import { RateCardModule } from '@modules/rate-card/rate-card.module';
 import { ContainerModule } from '@modules/container/container.module';
 import { WarehouseCNModule } from '@modules/warehouse-cn/warehouse-cn.module';
 import { WarehouseVNModule } from '@modules/warehouse-vn/warehouse-vn.module';
@@ -69,6 +73,7 @@ import { BudgetModule } from '@modules/budget/budget.module';
 import { PurchaseModule } from '@modules/purchase/purchase.module';
 import { InventoryModule } from '@modules/inventory/inventory.module';
 import { UnallocatedFundsModule } from '@modules/unallocated-funds/unallocated-funds.module';
+import { CostAdjustmentModule } from '@modules/cost-adjustment/cost-adjustment.module';
 
 // Modules — Nhóm D: Vận tải
 import { FleetModule } from '@modules/fleet/fleet.module';
@@ -98,6 +103,20 @@ import { LostAndFoundModule } from '@modules/lost-and-found/lost-and-found.modul
 import { DebtNettingModule } from '@modules/debt-netting/debt-netting.module';
 import { BlogModule } from '@modules/blog/blog.module';
 import { PublicModule } from '@modules/public/public.module';
+import { SupportTicketModule } from '@modules/support-ticket/support-ticket.module';
+import { CarrierReconciliationModule } from '@modules/carrier-reconciliation/carrier-reconciliation.module';
+import { ChatModule } from '@modules/chat/chat.module';
+import { CompanyFeedModule } from '@modules/company-feed/company-feed.module';
+import { DriveModule } from '@modules/drive/drive.module';
+import { OKRModule } from '@modules/okr/okr.module';
+import { WikiModule } from '@modules/wiki/wiki.module';
+import { ReportsModule } from '@modules/reports/reports.module';
+import { VideoModule } from '@modules/video/video.module';
+import { SearchModule } from '@modules/search/search.module';
+import { AiAssistantModule } from '@modules/ai-assistant/ai-assistant.module';
+import { EmailComposeModule } from '@modules/email-compose/email-compose.module';
+import { EmojiModule } from '@modules/emoji/emoji.module';
+import { AutomationModule } from '@modules/automation/automation.module';
 
 // Modules — Nhóm H: CMS (Content Management System)
 import { CmsPagesModule } from '@modules/cms-pages/cms-pages.module';
@@ -119,6 +138,7 @@ import { ConsentModule } from '@modules/consent/consent.module';
 // Common Services
 import { SLAMonitorService } from '@common/services/sla-monitor.service';
 import { CsrfGuard } from '@common/guards/csrf.guard';
+import { PrismaExceptionFilter } from '@common/filters/prisma-exception.filter';
 import { SentryExceptionFilter } from '@common/filters/sentry-exception.filter';
 import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 
@@ -129,6 +149,12 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
       provide: APP_GUARD,
       useClass: CsrfGuard,
     },
+    // PrismaExceptionFilter phai dang ky TRUOC SentryExceptionFilter
+    // (NestJS chay filter theo thu tu nguoc: filter cuoi chay truoc)
+    {
+      provide: APP_FILTER,
+      useClass: PrismaExceptionFilter,
+    },
     {
       provide: APP_FILTER,
       useClass: SentryExceptionFilter,
@@ -138,8 +164,20 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
     // ─── Global Config ───
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig, jwtConfig, redisConfig, storageConfig, businessConfig, brandingConfig, sentryConfig, integrationsConfig, vaultConfig],
+      load: [
+        appConfig,
+        databaseConfig,
+        jwtConfig,
+        redisConfig,
+        storageConfig,
+        businessConfig,
+        brandingConfig,
+        sentryConfig,
+        integrationsConfig,
+        vaultConfig,
+      ],
       envFilePath: '.env',
+      validationSchema: envValidationSchema,
     }),
 
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
@@ -160,16 +198,20 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
     LoggerModule,
     EncryptionModule,
     VaultModule,
+    StorageModule,
+    ExportModule,
+    EmailModule,
 
-    // ─── Architecture: GraphQL Gateway, Event Queues, WebSocket ───
-    GraphQLModule,
+    // ─── Architecture: Event Queues, WebSocket ───
     QueueModule,
     BullBoardModule,
     WsModule,
 
     // ─── Nhóm A: Vận hành Logistics ───
     OrderModule,
+    OrderProjectModule,
     QuotationModule,
+    RateCardModule,
     ContainerModule,
     WarehouseCNModule,
     WarehouseVNModule,
@@ -196,6 +238,7 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
     PurchaseModule,
     InventoryModule,
     UnallocatedFundsModule,
+    CostAdjustmentModule,
 
     // ─── Nhóm D: Vận tải ───
     FleetModule,
@@ -222,6 +265,20 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
     LostAndFoundModule,
     DebtNettingModule,
     BlogModule,
+    SupportTicketModule,
+    CarrierReconciliationModule,
+    ChatModule,
+    CompanyFeedModule,
+    DriveModule,
+    OKRModule,
+    WikiModule,
+    ReportsModule,
+    VideoModule,
+    SearchModule,
+    AiAssistantModule,
+    EmailComposeModule,
+    EmojiModule,
+    AutomationModule,
 
     // ─── Nhóm H: CMS ───
     CmsPagesModule,

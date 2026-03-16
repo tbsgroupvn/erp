@@ -110,9 +110,7 @@ export class OrderReadService {
 
     const hasMore = items.length > limit;
     const resultItems = hasMore ? items.slice(0, limit) : items;
-    const nextCursor = hasMore
-      ? resultItems[resultItems.length - 1].id
-      : null;
+    const nextCursor = hasMore ? resultItems[resultItems.length - 1].id : null;
 
     return { items: resultItems, nextCursor, hasMore };
   }
@@ -191,6 +189,16 @@ export class OrderReadService {
    * - auditLog: recent audit log entries for this order
    */
   async getOrder360View(orderId: string) {
+    const cacheKey = `order:360:${orderId}`;
+    return this.cacheService.getOrSet(
+      cacheKey,
+      () => this.fetchOrder360View(orderId),
+      ORDER_DETAIL_CACHE_TTL_MS,
+    );
+  }
+
+  /** Internal: fetch full 360 view data without caching. */
+  private async fetchOrder360View(orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -310,72 +318,65 @@ export class OrderReadService {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
-    // Fetch procurement payment vouchers linked to this order or its supplier orders
+    // Parallelize the 3 sequential queries into a single Promise.all
     const supplierOrderIds = order.supplierOrders.map((so) => so.id);
-    const procurementPayments = await this.prisma.paymentVoucher.findMany({
-      where: {
-        OR: [
-          // Vouchers directly linked to supplier orders of this order
-          ...(supplierOrderIds.length > 0
-            ? [{ supplierOrderId: { in: supplierOrderIds } }]
-            : []),
-          // Payment vouchers linked to this order with a supplierOrderId
-          { orderId: orderId, supplierOrderId: { not: null } },
-        ],
-      },
-      select: {
-        id: true,
-        code: true,
-        type: true,
-        amount: true,
-        currency: true,
-        status: true,
-        beneficiary: true,
-        reason: true,
-        costType: true,
-        paymentMethod: true,
-        supplierOrderId: true,
-        approvedBy: true,
-        approvedAt: true,
-        createdBy: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    // Fetch audit log entries for this order
-    const auditLog = await this.prisma.auditLog.findMany({
-      where: {
-        entity: 'Order',
-        entityId: orderId,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-      select: {
-        id: true,
-        userId: true,
-        action: true,
-        oldData: true,
-        newData: true,
-        ipAddress: true,
-        createdAt: true,
-        user: { select: { id: true, fullName: true } },
-      },
-    });
-
-    // Fetch sale user info
-    const saleUser = await this.prisma.user.findUnique({
-      where: { id: order.saleId },
-      select: { id: true, fullName: true, email: true, role: true },
-    });
+    const [procurementPayments, auditLog, saleUser] = await Promise.all([
+      // Fetch procurement payment vouchers linked to this order or its supplier orders
+      this.prisma.paymentVoucher.findMany({
+        where: {
+          OR: [
+            ...(supplierOrderIds.length > 0
+              ? [{ supplierOrderId: { in: supplierOrderIds } }]
+              : []),
+            { orderId: orderId, supplierOrderId: { not: null } },
+          ],
+        },
+        select: {
+          id: true,
+          code: true,
+          type: true,
+          amount: true,
+          currency: true,
+          status: true,
+          beneficiary: true,
+          reason: true,
+          costType: true,
+          paymentMethod: true,
+          supplierOrderId: true,
+          approvedBy: true,
+          approvedAt: true,
+          createdBy: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      // Fetch audit log entries for this order
+      this.prisma.auditLog.findMany({
+        where: { entity: 'Order', entityId: orderId },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        select: {
+          id: true,
+          userId: true,
+          action: true,
+          oldData: true,
+          newData: true,
+          ipAddress: true,
+          createdAt: true,
+          user: { select: { id: true, fullName: true } },
+        },
+      }),
+      // Fetch sale user info
+      this.prisma.user.findUnique({
+        where: { id: order.saleId },
+        select: { id: true, fullName: true, email: true, role: true },
+      }),
+    ]);
 
     // Calculate finance summary
     const totalAmount = Number(order.totalAmount);
     const depositPaid = Number(order.depositPaid);
-    const totalPaid = order.receivables.reduce(
-      (sum, ar) => sum + Number(ar.paidAmount),
-      0,
-    );
+    const totalPaid = order.receivables.reduce((sum, ar) => sum + Number(ar.paidAmount), 0);
     const totalDebt = order.receivables.reduce(
       (sum, ar) => sum + (Number(ar.amount) - Number(ar.paidAmount)),
       0,

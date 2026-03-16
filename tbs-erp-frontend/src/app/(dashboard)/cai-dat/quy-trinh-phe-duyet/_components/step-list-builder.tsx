@@ -48,26 +48,26 @@ export interface StepListBuilderProps {
 // ---------------------------------------------------------------------------
 
 const STEP_TYPE_OPTIONS: { value: StepItem['type']; label: string }[] = [
-  { value: 'APPROVER', label: 'Nguoi duyet' },
-  { value: 'CONDITION', label: 'Dieu kien' },
-  { value: 'CC', label: 'Theo doi' },
+  { value: 'APPROVER', label: 'Người duyệt' },
+  { value: 'CONDITION', label: 'Điều kiện' },
+  { value: 'CC', label: 'Theo dõi' },
 ];
 
 const APPROVER_TYPE_OPTIONS: { value: string; label: string }[] = [
-  { value: ApproverType.ROLE, label: 'Theo chuc vu' },
-  { value: ApproverType.DIRECT_MANAGER, label: 'Quan ly truc tiep' },
-  { value: ApproverType.DEPARTMENT_HEAD, label: 'Truong phong' },
-  { value: ApproverType.SPECIFIC_USER, label: 'Nguoi cu the' },
-  { value: ApproverType.REQUESTER_MANAGER, label: 'Quan ly nguoi yeu cau' },
+  { value: ApproverType.ROLE, label: 'Theo chức vụ' },
+  { value: ApproverType.DIRECT_MANAGER, label: 'Quản lý trực tiếp' },
+  { value: ApproverType.DEPARTMENT_HEAD, label: 'Trưởng phòng' },
+  { value: ApproverType.SPECIFIC_USER, label: 'Người cụ thể' },
+  { value: ApproverType.REQUESTER_MANAGER, label: 'Quản lý người yêu cầu' },
 ];
 
 const APPROVAL_MODE_OPTIONS: {
   value: string;
   label: string;
 }[] = [
-  { value: ApprovalMode.SEQUENTIAL, label: 'Tuan tu' },
-  { value: ApprovalMode.PARALLEL_AND, label: 'Dong thoi AND' },
-  { value: ApprovalMode.PARALLEL_OR, label: 'Dong thoi OR' },
+  { value: ApprovalMode.SEQUENTIAL, label: 'Tuần tự' },
+  { value: ApprovalMode.PARALLEL_AND, label: 'Đồng thời AND' },
+  { value: ApprovalMode.PARALLEL_OR, label: 'Đồng thời OR' },
 ];
 
 const CONDITION_OPERATORS: { value: string; label: string }[] = [
@@ -144,7 +144,7 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
     <div className="space-y-3 p-4">
       {steps.length === 0 && (
         <div className="rounded-lg border-2 border-dashed border-gray-200 py-12 text-center text-sm text-muted-foreground">
-          Chua co buoc nao. Bam &quot;Them buoc&quot; de bat dau.
+          Chưa có bước nào. Bấm &quot;Thêm bước&quot; để bắt đầu.
         </div>
       )}
 
@@ -218,7 +218,7 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
               className="h-8 w-8"
               disabled={index === 0}
               onClick={() => moveStep(index, 'up')}
-              title="Di chuyen len"
+              title="Di chuyển lên"
             >
               <ArrowUp className="h-4 w-4" />
             </Button>
@@ -229,7 +229,7 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
               className="h-8 w-8"
               disabled={index === steps.length - 1}
               onClick={() => moveStep(index, 'down')}
-              title="Di chuyen xuong"
+              title="Di chuyển xuống"
             >
               <ArrowDown className="h-4 w-4" />
             </Button>
@@ -241,7 +241,7 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
               size="icon"
               className="h-8 w-8 text-destructive hover:text-destructive"
               onClick={() => removeStep(index)}
-              title="Xoa buoc"
+              title="Xóa bước"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -252,9 +252,9 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {/* Approver type */}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Loai nguoi duyet
-                </label>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Loại người duyệt
+                </p>
                 <select
                   value={step.approverType}
                   onChange={(e) =>
@@ -273,9 +273,9 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
               {/* Role (only when approverType = ROLE) */}
               {step.approverType === ApproverType.ROLE && (
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">
-                    Chuc vu
-                  </label>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Chức vụ
+                  </p>
                   <select
                     value={step.approverRole ?? ''}
                     onChange={(e) =>
@@ -294,9 +294,9 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
 
               {/* Approval mode */}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Che do duyet
-                </label>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Chế độ duyệt
+                </p>
                 <select
                   value={step.approvalMode}
                   onChange={(e) =>
@@ -314,10 +314,10 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
 
               {/* Deadline hours */}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">
+                <p className="text-xs font-medium text-muted-foreground">
                   <Clock className="mr-1 inline h-3 w-3" />
-                  Han xu ly (gio)
-                </label>
+                  Hạn xử lý (giờ)
+                </p>
                 <input
                   type="number"
                   min={0}
@@ -329,7 +329,7 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
                         : undefined,
                     })
                   }
-                  placeholder="Tuy chon"
+                  placeholder="Tùy chọn"
                   className="flex h-9 w-full rounded-md border bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
@@ -340,9 +340,9 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
           {step.type === 'CONDITION' && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Truong
-                </label>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Trường
+                </p>
                 <input
                   type="text"
                   value={step.conditionField ?? ''}
@@ -354,9 +354,9 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Toan tu
-                </label>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Toán tử
+                </p>
                 <select
                   value={step.conditionOperator ?? 'GT'}
                   onChange={(e) =>
@@ -372,9 +372,9 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Gia tri
-                </label>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Giá trị
+                </p>
                 <input
                   type="text"
                   value={step.conditionValue ?? ''}
@@ -391,7 +391,7 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
           {/* CC: no extra fields needed */}
           {step.type === 'CC' && (
             <p className="text-xs text-muted-foreground">
-              Buoc theo doi — nguoi duoc CC se nhan thong bao.
+              Bước theo dõi — người được CC sẽ nhận thông báo.
             </p>
           )}
         </div>
@@ -405,7 +405,7 @@ export function StepListBuilder({ steps, onChange }: StepListBuilderProps) {
         onClick={addStep}
       >
         <Plus className="h-4 w-4" />
-        Them buoc
+        Thêm bước
       </Button>
     </div>
   );
@@ -451,7 +451,7 @@ export function stepsToNodesAndEdges(steps: StepItem[]) {
   nodes.push({
     nodeKey: startNodeKey,
     nodeType: ApprovalNodeType.START,
-    label: 'Bat dau',
+    label: 'Bắt đầu',
     positionX: X_CENTER,
     positionY: 0,
   });
@@ -464,10 +464,10 @@ export function stepsToNodesAndEdges(steps: StepItem[]) {
       nodeType: step.type,
       label:
         step.type === 'APPROVER'
-          ? 'Nguoi duyet'
+          ? 'Người duyệt'
           : step.type === 'CONDITION'
-            ? 'Dieu kien'
-            : 'Theo doi',
+            ? 'Điều kiện'
+            : 'Theo dõi',
       approverType: step.type === 'APPROVER' ? step.approverType : undefined,
       approverRole: step.type === 'APPROVER' ? step.approverRole : undefined,
       approvalMode: step.type === 'APPROVER' ? step.approvalMode : undefined,
@@ -487,7 +487,7 @@ export function stepsToNodesAndEdges(steps: StepItem[]) {
   nodes.push({
     nodeKey: endNodeKey,
     nodeType: ApprovalNodeType.END,
-    label: 'Ket thuc',
+    label: 'Kết thúc',
     positionX: X_CENTER,
     positionY: (steps.length + 1) * Y_SPACING,
   });

@@ -1,17 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CommissionCalculatorService } from './commission-calculator.service';
 import { PrismaService } from '@core/database/prisma.service';
+import { CacheService } from '@core/cache/cache.service';
 import { ServiceType } from '@prisma/client';
 
 describe('CommissionCalculatorService', () => {
   let service: CommissionCalculatorService;
-  let prismaService: PrismaService;
 
   const mockPrismaService = {
     commissionRule: {
-      findFirst: jest.fn(),
       findMany: jest.fn(),
     },
+  };
+
+  const mockCacheService = {
+    getOrSet: jest.fn(),
+    invalidateByPrefix: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
@@ -22,13 +26,14 @@ describe('CommissionCalculatorService', () => {
           provide: PrismaService,
           useValue: mockPrismaService,
         },
+        {
+          provide: CacheService,
+          useValue: mockCacheService,
+        },
       ],
     }).compile();
 
-    service = module.get<CommissionCalculatorService>(
-      CommissionCalculatorService,
-    );
-    prismaService = module.get<PrismaService>(PrismaService);
+    service = module.get<CommissionCalculatorService>(CommissionCalculatorService);
 
     // Reset mocks
     jest.clearAllMocks();
@@ -49,16 +54,19 @@ describe('CommissionCalculatorService', () => {
         ],
       };
 
-      const mockRule = {
-        id: 'rule-1',
-        serviceType: ServiceType.VCT,
-        minProfit: 5_000_000,
-        maxProfit: 15_000_000,
-        rate: 0.04, // 4%
-        isActive: true,
-      };
+      // Service uses cacheService.getOrSet() which returns all active rules, then filters in-memory
+      const mockRules = [
+        {
+          id: 'rule-1',
+          serviceType: ServiceType.VCT,
+          minProfit: 5_000_000,
+          maxProfit: 15_000_000,
+          rate: 0.04,
+          isActive: true,
+        },
+      ];
 
-      mockPrismaService.commissionRule.findFirst.mockResolvedValue(mockRule);
+      mockCacheService.getOrSet.mockResolvedValue(mockRules);
 
       // Act
       const result = await service.calculateCommission(order);
@@ -70,18 +78,6 @@ describe('CommissionCalculatorService', () => {
       expect(result!.profit).toBe(10_000_000);
       expect(result!.rate).toBe(0.04);
       expect(result!.amount).toBe(400_000); // 10M * 4% = 400K
-
-      expect(mockPrismaService.commissionRule.findFirst).toHaveBeenCalledWith({
-        where: {
-          serviceType: ServiceType.VCT,
-          isActive: true,
-          minProfit: { lte: 10_000_000 },
-          maxProfit: { gt: 10_000_000 },
-        },
-        orderBy: {
-          minProfit: 'desc',
-        },
-      });
     });
 
     it('should return null when no commission rule matches', async () => {
@@ -95,7 +91,8 @@ describe('CommissionCalculatorService', () => {
         costAllocations: [{ allocatedAmount: 35_000_000 }],
       };
 
-      mockPrismaService.commissionRule.findFirst.mockResolvedValue(null);
+      // No matching rule for MHH in cache
+      mockCacheService.getOrSet.mockResolvedValue([]);
 
       // Act
       const result = await service.calculateCommission(order);
@@ -123,16 +120,16 @@ describe('CommissionCalculatorService', () => {
         ],
       };
 
-      const mockRule = {
-        id: 'rule-1',
-        serviceType: ServiceType.UTXNK,
-        minProfit: 20_000_000,
-        maxProfit: 50_000_000,
-        rate: 0.045,
-        isActive: true,
-      };
-
-      mockPrismaService.commissionRule.findFirst.mockResolvedValue(mockRule);
+      mockCacheService.getOrSet.mockResolvedValue([
+        {
+          id: 'rule-1',
+          serviceType: ServiceType.UTXNK,
+          minProfit: 20_000_000,
+          maxProfit: 50_000_000,
+          rate: 0.045,
+          isActive: true,
+        },
+      ]);
 
       // Act
       const result = await service.calculateCommission(order as any);
@@ -157,7 +154,8 @@ describe('CommissionCalculatorService', () => {
         costAllocations: [{ allocatedAmount: 15_000_000 }], // Cost > Revenue
       };
 
-      mockPrismaService.commissionRule.findFirst.mockResolvedValue(null);
+      // No rule matches for negative profit
+      mockCacheService.getOrSet.mockResolvedValue([]);
 
       // Act
       const result = await service.calculateCommission(order);
@@ -177,16 +175,16 @@ describe('CommissionCalculatorService', () => {
         costAllocations: [{ allocatedAmount: 20_000_000 }], // Break-even
       };
 
-      const mockRule = {
-        id: 'rule-1',
-        serviceType: ServiceType.VCT,
-        minProfit: 0,
-        maxProfit: 5_000_000,
-        rate: 0.02,
-        isActive: true,
-      };
-
-      mockPrismaService.commissionRule.findFirst.mockResolvedValue(mockRule);
+      mockCacheService.getOrSet.mockResolvedValue([
+        {
+          id: 'rule-1',
+          serviceType: ServiceType.VCT,
+          minProfit: 0,
+          maxProfit: 5_000_000,
+          rate: 0.02,
+          isActive: true,
+        },
+      ]);
 
       // Act
       const result = await service.calculateCommission(order);
@@ -208,16 +206,16 @@ describe('CommissionCalculatorService', () => {
         costAllocations: [], // No costs
       };
 
-      const mockRule = {
-        id: 'rule-1',
-        serviceType: ServiceType.LCLCN,
-        minProfit: 25_000_000,
-        maxProfit: 50_000_000,
-        rate: 0.07,
-        isActive: true,
-      };
-
-      mockPrismaService.commissionRule.findFirst.mockResolvedValue(mockRule);
+      mockCacheService.getOrSet.mockResolvedValue([
+        {
+          id: 'rule-1',
+          serviceType: ServiceType.LCLCN,
+          minProfit: 25_000_000,
+          maxProfit: 50_000_000,
+          rate: 0.07,
+          isActive: true,
+        },
+      ]);
 
       // Act
       const result = await service.calculateCommission(order);
@@ -254,6 +252,10 @@ describe('CommissionCalculatorService', () => {
         },
       ];
 
+      // getCommissionTiers uses cacheService.getOrSet
+      mockCacheService.getOrSet.mockImplementation((_key: string, fn: () => Promise<any>) =>
+        fn(),
+      );
       mockPrismaService.commissionRule.findMany.mockResolvedValue(mockRules);
 
       // Act
@@ -296,9 +298,7 @@ describe('CommissionCalculatorService', () => {
 
       // Assert
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContainEqual(
-        expect.stringContaining('Overlap detected'),
-      );
+      expect(result.errors).toContainEqual(expect.stringContaining('Overlap detected'));
     });
 
     it('should detect gaps in rules', async () => {

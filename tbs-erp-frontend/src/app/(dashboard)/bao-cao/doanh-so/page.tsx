@@ -56,7 +56,7 @@ export default function BaoCaoDoanhSoPage() {
               />
             </div>
             <div className="space-y-1">
-              <Label>Chi nhánh</Label>
+              <p className="text-sm font-medium leading-none">Chi nhánh</p>
               <Select value={branch} onValueChange={setBranch}>
                 <SelectTrigger className="w-44">
                   <SelectValue placeholder="Chọn chi nhánh" />
@@ -178,7 +178,7 @@ export default function BaoCaoDoanhSoPage() {
                             {formatCurrency(item.totalProfit)}
                           </td>
                           <td className="py-2 px-3">
-                            {item.conversionRate.toFixed(2)}%
+                            {Number(item.conversionRate).toFixed(2)}%
                           </td>
                         </tr>
                       ))

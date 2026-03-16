@@ -60,7 +60,7 @@ export default function EditPagePage() {
       toast.success('Đã cập nhật trang thành công');
       router.push('/cms/pages');
     },
-    onError: (error: any) => {
+    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
       toast.error(error.response?.data?.message || 'Không thể cập nhật trang');
     },
   });
@@ -168,7 +168,7 @@ export default function EditPagePage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Nội dung *</Label>
+              <p className="text-sm font-medium leading-none">Nội dung *</p>
               <Editor
                 value={formData.content}
                 onChange={(content) => setFormData({ ...formData, content })}
@@ -178,12 +178,12 @@ export default function EditPagePage() {
           </Card>
 
           <Card className="p-6 space-y-4">
-            <Label>Ảnh đại diện</Label>
+            <p className="text-sm font-medium leading-none">Ảnh đại diện</p>
             {formData.featuredImage ? (
               <div className="relative w-full h-64 rounded-lg overflow-hidden">
                 <Image
                   src={formData.featuredImage}
-                  alt="Featured"
+                  alt="Ảnh đại diện"
                   fill
                   className="object-cover"
                 />
@@ -224,7 +224,7 @@ export default function EditPagePage() {
         <TabsContent value="settings" className="space-y-6">
           <Card className="p-6 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="template">Template</Label>
+              <Label htmlFor="template">Mẫu giao diện</Label>
               <Select
                 value={formData.template}
                 onValueChange={(value) =>
@@ -236,8 +236,8 @@ export default function EditPagePage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="default">Mặc định</SelectItem>
-                  <SelectItem value="full-width">Full Width</SelectItem>
-                  <SelectItem value="sidebar">Có Sidebar</SelectItem>
+                  <SelectItem value="full-width">Toàn chiều rộng</SelectItem>
+                  <SelectItem value="sidebar">Có thanh bên</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -246,7 +246,7 @@ export default function EditPagePage() {
               <Label htmlFor="status">Trạng thái</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value: any) =>
+                onValueChange={(value: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED') =>
                   setFormData({ ...formData, status: value })
                 }
               >

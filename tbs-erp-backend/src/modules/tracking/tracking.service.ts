@@ -1,15 +1,9 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { TrackingEventType, OrderStatus } from '@prisma/client';
 import { CreateTrackingEventDto } from './dto/create-tracking.dto';
-import { TrackingQueryDto } from './dto/tracking-query.dto';
-import { TrackingProviderService, ITrackingEvent } from './domain/tracking-provider.service';
+import { TrackingProviderService } from './domain/tracking-provider.service';
 
 /**
  * Ordered sequence of tracking events for ETA estimation.
@@ -62,9 +56,7 @@ export class TrackingService {
    */
   async addTrackingEvent(dto: CreateTrackingEventDto) {
     if (!dto.packageId && !dto.containerId) {
-      throw new BadRequestException(
-        'Either packageId or containerId must be provided',
-      );
+      throw new BadRequestException('Either packageId or containerId must be provided');
     }
 
     // Validate package exists if provided
@@ -74,9 +66,7 @@ export class TrackingService {
         select: { id: true, code: true },
       });
       if (!pkg) {
-        throw new NotFoundException(
-          `Package with ID ${dto.packageId} not found`,
-        );
+        throw new NotFoundException(`Package with ID ${dto.packageId} not found`);
       }
     }
 
@@ -87,15 +77,11 @@ export class TrackingService {
         select: { id: true, code: true },
       });
       if (!container) {
-        throw new NotFoundException(
-          `Container with ID ${dto.containerId} not found`,
-        );
+        throw new NotFoundException(`Container with ID ${dto.containerId} not found`);
       }
     }
 
-    const eventTimestamp = dto.eventTimestamp
-      ? new Date(dto.eventTimestamp)
-      : new Date();
+    const eventTimestamp = dto.eventTimestamp ? new Date(dto.eventTimestamp) : new Date();
 
     if (eventTimestamp > new Date()) {
       throw new BadRequestException('Tracking event timestamp cannot be in the future');
@@ -154,9 +140,7 @@ export class TrackingService {
       where: {
         OR: [
           { packageId },
-          ...(pkg.trackingNumberCN
-            ? [{ trackingNumber: pkg.trackingNumberCN }]
-            : []),
+          ...(pkg.trackingNumberCN ? [{ trackingNumber: pkg.trackingNumberCN }] : []),
         ],
       },
       orderBy: { eventTimestamp: 'asc' },
@@ -191,9 +175,7 @@ export class TrackingService {
     });
 
     if (!container) {
-      throw new NotFoundException(
-        `Container with ID ${containerId} not found`,
-      );
+      throw new NotFoundException(`Container with ID ${containerId} not found`);
     }
 
     // Get container-level events
@@ -243,9 +225,7 @@ export class TrackingService {
       packages: packagesWithTracking,
       totalPackages: packages.length,
       latestContainerEvent:
-        containerEvents.length > 0
-          ? containerEvents[containerEvents.length - 1]
-          : null,
+        containerEvents.length > 0 ? containerEvents[containerEvents.length - 1] : null,
     };
   }
 
@@ -254,14 +234,9 @@ export class TrackingService {
    * Fetches external tracking events and stores them locally.
    */
   async syncExternalTracking(trackingNumber: string, carrier?: string) {
-    this.logger.log(
-      `Syncing external tracking for ${trackingNumber}`,
-    );
+    this.logger.log(`Syncing external tracking for ${trackingNumber}`);
 
-    const result = await this.trackingProvider.fetchFromAnyProvider(
-      trackingNumber,
-      carrier,
-    );
+    const result = await this.trackingProvider.fetchFromAnyProvider(trackingNumber, carrier);
 
     if (result.events.length === 0) {
       return {
@@ -279,18 +254,12 @@ export class TrackingService {
     });
 
     const existingSet = new Set(
-      existingEvents.map(
-        (e) =>
-          `${e.eventTimestamp.toISOString()}_${e.location}_${e.description}`,
-      ),
+      existingEvents.map((e) => `${e.eventTimestamp.toISOString()}_${e.location}_${e.description}`),
     );
 
     // Filter out duplicates
     const newEvents = result.events.filter(
-      (e) =>
-        !existingSet.has(
-          `${e.timestamp.toISOString()}_${e.location}_${e.description}`,
-        ),
+      (e) => !existingSet.has(`${e.timestamp.toISOString()}_${e.location}_${e.description}`),
     );
 
     if (newEvents.length > 0) {
@@ -336,9 +305,7 @@ export class TrackingService {
     });
 
     if (!customer) {
-      throw new NotFoundException(
-        `Customer with ID ${customerId} not found`,
-      );
+      throw new NotFoundException(`Customer with ID ${customerId} not found`);
     }
 
     // Get all active orders for this customer (not completed/cancelled)
@@ -366,9 +333,7 @@ export class TrackingService {
     });
 
     // Get latest tracking events for all active packages
-    const allPackageIds = activeOrders.flatMap((o) =>
-      o.packages.map((p) => p.id),
-    );
+    const allPackageIds = activeOrders.flatMap((o) => o.packages.map((p) => p.id));
 
     const latestEvents = await this.prisma.trackingEvent.findMany({
       where: { packageId: { in: allPackageIds } },
@@ -376,9 +341,7 @@ export class TrackingService {
       distinct: ['packageId'],
     });
 
-    const latestEventMap = new Map(
-      latestEvents.map((e) => [e.packageId, e]),
-    );
+    const latestEventMap = new Map(latestEvents.map((e) => [e.packageId, e]));
 
     const ordersWithTracking = activeOrders.map((order) => ({
       ...order,
@@ -491,9 +454,7 @@ export class TrackingService {
       }
     }
 
-    const estimatedDeliveryDate = new Date(
-      Date.now() + remainingDays * 24 * 60 * 60 * 1000,
-    );
+    const estimatedDeliveryDate = new Date(Date.now() + remainingDays * 24 * 60 * 60 * 1000);
 
     // Determine confidence based on how far along the tracking is
     const progress = (currentIndex + 1) / EVENT_SEQUENCE.length;

@@ -1,16 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsEnum,
-  IsOptional,
-  IsString,
-  IsDateString,
-  ValidateIf,
-} from 'class-validator';
-import {
-  ComplaintStatus,
-  ComplaintType,
-  ComplaintSeverity,
-} from '@prisma/client';
+import { IsEnum, IsOptional, IsString, IsDateString, ValidateIf } from 'class-validator';
+import { ComplaintStatus, ComplaintType, ComplaintSeverity } from '@prisma/client';
 import { PaginationDto } from '@common/dto/pagination.dto';
 
 /**

@@ -149,7 +149,7 @@ export default function TaoMoiKhieuNaiPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Customer Picker */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Khách hàng *</label>
+              <p className="text-sm font-medium">Khách hàng *</p>
               <div className="relative" ref={customerDropdownRef}>
                 {selectedCustomer ? (
                   <div className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm">
@@ -228,7 +228,7 @@ export default function TaoMoiKhieuNaiPage() {
 
             {/* Order Picker */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Đơn hàng (tùy chọn)</label>
+              <p className="text-sm font-medium">Đơn hàng (tùy chọn)</p>
               <div className="relative" ref={orderDropdownRef}>
                 {selectedOrder ? (
                   <div className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm">
@@ -298,7 +298,7 @@ export default function TaoMoiKhieuNaiPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Loại khiếu nại *</label>
+              <p className="text-sm font-medium">Loại khiếu nại *</p>
               <select
                 {...register('type')}
                 className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -309,7 +309,7 @@ export default function TaoMoiKhieuNaiPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Mức độ *</label>
+              <p className="text-sm font-medium">Mức độ *</p>
               <select
                 {...register('severity')}
                 className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -320,7 +320,7 @@ export default function TaoMoiKhieuNaiPage() {
               </select>
             </div>
             <div className="sm:col-span-2 space-y-2">
-              <label className="text-sm font-medium">Mô tả *</label>
+              <p className="text-sm font-medium">Mô tả *</p>
               <textarea
                 {...register('description')}
                 rows={4}

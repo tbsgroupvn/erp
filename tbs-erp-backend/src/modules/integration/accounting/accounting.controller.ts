@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Logger,
   Post,
   UploadedFile,
   UseGuards,
@@ -8,13 +10,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiConsumes,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
@@ -30,6 +26,8 @@ import { SyncChartOfAccountsDto } from './dto/sync-coa.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('integrations/accounting')
 export class AccountingController {
+  private readonly logger = new Logger(AccountingController.name);
+
   constructor(private readonly accountingService: AccountingService) {}
 
   @Post('export/misa')
@@ -40,10 +38,8 @@ export class AccountingController {
     description:
       'Exports general ledger journal entries for a date range in MISA-compatible format.',
   })
-  async exportToMisa(
-    @Body() dateRange: DateRangeDto,
-    @CurrentUser('id') userId: string,
-  ) {
+  async exportToMisa(@Body() dateRange: DateRangeDto, @CurrentUser('id') userId: string) {
+    this.logger.log(`User ${userId} requested MISA export`);
     const result = await this.accountingService.exportToMisa(dateRange);
     return BaseResponse.ok(result, 'Exported to MISA format successfully');
   }
@@ -56,10 +52,8 @@ export class AccountingController {
     description:
       'Exports general ledger journal entries for a date range in Fast Accounting-compatible format.',
   })
-  async exportToFast(
-    @Body() dateRange: DateRangeDto,
-    @CurrentUser('id') userId: string,
-  ) {
+  async exportToFast(@Body() dateRange: DateRangeDto, @CurrentUser('id') userId: string) {
+    this.logger.log(`User ${userId} requested Fast Accounting export`);
     const result = await this.accountingService.exportToFastAccounting(dateRange);
     return BaseResponse.ok(result, 'Exported to Fast Accounting format successfully');
   }
@@ -75,6 +69,7 @@ export class AccountingController {
     @Body() dto: SyncChartOfAccountsDto,
     @CurrentUser('id') userId: string,
   ) {
+    this.logger.log(`User ${userId} requested COA sync with ${dto.provider}`);
     const result = await this.accountingService.syncChartOfAccounts(dto.provider);
     return BaseResponse.ok(result, `Chart of accounts synced with ${dto.provider}`);
   }
@@ -92,6 +87,7 @@ export class AccountingController {
     @Body() dto: FinancialStatementDto,
     @CurrentUser('id') userId: string,
   ) {
+    this.logger.log(`User ${userId} requested financial statement: ${dto.statementType}`);
     const buffer = await this.accountingService.exportFinancialStatements(dto);
     return BaseResponse.ok(
       { message: 'Financial statement generated', size: buffer.length },
@@ -114,7 +110,11 @@ export class AccountingController {
       type: 'object',
       properties: {
         file: { type: 'string', format: 'binary', description: 'Bank statement file' },
-        bankCode: { type: 'string', description: 'Bank code (e.g., VCB, TCB, BIDV)', example: 'VCB' },
+        bankCode: {
+          type: 'string',
+          description: 'Bank code (e.g., VCB, TCB, BIDV)',
+          example: 'VCB',
+        },
       },
       required: ['file', 'bankCode'],
     },
@@ -124,6 +124,15 @@ export class AccountingController {
     @Body('bankCode') bankCode: string,
     @CurrentUser('id') userId: string,
   ) {
+    if (!file) {
+      throw new BadRequestException('Bank statement file is required');
+    }
+    if (!bankCode) {
+      throw new BadRequestException('Bank code is required (e.g., VCB, TCB, BIDV)');
+    }
+    this.logger.log(
+      `User ${userId} importing bank statements: bank=${bankCode}, file=${file.originalname}`,
+    );
     const result = await this.accountingService.importBankStatements(file, bankCode);
     return BaseResponse.ok(result, 'Bank statements imported successfully');
   }

@@ -16,6 +16,9 @@ model Complaint {
   description       String
   attachments       String[]          @default([])
 
+  // SLA tracking (CSKH-4)
+  firstResponseAt   DateTime?         @map("first_response_at")
+
   // Assignment
   handlerId         String?           @map("handler_id")
   handler           User?             @relation("ComplaintHandler", fields: [handlerId], references: [id])
@@ -45,5 +48,7 @@ model Complaint {
   @@index([status])
   @@index([severity])
   @@index([handlerId])
+  @@index([createdBy])
+  @@index([createdAt])
   @@map("complaints")
 }

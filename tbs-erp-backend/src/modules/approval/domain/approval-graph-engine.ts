@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import {
@@ -29,7 +24,6 @@ type FlowDefWithGraph = Prisma.ApprovalFlowDefinitionGetPayload<{
 }>;
 
 type FlowNode = FlowDefWithGraph['nodes'][number];
-type FlowEdge = FlowDefWithGraph['edges'][number];
 type ApprovalWithSteps = Approval & { steps: ApprovalStep[] };
 
 /**
@@ -61,9 +55,7 @@ export class ApprovalGraphEngine {
     });
 
     if (!flowDef) {
-      throw new NotFoundException(
-        `Flow definition ${flowDefId} not found`,
-      );
+      throw new NotFoundException(`Flow definition ${flowDefId} not found`);
     }
 
     return flowDef;
@@ -85,14 +77,10 @@ export class ApprovalGraphEngine {
   ) {
     const flowDef = await this.loadFlowDefinition(flowDefId);
 
-    const startNode = flowDef.nodes.find(
-      (n) => n.nodeType === ApprovalNodeType.START,
-    );
+    const startNode = flowDef.nodes.find((n) => n.nodeType === ApprovalNodeType.START);
 
     if (!startNode) {
-      throw new BadRequestException(
-        `Flow definition ${flowDefId} has no START node`,
-      );
+      throw new BadRequestException(`Flow definition ${flowDefId} has no START node`);
     }
 
     // Traverse graph to find all approver steps needed
@@ -104,9 +92,7 @@ export class ApprovalGraphEngine {
     );
 
     if (steps.length === 0) {
-      throw new BadRequestException(
-        'Flow definition produces no approval steps',
-      );
+      throw new BadRequestException('Flow definition produces no approval steps');
     }
 
     const approval = await this.prisma.executeInTransaction(async (tx) => {
@@ -224,9 +210,7 @@ export class ApprovalGraphEngine {
     }
 
     if (approval.status !== ApprovalStatus.PENDING) {
-      throw new BadRequestException(
-        `Approval ${approvalId} is already ${approval.status}`,
-      );
+      throw new BadRequestException(`Approval ${approvalId} is already ${approval.status}`);
     }
 
     const step = approval.steps.find((s) => s.id === stepId);
@@ -235,9 +219,7 @@ export class ApprovalGraphEngine {
     }
 
     if (step.status !== ApprovalStatus.PENDING) {
-      throw new BadRequestException(
-        `Step is already ${step.status}`,
-      );
+      throw new BadRequestException(`Step is already ${step.status}`);
     }
 
     // Create action log
@@ -245,10 +227,7 @@ export class ApprovalGraphEngine {
       data: {
         approvalId,
         userId,
-        action:
-          decision === 'APPROVE'
-            ? ApprovalAction.APPROVE
-            : ApprovalAction.REJECT,
+        action: decision === 'APPROVE' ? ApprovalAction.APPROVE : ApprovalAction.REJECT,
         comment: options?.comment,
         dataSnapshot: approval.requestData as any,
       },
@@ -285,13 +264,10 @@ export class ApprovalGraphEngine {
 
       // Check if this is part of a parallel group
       if (step.groupKey && step.approvalMode) {
-        const groupSteps = approval.steps.filter(
-          (s: ApprovalStep) => s.groupKey === step.groupKey,
-        );
+        const groupSteps = approval.steps.filter((s: ApprovalStep) => s.groupKey === step.groupKey);
 
         const approvedInGroup = groupSteps.filter(
-          (s: ApprovalStep) =>
-            s.status === ApprovalStatus.APPROVED || s.id === step.id,
+          (s: ApprovalStep) => s.status === ApprovalStatus.APPROVED || s.id === step.id,
         ).length;
 
         if (step.approvalMode === ApprovalMode.PARALLEL_AND) {
@@ -326,9 +302,7 @@ export class ApprovalGraphEngine {
         orderBy: { stepNumber: 'asc' },
       });
 
-      const pendingSteps = allSteps.filter(
-        (s) => s.status === ApprovalStatus.PENDING,
-      );
+      const pendingSteps = allSteps.filter((s) => s.status === ApprovalStatus.PENDING);
 
       if (pendingSteps.length === 0) {
         // All steps done — mark approval as APPROVED
@@ -348,9 +322,7 @@ export class ApprovalGraphEngine {
           approverId: userId,
         });
 
-        this.logger.log(
-          `Graph approval completed (APPROVED): ${approval.id}`,
-        );
+        this.logger.log(`Graph approval completed (APPROVED): ${approval.id}`);
       } else {
         // Advance currentStep to the next pending step
         const nextStep = pendingSteps[0];
@@ -413,9 +385,7 @@ export class ApprovalGraphEngine {
         comment,
       });
 
-      this.logger.log(
-        `Graph approval REJECTED: ${approval.id}, step=${step.stepNumber}`,
-      );
+      this.logger.log(`Graph approval REJECTED: ${approval.id}, step=${step.stepNumber}`);
 
       return tx.approval.findUnique({
         where: { id: approval.id },
@@ -482,8 +452,7 @@ export class ApprovalGraphEngine {
         );
 
         const groupKey =
-          currentNode.approvalMode &&
-          currentNode.approvalMode !== ApprovalMode.SEQUENTIAL
+          currentNode.approvalMode && currentNode.approvalMode !== ApprovalMode.SEQUENTIAL
             ? `group_${currentNode.nodeKey}`
             : undefined;
 
@@ -495,9 +464,7 @@ export class ApprovalGraphEngine {
             userId: approver.userId,
             approvalMode: currentNode.approvalMode,
             groupKey,
-            deadlineAt: this.slaTracker.calculateDeadline(
-              currentNode.deadlineHours,
-            ),
+            deadlineAt: this.slaTracker.calculateDeadline(currentNode.deadlineHours),
           });
         }
         break;
@@ -522,16 +489,11 @@ export class ApprovalGraphEngine {
 
         for (const edge of outgoingEdges) {
           const matches = edge.conditionExpression
-            ? this.conditionEvaluator.evaluateExpression(
-                edge.conditionExpression,
-                requestData,
-              )
+            ? this.conditionEvaluator.evaluateExpression(edge.conditionExpression, requestData)
             : true; // Default edge (no condition)
 
           if (matches) {
-            const targetNode = flowDef.nodes.find(
-              (n) => n.id === edge.targetNodeId,
-            );
+            const targetNode = flowDef.nodes.find((n) => n.id === edge.targetNodeId);
             if (targetNode) {
               const result = await this.traverseFromNode(
                 flowDef,
@@ -557,9 +519,7 @@ export class ApprovalGraphEngine {
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     for (const edge of outgoingEdges) {
-      const targetNode = flowDef.nodes.find(
-        (n) => n.id === edge.targetNodeId,
-      );
+      const targetNode = flowDef.nodes.find((n) => n.id === edge.targetNodeId);
       if (targetNode) {
         const result = await this.traverseFromNode(
           flowDef,
@@ -580,15 +540,9 @@ export class ApprovalGraphEngine {
    * Test a flow definition with sample data without creating any records.
    * Returns the steps that would be created.
    */
-  async testFlow(
-    flowDefId: string,
-    requestData: Record<string, unknown>,
-    requestedBy: string,
-  ) {
+  async testFlow(flowDefId: string, requestData: Record<string, unknown>, requestedBy: string) {
     const flowDef = await this.loadFlowDefinition(flowDefId);
-    const startNode = flowDef.nodes.find(
-      (n) => n.nodeType === ApprovalNodeType.START,
-    );
+    const startNode = flowDef.nodes.find((n) => n.nodeType === ApprovalNodeType.START);
 
     if (!startNode) {
       throw new BadRequestException('Flow has no START node');

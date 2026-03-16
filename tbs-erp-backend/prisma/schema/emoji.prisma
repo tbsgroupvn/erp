@@ -1,0 +1,16 @@
+// ============================================================
+// Custom Emoji — company-specific emoji/stickers for chat
+// ============================================================
+
+model CustomEmoji {
+  id         String   @id @default(cuid())
+  name       String   @unique // :tbs_logo:
+  imageUrl   String   @map("image_url") // URL trong MinIO
+  category   String   @default("general")
+  uploadedBy String   @map("uploaded_by")
+  usageCount Int      @default(0) @map("usage_count")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([category])
+  @@map("custom_emojis")
+}

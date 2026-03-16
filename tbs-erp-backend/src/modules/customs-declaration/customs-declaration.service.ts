@@ -62,7 +62,41 @@ export class CustomsDeclarationService {
       );
     }
 
-    // Load container with its orders and items
+    // Load and validate container with orders
+    const container = await this.loadContainerWithOrders(containerId);
+
+    const code = await this.repository.generateCode();
+
+    // Build declaration line items from container orders
+    const lineInputs = this.buildDeclarationLines(container.orders);
+
+    // Create declaration record with lines and source items in a transaction
+    const declaration = await this.createDeclarationRecord(container, code, lineInputs, userId);
+
+    // Reload with full relations
+    const result = await this.repository.findById(declaration.id);
+
+    this.eventEmitter.emit('customs.declaration.created', {
+      declarationId: declaration.id,
+      code: declaration.code,
+      containerId,
+      containerCode: container.code,
+      totalLines: lineInputs.length,
+      createdBy: userId,
+    });
+
+    this.logger.log(
+      `Customs declaration ${code} created from container ${container.code} with ${lineInputs.length} lines`,
+    );
+
+    return result;
+  }
+
+  /**
+   * Loads a container with its orders, items, customer, and packages.
+   * Validates that the container exists and has orders.
+   */
+  private async loadContainerWithOrders(containerId: string) {
     const container = await this.prisma.container.findUnique({
       where: { id: containerId },
       include: {
@@ -98,9 +132,25 @@ export class CustomsDeclarationService {
       );
     }
 
-    const code = await this.repository.generateCode();
+    return container;
+  }
 
-    // Collect all order items across all orders in this container
+  /**
+   * Builds declaration line item inputs from orders in a container.
+   * Each order item becomes a separate declaration line.
+   */
+  private buildDeclarationLines(
+    orders: Array<{
+      id: string;
+      items: any[];
+      packages: Array<{ id: string }>;
+    }>,
+  ): Array<{
+    lineNumber: number;
+    orderItem: any;
+    orderId: string;
+    packageIds: string[];
+  }> {
     const lineInputs: Array<{
       lineNumber: number;
       orderItem: any;
@@ -109,7 +159,7 @@ export class CustomsDeclarationService {
     }> = [];
 
     let lineNumber = 1;
-    for (const order of container.orders) {
+    for (const order of orders) {
       const packageIds = order.packages.map((p) => p.id);
       for (const item of order.items) {
         lineInputs.push({
@@ -121,13 +171,29 @@ export class CustomsDeclarationService {
       }
     }
 
-    // Build declaration with nested lines
-    const declaration = await this.prisma.executeInTransaction(async (tx) => {
+    return lineInputs;
+  }
+
+  /**
+   * Creates the customs declaration record with lines and source items in a transaction.
+   */
+  private async createDeclarationRecord(
+    container: { id: string; code: string; shippingRoute?: string | null; vesselName?: string | null },
+    code: string,
+    lineInputs: Array<{
+      lineNumber: number;
+      orderItem: any;
+      orderId: string;
+      packageIds: string[];
+    }>,
+    userId: string,
+  ) {
+    return this.prisma.executeInTransaction(async (tx) => {
       // Create the declaration header
       const decl = await tx.customsDeclaration.create({
         data: {
           code,
-          containerId,
+          containerId: container.id,
           declarationType: 'IMPORT',
           importerTaxCode: '',
           importerName: '',
@@ -187,24 +253,6 @@ export class CustomsDeclarationService {
 
       return decl;
     });
-
-    // Reload with full relations
-    const result = await this.repository.findById(declaration.id);
-
-    this.eventEmitter.emit('customs.declaration.created', {
-      declarationId: declaration.id,
-      code: declaration.code,
-      containerId,
-      containerCode: container.code,
-      totalLines: lineInputs.length,
-      createdBy: userId,
-    });
-
-    this.logger.log(
-      `Customs declaration ${code} created from container ${container.code} with ${lineInputs.length} lines`,
-    );
-
-    return result;
   }
 
   /**
@@ -300,16 +348,17 @@ export class CustomsDeclarationService {
     if (dto.portOfLoading !== undefined) updateData.portOfLoading = dto.portOfLoading;
     if (dto.portOfDischarge !== undefined) updateData.portOfDischarge = dto.portOfDischarge;
     if (dto.vesselName !== undefined) updateData.vesselName = dto.vesselName;
-    if (dto.declaredCurrency !== undefined) updateData.declaredCurrency = dto.declaredCurrency as any;
-    if (dto.declaredFreight !== undefined) updateData.declaredFreight = new Decimal(dto.declaredFreight);
-    if (dto.declaredInsurance !== undefined) updateData.declaredInsurance = new Decimal(dto.declaredInsurance);
+    if (dto.declaredCurrency !== undefined)
+      updateData.declaredCurrency = dto.declaredCurrency as any;
+    if (dto.declaredFreight !== undefined)
+      updateData.declaredFreight = new Decimal(dto.declaredFreight);
+    if (dto.declaredInsurance !== undefined)
+      updateData.declaredInsurance = new Decimal(dto.declaredInsurance);
     if (dto.note !== undefined) updateData.note = dto.note;
 
     const result = await this.repository.update(id, updateData);
 
-    this.logger.log(
-      `Customs declaration ${declaration.code} header updated by ${userId}`,
-    );
+    this.logger.log(`Customs declaration ${declaration.code} header updated by ${userId}`);
 
     return result;
   }
@@ -337,14 +386,21 @@ export class CustomsDeclarationService {
     const updateData: Prisma.CustomsDeclarationLineUpdateInput = {};
 
     if (dto.declaredHsCode !== undefined) updateData.declaredHsCode = dto.declaredHsCode;
-    if (dto.declaredDescription !== undefined) updateData.declaredDescription = dto.declaredDescription;
-    if (dto.declaredQuantity !== undefined) updateData.declaredQuantity = new Decimal(dto.declaredQuantity);
+    if (dto.declaredDescription !== undefined)
+      updateData.declaredDescription = dto.declaredDescription;
+    if (dto.declaredQuantity !== undefined)
+      updateData.declaredQuantity = new Decimal(dto.declaredQuantity);
     if (dto.declaredUnit !== undefined) updateData.declaredUnit = dto.declaredUnit;
-    if (dto.declaredUnitPrice !== undefined) updateData.declaredUnitPrice = new Decimal(dto.declaredUnitPrice);
-    if (dto.declaredTotalValue !== undefined) updateData.declaredTotalValue = new Decimal(dto.declaredTotalValue);
-    if (dto.declaredCountryOrigin !== undefined) updateData.declaredCountryOrigin = dto.declaredCountryOrigin;
-    if (dto.declaredNetWeight !== undefined) updateData.declaredNetWeight = new Decimal(dto.declaredNetWeight);
-    if (dto.declaredGrossWeight !== undefined) updateData.declaredGrossWeight = new Decimal(dto.declaredGrossWeight);
+    if (dto.declaredUnitPrice !== undefined)
+      updateData.declaredUnitPrice = new Decimal(dto.declaredUnitPrice);
+    if (dto.declaredTotalValue !== undefined)
+      updateData.declaredTotalValue = new Decimal(dto.declaredTotalValue);
+    if (dto.declaredCountryOrigin !== undefined)
+      updateData.declaredCountryOrigin = dto.declaredCountryOrigin;
+    if (dto.declaredNetWeight !== undefined)
+      updateData.declaredNetWeight = new Decimal(dto.declaredNetWeight);
+    if (dto.declaredGrossWeight !== undefined)
+      updateData.declaredGrossWeight = new Decimal(dto.declaredGrossWeight);
 
     // If HS code changed, look up tax rates from library and track usage
     if (dto.declaredHsCode) {
@@ -368,9 +424,7 @@ export class CustomsDeclarationService {
     // Recalculate all duties (line-level and header totals)
     await this.dutyCalculator.recalculateDeclaration(line.declaration.id);
 
-    this.logger.log(
-      `Declaration line ${lineId} updated by ${userId}`,
-    );
+    this.logger.log(`Declaration line ${lineId} updated by ${userId}`);
 
     return this.repository.findLineById(lineId);
   }
@@ -413,11 +467,7 @@ export class CustomsDeclarationService {
   /**
    * Adds a manual line to a declaration (not linked to any order item).
    */
-  async addManualLine(
-    declarationId: string,
-    dto: UpdateDeclarationLineDto,
-    userId: string,
-  ) {
+  async addManualLine(declarationId: string, dto: UpdateDeclarationLineDto, userId: string) {
     const declaration = await this.repository.findById(declarationId);
 
     if (!declaration) {
@@ -449,9 +499,7 @@ export class CustomsDeclarationService {
       internalTotalValue: dto.declaredTotalValue ?? 0,
     });
 
-    this.logger.log(
-      `Manual line added to declaration ${declaration.code} by ${userId}`,
-    );
+    this.logger.log(`Manual line added to declaration ${declaration.code} by ${userId}`);
 
     return line;
   }
@@ -571,7 +619,10 @@ export class CustomsDeclarationService {
 
     // If not already CHANNEL_ASSIGNED, transition to it
     if (declaration.status === CustomsDeclarationStatus.SUBMITTED) {
-      this.statusMachine.assertTransition(declaration.status, CustomsDeclarationStatus.CHANNEL_ASSIGNED);
+      this.statusMachine.assertTransition(
+        declaration.status,
+        CustomsDeclarationStatus.CHANNEL_ASSIGNED,
+      );
       updateData.status = CustomsDeclarationStatus.CHANNEL_ASSIGNED;
     }
 
@@ -597,6 +648,52 @@ export class CustomsDeclarationService {
       assignedBy: userId,
     });
 
+    // GREEN channel = auto-cleared: transition directly to CLEARED
+    if (channel === CustomsChannel.GREEN) {
+      this.logger.log(
+        `GREEN channel assigned to ${declaration.code} — auto-clearing declaration`,
+      );
+
+      const clearedData: Prisma.CustomsDeclarationUpdateInput = {
+        status: CustomsDeclarationStatus.CLEARED,
+        clearedAt: new Date(),
+      };
+
+      const cleared = await this.repository.update(id, clearedData);
+
+      await this.repository.createStatusHistory({
+        declarationId: id,
+        fromStatus: CustomsDeclarationStatus.CHANNEL_ASSIGNED,
+        toStatus: CustomsDeclarationStatus.CLEARED,
+        channel,
+        note: 'Auto-cleared via GREEN channel',
+        changedBy: userId,
+      });
+
+      this.eventEmitter.emit('customs.declaration.status.changed', {
+        declarationId: id,
+        code: declaration.code,
+        containerId: declaration.containerId,
+        fromStatus: CustomsDeclarationStatus.CHANNEL_ASSIGNED,
+        toStatus: CustomsDeclarationStatus.CLEARED,
+        channel,
+        changedBy: userId,
+      });
+
+      this.eventEmitter.emit('customs.declaration.cleared', {
+        declarationId: id,
+        code: declaration.code,
+        containerId: declaration.containerId,
+        totalPayable: Number(declaration.totalPayable),
+      });
+
+      this.logger.log(
+        `Customs declaration ${declaration.code} auto-cleared (GREEN channel) by ${userId}`,
+      );
+
+      return cleared;
+    }
+
     this.logger.log(
       `Customs declaration ${declaration.code} assigned to ${channel} channel by ${userId}`,
     );
@@ -617,9 +714,7 @@ export class CustomsDeclarationService {
 
     const result = await this.dutyCalculator.recalculateDeclaration(declarationId);
 
-    this.logger.log(
-      `Taxes recalculated for declaration ${declaration.code}`,
-    );
+    this.logger.log(`Taxes recalculated for declaration ${declaration.code}`);
 
     return result;
   }
@@ -647,7 +742,7 @@ export class CustomsDeclarationService {
    * Allocates customs taxes to individual orders proportionally.
    * Delegates to the TaxAllocationService.
    */
-  async allocateTaxToOrders(id: string, method: string, userId: string) {
+  async allocateTaxToOrders(id: string, method: string, _userId: string) {
     const declaration = await this.repository.findById(id);
 
     if (!declaration) {
@@ -696,9 +791,7 @@ export class CustomsDeclarationService {
 
     const result = await this.groupingService.groupByHsCode(declarationId);
 
-    this.logger.log(
-      `Lines grouped by HS code for declaration ${declaration.code} by ${userId}`,
-    );
+    this.logger.log(`Lines grouped by HS code for declaration ${declaration.code} by ${userId}`);
 
     return result;
   }
@@ -729,9 +822,7 @@ export class CustomsDeclarationService {
       declaredUnit: dto.declaredUnit,
     });
 
-    this.logger.log(
-      `Custom grouping performed on declaration ${declaration.code} by ${userId}`,
-    );
+    this.logger.log(`Custom grouping performed on declaration ${declaration.code} by ${userId}`);
 
     return result;
   }

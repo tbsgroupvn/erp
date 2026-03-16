@@ -7,6 +7,8 @@ import { PreAlertMatchingService } from './domain/pre-alert-matching.service';
 import { WarehouseCNStatusMachine } from './domain/warehouse-cn-status.machine';
 import { ContainerEventListener } from './listeners/container-event.listener';
 import { BarcodeValidatorService } from './domain/barcode-validator.service';
+import { WarehouseCNConsolidationService } from './warehouse-cn-consolidation.service';
+import { SlottingService } from './domain/slotting.service';
 
 @Module({
   controllers: [WarehouseCNController],
@@ -18,7 +20,15 @@ import { BarcodeValidatorService } from './domain/barcode-validator.service';
     WarehouseCNStatusMachine,
     ContainerEventListener,
     BarcodeValidatorService,
+    WarehouseCNConsolidationService,
+    SlottingService,
   ],
-  exports: [WarehouseCNService, ChargeableWeightService, BarcodeValidatorService],
+  exports: [
+    WarehouseCNService,
+    ChargeableWeightService,
+    BarcodeValidatorService,
+    WarehouseCNConsolidationService,
+    SlottingService,
+  ],
 })
 export class WarehouseCNModule {}

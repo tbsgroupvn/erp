@@ -1,0 +1,38 @@
+// ============================================
+// ATTENDANCE GPS Extension
+// ============================================
+
+// GPS Location cho check-in/check-out
+model AttendanceLocation {
+  id              String     @id @default(cuid())
+  attendanceId    String     @unique @map("attendance_id")
+  attendance      Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  checkInLat      Float?     @map("check_in_lat")
+  checkInLng      Float?     @map("check_in_lng")
+  checkInAddress  String?    @map("check_in_address") // reverse geocoded
+  checkOutLat     Float?     @map("check_out_lat")
+  checkOutLng     Float?     @map("check_out_lng")
+  checkOutAddress String?    @map("check_out_address")
+  checkInMethod   String     @default("MANUAL") @map("check_in_method") // GPS, WIFI, MANUAL, FACE
+  checkOutMethod  String?    @map("check_out_method")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("attendance_locations")
+}
+
+// Cấu hình vị trí văn phòng (WiFi check-in)
+model OfficeLocation {
+  id           String  @id @default(cuid())
+  name         String // "Van phong HCM", "Kho Trung Quoc"
+  lat          Float
+  lng          Float
+  radiusMeters Int     @default(100) @map("radius_meters") // check-in radius
+  wifiSSID     String? @map("wifi_ssid") // WiFi SSID de auto check-in
+  isActive     Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("office_locations")
+}

@@ -5,11 +5,7 @@ import { CmsBlogCommentsController } from './comments.controller';
 import { CmsBlogService } from './cms-blog.service';
 
 @Module({
-  controllers: [
-    CmsBlogCategoriesController,
-    CmsBlogPostsController,
-    CmsBlogCommentsController,
-  ],
+  controllers: [CmsBlogCategoriesController, CmsBlogPostsController, CmsBlogCommentsController],
   providers: [CmsBlogService],
   exports: [CmsBlogService],
 })

@@ -160,6 +160,7 @@ export default function BuTruCongNoPage() {
       <PageHeader
         title="Bù trừ công nợ"
         description="Quản lý bù trừ công nợ phải thu và phải trả"
+        infoKey="bu-tru"
       />
 
       {/* Cơ hội bù trừ */}
@@ -230,9 +231,9 @@ export default function BuTruCongNoPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Danh sách bù trừ</h2>
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-muted-foreground">
+            <p className="text-sm font-medium text-muted-foreground">
               Trạng thái:
-            </label>
+            </p>
             <select
               value={statusFilter}
               onChange={(e) => {

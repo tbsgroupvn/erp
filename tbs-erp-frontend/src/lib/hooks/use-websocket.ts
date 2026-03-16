@@ -14,7 +14,7 @@ interface UseWebSocketOptions {
   /** Custom event handlers */
   onConnect?: () => void;
   onDisconnect?: (reason: string) => void;
-  onError?: (error: any) => void;
+  onError?: (error: Error) => void;
 }
 
 /**
@@ -87,11 +87,14 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
     socket.on('connect', () => {
       setState({ isConnected: true, error: null, socket });
+      // Expose globally so chat hooks (useChatWebSocket) can access the socket
+      globalThis.__wsSocket = socket;
       onConnect?.();
     });
 
     socket.on('disconnect', (reason) => {
       setState((prev) => ({ ...prev, isConnected: false }));
+      globalThis.__wsSocket = null;
       onDisconnect?.(reason);
     });
 
@@ -100,7 +103,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       onError?.(err);
     });
 
-    socket.on('error', (err: any) => {
+    socket.on('error', (err: Error) => {
       setState((prev) => ({ ...prev, error: err?.message ?? 'Unknown error' }));
       onError?.(err);
     });
@@ -118,7 +121,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     });
 
     // Order updates
-    socket.on('order_update', (data: any) => {
+    socket.on('order_update', (data: { orderId?: string }) => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       if (data?.orderId) {
         queryClient.invalidateQueries({ queryKey: ['orders', 'detail', data.orderId] });
@@ -173,7 +176,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   // ─── Subscribe to custom events ───
 
   const subscribe = useCallback(
-    (event: string, handler: (data: any) => void): (() => void) => {
+    (event: string, handler: (data: unknown) => void): (() => void) => {
       const socket = socketRef.current;
       if (!socket) return () => {};
 
@@ -187,7 +190,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
   // ─── Emit events ───
 
-  const emit = useCallback((event: string, data?: any) => {
+  const emit = useCallback((event: string, data?: unknown) => {
     socketRef.current?.emit(event, data);
   }, []);
 

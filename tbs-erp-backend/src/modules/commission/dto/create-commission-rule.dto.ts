@@ -23,7 +23,10 @@ export class CreateCommissionRuleDto {
   @Max(1)
   rate: number;
 
-  @ApiPropertyOptional({ description: 'Rule description', example: 'Standard commission for MHH orders with profit 0-50M' })
+  @ApiPropertyOptional({
+    description: 'Rule description',
+    example: 'Standard commission for MHH orders with profit 0-50M',
+  })
   @IsOptional()
   @IsString()
   description?: string;

@@ -179,6 +179,8 @@ generate_env() {
   JWT_SECRET=$(generate_secret)
   local JWT_REFRESH_SECRET
   JWT_REFRESH_SECRET=$(generate_secret)
+  local FIELD_ENCRYPTION_KEY
+  FIELD_ENCRYPTION_KEY=$(generate_secret)
 
   cat > .env <<EOF
 # ============================================
@@ -222,6 +224,9 @@ JWT_EXPIRES_IN=15m
 JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
 JWT_REFRESH_EXPIRES_IN=7d
 
+# --- Encryption (auto-generated, keep secret!) ---
+FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY}
+
 # --- Misc ---
 LOG_LEVEL=info
 DEMO_MODE=false
@@ -229,6 +234,37 @@ EOF
 
   chmod 600 .env
   print_step ".env file generated with secure passwords"
+}
+
+# ============================================
+# Create dummy SSL cert (so nginx can start before certbot runs)
+# ============================================
+create_dummy_ssl() {
+  echo ""
+  echo "Creating temporary SSL certificate for initial startup..."
+  echo ""
+
+  local cert_dir="/etc/letsencrypt/live/${CMS_DOMAIN}"
+  local vol_name="${COMPOSE_PROJECT_NAME:-erp}_certbot_conf"
+
+  # Create dummy cert inside a temporary container that mounts the named volume
+  docker run --rm \
+    -v "${vol_name}:/etc/letsencrypt" \
+    alpine:latest sh -c "
+      apk add --no-cache openssl >/dev/null 2>&1 &&
+      mkdir -p ${cert_dir} &&
+      if [ -f ${cert_dir}/fullchain.pem ]; then
+        echo 'Certificates already exist, skipping.'
+      else
+        openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+          -keyout ${cert_dir}/privkey.pem \
+          -out ${cert_dir}/fullchain.pem \
+          -subj '/CN=localhost' 2>/dev/null
+        echo 'Dummy certificate created.'
+      fi
+    "
+
+  print_step "Temporary SSL certificate ready"
 }
 
 # ============================================
@@ -243,46 +279,39 @@ build_and_start() {
 
   print_step "Docker images built successfully"
 
+  # Step 1: Start database and cache first
   echo ""
-  echo "Starting services..."
-  echo ""
+  echo "Starting database and cache..."
+  docker compose -f docker-compose.selfhost.yml up -d postgres redis
 
-  docker compose -f docker-compose.selfhost.yml up -d
-
-  print_step "Services started"
-}
-
-# ============================================
-# Run database migrations and seed
-# ============================================
-run_migrations() {
-  echo ""
-  echo "Running database migrations..."
-  echo ""
-
-  local project_name="${COMPOSE_PROJECT_NAME:-erp}"
-
-  # Wait for backend to be healthy
-  echo "Waiting for backend to be ready..."
+  # Wait for postgres to be healthy
+  echo "Waiting for database to be ready..."
   local retries=30
   while [ $retries -gt 0 ]; do
-    if docker compose -f docker-compose.selfhost.yml exec -T backend wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health 2>/dev/null; then
+    if docker compose -f docker-compose.selfhost.yml exec -T postgres pg_isready -U "${POSTGRES_USER:-erp_user}" 2>/dev/null; then
       break
     fi
     retries=$((retries - 1))
-    sleep 5
+    sleep 3
   done
 
   if [ $retries -eq 0 ]; then
-    print_warning "Backend health check timed out. Migrations may need to be run manually."
-    return
+    print_error "Database failed to start. Check logs: docker compose -f docker-compose.selfhost.yml logs postgres"
+    exit 1
   fi
+  print_step "Database is ready"
 
-  docker compose -f docker-compose.selfhost.yml exec -T backend npx prisma migrate deploy
-  print_step "Database migrations applied"
+  # Step 2: Run migrations and seed (uses build stage with devDeps)
+  echo ""
+  echo "Running database migrations and seeding..."
+  docker compose -f docker-compose.selfhost.yml --profile migrate run --rm migrate
+  print_step "Database migrated and seeded"
 
-  docker compose -f docker-compose.selfhost.yml exec -T backend npx prisma db seed
-  print_step "Database seeded"
+  # Step 3: Start all remaining services
+  echo ""
+  echo "Starting all services..."
+  docker compose -f docker-compose.selfhost.yml up -d
+  print_step "All services started"
 }
 
 # ============================================
@@ -291,15 +320,24 @@ run_migrations() {
 setup_ssl() {
   if [ -z "${SSL_EMAIL:-}" ]; then
     print_warning "Skipping SSL setup (no email provided)"
+    print_warning "System running with self-signed certificate. HTTPS will show browser warning."
     return
   fi
 
   echo ""
-  echo "Setting up SSL certificates..."
+  echo "Setting up SSL certificates with Let's Encrypt..."
   echo ""
+
+  local vol_name="${COMPOSE_PROJECT_NAME:-erp}_certbot_conf"
+  local cert_dir="/etc/letsencrypt/live/${CMS_DOMAIN}"
+
+  # Remove dummy cert so certbot can create real ones
+  docker run --rm -v "${vol_name}:/etc/letsencrypt" alpine \
+    sh -c "rm -rf ${cert_dir}"
 
   local domains="-d ${CMS_DOMAIN} -d www.${CMS_DOMAIN} -d ${ERP_DOMAIN} -d ${API_DOMAIN}"
 
+  # shellcheck disable=SC2086
   docker compose -f docker-compose.selfhost.yml run --rm certbot certonly \
     --webroot \
     --webroot-path=/var/www/certbot \
@@ -351,8 +389,8 @@ main() {
   preflight_checks
   collect_info
   generate_env
+  create_dummy_ssl
   build_and_start
-  run_migrations
   setup_ssl
   print_summary
 }

@@ -19,11 +19,14 @@ model AccountReceivable {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   customer      Customer @relation(fields: [customerId], references: [id])
-  order         Order?   @relation(fields: [orderId], references: [id])
+  order         Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
+  @@index([customerId])
   @@index([customerId, status])
   @@index([dueDate])
+  @@index([dueDate, status])
   @@index([orderId])
+  @@index([createdAt])
   @@map("account_receivables")
 }
 
@@ -42,10 +45,12 @@ model AccountPayable {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  vendor      Vendor?  @relation(fields: [vendorId], references: [id])
+  vendor      Vendor?  @relation(fields: [vendorId], references: [id], onDelete: SetNull)
 
+  @@index([vendorId])
   @@index([vendorId, status])
   @@index([dueDate])
+  @@index([createdAt])
   @@map("account_payables")
 }
 
@@ -76,9 +81,9 @@ model PaymentVoucher {
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
 
-  order           Order?         @relation(fields: [orderId], references: [id])
-  contract        Contract?      @relation(fields: [contractId], references: [id])
-  supplierOrder   SupplierOrder? @relation(fields: [supplierOrderId], references: [id])
+  order           Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  contract        Contract?      @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  supplierOrder   SupplierOrder? @relation(fields: [supplierOrderId], references: [id], onDelete: SetNull)
   allocations     PaymentAllocation[]
 
   @@index([orderId])
@@ -86,6 +91,8 @@ model PaymentVoucher {
   @@index([supplierOrderId])
   @@index([createdBy])
   @@index([status])
+  @@index([status, createdBy])
+  @@index([status, amount])
   @@index([createdAt])
   @@index([type, createdAt])
   @@map("payment_vouchers")
@@ -105,6 +112,7 @@ model CashTransaction {
 
   @@index([createdAt])
   @@index([voucherId])
+  @@index([createdBy])
   @@index([type, createdAt])
   @@map("cash_transactions")
 }
@@ -132,6 +140,8 @@ model Invoice {
   @@index([orderId])
   @@index([customerId])
   @@index([status])
+  @@index([createdBy])
+  @@index([createdAt])
   @@map("invoices")
 }
 
@@ -210,7 +220,7 @@ model JournalEntry {
 model JournalEntryLine {
   id          String         @id @default(cuid())
   entryId     String
-  entry       JournalEntry   @relation(fields: [entryId], references: [id])
+  entry       JournalEntry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
   accountCode String
   account     ChartOfAccount @relation(fields: [accountCode], references: [code])
   debit       Decimal        @default(0) @db.Decimal(18, 2)
@@ -239,7 +249,7 @@ model CommissionRule {
 model CommissionRecord {
   id          String   @id @default(cuid())
   orderId     String
-  order       Order    @relation(fields: [orderId], references: [id])
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   saleId      String
   sale        User     @relation("SaleCommissions", fields: [saleId], references: [id])
   orderRevenue     Decimal  @db.Decimal(18, 2)
@@ -287,13 +297,14 @@ model PurchaseRequest {
   @@index([status])
   @@index([vendorId])
   @@index([orderId])
+  @@index([createdBy])
   @@map("purchase_requests")
 }
 
 model PurchaseRequestItem {
   id          String          @id @default(cuid())
   requestId   String
-  request     PurchaseRequest @relation(fields: [requestId], references: [id])
+  request     PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
   description String
   quantity    Decimal         @db.Decimal(15, 3)
   unit        String
@@ -322,6 +333,7 @@ model PurchaseOrder {
   @@index([vendorId])
   @@index([status])
   @@index([orderId])
+  @@index([createdBy])
   @@map("purchase_orders")
 }
 
@@ -345,7 +357,7 @@ model StockItem {
 model StockMovement {
   id          String            @id @default(cuid())
   itemId      String
-  item        StockItem         @relation(fields: [itemId], references: [id])
+  item        StockItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
   type        StockMovementType
   quantity    Decimal           @db.Decimal(15, 3)
   reference   String?
@@ -367,7 +379,7 @@ model CODRecord {
   collectedAmount Decimal @default(0) @db.Decimal(18, 2)
   status      CODStatus @default(PENDING)
   paymentMethod String?
-  driverId    String
+  driverId    String?
   collectedAt DateTime?
   remittedAt  DateTime?
   shortage    Decimal   @default(0) @db.Decimal(18, 2)
@@ -376,8 +388,8 @@ model CODRecord {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  delivery    Delivery  @relation(fields: [deliveryId], references: [id])
-  driver      Driver?   @relation(fields: [driverId], references: [id])
+  delivery    Delivery  @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  driver      Driver?   @relation(fields: [driverId], references: [id], onDelete: SetNull)
 
   @@index([deliveryId])
   @@index([driverId])
@@ -443,8 +455,8 @@ model PaymentAllocation {
   reversedAt      DateTime?           @map("reversed_at")
   reversalReason  String?             @map("reversal_reason")
 
-  contract        Contract?           @relation(fields: [contractId], references: [id])
-  order           Order?              @relation(fields: [orderId], references: [id])
+  contract        Contract?           @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  order           Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
   voucher         PaymentVoucher?     @relation(fields: [voucherId], references: [id], onDelete: Cascade)
   details         PaymentAllocationDetail[]
 
@@ -452,6 +464,8 @@ model PaymentAllocation {
   @@index([orderId])
   @@index([voucherId])
   @@index([sourceType, sourceId])
+  @@index([allocatedBy])
+  @@index([allocatedAt])
   @@map("payment_allocations")
 }
 
@@ -651,6 +665,7 @@ model UnallocatedFundClaim {
 
   @@index([customerId])
   @@index([status])
+  @@index([claimedBySaleId])
   @@map("unallocated_fund_claims")
 }
 

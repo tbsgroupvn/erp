@@ -1,11 +1,15 @@
-import { Controller, Get, Param, Query, Post, Body, NotFoundException, Req } from '@nestjs/common';
+import { Controller, Get, Param, Query, Post, Body, NotFoundException, Req, UsePipes, ValidationPipe, ParseUUIDPipe } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { randomBytes } from 'crypto';
 import { Request } from 'express';
 import { PagesService } from '@modules/cms-pages/pages.service';
 import { MenuService } from '@modules/cms-menu/menu.service';
 import { SettingsService } from '@modules/cms-settings/settings.service';
 import { PrismaService } from '@core/database/prisma.service';
-import { MenuLocation, PageStatus } from '@prisma/client';
+import { MenuLocation } from '@prisma/client';
+import { SubmitContactDto } from './dto/submit-contact.dto';
+import { SubscribeNewsletterDto } from './dto/subscribe-newsletter.dto';
+import { UnsubscribeNewsletterDto } from './dto/unsubscribe-newsletter.dto';
 
 @Controller('public/cms')
 export class PublicCmsController {
@@ -45,15 +49,10 @@ export class PublicCmsController {
   // ============ Contact Form ============
 
   @Post('contact')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   async submitContact(
-    @Body()
-    body: {
-      name: string;
-      email: string;
-      phone?: string;
-      subject: string;
-      message: string;
-    },
+    @Body() body: SubmitContactDto,
     @Req() req: Request,
   ) {
     return this.prisma.contactSubmission.create({
@@ -73,9 +72,9 @@ export class PublicCmsController {
   // ============ Newsletter ============
 
   @Post('newsletter/subscribe')
-  async subscribeNewsletter(
-    @Body() body: { email: string; name?: string; source?: string },
-  ) {
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+  async subscribeNewsletter(@Body() body: SubscribeNewsletterDto) {
     // Check if already subscribed
     const existing = await this.prisma.newsletterSubscription.findUnique({
       where: { email: body.email },
@@ -104,14 +103,18 @@ export class PublicCmsController {
 
     return this.prisma.newsletterSubscription.create({
       data: {
-        ...body,
+        email: body.email,
+        name: body.name,
+        source: body.source,
         unsubscribeToken,
       },
     });
   }
 
   @Post('newsletter/unsubscribe')
-  async unsubscribeNewsletter(@Body() body: { token: string }) {
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+  async unsubscribeNewsletter(@Body() body: UnsubscribeNewsletterDto) {
     const subscription = await this.prisma.newsletterSubscription.findUnique({
       where: { unsubscribeToken: body.token },
     });
@@ -159,7 +162,8 @@ export class PublicCmsController {
   }
 
   @Post('faqs/:id/view')
-  async incrementFaqView(@Param('id') id: string) {
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async incrementFaqView(@Param('id', ParseUUIDPipe) id: string) {
     return this.prisma.fAQ.update({
       where: { id },
       data: {

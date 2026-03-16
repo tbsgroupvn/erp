@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { blogCategoriesApi, BlogCategory } from '@/lib/api/cms';
+import { blogCategoriesApi, BlogCategory, CreateBlogCategoryDto } from '@/lib/api/cms';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,7 +47,7 @@ export default function BlogCategoriesPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateBlogCategoryDto> }) =>
       blogCategoriesApi.update(id, data),
     onSuccess: () => {
       toast.success('Đã cập nhật danh mục thành công');
@@ -78,7 +78,7 @@ export default function BlogCategoriesPage() {
     setEditingCategory(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (editingCategory) {
       updateMutation.mutate({ id: editingCategory.id, data: formData });

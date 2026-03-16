@@ -30,9 +30,7 @@ import { CostQueryDto } from './dto/cost-query.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('operation-costs')
 export class OperationCostController {
-  constructor(
-    private readonly operationCostService: OperationCostService,
-  ) {}
+  constructor(private readonly operationCostService: OperationCostService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -59,19 +57,13 @@ export class OperationCostController {
   @ApiResponse({ status: 200, description: 'Costs retrieved successfully' })
   async findAll(@Query() query: CostQueryDto) {
     const result = await this.operationCostService.findAll(query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get('summary')
   @ApiOperation({
     summary: 'Get cost summary',
-    description:
-      'Returns aggregated cost summary by cost type, currency, and top containers.',
+    description: 'Returns aggregated cost summary by cost type, currency, and top containers.',
   })
   @ApiQuery({
     name: 'startDate',
@@ -84,10 +76,7 @@ export class OperationCostController {
     description: 'End date (ISO 8601)',
   })
   @ApiResponse({ status: 200, description: 'Summary retrieved' })
-  async getCostSummary(
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-  ) {
+  async getCostSummary(@Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
     const summary = await this.operationCostService.getCostSummary({
       startDate,
       endDate,
@@ -98,15 +87,13 @@ export class OperationCostController {
   @Get('containers/:containerId')
   @ApiOperation({
     summary: 'Get container costs',
-    description:
-      'Returns all costs for a specific container with aggregation by type.',
+    description: 'Returns all costs for a specific container with aggregation by type.',
   })
   @ApiParam({ name: 'containerId', description: 'Container ID' })
   @ApiResponse({ status: 200, description: 'Container costs retrieved' })
   @ApiResponse({ status: 404, description: 'Container not found' })
   async getContainerCosts(@Param('containerId') containerId: string) {
-    const result =
-      await this.operationCostService.getContainerCosts(containerId);
+    const result = await this.operationCostService.getContainerCosts(containerId);
     return BaseResponse.ok(result);
   }
 
@@ -114,8 +101,7 @@ export class OperationCostController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Allocate container costs to orders',
-    description:
-      'Distributes container costs to individual orders by weight, volume, or evenly.',
+    description: 'Distributes container costs to individual orders by weight, volume, or evenly.',
   })
   @ApiParam({ name: 'containerId', description: 'Container ID' })
   @ApiQuery({
@@ -131,48 +117,40 @@ export class OperationCostController {
     @Param('containerId') containerId: string,
     @Query('method') method?: 'WEIGHT' | 'VOLUME' | 'EVEN',
   ) {
-    const allocations = await this.operationCostService.allocateCosts(
-      containerId,
-      method,
-    );
+    const allocations = await this.operationCostService.allocateCosts(containerId, method);
     return BaseResponse.ok(allocations, 'Costs allocated successfully');
   }
 
   @Get('containers/:containerId/cost-per-kg')
   @ApiOperation({
     summary: 'Get cost per kg for a container',
-    description:
-      'Calculates total cost divided by total chargeable weight for a container.',
+    description: 'Calculates total cost divided by total chargeable weight for a container.',
   })
   @ApiParam({ name: 'containerId', description: 'Container ID' })
   @ApiResponse({ status: 200, description: 'Cost per kg calculated' })
   @ApiResponse({ status: 404, description: 'Container not found' })
   async getCostPerKg(@Param('containerId') containerId: string) {
-    const result =
-      await this.operationCostService.getCostPerKg(containerId);
+    const result = await this.operationCostService.getCostPerKg(containerId);
     return BaseResponse.ok(result);
   }
 
   @Get('containers/:containerId/variance')
   @ApiOperation({
     summary: 'Get variance report for a container',
-    description:
-      'Compares estimated vs actual costs for each cost item in a container.',
+    description: 'Compares estimated vs actual costs for each cost item in a container.',
   })
   @ApiParam({ name: 'containerId', description: 'Container ID' })
   @ApiResponse({ status: 200, description: 'Variance report retrieved' })
   @ApiResponse({ status: 404, description: 'Container not found' })
   async getVarianceReport(@Param('containerId') containerId: string) {
-    const report =
-      await this.operationCostService.getVarianceReport(containerId);
+    const report = await this.operationCostService.getVarianceReport(containerId);
     return BaseResponse.ok(report);
   }
 
   @Get('orders/:orderId')
   @ApiOperation({
     summary: 'Get order cost breakdown',
-    description:
-      'Returns total allocated costs for an order with profitability analysis.',
+    description: 'Returns total allocated costs for an order with profitability analysis.',
   })
   @ApiParam({ name: 'orderId', description: 'Order ID' })
   @ApiResponse({ status: 200, description: 'Order cost retrieved' })

@@ -265,6 +265,7 @@ export default function CustomsDeclarationListPage() {
       <PageHeader
         title="Quản lý Tờ khai Hải quan"
         description="Khai báo, phân luồng và quản lý thuế nhập khẩu"
+        infoKey="thong-quan"
       >
         <Button
           onClick={() => setShowCreateForm((prev) => !prev)}

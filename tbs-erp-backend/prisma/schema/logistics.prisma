@@ -20,8 +20,8 @@ model Vehicle {
   brand             String?
   model             String?
   year              Int?
-  capacityKg        Float?
-  volumeM3          Float?
+  capacityKg        Decimal?  @db.Decimal(10, 2)
+  volumeM3          Decimal?  @db.Decimal(10, 3)
   status            VehicleStatus @default(ACTIVE)
   branch            Branch
   insuranceExpiry   DateTime?
@@ -42,7 +42,7 @@ model Driver {
   employeeId    String?
   fullName      String
   phone         String
-  licenseNumber String?
+  licenseNumber String?      @unique
   licenseExpiry DateTime?
   licenseType   String?
   vehicleId     String?
@@ -101,29 +101,51 @@ model Delivery {
 
   // Partial delivery
   isPartialDelivery Boolean @default(false) @map("is_partial_delivery")
-  packageIds      String[] @default([]) @map("package_ids")
+
+  // Hang van chuyen noi dia
+  carrierTrackingNumber String?  @map("carrier_tracking_number")
+  carrierName           String?  @map("carrier_name")
 
   note            String?
   dispatchedBy    String?  @map("dispatched_by")  // Truong kho
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  order           Order    @relation(fields: [orderId], references: [id])
-  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
-  driver          Driver?  @relation(fields: [driverId], references: [id])
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driver          Driver?  @relation(fields: [driverId], references: [id], onDelete: SetNull)
   codRecords      CODRecord[]
+  deliveryPackages DeliveryPackage[]
 
   @@index([orderId])
   @@index([driverId])
   @@index([status])
   @@index([scheduledAt])
+  @@index([orderId, status])
+  @@index([branch, status])
+  @@index([deliveredAt])
+  @@index([vehicleId])
+  @@index([carrierTrackingNumber])
   @@map("deliveries")
+}
+
+model DeliveryPackage {
+  id          String   @id @default(cuid())
+  deliveryId  String   @map("delivery_id")
+  packageId   String   @map("package_id")
+
+  delivery    Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  package     Package  @relation(fields: [packageId], references: [id])
+
+  @@unique([deliveryId, packageId])
+  @@index([packageId])
+  @@map("delivery_packages")
 }
 
 model VehicleMaintenance {
   id          String          @id @default(cuid())
   vehicleId   String
-  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id])
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   type        MaintenanceType
   scheduledDate DateTime
   completedDate DateTime?
@@ -139,7 +161,7 @@ model VehicleMaintenance {
 model FuelRecord {
   id        String  @id @default(cuid())
   vehicleId String
-  vehicle   Vehicle @relation(fields: [vehicleId], references: [id])
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   date      DateTime
   liters    Decimal @db.Decimal(15, 3)
   cost      Decimal @db.Decimal(18, 2)

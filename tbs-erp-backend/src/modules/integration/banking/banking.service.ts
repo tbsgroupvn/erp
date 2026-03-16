@@ -1,10 +1,6 @@
-import {
-  Injectable,
-  Logger,
-  NotImplementedException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotImplementedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DateRangeDto } from '@common/dto/date-range.dto';
+
 import { BankTransactionQueryDto } from './dto/bank-transaction-query.dto';
 import { BankTransferDto } from './dto/bank-transfer.dto';
 import { BankReconcileDto } from './dto/bank-reconcile.dto';
@@ -48,7 +44,7 @@ export class BankingService {
     if (!this.enabled) {
       throw new NotImplementedException(
         'Banking integration pending configuration. ' +
-        'Set BANKING_INTEGRATION_ENABLED=true and configure BANKING_API_URL and BANKING_API_KEY.',
+          'Set BANKING_INTEGRATION_ENABLED=true and configure BANKING_API_URL and BANKING_API_KEY.',
       );
     }
 
@@ -69,13 +65,13 @@ export class BankingService {
   async getTransactions(dto: BankTransactionQueryDto): Promise<BankTransaction[]> {
     this.logger.log(
       `Fetching transactions: account=${dto.accountId}, ` +
-      `from=${dto.startDate}, to=${dto.endDate}, type=${dto.type}`,
+        `from=${dto.startDate}, to=${dto.endDate}, type=${dto.type}`,
     );
 
     if (!this.enabled) {
       throw new NotImplementedException(
         'Banking integration pending configuration. ' +
-        'Set BANKING_INTEGRATION_ENABLED=true and configure BANKING_API_URL and BANKING_API_KEY.',
+          'Set BANKING_INTEGRATION_ENABLED=true and configure BANKING_API_URL and BANKING_API_KEY.',
       );
     }
 
@@ -98,13 +94,13 @@ export class BankingService {
   async reconcilePayments(dto: BankReconcileDto): Promise<ReconciliationResult> {
     this.logger.log(
       `Reconciling payments: bankCode=${dto.bankCode}, ` +
-      `from=${dto.startDate}, to=${dto.endDate}`,
+        `from=${dto.startDate}, to=${dto.endDate}`,
     );
 
     if (!this.enabled) {
       throw new NotImplementedException(
         'Banking integration pending configuration. ' +
-        'Set BANKING_INTEGRATION_ENABLED=true and configure BANKING_API_URL and BANKING_API_KEY.',
+          'Set BANKING_INTEGRATION_ENABLED=true and configure BANKING_API_URL and BANKING_API_KEY.',
       );
     }
 
@@ -129,14 +125,14 @@ export class BankingService {
   async initiateTransfer(dto: BankTransferDto): Promise<TransferResult> {
     this.logger.log(
       `Initiating bank transfer: from=${dto.fromAccountNumber}, ` +
-      `to=${dto.toAccountNumber} (${dto.toBankCode}), ` +
-      `amount=${dto.amount} ${dto.currency}, type=${dto.transferType}`,
+        `to=${dto.toAccountNumber} (${dto.toBankCode}), ` +
+        `amount=${dto.amount} ${dto.currency}, type=${dto.transferType}`,
     );
 
     if (!this.enabled) {
       throw new NotImplementedException(
         'Banking integration pending configuration. ' +
-        'Set BANKING_INTEGRATION_ENABLED=true and configure BANKING_API_URL and BANKING_API_KEY.',
+          'Set BANKING_INTEGRATION_ENABLED=true and configure BANKING_API_URL and BANKING_API_KEY.',
       );
     }
 
@@ -150,7 +146,7 @@ export class BankingService {
     // 7. Return transfer status and reference
     throw new NotImplementedException(
       'Bank transfer initiation is pending API integration with the banking provider. ' +
-      'Requires bank-specific API credentials and digital signature setup.',
+        'Requires bank-specific API credentials and digital signature setup.',
     );
   }
 

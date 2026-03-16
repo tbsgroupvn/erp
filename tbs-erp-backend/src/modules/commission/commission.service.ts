@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { CreateCommissionRuleDto } from './dto/create-commission-rule.dto';
 import { CommissionDateRangeDto } from './dto/commission-query.dto';
@@ -16,7 +11,7 @@ export class CommissionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly calculator: CommissionCalculatorService,
-  ) { }
+  ) {}
 
   /**
    * Creates a commission rule.
@@ -44,14 +39,20 @@ export class CommissionService {
   }
 
   /**
-   * Lists all active commission rules.
+   * Lists all active commission rules with pagination.
    */
-  async getRules() {
-    return this.prisma.commissionRule.findMany({
-      where: { isActive: true },
-      orderBy: [{ serviceType: 'asc' }, { minProfit: 'asc' }],
-      take: 500,
-    });
+  async getRules(page = 1, limit = 50) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.commissionRule.findMany({
+        where: { isActive: true },
+        orderBy: [{ serviceType: 'asc' }, { minProfit: 'asc' }],
+        skip,
+        take: limit,
+      }),
+      this.prisma.commissionRule.count({ where: { isActive: true } }),
+    ]);
+    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
   /**
@@ -100,9 +101,7 @@ export class CommissionService {
     const result = await this.calculator.calculateCommission(order);
 
     if (!result) {
-      this.logger.log(
-        `No commission rule found for ${order.serviceType}`,
-      );
+      this.logger.log(`No commission rule found for ${order.serviceType}`);
       return null;
     }
 
@@ -226,7 +225,7 @@ export class CommissionService {
       );
     }
 
-    const updated = await this.prisma.commissionRecord.update({
+    const _updated = await this.prisma.commissionRecord.update({
       where: { id },
       data: {
         status: 'APPROVED',
@@ -237,7 +236,7 @@ export class CommissionService {
 
     this.logger.log(`Commission ${id} approved by ${userId}`);
 
-    return updated;
+    return _updated;
   }
 
   /**
@@ -247,15 +246,18 @@ export class CommissionService {
    * - APPROVED (not yet paid): Set status=ON_HOLD, save clawback fields
    * - PENDING: Delete the record (cancel it)
    */
-  async clawbackCommission(orderId: string, complaintId: string, reason: string) {
+  async clawbackCommission(
+    orderId: string,
+    complaintId: string | null,
+    reason: string,
+    partialAmount?: number,
+  ) {
     const record = await this.prisma.commissionRecord.findFirst({
       where: { orderId },
     });
 
     if (!record) {
-      this.logger.warn(
-        `No commission record found for order ${orderId} — skipping clawback`,
-      );
+      this.logger.warn(`No commission record found for order ${orderId} — skipping clawback`);
       return null;
     }
 
@@ -273,26 +275,63 @@ export class CommissionService {
     }
 
     if (record.status === 'APPROVED' || record.status === 'PAID') {
-      const updated = await this.prisma.commissionRecord.update({
+      const clawbackAmount = partialAmount
+        ? Math.min(partialAmount, Number(record.commissionAmount))
+        : Number(record.commissionAmount);
+
+      await this.prisma.commissionRecord.update({
         where: { id: record.id },
         data: {
           status: 'ON_HOLD',
-          clawbackAmount: record.commissionAmount,
+          clawbackAmount,
           clawbackReason: reason,
-          clawbackComplaintId: complaintId,
+          clawbackComplaintId: complaintId ?? undefined,
           clawbackAt: new Date(),
         },
       });
 
       this.logger.log(
         `Commission ${record.id} for order ${orderId} set to ON_HOLD (was ${record.status}). ` +
-          `Clawback amount: ${record.commissionAmount}. Complaint: ${complaintId}`,
+          `Clawback amount: ${clawbackAmount}. Complaint: ${complaintId}`,
       );
 
-      return { action: 'ON_HOLD', commissionId: record.id, previousStatus: record.status, clawbackAmount: Number(record.commissionAmount) };
+      return {
+        action: 'ON_HOLD',
+        commissionId: record.id,
+        previousStatus: record.status,
+        clawbackAmount,
+      };
     }
 
-    // Status is already ON_HOLD or unknown — no action needed
+    if (record.status === 'ON_HOLD') {
+      // Accumulate clawback if partialAmount is provided
+      if (partialAmount && partialAmount > 0) {
+        const currentClawback = Number(record.clawbackAmount ?? 0);
+        const maxClawback = Number(record.commissionAmount);
+        const newClawback = Math.min(currentClawback + partialAmount, maxClawback);
+
+        await this.prisma.commissionRecord.update({
+          where: { id: record.id },
+          data: {
+            clawbackAmount: newClawback,
+            clawbackReason: `${record.clawbackReason ?? ''} + ${reason}`,
+          },
+        });
+
+        this.logger.log(
+          `Commission ${record.id} for order ${orderId} ON_HOLD clawback accumulated: ${currentClawback} -> ${newClawback}`,
+        );
+
+        return {
+          action: 'ACCUMULATED',
+          commissionId: record.id,
+          previousClawback: currentClawback,
+          clawbackAmount: newClawback,
+        };
+      }
+    }
+
+    // Status is already ON_HOLD (no partial) or unknown — no action needed
     this.logger.warn(
       `Commission ${record.id} for order ${orderId} is already in status ${record.status} — skipping clawback`,
     );

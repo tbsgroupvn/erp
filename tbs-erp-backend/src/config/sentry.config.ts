@@ -58,9 +58,7 @@ export const sentryConfig = registerAs('sentry', () => {
 
   // SENTRY_DSN is required in production
   if (nodeEnv === 'production' && !dsn) {
-    logger.error(
-      'SENTRY_DSN is required in production! Set SENTRY_DSN environment variable.',
-    );
+    logger.error('SENTRY_DSN is required in production! Set SENTRY_DSN environment variable.');
     throw new Error('SENTRY_DSN environment variable is required in production.');
   }
 
@@ -117,14 +115,12 @@ export const initSentry = async (app: INestApplication) => {
   const enabled = config.get<boolean>('sentry.enabled');
 
   if (!enabled || !dsn) {
-    logger.warn(
-      'Sentry is disabled. Set SENTRY_DSN to enable error tracking.',
-    );
+    logger.warn('Sentry is disabled. Set SENTRY_DSN to enable error tracking.');
     return;
   }
 
   try {
-    // @ts-ignore
+    // @ts-expect-error - Sentry is optional dependency
     const Sentry = await import('@sentry/node');
 
     Sentry.init({
@@ -165,13 +161,11 @@ export const initSentry = async (app: INestApplication) => {
 
     logger.log(
       `Sentry initialized (env: ${config.get<string>('sentry.environment')}, ` +
-      `traces: ${config.get<number>('sentry.tracesSampleRate')}, ` +
-      `profiles: ${config.get<number>('sentry.profilesSampleRate')})`,
+        `traces: ${config.get<number>('sentry.tracesSampleRate')}, ` +
+        `profiles: ${config.get<number>('sentry.profilesSampleRate')})`,
     );
   } catch {
-    logger.warn(
-      'Sentry SDK not installed. Install @sentry/node to enable error tracking.',
-    );
+    logger.warn('Sentry SDK not installed. Install @sentry/node to enable error tracking.');
   }
 };
 
@@ -179,7 +173,7 @@ export const initSentry = async (app: INestApplication) => {
 export const sentryErrorHandler = () => {
   return async (err: Error, _req: Request, _res: Response, next: NextFunction) => {
     try {
-      // @ts-ignore
+      // @ts-expect-error - Sentry is optional dependency
       const Sentry = await import('@sentry/node');
       Sentry.captureException(err);
     } catch {

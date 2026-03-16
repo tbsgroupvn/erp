@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { apiClient } from '@/lib/api/client';
+import { InfoTooltip } from '@/components/shared/info-tooltip';
 import { formatCurrency, formatDate } from '@/lib/utils/format';
 import { UserRole, Currency } from '@/lib/types/enums';
 import type { BaseResponse, PaginatedResponse } from '@/lib/types';
@@ -172,11 +173,11 @@ function ClaimDialog({
     mutationFn: unallocatedApi.createClaim,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: unallocatedKeys.all });
-      toast.success('Da tao yeu cau nhan vo thanh cong');
+      toast.success('Đã tạo yêu cầu nhận vô thành công');
       handleClose();
     },
     onError: () => {
-      toast.error('Khong the tao yeu cau. Vui long thu lai.');
+      toast.error('Không thể tạo yêu cầu. Vui lòng thử lại.');
     },
   });
 
@@ -210,18 +211,18 @@ function ClaimDialog({
         aria-hidden="true"
       />
       <div className="relative z-50 w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg">
-        <h2 className="text-lg font-semibold mb-1">Nhan vo giao dich</h2>
+        <h2 className="text-lg font-semibold mb-1">Nhận vô giao dịch</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          So tien: {formatCurrency(transaction.amount, transaction.currency || Currency.VND)} &middot;{' '}
+          Số tiền: {formatCurrency(transaction.amount, transaction.currency || Currency.VND)} &middot;{' '}
           {formatDate(transaction.createdAt, 'dd/MM/yyyy HH:mm')}
         </p>
 
         <div className="space-y-4">
           {/* Search customer */}
           <div className="space-y-2">
-            <Label>Tim khach hang *</Label>
+            <p className="text-sm font-medium leading-none">Tìm khách hàng *</p>
             <Input
-              placeholder="Nhap ten hoac ma khach hang..."
+              placeholder="Nhập tên hoặc mã khách hàng..."
               value={customerSearch}
               onChange={(e) => setCustomerSearch(e.target.value)}
             />
@@ -252,7 +253,7 @@ function ClaimDialog({
                   setCustomerSearch('');
                 }}
               >
-                Doi khach hang
+                Đổi khách hàng
               </Button>
             )}
           </div>
@@ -260,13 +261,13 @@ function ClaimDialog({
           {/* Select order */}
           {selectedCustomerId && (
             <div className="space-y-2">
-              <Label>Don hang / Hop dong (tuy chon)</Label>
+              <p className="text-sm font-medium leading-none">Đơn hàng / Hợp đồng (tuỳ chọn)</p>
               <select
                 value={selectedOrderId}
                 onChange={(e) => setSelectedOrderId(e.target.value)}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                <option value="">-- Chon don hang --</option>
+                <option value="">-- Chọn đơn hàng --</option>
                 {(orders ?? []).map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.code}
@@ -278,23 +279,23 @@ function ClaimDialog({
 
           {/* Evidence upload */}
           <div className="space-y-2">
-            <Label>Bang chung (URL)</Label>
+            <p className="text-sm font-medium leading-none">Bằng chứng (URL)</p>
             <Input
-              placeholder="URL hinh anh hoac tai lieu..."
+              placeholder="URL hình ảnh hoặc tài liệu..."
               value={evidenceUrl}
               onChange={(e) => setEvidenceUrl(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Nhap link anh chup man hinh chuyen khoan, bien lai, ...
+              Nhập link ảnh chụp màn hình chuyển khoản, biên lai, ...
             </p>
           </div>
 
           {/* Note */}
           <div className="space-y-2">
-            <Label>Ghi chu *</Label>
+            <p className="text-sm font-medium leading-none">Ghi chú *</p>
             <textarea
               rows={3}
-              placeholder="Ly do nhan vo giao dich nay..."
+              placeholder="Lý do nhận vô giao dịch này..."
               value={note}
               onChange={(e) => setNote(e.target.value)}
               className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -304,13 +305,13 @@ function ClaimDialog({
 
         <div className="flex justify-end gap-2 mt-6">
           <Button variant="outline" onClick={handleClose} disabled={createClaim.isPending}>
-            Huy
+            Huỷ
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={createClaim.isPending || !selectedCustomerId || !note}
           >
-            {createClaim.isPending ? 'Dang xu ly...' : 'Gui yeu cau nhan vo'}
+            {createClaim.isPending ? 'Đang xử lý...' : 'Gửi yêu cầu nhận vô'}
           </Button>
         </div>
       </div>
@@ -345,10 +346,10 @@ export default function ChuaPhanBoPage() {
     mutationFn: unallocatedApi.approveClaim,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: unallocatedKeys.all });
-      toast.success('Da duyet yeu cau nhan vo');
+      toast.success('Đã duyệt yêu cầu nhận vô');
     },
     onError: () => {
-      toast.error('Khong the duyet yeu cau');
+      toast.error('Không thể duyệt yêu cầu');
     },
   });
 
@@ -356,10 +357,10 @@ export default function ChuaPhanBoPage() {
     mutationFn: (id: string) => unallocatedApi.rejectClaim(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: unallocatedKeys.all });
-      toast.success('Da tu choi yeu cau nhan vo');
+      toast.success('Đã từ chối yêu cầu nhận vô');
     },
     onError: () => {
-      toast.error('Khong the tu choi yeu cau');
+      toast.error('Không thể từ chối yêu cầu');
     },
   });
 
@@ -380,37 +381,47 @@ export default function ChuaPhanBoPage() {
   return (
     <div>
       <PageHeader
-        title="Tien chua phan bo"
-        description="Quan ly cac giao dich vi chua duoc phan bo cho don hang"
+        title="Tiền chưa phân bổ"
+        description="Quản lý các giao dịch ví chưa được phân bổ cho đơn hàng"
+        infoTip={{
+          definition: 'Các khoản tiền đã nhận nhưng chưa khớp được với đơn hàng hoặc khách hàng cụ thể.',
+          howTo: 'Chọn khoản chưa phân bổ → Khớp với đơn hàng/KH → Xác nhận phân bổ.',
+        }}
       />
 
       {/* ===== Unallocated Transactions Table ===== */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-lg">Giao dich chua phan bo</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            Giao dịch chưa phân bổ
+            <InfoTooltip tip={{
+              definition: 'Các khoản tiền đã nhận nhưng chưa khớp được với đơn hàng hoặc khách hàng cụ thể.',
+              howTo: 'Chọn khoản chưa phân bổ → Khớp với đơn hàng/KH → Xác nhận phân bổ.',
+            }} />
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {loadingTx ? (
             <div className="flex flex-col items-center gap-3 py-12">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-              <p className="text-sm text-muted-foreground">Dang tai du lieu...</p>
+              <p className="text-sm text-muted-foreground">Đang tải dữ liệu...</p>
             </div>
           ) : transactions.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">
-              Khong co giao dich chua phan bo.
+              Không có giao dịch chưa phân bổ.
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b text-left text-sm font-medium text-muted-foreground">
-                    <th className="pb-3 pr-4">Ngay</th>
-                    <th className="pb-3 pr-4 text-right">So tien</th>
-                    <th className="pb-3 pr-4">Loai</th>
-                    <th className="pb-3 pr-4">Khach hang</th>
-                    <th className="pb-3 pr-4">Tham chieu</th>
-                    <th className="pb-3 pr-4">Ghi chu</th>
-                    <th className="pb-3 text-center">Thao tac</th>
+                    <th className="pb-3 pr-4">Ngày</th>
+                    <th className="pb-3 pr-4 text-right">Số tiền</th>
+                    <th className="pb-3 pr-4">Loại</th>
+                    <th className="pb-3 pr-4">Khách hàng</th>
+                    <th className="pb-3 pr-4">Tham chiếu</th>
+                    <th className="pb-3 pr-4">Ghi chú</th>
+                    <th className="pb-3 text-center">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -432,7 +443,7 @@ export default function ChuaPhanBoPage() {
                                 : 'bg-gray-100 text-gray-700 border-0'
                           }
                         >
-                          {tx.type === 'TOPUP' ? 'Nap tien' : tx.type === 'REFUND' ? 'Hoan tien' : 'Khac'}
+                          {tx.type === 'TOPUP' ? 'Nạp tiền' : tx.type === 'REFUND' ? 'Hoàn tiền' : 'Khác'}
                         </Badge>
                       </td>
                       <td className="py-3 pr-4">
@@ -457,7 +468,7 @@ export default function ChuaPhanBoPage() {
                           variant="outline"
                           onClick={() => handleClaim(tx)}
                         >
-                          Nhan vo
+                          Nhận vô
                         </Button>
                       </td>
                     </tr>
@@ -480,7 +491,7 @@ export default function ChuaPhanBoPage() {
                   disabled={page <= 1}
                   onClick={() => setPage((p) => p - 1)}
                 >
-                  Truoc
+                  Trước
                 </Button>
                 <Button
                   variant="outline"
@@ -500,31 +511,31 @@ export default function ChuaPhanBoPage() {
       {isAccountant && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Yeu cau nhan vo cho duyet</CardTitle>
+            <CardTitle className="text-lg">Yêu cầu nhận vô chờ duyệt</CardTitle>
           </CardHeader>
           <CardContent>
             {loadingClaims ? (
               <div className="flex flex-col items-center gap-3 py-12">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                <p className="text-sm text-muted-foreground">Dang tai du lieu...</p>
+                <p className="text-sm text-muted-foreground">Đang tải dữ liệu...</p>
               </div>
             ) : claims.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">
-                Khong co yeu cau nao dang cho duyet.
+                Không có yêu cầu nào đang chờ duyệt.
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b text-left text-sm font-medium text-muted-foreground">
-                      <th className="pb-3 pr-4">Ngay tao</th>
-                      <th className="pb-3 pr-4">Nguoi tao</th>
-                      <th className="pb-3 pr-4">Khach hang</th>
-                      <th className="pb-3 pr-4 text-right">So tien</th>
-                      <th className="pb-3 pr-4">Don hang</th>
-                      <th className="pb-3 pr-4">Ghi chu</th>
-                      <th className="pb-3 pr-4">Trang thai</th>
-                      <th className="pb-3 text-center">Thao tac</th>
+                      <th className="pb-3 pr-4">Ngày tạo</th>
+                      <th className="pb-3 pr-4">Người tạo</th>
+                      <th className="pb-3 pr-4">Khách hàng</th>
+                      <th className="pb-3 pr-4 text-right">Số tiền</th>
+                      <th className="pb-3 pr-4">Đơn hàng</th>
+                      <th className="pb-3 pr-4">Ghi chú</th>
+                      <th className="pb-3 pr-4">Trạng thái</th>
+                      <th className="pb-3 text-center">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -546,7 +557,7 @@ export default function ChuaPhanBoPage() {
                         </td>
                         <td className="py-3 pr-4">
                           <Badge className="bg-yellow-100 text-yellow-800 border-0">
-                            Cho duyet
+                            Chờ duyệt
                           </Badge>
                         </td>
                         <td className="py-3 text-center">
@@ -556,7 +567,7 @@ export default function ChuaPhanBoPage() {
                               onClick={() => approveClaim.mutate(claim.id)}
                               disabled={approveClaim.isPending || rejectClaim.isPending}
                             >
-                              Duyet
+                              Duyệt
                             </Button>
                             <Button
                               size="sm"
@@ -565,7 +576,7 @@ export default function ChuaPhanBoPage() {
                               onClick={() => rejectClaim.mutate(claim.id)}
                               disabled={approveClaim.isPending || rejectClaim.isPending}
                             >
-                              Tu choi
+                              Từ chối
                             </Button>
                           </div>
                         </td>
@@ -589,7 +600,7 @@ export default function ChuaPhanBoPage() {
                     disabled={claimsPage <= 1}
                     onClick={() => setClaimsPage((p) => p - 1)}
                   >
-                    Truoc
+                    Trước
                   </Button>
                   <Button
                     variant="outline"

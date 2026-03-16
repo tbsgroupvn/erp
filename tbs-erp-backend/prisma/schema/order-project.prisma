@@ -1,0 +1,78 @@
+// ============================================
+// ORDER PROJECT — Quản lý dự án đơn hàng
+// Mỗi đơn hàng = 1 dự án, nhiều bộ phận tham gia
+// ============================================
+
+enum AssignmentStatus {
+  ACTIVE
+  COMPLETED
+  SKIPPED
+  ESCALATED
+}
+
+// Cấu hình giai đoạn → phòng ban / role / SLA
+model OrderStageConfig {
+  id              String      @id @default(cuid())
+  stage           OrderStatus @unique
+  departmentCode  String      @map("department_code")
+  primaryRoles    UserRole[]  @map("primary_roles")
+  slaHours        Int         @map("sla_hours")
+  slaWarningHours Int?        @map("sla_warning_hours")
+  taskTitle       String      @map("task_title")       // Template: "Xac nhan coc don {{code}}"
+  taskDescription String?     @map("task_description")
+  isActive        Boolean     @default(true) @map("is_active")
+  sortOrder       Int         @default(0) @map("sort_order")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  @@index([departmentCode])
+  @@index([isActive])
+  @@map("order_stage_configs")
+}
+
+// Ai phụ trách đơn hàng ở giai đoạn nào
+model OrderAssignment {
+  id              String           @id @default(cuid())
+  orderId         String           @map("order_id")
+  stage           OrderStatus
+  departmentCode  String           @map("department_code")
+  assigneeId      String?          @map("assignee_id")
+  assigneeRole    UserRole         @map("assignee_role")
+  status          AssignmentStatus @default(ACTIVE)
+  assignedAt      DateTime         @default(now()) @map("assigned_at")
+  completedAt     DateTime?        @map("completed_at")
+  slaDeadline     DateTime?        @map("sla_deadline")
+  isOverdue       Boolean          @default(false) @map("is_overdue")
+  autoTaskId      String?          @map("auto_task_id")
+
+  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, stage, assigneeRole])
+  @@index([orderId, status])
+  @@index([assigneeId, status])
+  @@index([departmentCode, status])
+  @@index([slaDeadline, isOverdue])
+  @@map("order_assignments")
+}
+
+// Lịch sử bàn giao giữa phòng ban
+model OrderHandoff {
+  id              String      @id @default(cuid())
+  orderId         String      @map("order_id")
+  fromStage       OrderStatus @map("from_stage")
+  toStage         OrderStatus @map("to_stage")
+  fromDepartment  String      @map("from_department")
+  toDepartment    String      @map("to_department")
+  fromUserId      String?     @map("from_user_id")
+  toUserId        String?     @map("to_user_id")
+  toRole          UserRole    @map("to_role")
+  handoffType     String      @default("STAGE_TRANSITION") @map("handoff_type")
+  note            String?
+  durationMinutes Int?        @map("duration_minutes")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  order           Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_handoffs")
+}

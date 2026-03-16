@@ -36,22 +36,13 @@ export const WAREHOUSE_ROLES: UserRole[] = [
 ];
 
 /** XNK (import-export) roles */
-export const XNK_ROLES: UserRole[] = [
-  UserRole.XNK_MANAGER,
-  UserRole.XNK_STAFF,
-];
+export const XNK_ROLES: UserRole[] = [UserRole.XNK_MANAGER, UserRole.XNK_STAFF];
 
 /** Logistics/driver roles */
-export const LOGISTICS_ROLES: UserRole[] = [
-  UserRole.LOGISTICS_MANAGER,
-  UserRole.DRIVER,
-];
+export const LOGISTICS_ROLES: UserRole[] = [UserRole.LOGISTICS_MANAGER, UserRole.DRIVER];
 
 /** Marketing-related roles */
-export const MARKETING_ROLES: UserRole[] = [
-  UserRole.MARKETING_STAFF,
-  UserRole.CSKH,
-];
+export const MARKETING_ROLES: UserRole[] = [UserRole.MARKETING_STAFF, UserRole.CSKH];
 
 /**
  * Check if a role has executive-level access (CEO/COO).

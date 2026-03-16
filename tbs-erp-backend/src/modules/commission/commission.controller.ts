@@ -36,7 +36,10 @@ export class CommissionController {
 
   @Post('rules')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create commission rule', description: 'Creates a commission rule defining rate by service type and profit range.' })
+  @ApiOperation({
+    summary: 'Create commission rule',
+    description: 'Creates a commission rule defining rate by service type and profit range.',
+  })
   @ApiResponse({ status: 201, description: 'Rule created' })
   async createRule(@Body() dto: CreateCommissionRuleDto) {
     const rule = await this.commissionService.createRule(dto);
@@ -44,16 +47,30 @@ export class CommissionController {
   }
 
   @Get('rules')
-  @ApiOperation({ summary: 'List commission rules', description: 'Lists all active commission rules.' })
+  @ApiOperation({
+    summary: 'List commission rules',
+    description: 'Lists all active commission rules.',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 50)' })
   @ApiResponse({ status: 200, description: 'Rules retrieved' })
-  async getRules() {
-    const rules = await this.commissionService.getRules();
+  async getRules(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = Math.max(1, parseInt(page ?? '1', 10) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit ?? '50', 10) || 50));
+    const rules = await this.commissionService.getRules(pageNum, limitNum);
     return BaseResponse.ok(rules);
   }
 
   @Post('calculate/:orderId')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Calculate commission for order', description: 'Calculates commission for a completed order based on net profit and applicable rules.' })
+  @ApiOperation({
+    summary: 'Calculate commission for order',
+    description:
+      'Calculates commission for a completed order based on net profit and applicable rules.',
+  })
   @ApiParam({ name: 'orderId', description: 'Order ID' })
   @ApiResponse({ status: 200, description: 'Commission calculated' })
   @ApiResponse({ status: 404, description: 'Order not found or no applicable rule' })
@@ -63,7 +80,10 @@ export class CommissionController {
   }
 
   @Get('my')
-  @ApiOperation({ summary: 'Get my commissions', description: 'Returns commission history for the current user.' })
+  @ApiOperation({
+    summary: 'Get my commissions',
+    description: 'Returns commission history for the current user.',
+  })
   @ApiResponse({ status: 200, description: 'Commissions retrieved' })
   async getMyCommissions(
     @CurrentUser() user: ICurrentUser,
@@ -74,7 +94,10 @@ export class CommissionController {
   }
 
   @Get('team')
-  @ApiOperation({ summary: 'Get team commissions', description: 'Returns commission summary for the leader and their team.' })
+  @ApiOperation({
+    summary: 'Get team commissions',
+    description: 'Returns commission summary for the leader and their team.',
+  })
   @ApiResponse({ status: 200, description: 'Team commissions retrieved' })
   async getTeamCommissions(
     @CurrentUser() user: ICurrentUser,
@@ -85,27 +108,27 @@ export class CommissionController {
   }
 
   @Patch(':id/approve')
-  @ApiOperation({ summary: 'Approve commission', description: 'KT TH approves a pending commission record.' })
+  @ApiOperation({
+    summary: 'Approve commission',
+    description: 'KT TH approves a pending commission record.',
+  })
   @ApiParam({ name: 'id', description: 'Commission record ID' })
   @ApiResponse({ status: 200, description: 'Commission approved' })
   @ApiResponse({ status: 400, description: 'Invalid status' })
-  async approveCommission(
-    @Param('id') id: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async approveCommission(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
     const result = await this.commissionService.approveCommission(id, user.id);
     return BaseResponse.ok(result, 'Commission approved');
   }
 
   @Get('report/monthly')
-  @ApiOperation({ summary: 'Monthly commission report', description: 'Returns monthly commission report with summary.' })
+  @ApiOperation({
+    summary: 'Monthly commission report',
+    description: 'Returns monthly commission report with summary.',
+  })
   @ApiQuery({ name: 'year', required: true, type: Number })
   @ApiQuery({ name: 'month', required: true, type: Number })
   @ApiResponse({ status: 200, description: 'Monthly report retrieved' })
-  async getMonthlyReport(
-    @Query('year') year: number,
-    @Query('month') month: number,
-  ) {
+  async getMonthlyReport(@Query('year') year: number, @Query('month') month: number) {
     const report = await this.commissionService.getMonthlyReport(+year, +month);
     return BaseResponse.ok(report);
   }

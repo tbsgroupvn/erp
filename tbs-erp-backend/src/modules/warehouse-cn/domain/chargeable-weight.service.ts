@@ -8,7 +8,7 @@ export interface ChargeableWeightResult {
   volumetricWeight: number;
   /** The chargeable weight = MAX(actual, volumetric) */
   chargeableWeight: number;
-  /** The divisor used for volumetric calculation */
+  /** The CBM-to-kg factor used for volumetric calculation */
   volumetricDivisor: number;
   /** The shipping route used for calculation */
   route: ShippingRoute;
@@ -22,12 +22,12 @@ export interface ChargeableWeightResult {
  * Calculates the chargeable weight for a package based on its physical
  * dimensions and actual weight. The chargeable weight is the greater of:
  *  - Actual weight (scale measurement)
- *  - Volumetric weight (L x W x H / divisor)
+ *  - Volumetric weight (CBM × factor)
  *
- * Volumetric divisors by shipping route:
- *  - SEA:  6000 (cubic cm to kg)
- *  - ROAD: 5000
- *  - AIR:  5000
+ * CBM-to-kg factors by shipping route:
+ *  - SEA:  1 CBM = 1000 kg (sea freight standard)
+ *  - ROAD: 1 CBM = 333 kg (road freight standard)
+ *  - AIR:  1 CBM = 167 kg (air freight standard)
  *
  * This is the industry standard formula used in freight forwarding.
  */
@@ -36,13 +36,13 @@ export class ChargeableWeightService {
   private readonly logger = new Logger(ChargeableWeightService.name);
 
   /**
-   * Volumetric weight divisors by shipping route.
-   * Divisor represents how many cubic centimeters equal 1 kg.
+   * CBM-to-kg conversion factors by shipping route.
+   * Factor = how many kg per 1 cubic meter (CBM).
    */
-  private readonly VOLUMETRIC_DIVISORS: Record<ShippingRoute, number> = {
-    [ShippingRoute.SEA]: 6000,
-    [ShippingRoute.ROAD]: 5000,
-    [ShippingRoute.AIR]: 5000,
+  private readonly CBM_FACTORS: Record<ShippingRoute, number> = {
+    [ShippingRoute.SEA]: 1000,  // 1 CBM = 1000 kg
+    [ShippingRoute.ROAD]: 333,  // 1 CBM = 333 kg
+    [ShippingRoute.AIR]: 167,   // 1 CBM = 167 kg
   };
 
   /**
@@ -52,7 +52,7 @@ export class ChargeableWeightService {
    * @param length - Length in centimeters
    * @param width - Width in centimeters
    * @param height - Height in centimeters
-   * @param route - Shipping route (determines volumetric divisor)
+   * @param route - Shipping route (determines CBM factor)
    * @returns Full calculation result with breakdown
    */
   calculateChargeableWeight(
@@ -62,14 +62,15 @@ export class ChargeableWeightService {
     height: number,
     route: ShippingRoute,
   ): ChargeableWeightResult {
-    const divisor = this.VOLUMETRIC_DIVISORS[route];
+    const cbmFactor = this.CBM_FACTORS[route];
 
-    // Volumetric weight formula: L(cm) x W(cm) x H(cm) / divisor
-    const volumetricWeight = (length * width * height) / divisor;
+    // Volumetric weight formula: CBM × factor
+    // where CBM = L(cm) × W(cm) × H(cm) / 1,000,000
+    const cbm = (length * width * height) / 1_000_000;
+    const volumetricWeight = cbm * cbmFactor;
 
     // Round to 2 decimal places
-    const roundedVolumetric =
-      Math.round(volumetricWeight * 100) / 100;
+    const roundedVolumetric = Math.round(volumetricWeight * 100) / 100;
 
     // Chargeable weight is the greater of actual vs volumetric
     const chargeableWeight = Math.max(actualWeight, roundedVolumetric);
@@ -78,7 +79,7 @@ export class ChargeableWeightService {
 
     this.logger.debug(
       `Chargeable weight calculation: actual=${actualWeight}kg, ` +
-        `volumetric=${roundedVolumetric}kg (${length}x${width}x${height}cm / ${divisor}), ` +
+        `volumetric=${roundedVolumetric}kg (${length}x${width}x${height}cm, CBM=${cbm.toFixed(4)}, factor=${cbmFactor}), ` +
         `chargeable=${chargeableWeight}kg [${isVolumetric ? 'VOLUMETRIC' : 'ACTUAL'}], ` +
         `route=${route}`,
     );
@@ -87,16 +88,16 @@ export class ChargeableWeightService {
       actualWeight,
       volumetricWeight: roundedVolumetric,
       chargeableWeight,
-      volumetricDivisor: divisor,
+      volumetricDivisor: cbmFactor,
       route,
       isVolumetric,
     };
   }
 
   /**
-   * Gets the volumetric divisor for a given shipping route.
+   * Gets the CBM-to-kg factor for a given shipping route.
    */
   getDivisor(route: ShippingRoute): number {
-    return this.VOLUMETRIC_DIVISORS[route];
+    return this.CBM_FACTORS[route];
   }
 }

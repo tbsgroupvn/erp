@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SyncEngineService } from './sync-engine.service';
+import { EventBusModule } from '@core/event-bus/event-bus.module';
 import { WebhookModule } from '../webhook/webhook.module';
 
 /**
@@ -16,7 +17,7 @@ import { WebhookModule } from '../webhook/webhook.module';
  *   - PrismaService (global): For database operations
  */
 @Module({
-  imports: [WebhookModule],
+  imports: [WebhookModule, EventBusModule],
   providers: [SyncEngineService],
   exports: [SyncEngineService],
 })

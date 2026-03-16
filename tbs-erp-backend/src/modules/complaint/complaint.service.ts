@@ -1,20 +1,11 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
-import {
-  ComplaintStatus,
-  ComplaintSeverity,
-  ResolutionType,
-  Prisma,
-} from '@prisma/client';
+import { ComplaintStatus, ComplaintSeverity, ResolutionType, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { ICurrentUser } from '@common/interfaces/current-user.interface';
+import { buildDateFilter } from '@common/utils/date.util';
+import { generateCode } from '@common/utils/code-generator.util';
 import { ComplaintStatusMachine } from './domain/complaint-status.machine';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
@@ -48,26 +39,11 @@ export class ComplaintService {
    * Generates the next complaint code in the format QMS-YYYYMM-XXXX.
    */
   private async generateComplaintCode(): Promise<string> {
-    const now = new Date();
-    const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const prefix = `QMS-${yearMonth}`;
-
-    const latestComplaint = await this.prisma.complaint.findFirst({
-      where: { code: { startsWith: prefix } },
-      orderBy: { code: 'desc' },
-      select: { code: true },
+    return generateCode(this.prisma.complaint, {
+      prefix: 'QMS',
+      datePrefixFormat: 'YYYYMM',
+      sequenceLength: 4,
     });
-
-    let sequence = 1;
-    if (latestComplaint) {
-      const lastSequence = parseInt(
-        latestComplaint.code.split('-').pop() || '0',
-        10,
-      );
-      sequence = lastSequence + 1;
-    }
-
-    return `${prefix}-${String(sequence).padStart(4, '0')}`;
   }
 
   /**
@@ -96,38 +72,26 @@ export class ComplaintService {
     });
 
     if (!customer) {
-      throw new NotFoundException(
-        `Customer with ID ${dto.customerId} not found`,
-      );
+      throw new NotFoundException(`Customer with ID ${dto.customerId} not found`);
     }
 
     // Generate complaint code and create with retry for unique constraint violations
     let complaint: Prisma.ComplaintGetPayload<{
-      include: { order: { select: { id: true; code: true } }; customer: { select: { id: true; code: true; fullName: true; companyName: true; phone: true } } };
+      include: {
+        order: { select: { id: true; code: true } };
+        customer: {
+          select: { id: true; code: true; fullName: true; companyName: true; phone: true };
+        };
+      };
     }> | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         complaint = await this.prisma.executeInTransaction(async (tx) => {
-          const now = new Date();
-          const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-          const prefix = `QMS-${yearMonth}`;
-
-          const latestComplaint = await tx.complaint.findFirst({
-            where: { code: { startsWith: prefix } },
-            orderBy: { code: 'desc' },
-            select: { code: true },
+          const code = await generateCode(tx.complaint, {
+            prefix: 'QMS',
+            datePrefixFormat: 'YYYYMM',
+            sequenceLength: 4,
           });
-
-          let sequence = 1;
-          if (latestComplaint) {
-            const lastSequence = parseInt(
-              latestComplaint.code.split('-').pop() || '0',
-              10,
-            );
-            sequence = lastSequence + 1;
-          }
-
-          const code = `${prefix}-${String(sequence).padStart(4, '0')}`;
 
           return tx.complaint.create({
             data: {
@@ -197,9 +161,7 @@ export class ComplaintService {
         createdBy: userId,
       });
 
-      this.logger.warn(
-        `CRITICAL complaint ${complaint.code} created - auto-notifying GD KD + BGD`,
-      );
+      this.logger.warn(`CRITICAL complaint ${complaint.code} created - auto-notifying GD KD + BGD`);
     }
 
     this.logger.log(
@@ -222,9 +184,7 @@ export class ComplaintService {
     }
 
     if (this.statusMachine.isTerminal(complaint.status)) {
-      throw new BadRequestException(
-        `${complaint.status} complaints cannot be updated`,
-      );
+      throw new BadRequestException(`${complaint.status} complaints cannot be updated`);
     }
 
     const updateData: any = {};
@@ -259,7 +219,10 @@ export class ComplaintService {
       updateData.investigationNotes = existingNotes;
 
       // Automatically transition to INVESTIGATING if currently OPEN (validated by FSM)
-      if (complaint.status === ComplaintStatus.OPEN && this.statusMachine.validateTransition(complaint.status, ComplaintStatus.INVESTIGATING)) {
+      if (
+        complaint.status === ComplaintStatus.OPEN &&
+        this.statusMachine.validateTransition(complaint.status, ComplaintStatus.INVESTIGATING)
+      ) {
         updateData.status = ComplaintStatus.INVESTIGATING;
       }
     }
@@ -331,16 +294,8 @@ export class ComplaintService {
       ];
     }
 
-    if (query.startDate || query.endDate) {
-      const dateFilter: { gte?: Date; lte?: Date } = {};
-      if (query.startDate) {
-        dateFilter.gte = new Date(query.startDate);
-      }
-      if (query.endDate) {
-        const endOfDay = new Date(query.endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        dateFilter.lte = endOfDay;
-      }
+    const dateFilter = buildDateFilter(query.startDate, query.endDate);
+    if (dateFilter) {
       where.createdAt = dateFilter;
     }
 
@@ -420,10 +375,11 @@ export class ComplaintService {
       throw new NotFoundException(`Complaint with ID ${id} not found`);
     }
 
-    if (this.statusMachine.isTerminal(complaint.status) || complaint.status === ComplaintStatus.RESOLVED) {
-      throw new BadRequestException(
-        `Cannot assign handler to a ${complaint.status} complaint`,
-      );
+    if (
+      this.statusMachine.isTerminal(complaint.status) ||
+      complaint.status === ComplaintStatus.RESOLVED
+    ) {
+      throw new BadRequestException(`Cannot assign handler to a ${complaint.status} complaint`);
     }
 
     const updated = await this.prisma.complaint.update({
@@ -458,9 +414,7 @@ export class ComplaintService {
       handlerId,
     });
 
-    this.logger.log(
-      `Complaint ${complaint.code} assigned to handler ${handlerId}`,
-    );
+    this.logger.log(`Complaint ${complaint.code} assigned to handler ${handlerId}`);
 
     return updated;
   }
@@ -489,11 +443,11 @@ export class ComplaintService {
       throw new NotFoundException(`Complaint with ID ${id} not found`);
     }
 
-    if (!this.statusMachine.validateTransition(complaint.status, ComplaintStatus.RESOLVED) &&
-        !this.statusMachine.validateTransition(complaint.status, ComplaintStatus.PENDING_RESOLUTION)) {
-      throw new BadRequestException(
-        `Complaint is already ${complaint.status}`,
-      );
+    if (
+      !this.statusMachine.validateTransition(complaint.status, ComplaintStatus.RESOLVED) &&
+      !this.statusMachine.validateTransition(complaint.status, ComplaintStatus.PENDING_RESOLUTION)
+    ) {
+      throw new BadRequestException(`Complaint is already ${complaint.status}`);
     }
 
     const compensationAmount = resolution.amount || 0;
@@ -594,9 +548,7 @@ export class ComplaintService {
           },
           totalSteps: 1,
           steps: {
-            create: [
-              { stepNumber: 1, approverRole: 'SALES_DIRECTOR' },
-            ],
+            create: [{ stepNumber: 1, approverRole: 'SALES_DIRECTOR' }],
           },
         },
       });
@@ -657,7 +609,7 @@ export class ComplaintService {
 
     this.logger.log(
       `Complaint ${complaint.code} resolved with ${resolution.type}` +
-      (compensationAmount > 0 ? ` (${compensationAmount} VND)` : ''),
+        (compensationAmount > 0 ? ` (${compensationAmount} VND)` : ''),
     );
 
     return { status: 'RESOLVED', complaint: updated };
@@ -678,10 +630,11 @@ export class ComplaintService {
       throw new NotFoundException(`Complaint with ID ${id} not found`);
     }
 
-    if (this.statusMachine.isTerminal(complaint.status) || complaint.status === ComplaintStatus.RESOLVED) {
-      throw new BadRequestException(
-        `Cannot escalate a ${complaint.status} complaint`,
-      );
+    if (
+      this.statusMachine.isTerminal(complaint.status) ||
+      complaint.status === ComplaintStatus.RESOLVED
+    ) {
+      throw new BadRequestException(`Cannot escalate a ${complaint.status} complaint`);
     }
 
     const validLevels = ['SALES_LEADER', 'SALES_DIRECTOR', 'CEO'];
@@ -719,9 +672,7 @@ export class ComplaintService {
       escalationLevel: level,
     });
 
-    this.logger.log(
-      `Complaint ${complaint.code} escalated to ${level}`,
-    );
+    this.logger.log(`Complaint ${complaint.code} escalated to ${level}`);
 
     return updated;
   }
@@ -733,39 +684,30 @@ export class ComplaintService {
   async getStatistics(dateRange?: { startDate?: string; endDate?: string }) {
     const where: any = {};
 
-    if (dateRange?.startDate || dateRange?.endDate) {
-      const dateFilter: { gte?: Date; lte?: Date } = {};
-      if (dateRange.startDate) {
-        dateFilter.gte = new Date(dateRange.startDate);
-      }
-      if (dateRange.endDate) {
-        const endOfDay = new Date(dateRange.endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        dateFilter.lte = endOfDay;
-      }
-      where.createdAt = dateFilter;
+    const statsDateFilter = buildDateFilter(dateRange?.startDate, dateRange?.endDate);
+    if (statsDateFilter) {
+      where.createdAt = statsDateFilter;
     }
 
     // Total counts
-    const [total, open, investigating, pendingResolution, resolved, closed] =
-      await Promise.all([
-        this.prisma.complaint.count({ where }),
-        this.prisma.complaint.count({
-          where: { ...where, status: ComplaintStatus.OPEN },
-        }),
-        this.prisma.complaint.count({
-          where: { ...where, status: ComplaintStatus.INVESTIGATING },
-        }),
-        this.prisma.complaint.count({
-          where: { ...where, status: ComplaintStatus.PENDING_RESOLUTION },
-        }),
-        this.prisma.complaint.count({
-          where: { ...where, status: ComplaintStatus.RESOLVED },
-        }),
-        this.prisma.complaint.count({
-          where: { ...where, status: ComplaintStatus.CLOSED },
-        }),
-      ]);
+    const [total, open, investigating, pendingResolution, resolved, closed] = await Promise.all([
+      this.prisma.complaint.count({ where }),
+      this.prisma.complaint.count({
+        where: { ...where, status: ComplaintStatus.OPEN },
+      }),
+      this.prisma.complaint.count({
+        where: { ...where, status: ComplaintStatus.INVESTIGATING },
+      }),
+      this.prisma.complaint.count({
+        where: { ...where, status: ComplaintStatus.PENDING_RESOLUTION },
+      }),
+      this.prisma.complaint.count({
+        where: { ...where, status: ComplaintStatus.RESOLVED },
+      }),
+      this.prisma.complaint.count({
+        where: { ...where, status: ComplaintStatus.CLOSED },
+      }),
+    ]);
 
     // By type
     const byType = await this.prisma.complaint.groupBy({
@@ -838,10 +780,7 @@ export class ComplaintService {
       totalCompensation: compensationResult._sum.compensationAmount
         ? Number(compensationResult._sum.compensationAmount)
         : 0,
-      resolutionRate:
-        total > 0
-          ? Math.round(((resolved + closed) / total) * 100)
-          : 0,
+      resolutionRate: total > 0 ? Math.round(((resolved + closed) / total) * 100) : 0,
     };
   }
 }

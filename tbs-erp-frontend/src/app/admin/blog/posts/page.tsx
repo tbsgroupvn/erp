@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { blogPostsApi, blogCategoriesApi, BlogPost } from '@/lib/api/cms';
+import { blogPostsApi, blogCategoriesApi, BlogPost, BlogCategory, BlogPostFilters } from '@/lib/api/cms';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,7 +39,7 @@ export default function BlogPostsPage() {
     queryFn: () =>
       blogPostsApi.getAll({
         search: search || undefined,
-        status: status !== 'all' ? (status as any) : undefined,
+        status: status !== 'all' ? (status as BlogPostFilters['status']) : undefined,
         categoryId: categoryId !== 'all' ? categoryId : undefined,
         limit: 100,
       }),
@@ -121,7 +121,7 @@ export default function BlogPostsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả</SelectItem>
-            {categories.map((cat: any) => (
+            {categories.map((cat: BlogCategory) => (
               <SelectItem key={cat.id} value={cat.id}>
                 {cat.name}
               </SelectItem>
@@ -157,8 +157,11 @@ export default function BlogPostsPage() {
               {posts.map((post: BlogPost) => (
                 <div
                   key={post.id}
+                  role="button"
+                  tabIndex={0}
                   className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors duration-200 cursor-pointer"
                   onClick={() => router.push(`/admin/blog/posts/${post.id}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(`/admin/blog/posts/${post.id}`); }}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

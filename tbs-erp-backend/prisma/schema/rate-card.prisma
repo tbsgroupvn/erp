@@ -1,0 +1,137 @@
+// ============================================
+// RATE CARD — Bảng giá cước vận chuyển
+// ============================================
+
+model RateCard {
+  id            String              @id @default(cuid())
+  code          String              @unique           // RC-YYYYMM-XXXX
+  name          String                                // Tên: "Giá biển Nghĩa Ô → HN T3/2026"
+
+  // Tuyến đường
+  origin        RateCardOrigin      @default(YIWU)
+  destination   RateCardDestination @default(HANOI)
+  transportMode ShippingRoute                         // SEA | ROAD | AIR
+  serviceType   ServiceType         @default(VCT)     // VCT | MHH | LCLCN
+
+  // Đơn giá chính
+  pricePerCBM   Decimal             @map("price_per_cbm") @db.Decimal(18, 2)  // VND/CBM
+  pricePerKG    Decimal             @map("price_per_kg") @db.Decimal(18, 2)   // VND/KG
+  minChargeAmount Decimal?          @map("min_charge_amount") @db.Decimal(18, 2) // Cước tối thiểu
+
+  // Hiệu lực
+  validFrom     DateTime            @map("valid_from")
+  validTo       DateTime?           @map("valid_to")  // null = vô thời hạn
+
+  isActive      Boolean             @default(true) @map("is_active")
+  note          String?
+
+  createdBy     String              @map("created_by")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  surcharges      RateCardSurcharge[]
+  discounts       RateCardDiscount[]
+  volumeTiers     RateCardVolumeTier[]
+  seasonalRules   RateCardSeasonalRule[]
+  priceOverrides  CustomerPriceOverride[]
+  quotations      Quotation[]
+
+  @@index([origin, destination, transportMode, isActive])
+  @@index([serviceType, isActive])
+  @@index([validFrom, validTo])
+  @@map("rate_cards")
+}
+
+// Phụ phí (handling, THC, bảo hiểm, thông quan...)
+model RateCardSurcharge {
+  id          String    @id @default(cuid())
+  rateCardId  String    @map("rate_card_id")
+  rateCard    RateCard  @relation(fields: [rateCardId], references: [id], onDelete: Cascade)
+  name        String                            // "Phí handling", "THC", "Bảo hiểm"
+  amount      Decimal   @db.Decimal(18, 2)     // Số tiền cố định (VND)
+  percent     Decimal?  @db.Decimal(5, 2)      // % trên cước (nếu dùng %)
+  isPercent   Boolean   @default(false) @map("is_percent") // true = dùng %, false = cố định
+  isOptional  Boolean   @default(false) @map("is_optional") // phụ phí tùy chọn
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([rateCardId])
+  @@map("rate_card_surcharges")
+}
+
+// Gia theo san luong (volume tier pricing)
+// Logic: tim tier co minWeight <= weight < maxWeight, ap dung discount hoac fixedPrice
+model RateCardVolumeTier {
+  id          String   @id @default(cuid())
+  rateCardId  String   @map("rate_card_id")
+  minWeight   Decimal  @map("min_weight") @db.Decimal(10, 2)  // >= X kg
+  maxWeight   Decimal? @map("max_weight") @db.Decimal(10, 2)  // null = khong gioi han
+  discountPct Decimal  @map("discount_pct") @db.Decimal(5, 2) // % giam gia tren don gia goc
+  fixedPrice  Decimal? @map("fixed_price") @db.Decimal(18, 2) // Gia co dinh VND/kg (null = dung gia goc * discount)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  rateCard    RateCard @relation(fields: [rateCardId], references: [id], onDelete: Cascade)
+
+  @@index([rateCardId])
+  @@map("rate_card_volume_tiers")
+}
+
+// Chiet khau theo tier khach hang
+model RateCardDiscount {
+  id           String       @id @default(cuid())
+  rateCardId   String       @map("rate_card_id")
+  rateCard     RateCard     @relation(fields: [rateCardId], references: [id], onDelete: Cascade)
+  customerTier CustomerTier @map("customer_tier")
+  discountPercent Decimal   @map("discount_percent") @db.Decimal(5, 2) // % chiết khấu
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@unique([rateCardId, customerTier])
+  @@index([rateCardId])
+  @@map("rate_card_discounts")
+}
+
+// Gia tang/giam theo mua vu (Tet, sale season, cao diem...)
+model RateCardSeasonalRule {
+  id         String   @id @default(cuid())
+  rateCardId String   @map("rate_card_id")
+  name       String                          // VD: "Tet Nguyen Dan 2026"
+  startDate  DateTime @map("start_date")
+  endDate    DateTime @map("end_date")
+  adjustPct  Decimal  @map("adjust_pct") @db.Decimal(5, 2)  // % tang (+) / giam (-). VD: +15, -5
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  rateCard   RateCard @relation(fields: [rateCardId], references: [id], onDelete: Cascade)
+
+  @@index([rateCardId])
+  @@index([startDate, endDate])
+  @@map("rate_card_seasonal_rules")
+}
+
+// Gia rieng theo khach hang (ghi de tren volume tier)
+model CustomerPriceOverride {
+  id          String    @id @default(cuid())
+  customerId  String    @map("customer_id")
+  rateCardId  String    @map("rate_card_id")
+  discountPct Decimal   @map("discount_pct") @db.Decimal(5, 2)   // % giam gia rieng
+  fixedPrice  Decimal?  @map("fixed_price") @db.Decimal(18, 2)   // Gia co dinh rieng (null = dung discountPct)
+  note        String?
+  validFrom   DateTime  @map("valid_from")
+  validTo     DateTime? @map("valid_to")                         // null = khong het han
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  rateCard    RateCard  @relation(fields: [rateCardId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, rateCardId])
+  @@index([customerId])
+  @@index([rateCardId])
+  @@index([isActive])
+  @@index([validFrom, validTo])
+  @@map("customer_price_overrides")
+}

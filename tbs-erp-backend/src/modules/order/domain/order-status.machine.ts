@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { OrderStatus, ServiceType } from '@prisma/client';
+import { BaseStatusMachine } from '@common/domain/base-status-machine';
 import {
   isValidTransition,
   getNextStatuses as getNextStatusesFromMap,
@@ -16,9 +17,19 @@ import {
  *  - VCT orders can skip PENDING_DEPOSIT if deposit is not required
  *  - Terminal statuses (COMPLETED, CANCELLED) have no further transitions
  *  - ON_HOLD and ISSUE can return to any lifecycle status
+ *
+ * NOTE: This FSM extends BaseStatusMachine but overrides core methods
+ * because it delegates to external transition maps in @common/constants
+ * and applies service-type-specific business rules.
  */
 @Injectable()
-export class OrderStatusMachine {
+export class OrderStatusMachine extends BaseStatusMachine<OrderStatus> {
+  constructor() {
+    // Pass empty transition map and terminal statuses from constants.
+    // The actual transition logic is delegated to @common/constants functions.
+    super({}, [...TERMINAL_STATUSES]);
+  }
+
   /**
    * Validates whether a status transition is allowed.
    *
@@ -27,11 +38,7 @@ export class OrderStatusMachine {
    * @param serviceType - The order's service type (affects MHH deposit gate)
    * @returns true if the transition is valid
    */
-  validateTransition(
-    from: OrderStatus,
-    to: OrderStatus,
-    serviceType?: ServiceType,
-  ): boolean {
+  override validateTransition(from: OrderStatus, to: OrderStatus, serviceType?: ServiceType): boolean {
     // Terminal statuses cannot transition
     if (TERMINAL_STATUSES.includes(from)) {
       return false;
@@ -59,17 +66,11 @@ export class OrderStatusMachine {
    * Returns all valid next statuses from the current status,
    * optionally filtered by service type rules.
    */
-  getNextStatuses(
-    current: OrderStatus,
-    serviceType?: ServiceType,
-  ): OrderStatus[] {
+  override getNextStatuses(current: OrderStatus, serviceType?: ServiceType): OrderStatus[] {
     const candidates = getNextStatusesFromMap(current);
 
     // For MHH, remove SOURCING from QUOTATION targets (must go via PENDING_DEPOSIT)
-    if (
-      serviceType === ServiceType.MHH &&
-      current === OrderStatus.QUOTATION
-    ) {
+    if (serviceType === ServiceType.MHH && current === OrderStatus.QUOTATION) {
       return candidates.filter((s) => s !== OrderStatus.SOURCING);
     }
 
@@ -80,11 +81,7 @@ export class OrderStatusMachine {
    * Validates and throws if the transition is invalid.
    * Used by the order service to enforce transitions.
    */
-  assertTransition(
-    from: OrderStatus,
-    to: OrderStatus,
-    serviceType?: ServiceType,
-  ): void {
+  override assertTransition(from: OrderStatus, to: OrderStatus, serviceType?: ServiceType): void {
     if (!this.validateTransition(from, to, serviceType)) {
       throw new BadRequestException(
         `Invalid status transition from ${from} to ${to}` +
@@ -98,12 +95,5 @@ export class OrderStatusMachine {
    */
   canCancel(status: OrderStatus): boolean {
     return !NON_CANCELLABLE_STATUSES.includes(status);
-  }
-
-  /**
-   * Returns whether the given status is a terminal state.
-   */
-  isTerminal(status: OrderStatus): boolean {
-    return TERMINAL_STATUSES.includes(status);
   }
 }

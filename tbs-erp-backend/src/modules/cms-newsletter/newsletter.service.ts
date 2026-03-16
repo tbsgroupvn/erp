@@ -47,7 +47,7 @@ export class NewsletterService {
   }
 
   async unsubscribe(id: string) {
-    const subscriber = await this.findOne(id);
+    await this.findOne(id);
 
     return this.prisma.newsletterSubscription.update({
       where: { id },
@@ -59,7 +59,7 @@ export class NewsletterService {
   }
 
   async remove(id: string) {
-    const subscriber = await this.findOne(id);
+    await this.findOne(id);
 
     await this.prisma.newsletterSubscription.delete({
       where: { id },

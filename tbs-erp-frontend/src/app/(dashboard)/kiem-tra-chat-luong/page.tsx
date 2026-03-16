@@ -33,10 +33,10 @@ interface QCInspectionsResponse {
 // ---------------------------------------------------------------------------
 
 const QC_STATUS_LABELS: Record<string, string> = {
-  PENDING: 'Cho kiem',
-  PASSED: 'Dat',
-  FAILED: 'Khong dat',
-  REWORK: 'Lam lai',
+  PENDING: 'Chờ kiểm',
+  PASSED: 'Đạt',
+  FAILED: 'Không đạt',
+  REWORK: 'Làm lại',
 };
 
 const QC_STATUS_COLORS: Record<string, string> = {
@@ -55,18 +55,18 @@ const ALL_QC_STATUSES = ['PENDING', 'PASSED', 'FAILED', 'REWORK'] as const;
 const columns: ColumnDef<QCInspection>[] = [
   {
     accessorKey: 'packageCode',
-    header: 'Ma kien',
+    header: 'Mã kiện',
     cell: ({ row }) => (
       <span className="font-medium">{row.original.packageCode}</span>
     ),
   },
   {
     accessorKey: 'orderId',
-    header: 'Don hang',
+    header: 'Đơn hàng',
   },
   {
     accessorKey: 'status',
-    header: 'Trang thai QC',
+    header: 'Trạng thái QC',
     cell: ({ row }) => {
       const status = row.original.status || '';
       return (
@@ -79,7 +79,7 @@ const columns: ColumnDef<QCInspection>[] = [
   },
   {
     accessorKey: 'note',
-    header: 'Ghi chu',
+    header: 'Ghi chú',
     cell: ({ row }) => (
       <span className="max-w-[250px] truncate block">
         {row.original.note || '---'}
@@ -88,7 +88,7 @@ const columns: ColumnDef<QCInspection>[] = [
   },
   {
     accessorKey: 'inspectedAt',
-    header: 'Ngay kiem tra',
+    header: 'Ngày kiểm tra',
     cell: ({ row }) => (
       <span>
         {row.original.inspectedAt ? formatDate(row.original.inspectedAt) : '---'}
@@ -117,14 +117,15 @@ export default function KiemTraChatLuongPage() {
   return (
     <div>
       <PageHeader
-        title="Kiem tra chat luong"
-        description="Quan ly kiem tra chat luong kien hang"
+        title="Kiểm tra chất lượng"
+        description="Quản lý kiểm tra chất lượng kiện hàng"
+        infoKey="kiem-tra-chat-luong"
       />
 
       {/* Status filter */}
       <div className="mb-4 flex items-center gap-2">
         <Label htmlFor="qc-status-filter" className="whitespace-nowrap">
-          Trang thai:
+          Trạng thái:
         </Label>
         <select
           id="qc-status-filter"
@@ -135,7 +136,7 @@ export default function KiemTraChatLuongPage() {
           }}
           className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          <option value="">Tat ca</option>
+          <option value="">Tất cả</option>
           {ALL_QC_STATUSES.map((s) => (
             <option key={s} value={s}>
               {QC_STATUS_LABELS[s]}

@@ -38,81 +38,86 @@ export class ContainerCustomsListener {
       `Container ${event.containerCode} entered CUSTOMS status. Checking for existing declaration.`,
     );
 
-    // Check if a declaration already exists for this container
-    const existing = await this.prisma.customsDeclaration.findFirst({
-      where: { containerId: event.containerId },
-      select: { id: true, code: true },
-    });
+    try {
+      // Check if a declaration already exists for this container
+      const existing = await this.prisma.customsDeclaration.findFirst({
+        where: { containerId: event.containerId },
+        select: { id: true, code: true },
+      });
 
-    if (existing) {
-      this.logger.log(
-        `Declaration ${existing.code} already exists for container ${event.containerCode}. Skipping auto-creation.`,
-      );
-      return;
-    }
+      if (existing) {
+        this.logger.log(
+          `Declaration ${existing.code} already exists for container ${event.containerCode}. Skipping auto-creation.`,
+        );
+        return;
+      }
 
-    // Load container data for pre-populating the declaration
-    const container = await this.prisma.container.findUnique({
-      where: { id: event.containerId },
-      select: {
-        id: true,
-        code: true,
-        shippingRoute: true,
-        bookingRef: true,
-        sealNumber: true,
-        vesselName: true,
-        origin: true,
-        destination: true,
-      },
-    });
+      // Load container data for pre-populating the declaration
+      const container = await this.prisma.container.findUnique({
+        where: { id: event.containerId },
+        select: {
+          id: true,
+          code: true,
+          shippingRoute: true,
+          bookingRef: true,
+          sealNumber: true,
+          vesselName: true,
+          origin: true,
+          destination: true,
+        },
+      });
 
-    if (!container) {
-      this.logger.warn(
-        `Container ${event.containerId} not found. Cannot auto-create declaration.`,
-      );
-      return;
-    }
+      if (!container) {
+        this.logger.warn(`Container ${event.containerId} not found. Cannot auto-create declaration.`);
+        return;
+      }
 
-    // Generate declaration code: CD-YYYYMM-XXXX
-    const code = await this.generateDeclarationCode();
+      // Generate declaration code: CD-YYYYMM-XXXX
+      const code = await this.generateDeclarationCode();
 
-    // Map shipping route to shipping method
-    const shippingMethodMap: Record<string, string> = {
-      SEA: 'SEA',
-      AIR: 'AIR',
-      RAIL: 'ROAD',
-      ROAD: 'ROAD',
-      MULTIMODAL: 'SEA',
-    };
+      // Map shipping route to shipping method
+      const shippingMethodMap: Record<string, string> = {
+        SEA: 'SEA',
+        AIR: 'AIR',
+        RAIL: 'ROAD',
+        ROAD: 'ROAD',
+        MULTIMODAL: 'SEA',
+      };
 
-    const declaration = await this.prisma.customsDeclaration.create({
-      data: {
-        code,
+      const declaration = await this.prisma.customsDeclaration.create({
+        data: {
+          code,
+          containerId: event.containerId,
+          declarationType: 'IMPORT',
+          shippingMethod: shippingMethodMap[container.shippingRoute] ?? 'SEA',
+          blAwbNumber: container.bookingRef,
+          vesselName: container.vesselName,
+          portOfLoading: container.origin,
+          portOfDischarge: container.destination,
+          importerTaxCode: '', // To be filled by XNK staff
+          importerName: '', // To be filled by XNK staff
+          status: 'DRAFT',
+          createdBy: event.changedBy,
+        },
+      });
+
+      this.eventEmitter.emit('customs.declaration.created', {
+        declarationId: declaration.id,
+        declarationCode: declaration.code,
         containerId: event.containerId,
-        declarationType: 'IMPORT',
-        shippingMethod: shippingMethodMap[container.shippingRoute] ?? 'SEA',
-        blAwbNumber: container.bookingRef,
-        vesselName: container.vesselName,
-        portOfLoading: container.origin,
-        portOfDischarge: container.destination,
-        importerTaxCode: '', // To be filled by XNK staff
-        importerName: '',    // To be filled by XNK staff
-        status: 'DRAFT',
+        containerCode: event.containerCode,
         createdBy: event.changedBy,
-      },
-    });
+      });
 
-    this.eventEmitter.emit('customs.declaration.created', {
-      declarationId: declaration.id,
-      declarationCode: declaration.code,
-      containerId: event.containerId,
-      containerCode: event.containerCode,
-      createdBy: event.changedBy,
-    });
-
-    this.logger.log(
-      `Auto-created DRAFT customs declaration ${code} for container ${event.containerCode}`,
-    );
+      this.logger.log(
+        `Auto-created DRAFT customs declaration ${code} for container ${event.containerCode}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to auto-create customs declaration for container ${event.containerCode}: ${error.message}`,
+        error.stack,
+      );
+    }
   }
 
   /**

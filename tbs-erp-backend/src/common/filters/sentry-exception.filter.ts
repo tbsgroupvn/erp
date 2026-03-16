@@ -29,9 +29,7 @@ export class SentryExceptionFilter implements ExceptionFilter {
 
     // Determine HTTP status
     const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
     // Only capture 5xx server errors to Sentry
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
@@ -42,10 +40,7 @@ export class SentryExceptionFilter implements ExceptionFilter {
     throw exception;
   }
 
-  private async captureToSentry(
-    exception: unknown,
-    request: Request,
-  ): Promise<void> {
+  private async captureToSentry(exception: unknown, request: Request): Promise<void> {
     try {
       const Sentry = await this.getSentry();
       if (!Sentry) return;
@@ -94,16 +89,11 @@ export class SentryExceptionFilter implements ExceptionFilter {
         if (exception instanceof Error) {
           Sentry.captureException(exception);
         } else {
-          Sentry.captureMessage(
-            `Non-Error exception: ${JSON.stringify(exception)}`,
-            'error',
-          );
+          Sentry.captureMessage(`Non-Error exception: ${this.sanitizeForSentry(exception)}`, 'error');
         }
       });
     } catch (captureError) {
-      this.logger.debug(
-        `Failed to capture exception to Sentry: ${captureError}`,
-      );
+      this.logger.debug(`Failed to capture exception to Sentry: ${captureError}`);
     }
   }
 
@@ -113,7 +103,7 @@ export class SentryExceptionFilter implements ExceptionFilter {
 
     this.sentryLoadAttempted = true;
     try {
-      // @ts-ignore
+      // @ts-expect-error @sentry/node may not be installed
       this.sentryModule = await import('@sentry/node');
       return this.sentryModule;
     } catch {
@@ -121,9 +111,18 @@ export class SentryExceptionFilter implements ExceptionFilter {
     }
   }
 
-  private stripSensitiveFields(
-    obj: Record<string, unknown>,
-  ): Record<string, unknown> {
+  private sanitizeForSentry(obj: unknown): string {
+    const sensitiveKeys = ['password', 'token', 'secret', 'authorization', 'cookie', 'creditCard', 'ssn', 'apiKey', 'refreshToken', 'accessToken'];
+    const str = JSON.stringify(obj, (key, value) => {
+      if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk.toLowerCase()))) {
+        return '[REDACTED]';
+      }
+      return value;
+    });
+    return str.substring(0, 2000); // Truncate to prevent excessive data
+  }
+
+  private stripSensitiveFields(obj: Record<string, unknown>): Record<string, unknown> {
     const sensitiveKeys = [
       'password',
       'newPassword',
@@ -140,16 +139,10 @@ export class SentryExceptionFilter implements ExceptionFilter {
 
     const cleaned: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
-      if (
-        sensitiveKeys.some((sk) =>
-          key.toLowerCase().includes(sk.toLowerCase()),
-        )
-      ) {
+      if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk.toLowerCase()))) {
         cleaned[key] = '[Filtered]';
       } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        cleaned[key] = this.stripSensitiveFields(
-          value as Record<string, unknown>,
-        );
+        cleaned[key] = this.stripSensitiveFields(value as Record<string, unknown>);
       } else {
         cleaned[key] = value;
       }

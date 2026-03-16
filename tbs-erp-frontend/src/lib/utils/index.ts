@@ -3,6 +3,9 @@
  * Export all utility functions
  */
 
+// cn — re-export so `@/lib/utils` resolves `cn` for shadcn/ui components
+export { cn } from './cn';
+
 // Analytics
 export * from './analytics';
 

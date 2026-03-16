@@ -2,12 +2,12 @@ import {
   AbilityBuilder,
   createMongoAbility,
   ExtractSubjectType,
-  InferSubjects,
   MongoAbility,
   MongoQuery,
 } from '@casl/ability';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
+import { CacheService } from '@core/cache/cache.service';
 
 // Define all subject types that can be managed by CASL
 export type Subjects =
@@ -17,6 +17,7 @@ export type Subjects =
   | 'Package'
   | 'Container'
   | 'Delivery'
+  | 'SupplierOrder'
   | 'PaymentVoucher'
   | 'AccountReceivable'
   | 'AccountPayable'
@@ -47,10 +48,78 @@ interface UserContext {
 
 @Injectable()
 export class CaslAbilityFactory {
-  createForUser(user: UserContext): AppAbility {
-    const { can, cannot, build } = new AbilityBuilder<AppAbility>(
-      createMongoAbility,
-    );
+  private readonly logger = new Logger(CaslAbilityFactory.name);
+
+  /** TTL for cached abilities: 5 minutes in milliseconds. */
+  private static readonly ABILITY_CACHE_TTL_MS = 300_000;
+
+  constructor(private readonly cacheService: CacheService) {}
+
+  /**
+   * Build the Redis cache key for a user's ability set.
+   * The key encodes the userId and role so that any role change naturally
+   * produces a different key and bypasses stale cache.
+   */
+  private abilityCacheKey(userId: string, role: UserRole): string {
+    return `ability:${userId}:${role}`;
+  }
+
+  /**
+   * Invalidate cached abilities for a user. Call this after a role change.
+   */
+  async invalidateAbilityCache(userId: string, role: UserRole): Promise<void> {
+    const key = this.abilityCacheKey(userId, role);
+    await this.cacheService.del(key);
+    this.logger.debug(`Ability cache invalidated for user ${userId} (role: ${role})`);
+  }
+
+  /**
+   * Build (or retrieve from cache) the CASL ability object for the given user.
+   *
+   * Abilities are cached in Redis for 5 minutes using the key
+   * `ability:<userId>:<role>`. A role change produces a different key, so
+   * stale abilities are never served even without explicit invalidation.
+   *
+   * Cache misses fall through to the synchronous ability builder transparently.
+   */
+  async createForUser(user: UserContext): Promise<AppAbility> {
+    const cacheKey = this.abilityCacheKey(user.userId, user.role);
+
+    // Attempt to load from cache first.
+    // The cache stores the serialized rules array; we reconstruct the ability from it.
+    // We use `any[]` here because the CASL type parameter is narrower than the
+    // generic rule shape returned by ability.rules.
+    const cachedRules = await this.cacheService.get<any[]>(cacheKey);
+    if (cachedRules) {
+      try {
+        return createMongoAbility<AppAbility>(cachedRules as any);
+      } catch (err) {
+        this.logger.warn(
+          `Failed to deserialize cached ability for user ${user.userId}: ${err?.message}`,
+        );
+        // Fall through to rebuild on deserialization error
+      }
+    }
+
+    // Build fresh ability
+    const ability = this.buildAbility(user);
+
+    // Persist rules to cache (rules are plain JSON-serializable objects)
+    try {
+      await this.cacheService.set(cacheKey, ability.rules, CaslAbilityFactory.ABILITY_CACHE_TTL_MS);
+    } catch (err) {
+      this.logger.warn(`Failed to cache ability for user ${user.userId}: ${err?.message}`);
+    }
+
+    return ability;
+  }
+
+  /**
+   * Synchronous helper that constructs the raw MongoAbility for a user.
+   * Kept separate so caching logic in createForUser stays clean.
+   */
+  private buildAbility(user: UserContext): AppAbility {
+    const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
 
     switch (user.role) {
       // ---------------------------------------------------------------
@@ -71,7 +140,9 @@ export class CaslAbilityFactory {
         can('manage', 'PreAlert');
         can('read', 'Package');
         can('read', 'Container');
+        can('update', 'Container');
         can('read', 'Delivery');
+        can('read', 'SupplierOrder');
         can('read', 'PaymentVoucher');
         can('read', 'AccountReceivable');
         can('read', 'Report');
@@ -92,7 +163,9 @@ export class CaslAbilityFactory {
         can('manage', 'PreAlert');
         can('read', 'Package');
         can('read', 'Container');
+        can('update', 'Container');
         can('read', 'Delivery');
+        can('read', 'SupplierOrder');
         can('read', 'PaymentVoucher');
         can('read', 'AccountReceivable');
         can('read', 'Dashboard');
@@ -113,8 +186,12 @@ export class CaslAbilityFactory {
         can('read', 'Customer');
         can('update', 'Customer');
         can('manage', 'PreAlert');
+        can('create', 'SupplierOrder');
+        can('read', 'SupplierOrder');
+        can('update', 'SupplierOrder');
         can('read', 'Package');
         can('read', 'Container');
+        can('update', 'Container');
         can('read', 'Delivery');
         can('read', 'PaymentVoucher');
         can('read', 'AccountReceivable');
@@ -181,7 +258,10 @@ export class CaslAbilityFactory {
       // ---------------------------------------------------------------
       case UserRole.XNK_MANAGER:
         can('manage', 'Container');
-        can('manage', 'Package');
+        can('create', 'Package');
+        can('read', 'Package');
+        can('update', 'Package');
+        can('manage', 'SupplierOrder');
         can('update', 'Order');
         can('read', 'Order');
         can('read', 'Customer');
@@ -199,6 +279,9 @@ export class CaslAbilityFactory {
         can('update', 'Container');
         can('read', 'Package');
         can('update', 'Package');
+        can('create', 'SupplierOrder');
+        can('read', 'SupplierOrder');
+        can('update', 'SupplierOrder');
         can('read', 'Order');
         can('read', 'Dashboard');
         break;
@@ -291,8 +374,7 @@ export class CaslAbilityFactory {
     can('read', 'AuditLog');
 
     return build({
-      detectSubjectType: (item) =>
-        (item as any).constructor as ExtractSubjectType<Subjects>,
+      detectSubjectType: (item) => (item as any).constructor as ExtractSubjectType<Subjects>,
     });
   }
 }

@@ -90,7 +90,9 @@ export class OrderCompletionSaga {
       },
       compensate: async (ctx) => {
         if (ctx.arId) {
-          await this.prisma.accountReceivable.update({ where: { id: ctx.arId }, data: { status: 'CANCELLED' } }).catch((err) => this.logger.error(`Failed to cancel AR ${ctx.arId}: ${err.message}`));
+          await this.prisma.accountReceivable
+            .update({ where: { id: ctx.arId }, data: { status: 'CANCELLED' } })
+            .catch((err) => this.logger.error(`Failed to cancel AR ${ctx.arId}: ${err.message}`));
           this.logger.warn(`Compensated: Cancelled AR ${ctx.arId}`);
         }
         return ctx;
@@ -122,7 +124,11 @@ export class OrderCompletionSaga {
       },
       compensate: async (ctx) => {
         if (ctx.commissionId) {
-          await this.prisma.commissionRecord.update({ where: { id: ctx.commissionId }, data: { status: 'CANCELLED' } }).catch((err) => this.logger.error(`Failed to cancel commission ${ctx.commissionId}: ${err.message}`));
+          await this.prisma.commissionRecord
+            .update({ where: { id: ctx.commissionId }, data: { status: 'CANCELLED' } })
+            .catch((err) =>
+              this.logger.error(`Failed to cancel commission ${ctx.commissionId}: ${err.message}`),
+            );
           this.logger.warn(`Compensated: Cancelled commission ${ctx.commissionId}`);
         }
         return ctx;
@@ -166,7 +172,11 @@ export class OrderCompletionSaga {
       },
       compensate: async (ctx) => {
         if (ctx.invoiceId) {
-          await this.prisma.invoice.update({ where: { id: ctx.invoiceId }, data: { status: 'CANCELLED' } }).catch((err) => this.logger.error(`Failed to cancel invoice ${ctx.invoiceId}: ${err.message}`));
+          await this.prisma.invoice
+            .update({ where: { id: ctx.invoiceId }, data: { status: 'CANCELLED' } })
+            .catch((err) =>
+              this.logger.error(`Failed to cancel invoice ${ctx.invoiceId}: ${err.message}`),
+            );
           this.logger.warn(`Compensated: Cancelled invoice ${ctx.invoiceId}`);
         }
         return ctx;

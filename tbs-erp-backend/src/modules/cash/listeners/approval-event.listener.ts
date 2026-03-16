@@ -22,10 +22,7 @@ export class ApprovalEventListener {
   @OnEvent('approval.completed')
   async handleApprovalCompleted(event: ApprovalCompletedEvent): Promise<void> {
     // Only handle voucher-related approvals
-    if (
-      event.type !== 'PAYMENT_VOUCHER' &&
-      event.type !== 'RECEIPT_VOUCHER'
-    ) {
+    if (event.type !== 'PAYMENT_VOUCHER' && event.type !== 'RECEIPT_VOUCHER') {
       return;
     }
 
@@ -35,10 +32,7 @@ export class ApprovalEventListener {
 
     try {
       if (event.status === 'APPROVED') {
-        await this.cashService.approveVoucher(
-          event.referenceId,
-          event.approverId,
-        );
+        await this.cashService.approveVoucher(event.referenceId, event.approverId);
       } else if (event.status === 'REJECTED') {
         await this.cashService.rejectVoucher(
           event.referenceId,

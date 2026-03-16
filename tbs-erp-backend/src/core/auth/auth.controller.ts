@@ -45,6 +45,9 @@ import {
 } from './dto/two-factor.dto';
 import { AuthenticatedUser } from './strategies/jwt.strategy';
 import { RefreshTokenUser } from './strategies/refresh-token.strategy';
+import { Roles } from '@core/rbac/decorators/roles.decorator';
+import { RolesGuard } from '@core/rbac/guards/roles.guard';
+import { UserRole } from '@prisma/client';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -83,9 +86,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const userAgent = req.headers['user-agent'];
-    const ipAddress =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.ip;
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip;
 
     const result = await this.authService.login(
       loginDto.email,
@@ -103,9 +104,9 @@ export class AuthController {
     res.cookie('refreshToken', result.tokens.refreshToken, {
       httpOnly: true,
       secure: process.env.APP_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/api/auth/refresh',
+      path: '/api/v1/auth',
     });
 
     return {
@@ -141,9 +142,9 @@ export class AuthController {
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
       secure: process.env.APP_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/api/auth/refresh',
+      path: '/api/v1/auth',
     });
 
     return {
@@ -163,14 +164,14 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ message: string }> {
     const user = req.user as AuthenticatedUser;
-    await this.authService.logout(user.sessionId);
+    await this.authService.logout(user.id, user.sessionId);
 
     // Clear the refresh token cookie
     res.clearCookie('refreshToken', {
       httpOnly: true,
       secure: process.env.APP_ENV === 'production',
-      sameSite: 'strict',
-      path: '/api/auth/refresh',
+      sameSite: 'lax',
+      path: '/api/v1/auth',
     });
 
     return { message: 'Logged out successfully' };
@@ -182,9 +183,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Request a password reset link' })
   @ApiBody({ type: ForgotPasswordDto })
   @ApiOkResponse({ description: 'Password reset instructions sent (if account exists)' })
-  async forgotPassword(
-    @Body() dto: ForgotPasswordDto,
-  ): Promise<{ message: string }> {
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ message: string }> {
     return this.authService.forgotPassword(dto.email);
   }
 
@@ -194,9 +193,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Reset password using a reset token' })
   @ApiBody({ type: ResetPasswordDto })
   @ApiOkResponse({ description: 'Password has been reset successfully' })
-  async resetPassword(
-    @Body() dto: ResetPasswordDto,
-  ): Promise<{ message: string }> {
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<{ message: string }> {
     return this.authService.resetPassword(dto.token, dto.newPassword);
   }
 
@@ -212,7 +209,7 @@ export class AuthController {
   }
 
   @Patch('change-password')
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
+  @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
@@ -224,7 +221,12 @@ export class AuthController {
     @Body() dto: ChangePasswordDto,
   ): Promise<{ message: string }> {
     const user = req.user as AuthenticatedUser;
-    return this.authService.changePassword(user.id, dto.currentPassword, dto.newPassword, user.sessionId);
+    return this.authService.changePassword(
+      user.id,
+      dto.currentPassword,
+      dto.newPassword,
+      user.sessionId,
+    );
   }
 
   // =========================================================================
@@ -232,7 +234,7 @@ export class AuthController {
   // =========================================================================
 
   @Post('2fa/setup')
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
+  @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
@@ -252,7 +254,7 @@ export class AuthController {
   }
 
   @Post('2fa/enable')
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
+  @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
@@ -266,10 +268,7 @@ export class AuthController {
   @ApiOkResponse({
     description: 'Returns { message, backupCodes[] }. Backup codes are shown only once.',
   })
-  async enable2FA(
-    @Req() req: Request,
-    @Body() dto: Verify2FADto,
-  ) {
+  async enable2FA(@Req() req: Request, @Body() dto: Verify2FADto) {
     const user = req.user as AuthenticatedUser;
     return this.authService.enable2FA(user.id, dto.code);
   }
@@ -287,10 +286,7 @@ export class AuthController {
   })
   @ApiBody({ type: Disable2FADto })
   @ApiOkResponse({ description: '2FA disabled successfully' })
-  async disable2FA(
-    @Req() req: Request,
-    @Body() dto: Disable2FADto,
-  ): Promise<{ message: string }> {
+  async disable2FA(@Req() req: Request, @Body() dto: Disable2FADto): Promise<{ message: string }> {
     const user = req.user as AuthenticatedUser;
     return this.authService.disable2FA(user.id, dto.code, dto.password);
   }
@@ -317,13 +313,11 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     if (!tempToken) {
-      tempToken = (req.headers['authorization']?.replace('Bearer ', '') ?? '');
+      tempToken = req.headers['authorization']?.replace('Bearer ', '') ?? '';
     }
 
     const userAgent = req.headers['user-agent'];
-    const ipAddress =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.ip;
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip;
 
     const result = await this.authService.verifyLoginOtp(
       tempToken,
@@ -338,9 +332,9 @@ export class AuthController {
     res.cookie('refreshToken', result.tokens.refreshToken, {
       httpOnly: true,
       secure: process.env.APP_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/api/auth/refresh',
+      path: '/api/v1/auth',
     });
 
     return {
@@ -427,9 +421,7 @@ export class AuthController {
 
     // Validate that the userId in the body matches the authenticated user
     if (body.userId !== authenticatedUserId) {
-      throw new UnauthorizedException(
-        'Cannot send SMS OTP for a different user',
-      );
+      throw new UnauthorizedException('Cannot send SMS OTP for a different user');
     }
 
     return this.authService.sendSmsOtp(body.userId);
@@ -449,9 +441,7 @@ export class AuthController {
   @ApiOkResponse({
     description: 'Returns { backupCodes[] }. These codes are shown only once.',
   })
-  async regenerateBackupCodes(
-    @Req() req: Request,
-  ): Promise<{ backupCodes: string[] }> {
+  async regenerateBackupCodes(@Req() req: Request): Promise<{ backupCodes: string[] }> {
     const user = req.user as AuthenticatedUser;
     return this.authService.regenerateBackupCodes(user.id);
   }
@@ -479,7 +469,8 @@ export class AuthController {
 
   @Post('impersonate/:customerId')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.SALES_DIRECTOR, UserRole.CSKH)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Impersonate a customer',
@@ -490,14 +481,9 @@ export class AuthController {
   @ApiOkResponse({
     description: 'Returns { token, logId } for the impersonation session',
   })
-  async impersonate(
-    @Param('customerId') customerId: string,
-    @Req() req: Request,
-  ) {
+  async impersonate(@Param('customerId') customerId: string, @Req() req: Request) {
     const user = req.user as AuthenticatedUser;
-    const ipAddress =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.ip;
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip;
 
     return this.authService.impersonate(user.id, customerId, ipAddress);
   }
@@ -508,14 +494,16 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'End an impersonation session',
-    description:
-      'Ends an active impersonation session by updating the ImpersonationLog record.',
+    description: 'Ends an active impersonation session by updating the ImpersonationLog record.',
   })
   @ApiOkResponse({ description: 'Impersonation session ended' })
   async endImpersonation(
     @Body() body: { logId: string },
+    @Req() req: Request,
   ): Promise<{ message: string }> {
-    return this.authService.endImpersonation(body.logId);
+    const user = req.user as AuthenticatedUser;
+    // For impersonation tokens, impersonatedBy is the original admin userId
+    const callingUserId = user.impersonatedBy || user.id;
+    return this.authService.endImpersonation(body.logId, callingUserId);
   }
-
 }

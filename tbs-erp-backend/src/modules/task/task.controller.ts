@@ -10,15 +10,11 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
-import { TaskStatus } from '@prisma/client';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { TaskStatus, UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
@@ -30,10 +26,10 @@ import { AddCommentDto } from './dto/add-comment.dto';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('tasks')
 export class TaskController {
-  constructor(private readonly taskService: TaskService) {}
+  constructor(private readonly taskService: TaskService) { }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -49,24 +45,14 @@ export class TaskController {
   @ApiResponse({ status: 200, description: 'Tasks retrieved successfully' })
   async findAll(@Query() query: TaskQueryDto) {
     const result = await this.taskService.findAll(query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get('my')
   @ApiOperation({ summary: 'Get my tasks' })
   async getMyTasks(@Query() query: TaskQueryDto, @CurrentUser() user: ICurrentUser) {
     const result = await this.taskService.getMyTasks(user.id, query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get('overdue')
@@ -93,7 +79,8 @@ export class TaskController {
   }
 
   @Patch(':id/assign')
-  @ApiOperation({ summary: 'Reassign task' })
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.DIRECTOR_OPERATIONS, UserRole.SALES_DIRECTOR, UserRole.SALES_LEADER)
+  @ApiOperation({ summary: 'Reassign task (Managers only)' })
   @ApiParam({ name: 'id', description: 'Task ID' })
   async assignTo(@Param('id') id: string, @Body('assigneeId') assigneeId: string) {
     const task = await this.taskService.assignTo(id, assigneeId);
@@ -103,10 +90,7 @@ export class TaskController {
   @Patch(':id/status')
   @ApiOperation({ summary: 'Change task status' })
   @ApiParam({ name: 'id', description: 'Task ID' })
-  async changeStatus(
-    @Param('id') id: string,
-    @Body('status') status: TaskStatus,
-  ) {
+  async changeStatus(@Param('id') id: string, @Body('status') status: TaskStatus) {
     const task = await this.taskService.changeStatus(id, status);
     return BaseResponse.ok(task, `Status changed to ${status}`);
   }

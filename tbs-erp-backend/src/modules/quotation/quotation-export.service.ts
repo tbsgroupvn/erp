@@ -5,26 +5,11 @@ import * as ExcelJS from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const SERVICE_TYPE_MAP: Record<string, string> = {
-  VCT: 'Van chuyen tieu ngach',
-  MHH: 'Mua hang ho',
-  UTXNK: 'Uy thac xuat nhap khau',
-  LCLCN: 'LCL chinh ngach',
-};
-
 const SERVICE_TYPE_MAP_VI: Record<string, string> = {
   VCT: 'V\u1EADn chuy\u1EC3n ti\u1EC3u ng\u1EA1ch',
   MHH: 'Mua h\u00E0ng h\u1ED9',
   UTXNK: '\u1EE6y th\u00E1c xu\u1EA5t nh\u1EADp kh\u1EA9u',
   LCLCN: 'LCL ch\u00EDnh ng\u1EA1ch',
-};
-
-const SHIPPING_ROUTE_MAP: Record<string, string> = {
-  SEA: 'Duong bien',
-  AIR: 'Duong hang khong',
-  RAIL: 'Duong sat',
-  ROAD: 'Duong bo',
-  MULTIMODAL: 'Da phuong thuc',
 };
 
 const SHIPPING_ROUTE_MAP_VI: Record<string, string> = {
@@ -33,11 +18,6 @@ const SHIPPING_ROUTE_MAP_VI: Record<string, string> = {
   RAIL: '\u0110\u01B0\u1EDDng s\u1EAFt',
   ROAD: '\u0110\u01B0\u1EDDng b\u1ED9',
   MULTIMODAL: '\u0110a ph\u01B0\u01A1ng th\u1EE9c',
-};
-
-const BRANCH_MAP: Record<string, string> = {
-  HN: 'Ha Noi',
-  HCM: 'TP. Ho Chi Minh',
 };
 
 const BRANCH_MAP_VI: Record<string, string> = {
@@ -58,7 +38,8 @@ export class QuotationExportService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {
-    this.companyFullName = this.configService.get<string>('branding.companyFullName') || 'My ERP Company';
+    this.companyFullName =
+      this.configService.get<string>('branding.companyFullName') || 'My ERP Company';
     this.companyAddress = this.configService.get<string>('branding.companyAddress') || '';
     this.supportPhone = this.configService.get<string>('branding.supportPhone') || '';
     this.taxCode = this.configService.get<string>('branding.taxCode') || '';
@@ -145,7 +126,7 @@ export class QuotationExportService {
 
     // Column widths
     ws.columns = [
-      { width: 6 },  // A - STT
+      { width: 6 }, // A - STT
       { width: 35 }, // B - Product name
       { width: 10 }, // C - Quantity
       { width: 15 }, // D - Unit price
@@ -165,8 +146,7 @@ export class QuotationExportService {
 
     ws.mergeCells(`A${row}:F${row}`);
     const addressCell = ws.getCell(`A${row}`);
-    addressCell.value =
-      `${this.companyAddress ? 'Địa chỉ: ' + this.companyAddress + ' | ' : ''}${this.supportPhone ? 'ĐT: ' + this.supportPhone + ' | ' : ''}${this.taxCode ? 'MST: ' + this.taxCode : ''}`;
+    addressCell.value = `${this.companyAddress ? 'Địa chỉ: ' + this.companyAddress + ' | ' : ''}${this.supportPhone ? 'ĐT: ' + this.supportPhone + ' | ' : ''}${this.taxCode ? 'MST: ' + this.taxCode : ''}`;
     addressCell.font = { size: 10, color: { argb: 'FF666666' } };
     addressCell.alignment = { horizontal: 'center' };
     row += 2;
@@ -224,22 +204,14 @@ export class QuotationExportService {
     row++;
 
     const serviceInfo: [string, string][] = [
-      [
-        'Lo\u1EA1i d\u1ECBch v\u1EE5:',
-        SERVICE_TYPE_MAP_VI[q.serviceType] || q.serviceType,
-      ],
+      ['Lo\u1EA1i d\u1ECBch v\u1EE5:', SERVICE_TYPE_MAP_VI[q.serviceType] || q.serviceType],
       ['Chi nh\u00E1nh:', BRANCH_MAP_VI[q.branch] || q.branch],
       [
         'Tuy\u1EBFn v\u1EADn chuy\u1EC3n:',
-        q.shippingRoute
-          ? SHIPPING_ROUTE_MAP_VI[q.shippingRoute] || q.shippingRoute
-          : '---',
+        q.shippingRoute ? SHIPPING_ROUTE_MAP_VI[q.shippingRoute] || q.shippingRoute : '---',
       ],
       ['Ng\u00E0y t\u1EA1o:', this.formatDate(q.createdAt)],
-      [
-        'Hi\u1EC7u l\u1EF1c \u0111\u1EBFn:',
-        q.validUntil ? this.formatDate(q.validUntil) : '---',
-      ],
+      ['Hi\u1EC7u l\u1EF1c \u0111\u1EBFn:', q.validUntil ? this.formatDate(q.validUntil) : '---'],
     ];
     for (const [label, value] of serviceInfo) {
       ws.getCell(`A${row}`).value = label;
@@ -328,10 +300,7 @@ export class QuotationExportService {
         `Gi\u1EA3m gi\u00E1 (${Number(q.discountPercent)}%):`,
         `-${this.formatCurrency(q.discountAmount)}`,
       ],
-      [
-        `Thu\u1EBF (${(Number(q.taxRate) * 100).toFixed(0)}%):`,
-        this.formatCurrency(q.taxAmount),
-      ],
+      [`Thu\u1EBF (${(Number(q.taxRate) * 100).toFixed(0)}%):`, this.formatCurrency(q.taxAmount)],
     ];
     for (const [label, value] of totals) {
       ws.mergeCells(`A${row}:D${row}`);
@@ -393,8 +362,7 @@ export class QuotationExportService {
 
     // --- SIGNATURES ---
     ws.mergeCells(`A${row}:C${row}`);
-    ws.getCell(`A${row}`).value =
-      'NG\u01AF\u1EDCI L\u1EACP B\u00C1O GI\u00C1';
+    ws.getCell(`A${row}`).value = 'NG\u01AF\u1EDCI L\u1EACP B\u00C1O GI\u00C1';
     ws.getCell(`A${row}`).font = { bold: true, size: 11 };
     ws.getCell(`A${row}`).alignment = { horizontal: 'center' };
 
@@ -405,8 +373,7 @@ export class QuotationExportService {
     row++;
 
     ws.mergeCells(`A${row}:C${row}`);
-    ws.getCell(`A${row}`).value =
-      '(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)';
+    ws.getCell(`A${row}`).value = '(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)';
     ws.getCell(`A${row}`).font = {
       italic: true,
       size: 9,
@@ -415,8 +382,7 @@ export class QuotationExportService {
     ws.getCell(`A${row}`).alignment = { horizontal: 'center' };
 
     ws.mergeCells(`D${row}:F${row}`);
-    ws.getCell(`D${row}`).value =
-      '(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)';
+    ws.getCell(`D${row}`).value = '(K\u00FD, ghi r\u00F5 h\u1ECD t\u00EAn)';
     ws.getCell(`D${row}`).font = {
       italic: true,
       size: 9,
@@ -438,7 +404,7 @@ export class QuotationExportService {
   private ensurePdfFonts(): void {
     if (this.fontsLoaded) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pdfmake = require('pdfmake');
     const fontsDir = path.resolve(
       __dirname,
@@ -498,7 +464,7 @@ export class QuotationExportService {
     const q = await this.getQuotationData(id);
 
     this.ensurePdfFonts();
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pdfmake = require('pdfmake');
 
     const BLUE = '#1A56DB';
@@ -576,7 +542,15 @@ export class QuotationExportService {
 
       // DRAFT watermark
       ...(q.status === 'DRAFT'
-        ? { watermark: { text: 'NH\u00C1P', color: '#CCCCCC', opacity: 0.15, bold: true, angle: -45 } }
+        ? {
+            watermark: {
+              text: 'NH\u00C1P',
+              color: '#CCCCCC',
+              opacity: 0.15,
+              bold: true,
+              angle: -45,
+            },
+          }
         : {}),
 
       content: [
@@ -589,9 +563,7 @@ export class QuotationExportService {
         },
         // Divider
         {
-          canvas: [
-            { type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 2, lineColor: BLUE },
-          ],
+          canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 2, lineColor: BLUE }],
           margin: [0, 0, 0, 15],
         },
 
@@ -605,16 +577,35 @@ export class QuotationExportService {
             {
               width: '48%',
               stack: [
-                { text: 'TH\u00D4NG TIN KH\u00C1CH H\u00C0NG', style: 'sectionHeader', margin: [0, 0, 0, 5] },
+                {
+                  text: 'TH\u00D4NG TIN KH\u00C1CH H\u00C0NG',
+                  style: 'sectionHeader',
+                  margin: [0, 0, 0, 5],
+                },
                 {
                   table: {
                     widths: ['auto', '*'],
                     body: [
-                      [{ text: 'Kh\u00E1ch h\u00E0ng:', style: 'fieldLabel' }, { text: q.customer?.fullName || '---', style: 'fieldValue' }],
-                      [{ text: 'C\u00F4ng ty:', style: 'fieldLabel' }, { text: q.customer?.companyName || '---', style: 'fieldValue' }],
-                      [{ text: 'M\u00E3 KH:', style: 'fieldLabel' }, { text: q.customer?.code || '---', style: 'fieldValue' }],
-                      [{ text: '\u0110i\u1EC7n tho\u1EA1i:', style: 'fieldLabel' }, { text: q.customer?.phone || '---', style: 'fieldValue' }],
-                      [{ text: 'Email:', style: 'fieldLabel' }, { text: q.customer?.email || '---', style: 'fieldValue' }],
+                      [
+                        { text: 'Kh\u00E1ch h\u00E0ng:', style: 'fieldLabel' },
+                        { text: q.customer?.fullName || '---', style: 'fieldValue' },
+                      ],
+                      [
+                        { text: 'C\u00F4ng ty:', style: 'fieldLabel' },
+                        { text: q.customer?.companyName || '---', style: 'fieldValue' },
+                      ],
+                      [
+                        { text: 'M\u00E3 KH:', style: 'fieldLabel' },
+                        { text: q.customer?.code || '---', style: 'fieldValue' },
+                      ],
+                      [
+                        { text: '\u0110i\u1EC7n tho\u1EA1i:', style: 'fieldLabel' },
+                        { text: q.customer?.phone || '---', style: 'fieldValue' },
+                      ],
+                      [
+                        { text: 'Email:', style: 'fieldLabel' },
+                        { text: q.customer?.email || '---', style: 'fieldValue' },
+                      ],
                     ],
                   },
                   layout: 'noBorders',
@@ -625,16 +616,46 @@ export class QuotationExportService {
             {
               width: '48%',
               stack: [
-                { text: 'TH\u00D4NG TIN D\u1ECBCH V\u1EE4', style: 'sectionHeader', margin: [0, 0, 0, 5] },
+                {
+                  text: 'TH\u00D4NG TIN D\u1ECBCH V\u1EE4',
+                  style: 'sectionHeader',
+                  margin: [0, 0, 0, 5],
+                },
                 {
                   table: {
                     widths: ['auto', '*'],
                     body: [
-                      [{ text: 'Lo\u1EA1i DV:', style: 'fieldLabel' }, { text: SERVICE_TYPE_MAP_VI[q.serviceType] || q.serviceType, style: 'fieldValue' }],
-                      [{ text: 'Chi nh\u00E1nh:', style: 'fieldLabel' }, { text: BRANCH_MAP_VI[q.branch] || q.branch, style: 'fieldValue' }],
-                      [{ text: 'Tuy\u1EBFn:', style: 'fieldLabel' }, { text: q.shippingRoute ? (SHIPPING_ROUTE_MAP_VI[q.shippingRoute] || q.shippingRoute) : '---', style: 'fieldValue' }],
-                      [{ text: 'Ng\u00E0y t\u1EA1o:', style: 'fieldLabel' }, { text: this.formatDate(q.createdAt), style: 'fieldValue' }],
-                      [{ text: 'Hi\u1EC7u l\u1EF1c \u0111\u1EBFn:', style: 'fieldLabel' }, { text: q.validUntil ? this.formatDate(q.validUntil) : '---', style: 'fieldValue' }],
+                      [
+                        { text: 'Lo\u1EA1i DV:', style: 'fieldLabel' },
+                        {
+                          text: SERVICE_TYPE_MAP_VI[q.serviceType] || q.serviceType,
+                          style: 'fieldValue',
+                        },
+                      ],
+                      [
+                        { text: 'Chi nh\u00E1nh:', style: 'fieldLabel' },
+                        { text: BRANCH_MAP_VI[q.branch] || q.branch, style: 'fieldValue' },
+                      ],
+                      [
+                        { text: 'Tuy\u1EBFn:', style: 'fieldLabel' },
+                        {
+                          text: q.shippingRoute
+                            ? SHIPPING_ROUTE_MAP_VI[q.shippingRoute] || q.shippingRoute
+                            : '---',
+                          style: 'fieldValue',
+                        },
+                      ],
+                      [
+                        { text: 'Ng\u00E0y t\u1EA1o:', style: 'fieldLabel' },
+                        { text: this.formatDate(q.createdAt), style: 'fieldValue' },
+                      ],
+                      [
+                        { text: 'Hi\u1EC7u l\u1EF1c \u0111\u1EBFn:', style: 'fieldLabel' },
+                        {
+                          text: q.validUntil ? this.formatDate(q.validUntil) : '---',
+                          style: 'fieldValue',
+                        },
+                      ],
                     ],
                   },
                   layout: 'noBorders',
@@ -671,20 +692,54 @@ export class QuotationExportService {
                 widths: ['*', 110],
                 body: [
                   [
-                    { text: 'T\u1EA1m t\u00EDnh:', style: 'totalLabel', border: [false, false, false, false] },
-                    { text: this.formatCurrency(q.subtotal), style: 'totalValue', border: [false, false, false, false] },
+                    {
+                      text: 'T\u1EA1m t\u00EDnh:',
+                      style: 'totalLabel',
+                      border: [false, false, false, false],
+                    },
+                    {
+                      text: this.formatCurrency(q.subtotal),
+                      style: 'totalValue',
+                      border: [false, false, false, false],
+                    },
                   ],
                   [
-                    { text: `Gi\u1EA3m gi\u00E1 (${Number(q.discountPercent)}%):`, style: 'totalLabel', color: RED, border: [false, false, false, false] },
-                    { text: `-${this.formatCurrency(q.discountAmount)}`, style: 'totalValue', color: RED, border: [false, false, false, false] },
+                    {
+                      text: `Gi\u1EA3m gi\u00E1 (${Number(q.discountPercent)}%):`,
+                      style: 'totalLabel',
+                      color: RED,
+                      border: [false, false, false, false],
+                    },
+                    {
+                      text: `-${this.formatCurrency(q.discountAmount)}`,
+                      style: 'totalValue',
+                      color: RED,
+                      border: [false, false, false, false],
+                    },
                   ],
                   [
-                    { text: `Thu\u1EBF (${(Number(q.taxRate) * 100).toFixed(0)}%):`, style: 'totalLabel', border: [false, false, false, false] },
-                    { text: this.formatCurrency(q.taxAmount), style: 'totalValue', border: [false, false, false, false] },
+                    {
+                      text: `Thu\u1EBF (${(Number(q.taxRate) * 100).toFixed(0)}%):`,
+                      style: 'totalLabel',
+                      border: [false, false, false, false],
+                    },
+                    {
+                      text: this.formatCurrency(q.taxAmount),
+                      style: 'totalValue',
+                      border: [false, false, false, false],
+                    },
                   ],
                   [
-                    { text: 'T\u1ED4NG C\u1ED8NG:', style: 'grandTotalLabel', border: [false, true, false, false] },
-                    { text: this.formatCurrency(q.totalAmount), style: 'grandTotalValue', border: [false, true, false, false] },
+                    {
+                      text: 'T\u1ED4NG C\u1ED8NG:',
+                      style: 'grandTotalLabel',
+                      border: [false, true, false, false],
+                    },
+                    {
+                      text: this.formatCurrency(q.totalAmount),
+                      style: 'grandTotalValue',
+                      border: [false, true, false, false],
+                    },
                   ],
                 ],
               },
@@ -697,9 +752,21 @@ export class QuotationExportService {
         {
           margin: [0, 15, 0, 0],
           stack: [
-            { text: 'TH\u00D4NG TIN THANH TO\u00C1N', style: 'sectionHeader', margin: [0, 0, 0, 5] },
-            { text: `T\u1EF7 l\u1EC7 \u0111\u1EB7t c\u1ECDc: ${depositRate}% (${q.customer?.tier || 'NEW'})`, fontSize: 9, margin: [0, 0, 0, 3] },
-            { text: `S\u1ED1 ti\u1EC1n \u0111\u1EB7t c\u1ECDc: ${this.formatCurrency(Number(q.totalAmount) * depositRate / 100)}`, fontSize: 9, margin: [0, 0, 0, 3] },
+            {
+              text: 'TH\u00D4NG TIN THANH TO\u00C1N',
+              style: 'sectionHeader',
+              margin: [0, 0, 0, 5],
+            },
+            {
+              text: `T\u1EF7 l\u1EC7 \u0111\u1EB7t c\u1ECDc: ${depositRate}% (${q.customer?.tier || 'NEW'})`,
+              fontSize: 9,
+              margin: [0, 0, 0, 3],
+            },
+            {
+              text: `S\u1ED1 ti\u1EC1n \u0111\u1EB7t c\u1ECDc: ${this.formatCurrency((Number(q.totalAmount) * depositRate) / 100)}`,
+              fontSize: 9,
+              margin: [0, 0, 0, 3],
+            },
             {
               text: [
                 { text: 'Ng\u00E2n h\u00E0ng: ', bold: true, fontSize: 9 },
@@ -733,7 +800,11 @@ export class QuotationExportService {
 
         // --- TERMS ---
         { text: '\u0110I\u1EC0U KHO\u1EA2N', style: 'sectionHeader', margin: [0, 12, 0, 5] },
-        ...terms.map((t) => ({ text: t, style: 'termText', margin: [0, 1, 0, 0] as [number, number, number, number] })),
+        ...terms.map((t) => ({
+          text: t,
+          style: 'termText',
+          margin: [0, 1, 0, 0] as [number, number, number, number],
+        })),
 
         // --- SIGNATURES ---
         {

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 
 /**
@@ -18,13 +13,13 @@ export class BarcodeValidatorService {
 
   /** Common CN tracking number patterns (SF Express, YTO, ZTO, STO, etc.) */
   private readonly BARCODE_PATTERNS = [
-    /^SF\d{12,15}$/i,        // SF Express
-    /^YT\d{13,18}$/i,        // YTO Express
-    /^7[0-9]{12,14}$/,       // ZTO Express
-    /^5[0-9]{12,14}$/,       // STO Express
-    /^JD\d{10,15}$/i,        // JD Logistics
-    /^[A-Z]{2}\d{6,20}$/i,   // Generic CN tracking
-    /^\d{10,20}$/,            // Numeric-only barcodes
+    /^SF\d{12,15}$/i, // SF Express
+    /^YT\d{13,18}$/i, // YTO Express
+    /^7[0-9]{12,14}$/, // ZTO Express
+    /^5[0-9]{12,14}$/, // STO Express
+    /^JD\d{10,15}$/i, // JD Logistics
+    /^[A-Z]{2}\d{6,20}$/i, // Generic CN tracking
+    /^\d{10,20}$/, // Numeric-only barcodes
   ];
 
   constructor(private readonly prisma: PrismaService) {}
@@ -41,9 +36,7 @@ export class BarcodeValidatorService {
     const trimmed = barcode.trim();
 
     // Check against known patterns
-    const matchesPattern = this.BARCODE_PATTERNS.some((pattern) =>
-      pattern.test(trimmed),
-    );
+    const matchesPattern = this.BARCODE_PATTERNS.some((pattern) => pattern.test(trimmed));
 
     if (!matchesPattern) {
       this.logger.warn(
@@ -85,10 +78,7 @@ export class BarcodeValidatorService {
    * Full validation: format check + duplicate check.
    * Throws on failure.
    */
-  async validate(
-    barcode: string,
-    excludePackageId?: string,
-  ): Promise<void> {
+  async validate(barcode: string, excludePackageId?: string): Promise<void> {
     // Format validation
     const formatResult = this.validateFormat(barcode);
     if (!formatResult.valid) {
@@ -96,10 +86,7 @@ export class BarcodeValidatorService {
     }
 
     // Duplicate check
-    const duplicateResult = await this.checkDuplicate(
-      barcode,
-      excludePackageId,
-    );
+    const duplicateResult = await this.checkDuplicate(barcode, excludePackageId);
     if (duplicateResult.isDuplicate) {
       throw new ConflictException(
         `Mã vạch ${barcode} đã tồn tại trên kiện ${duplicateResult.existingPackageCode}`,

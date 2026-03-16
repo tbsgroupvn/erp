@@ -1,21 +1,65 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-export type ConditionOperator =
-  | 'GT'
-  | 'GTE'
-  | 'LT'
-  | 'LTE'
-  | 'EQ'
-  | 'NEQ'
-  | 'IN';
+export type ConditionOperator = 'GT' | 'GTE' | 'LT' | 'LTE' | 'EQ' | 'NEQ' | 'IN';
+
+// ---------------------------------------------------------------------------
+// Token types used by the compound expression parser
+// ---------------------------------------------------------------------------
+
+type TokenKind =
+  | 'OPERATOR_LOGICAL' // AND, OR, NOT
+  | 'LPAREN'           // (
+  | 'RPAREN'           // )
+  | 'CONDITION';       // a single comparison: "field op value"
+
+interface Token {
+  kind: TokenKind;
+  value: string;
+}
+
+// Regex that matches a single comparison atom (no parens, no AND/OR/NOT).
+// Captures: field  op  value
+// Value can be:
+//   - a quoted string:  'VIP'  or  "VIP"
+//   - an IN list:       ['A','B']  or  [A, B]
+//   - a plain number:   50000000
+//   - a bare word:      CANCELLED
+const ATOM_RE = /^(\w+(?:\.\w+)*)\s*(>=|<=|!=|==|>|<|IN)\s*(.+)$/i;
 
 /**
  * Evaluates conditions for CONDITION nodes in approval flow graphs.
  * Supports numeric comparisons and set membership checks.
+ *
+ * Simple expressions:
+ *   "amount > 50000000"
+ *   "status IN ['PENDING','ACTIVE']"
+ *
+ * Compound expressions (evaluateCompound):
+ *   "amount > 50000000 AND customerTier == 'VIP'"
+ *   "(discountPercent > 5 OR discountAmount > 100000000) AND serviceType == 'MHH'"
+ *   "NOT status == 'CANCELLED'"
+ *
+ * Test cases (used in unit tests / manual verification):
+ *   // "amount > 50000000"                                    → delegates to evaluateExpression
+ *   // "amount > 50000000 AND customerTier == 'VIP'"          → compound AND
+ *   // "(a > 1 OR b < 2) AND c == 'X'"                       → nested groups
+ *   // "NOT status == 'CANCELLED'"                            → NOT prefix
+ *   // "NOT (a > 1 AND b > 2)"                               → NOT over group
+ *   // "a > 1 OR b > 2 OR c > 3"                             → chained OR
  */
 @Injectable()
 export class ConditionEvaluator {
   private readonly logger = new Logger(ConditionEvaluator.name);
+
+  /** Maximum allowed expression length (characters). */
+  private readonly MAX_EXPR_LEN = 500;
+
+  /** Maximum nesting depth for parenthesised groups. */
+  private readonly MAX_DEPTH = 5;
+
+  // -------------------------------------------------------------------------
+  // Public API
+  // -------------------------------------------------------------------------
 
   /**
    * Evaluate a single condition against request data.
@@ -29,9 +73,7 @@ export class ConditionEvaluator {
     const actualValue = this.resolveField(field, requestData);
 
     if (actualValue === undefined || actualValue === null) {
-      this.logger.warn(
-        `Field "${field}" not found in request data, defaulting to false`,
-      );
+      this.logger.warn(`Field "${field}" not found in request data, defaulting to false`);
       return false;
     }
 
@@ -46,31 +88,25 @@ export class ConditionEvaluator {
 
   /**
    * Evaluate a condition expression string like "amount > 50000000".
+   * This method is backward-compatible and unchanged.
    */
-  evaluateExpression(
-    expression: string,
-    requestData: Record<string, unknown>,
-  ): boolean {
+  evaluateExpression(expression: string, requestData: Record<string, unknown>): boolean {
     if (!expression || expression.trim() === '') {
       return true; // No condition = always true (default edge)
     }
 
     // Limit expression length to prevent abuse
-    if (expression.length > 500) {
+    if (expression.length > this.MAX_EXPR_LEN) {
       this.logger.warn(`Expression too long (${expression.length} chars), rejecting`);
       return false;
     }
 
     // Parse simple expressions: "field operator value"
     // Supports: >, >=, <, <=, ==, !=, IN
-    const match = expression.match(
-      /^(\w+(?:\.\w+)*)\s*(>=|<=|!=|==|>|<|IN)\s*(.+)$/i,
-    );
+    const match = expression.match(/^(\w+(?:\.\w+)*)\s*(>=|<=|!=|==|>|<|IN)\s*(.+)$/i);
 
     if (!match) {
-      this.logger.warn(
-        `Cannot parse condition expression: "${expression}", defaulting to false`,
-      );
+      this.logger.warn(`Cannot parse condition expression: "${expression}", defaulting to false`);
       return false;
     }
 
@@ -80,12 +116,221 @@ export class ConditionEvaluator {
   }
 
   /**
+   * Evaluate a potentially compound boolean expression.
+   *
+   * If the expression does not contain AND/OR/NOT it falls back to
+   * `evaluateExpression()` so existing callers are unaffected.
+   *
+   * Security guards:
+   *   - max expression length: 500 characters
+   *   - max nesting depth: 5 levels of parentheses
+   *
+   * @param expression  e.g. "amount > 50000000 AND customerTier == 'VIP'"
+   * @param requestData The request payload to evaluate against
+   */
+  evaluateCompound(expression: string, requestData: Record<string, unknown>): boolean {
+    if (!expression || expression.trim() === '') {
+      return true;
+    }
+
+    if (expression.length > this.MAX_EXPR_LEN) {
+      this.logger.warn(`Compound expression too long (${expression.length} chars), rejecting`);
+      return false;
+    }
+
+    const trimmed = expression.trim();
+
+    // Fast path: no compound operators → delegate to simple evaluator
+    if (!this.isCompound(trimmed)) {
+      return this.evaluateExpression(trimmed, requestData);
+    }
+
+    // Check nesting depth before tokenising (cheap O(n) scan)
+    if (!this.checkDepth(trimmed)) {
+      this.logger.warn(`Expression exceeds max nesting depth (${this.MAX_DEPTH}), rejecting`);
+      return false;
+    }
+
+    try {
+      const tokens = this.tokenize(trimmed);
+      const parser = new ExpressionParser(tokens, this, requestData);
+      return parser.parse();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Failed to parse compound expression "${trimmed}": ${message}`);
+      return false;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers
+  // -------------------------------------------------------------------------
+
+  /**
+   * Determine quickly whether an expression needs the compound parser.
+   * We look for word-boundary AND/OR/NOT tokens or parentheses.
+   */
+  private isCompound(expr: string): boolean {
+    return /\b(AND|OR|NOT)\b/i.test(expr) || expr.includes('(');
+  }
+
+  /**
+   * Verify nesting depth stays within MAX_DEPTH.
+   */
+  private checkDepth(expr: string): boolean {
+    let depth = 0;
+    for (const ch of expr) {
+      if (ch === '(') {
+        depth++;
+        if (depth > this.MAX_DEPTH) return false;
+      } else if (ch === ')') {
+        depth--;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Tokenize a compound expression into a flat list of tokens.
+   *
+   * Strategy: scan left-to-right, greedily accumulating characters
+   * into the current "atom" until we hit a logical keyword, paren,
+   * or end of string.
+   *
+   * Quoted strings inside atoms are treated as opaque (we don't
+   * split on AND/OR inside single-quotes).
+   */
+  private tokenize(expr: string): Token[] {
+    const tokens: Token[] = [];
+    let i = 0;
+    const len = expr.length;
+
+    const skipSpaces = () => {
+      while (i < len && expr[i] === ' ') i++;
+    };
+
+    const readAtom = (): string => {
+      let atom = '';
+      let inSingleQuote = false;
+      let inBracket = 0;
+
+      while (i < len) {
+        const ch = expr[i];
+
+        // Track single-quoted strings
+        if (ch === "'") {
+          inSingleQuote = !inSingleQuote;
+          atom += ch;
+          i++;
+          continue;
+        }
+
+        // Inside a quoted string: consume everything
+        if (inSingleQuote) {
+          atom += ch;
+          i++;
+          continue;
+        }
+
+        // Track bracket nesting (for IN [x, y])
+        if (ch === '[') {
+          inBracket++;
+          atom += ch;
+          i++;
+          continue;
+        }
+        if (ch === ']') {
+          inBracket--;
+          atom += ch;
+          i++;
+          continue;
+        }
+
+        // Inside brackets: consume everything
+        if (inBracket > 0) {
+          atom += ch;
+          i++;
+          continue;
+        }
+
+        // Parenthesis ends the atom
+        if (ch === '(' || ch === ')') break;
+
+        // Check for logical keyword boundary: ' AND ', ' OR ', ' NOT '
+        // We need at least a space before the keyword
+        if (ch === ' ') {
+          const rest = expr.slice(i);
+          if (/^ AND\b/i.test(rest) || /^ OR\b/i.test(rest)) {
+            break;
+          }
+          // Trailing spaces inside the atom (e.g. "amount > 50000000   ")
+          // are trimmed later; accumulate and continue
+        }
+
+        atom += ch;
+        i++;
+      }
+
+      return atom.trim();
+    };
+
+    while (i < len) {
+      skipSpaces();
+      if (i >= len) break;
+
+      const ch = expr[i];
+
+      if (ch === '(') {
+        tokens.push({ kind: 'LPAREN', value: '(' });
+        i++;
+        continue;
+      }
+
+      if (ch === ')') {
+        tokens.push({ kind: 'RPAREN', value: ')' });
+        i++;
+        continue;
+      }
+
+      // Check for logical keyword at current position (word boundary)
+      const rest = expr.slice(i);
+
+      if (/^AND\b/i.test(rest)) {
+        tokens.push({ kind: 'OPERATOR_LOGICAL', value: 'AND' });
+        i += 3;
+        continue;
+      }
+
+      if (/^OR\b/i.test(rest)) {
+        tokens.push({ kind: 'OPERATOR_LOGICAL', value: 'OR' });
+        i += 2;
+        continue;
+      }
+
+      if (/^NOT\b/i.test(rest)) {
+        tokens.push({ kind: 'OPERATOR_LOGICAL', value: 'NOT' });
+        i += 3;
+        continue;
+      }
+
+      // Otherwise: read an atom (comparison expression)
+      const atom = readAtom();
+      if (atom.length > 0) {
+        tokens.push({ kind: 'CONDITION', value: atom });
+      }
+    }
+
+    return tokens;
+  }
+
+  // -------------------------------------------------------------------------
+  // Field resolution & comparison (shared by evaluate + compound parser)
+  // -------------------------------------------------------------------------
+
+  /**
    * Resolve a potentially nested field path (e.g. "order.amount").
    */
-  private resolveField(
-    field: string,
-    data: Record<string, unknown>,
-  ): unknown {
+  private resolveField(field: string, data: Record<string, unknown>): unknown {
     // Validate field name: only allow alphanumeric characters and dots (max 10 levels)
     if (!/^[a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*$/.test(field)) {
       this.logger.warn(`Invalid field name: "${field}"`);
@@ -107,11 +352,7 @@ export class ConditionEvaluator {
     return current;
   }
 
-  private compare(
-    actual: unknown,
-    operator: ConditionOperator,
-    conditionValue: string,
-  ): boolean {
+  private compare(actual: unknown, operator: ConditionOperator, conditionValue: string): boolean {
     if (operator === 'IN') {
       const values = conditionValue
         .replace(/[\[\]]/g, '')
@@ -176,5 +417,126 @@ export class ConditionEvaluator {
       default:
         return 'EQ';
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Package-internal: used by ExpressionParser to evaluate single atoms
+  // -------------------------------------------------------------------------
+
+  /** @internal */
+  _evalAtom(atom: string, requestData: Record<string, unknown>): boolean {
+    const match = atom.match(ATOM_RE);
+    if (!match) {
+      this.logger.warn(`Cannot parse atom: "${atom}", defaulting to false`);
+      return false;
+    }
+    const [, field, op, value] = match;
+    const operator = this.mapOperatorSymbol(op.trim().toUpperCase());
+    return this.evaluate(field, operator, value.trim(), requestData);
+  }
+}
+
+// =============================================================================
+// Recursive-Descent Parser
+// =============================================================================
+
+/**
+ * Simple recursive-descent parser for compound boolean expressions.
+ *
+ * Grammar:
+ *   expr     ::= orExpr
+ *   orExpr   ::= andExpr ( 'OR' andExpr )*
+ *   andExpr  ::= notExpr ( 'AND' notExpr )*
+ *   notExpr  ::= 'NOT' notExpr | primary
+ *   primary  ::= '(' expr ')' | CONDITION
+ */
+class ExpressionParser {
+  private pos = 0;
+
+  constructor(
+    private readonly tokens: Token[],
+    private readonly evaluator: ConditionEvaluator,
+    private readonly requestData: Record<string, unknown>,
+  ) {}
+
+  parse(): boolean {
+    const result = this.parseOr();
+    if (this.pos < this.tokens.length) {
+      throw new Error(
+        `Unexpected token "${this.tokens[this.pos].value}" at position ${this.pos}`,
+      );
+    }
+    return result;
+  }
+
+  // ---------------------------------------------------------------------------
+
+  private parseOr(): boolean {
+    let left = this.parseAnd();
+
+    while (this.peek()?.value?.toUpperCase() === 'OR') {
+      this.consume(); // eat OR
+      const right = this.parseAnd();
+      left = left || right;
+    }
+
+    return left;
+  }
+
+  private parseAnd(): boolean {
+    let left = this.parseNot();
+
+    while (this.peek()?.value?.toUpperCase() === 'AND') {
+      this.consume(); // eat AND
+      const right = this.parseNot();
+      left = left && right;
+    }
+
+    return left;
+  }
+
+  private parseNot(): boolean {
+    if (this.peek()?.value?.toUpperCase() === 'NOT') {
+      this.consume(); // eat NOT
+      return !this.parseNot();
+    }
+    return this.parsePrimary();
+  }
+
+  private parsePrimary(): boolean {
+    const token = this.peek();
+
+    if (!token) {
+      throw new Error('Unexpected end of expression');
+    }
+
+    if (token.kind === 'LPAREN') {
+      this.consume(); // eat (
+      const result = this.parseOr();
+
+      const closing = this.peek();
+      if (!closing || closing.kind !== 'RPAREN') {
+        throw new Error('Missing closing parenthesis');
+      }
+      this.consume(); // eat )
+      return result;
+    }
+
+    if (token.kind === 'CONDITION') {
+      this.consume();
+      return this.evaluator._evalAtom(token.value, this.requestData);
+    }
+
+    throw new Error(`Unexpected token "${token.value}" (kind=${token.kind})`);
+  }
+
+  // ---------------------------------------------------------------------------
+
+  private peek(): Token | undefined {
+    return this.tokens[this.pos];
+  }
+
+  private consume(): Token {
+    return this.tokens[this.pos++];
   }
 }

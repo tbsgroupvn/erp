@@ -11,13 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { ContractStatus } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
@@ -42,12 +36,7 @@ export class ContractController {
   @ApiResponse({ status: 200, description: 'Contracts retrieved successfully' })
   async findAll(@Query() query: ContractQueryDto) {
     const result = await this.contractService.findAll(query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get(':id')
@@ -66,10 +55,7 @@ export class ContractController {
   @ApiResponse({ status: 201, description: 'Contract created successfully' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 404, description: 'Customer or parent contract not found' })
-  async create(
-    @Body() dto: CreateContractDto,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async create(@Body() dto: CreateContractDto, @CurrentUser() user: ICurrentUser) {
     const contract = await this.contractService.create(user.id, dto);
     return BaseResponse.ok(contract, 'Contract created successfully');
   }
@@ -80,10 +66,7 @@ export class ContractController {
   @ApiResponse({ status: 200, description: 'Contract updated successfully' })
   @ApiResponse({ status: 400, description: 'Contract cannot be edited' })
   @ApiResponse({ status: 404, description: 'Contract not found' })
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateContractDto,
-  ) {
+  async update(@Param('id') id: string, @Body() dto: UpdateContractDto) {
     const contract = await this.contractService.update(id, dto);
     return BaseResponse.ok(contract, 'Contract updated successfully');
   }

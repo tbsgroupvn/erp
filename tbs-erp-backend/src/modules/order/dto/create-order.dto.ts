@@ -16,12 +16,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import {
-  ServiceType,
-  ShippingRoute,
-  Branch,
-  Currency,
-} from '@prisma/client';
+import { ServiceType, ShippingRoute, Branch, Currency } from '@prisma/client';
 
 export class CreateOrderItemDto {
   @ApiProperty({

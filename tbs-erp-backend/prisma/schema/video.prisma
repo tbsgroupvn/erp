@@ -1,0 +1,48 @@
+// ============================================
+// VIDEO — Jitsi Meet Rooms
+// ============================================
+
+enum VideoRoomStatus {
+  SCHEDULED
+  ACTIVE
+  ENDED
+}
+
+model VideoRoom {
+  id              String          @id @default(cuid())
+  title           String
+  roomName        String          @unique @map("room_name") // Jitsi room name (slug)
+  hostId          String          @map("host_id")
+  status          VideoRoomStatus @default(SCHEDULED)
+  scheduledAt     DateTime?       @map("scheduled_at")
+  startedAt       DateTime?       @map("started_at")
+  endedAt         DateTime?       @map("ended_at")
+  maxParticipants Int?            @map("max_participants")
+
+  // Link to other entities (optional)
+  conversationId  String?         @map("conversation_id") // link to ChatConversation
+  calendarEventId String?         @map("calendar_event_id")
+
+  participants VideoParticipant[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([hostId])
+  @@index([status])
+  @@index([conversationId])
+  @@map("video_rooms")
+}
+
+model VideoParticipant {
+  id       String    @id @default(cuid())
+  roomId   String    @map("room_id")
+  room     VideoRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId   String    @map("user_id")
+  joinedAt DateTime? @map("joined_at")
+  leftAt   DateTime? @map("left_at")
+
+  @@unique([roomId, userId])
+  @@index([userId])
+  @@map("video_participants")
+}

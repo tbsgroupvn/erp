@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, User, ShoppingCart, Wallet, CreditCard, Plus, Pencil, Loader2, MessageSquare } from 'lucide-react';
+import { ArrowLeft, User, ShoppingCart, Wallet, CreditCard, Plus, Pencil, Loader2, MessageSquare, TrendingUp } from 'lucide-react';
 import { LoadingOverlay } from '@/components/shared/loading-overlay';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { useCustomer, useUpdateCustomer, useTopupWallet, useInteractionNotes, useCreateInteractionNote } from '@/lib/hooks/use-customers';
@@ -11,13 +11,15 @@ import { useMasterOrders } from '@/lib/hooks/use-orders';
 import { useComplaints } from '@/lib/hooks/use-complaints';
 import { useReceivables } from '@/lib/hooks/use-finance';
 import { CustomerForm, type CustomerFormData } from '@/features/customers/customer-form';
-import type { UpdateCustomerDto } from '@/lib/types';
+import { CustomerInsights } from '@/features/customers/customer-insights';
+import type { UpdateCustomerDto, AccountReceivable, Customer as CustomerType, WalletTransaction } from '@/lib/types';
 import { CUSTOMER_TIER_LABELS, CUSTOMER_TIER_COLORS, BRANCH_LABELS, MASTER_ORDER_STATUS_LABELS, MASTER_ORDER_STATUS_COLORS, COMPLAINT_STATUS_LABELS, COMPLAINT_STATUS_COLORS } from '@/lib/utils/constants';
 import { formatCurrency, formatDate } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/cn';
-import type { CustomerTier, MasterOrderStatus, ComplaintStatus } from '@/lib/types';
+import type { CustomerTier, MasterOrderStatus, ComplaintStatus, Complaint } from '@/lib/types';
 import { AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { InfoTooltip } from '@/components/shared/info-tooltip';
 
 const TABS = [
   { key: 'info', label: 'Thông tin', icon: User },
@@ -104,7 +106,7 @@ function CustomerDetailContent() {
     address: customer.address ?? '',
     taxCode: customer.taxCode ?? '',
     tier: customer.tier,
-    branch: (customer.branch ?? '') as any,
+    branch: (customer.branch ?? '') as CustomerFormData['branch'],
     saleId: customer.saleId ?? '',
     creditLimit: customer.creditLimit,
     depositRate: customer.depositRate,
@@ -194,10 +196,13 @@ function CustomerDetailContent() {
               </p>
             </div>
             <div className="rounded-lg border bg-card p-4">
-              <p className="text-sm text-muted-foreground">Hạn mức tín dụng</p>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">Hạn mức tín dụng <InfoTooltip tipKey="credit-limit" /></p>
               <p className="text-2xl font-bold mt-1">{formatCurrency(customer.creditLimit)}</p>
             </div>
           </div>
+
+          {/* Customer Insights */}
+          <CustomerInsights customerId={id} />
 
           {/* Tabs */}
           <div className="border-b">
@@ -374,7 +379,7 @@ function CustomerOrders({ customerId }: { customerId: string }) {
 }
 
 /** Sub-component: Wallet tab with topup form */
-function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: { balance: number } | null }) {
+function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: { balance: number; transactions?: WalletTransaction[] } | null }) {
   const topup = useTopupWallet();
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
@@ -386,7 +391,7 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
     const numAmount = Number(amount);
     if (!numAmount || numAmount <= 0) return;
     if (!bankTraceId || bankTraceId.trim().length < 5) {
-      toast.error('Ma giao dich ngan hang (Bank Trace ID) la bat buoc (toi thieu 5 ky tu)');
+      toast.error('Mã giao dịch ngân hàng là bắt buộc (tối thiểu 5 ký tự)');
       return;
     }
     topup.mutate(
@@ -394,6 +399,7 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
         id: customerId,
         data: {
           amount: numAmount,
+          confirmAmount: numAmount,
           bankTraceId: bankTraceId.trim(),
           note: note || undefined,
           reference: reference || undefined,
@@ -407,8 +413,9 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
           setNote('');
           setReference('');
         },
-        onError: (err: any) => {
-          toast.error(err?.message || 'Nap tien that bai');
+        onError: (err: unknown) => {
+          const message = err instanceof Error ? err.message : 'Nạp tiền thất bại';
+          toast.error(message);
           // DON'T close form - let user retry with same data
         },
       },
@@ -418,7 +425,7 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
   return (
     <div className="rounded-lg border bg-card p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Ví khách hàng</h3>
+        <h3 className="text-lg font-semibold flex items-center gap-1">Ví khách hàng <InfoTooltip tipKey="wallet" /></h3>
         {!showForm && (
           <button
             type="button"
@@ -441,7 +448,7 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
       )}
 
       {/* Transaction History */}
-      {wallet && (wallet as any).transactions && (wallet as any).transactions.length > 0 && (
+      {wallet && wallet.transactions && wallet.transactions.length > 0 && (
         <div className="rounded-md border">
           <div className="px-4 py-2 border-b bg-muted/50">
             <p className="text-sm font-medium">Lịch sử giao dịch</p>
@@ -458,7 +465,7 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
                 </tr>
               </thead>
               <tbody>
-                {(wallet as any).transactions.map((txn: any) => (
+                {wallet.transactions!.map((txn) => (
                   <tr key={txn.id} className="border-b last:border-0">
                     <td className="px-4 py-2 text-muted-foreground">{formatDate(txn.createdAt, 'dd/MM/yyyy HH:mm')}</td>
                     <td className="px-4 py-2">
@@ -502,7 +509,7 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
               />
             </div>
             <div>
-              <label htmlFor="wallet-topup-bank-trace-id" className="text-xs font-medium">Mã giao dịch ngân hàng (Trace ID) *</label>
+              <label htmlFor="wallet-topup-bank-trace-id" className="text-xs font-medium">Mã giao dịch ngân hàng *</label>
               <input
                 id="wallet-topup-bank-trace-id"
                 value={bankTraceId}
@@ -565,10 +572,10 @@ function CustomerWallet({ customerId, wallet }: { customerId: string; wallet?: {
 }
 
 /** Sub-component: Debt tab with progress bar and unpaid invoices */
-function CustomerDebt({ customerId, customer }: { customerId: string; customer: any }) {
-  const { data: arData, isLoading } = useReceivables({ customerId, limit: 20 } as any);
+function CustomerDebt({ customerId, customer }: { customerId: string; customer: CustomerType }) {
+  const { data: arData, isLoading } = useReceivables({ customerId, limit: 20 });
 
-  const receivables = (arData?.data ?? []) as any[];
+  const receivables: AccountReceivable[] = arData?.data ?? [];
   const usagePercent = customer.creditLimit > 0
     ? (customer.currentDebt / customer.creditLimit) * 100
     : 0;
@@ -694,7 +701,7 @@ function CustomerComplaints({ customerId }: { customerId: string }) {
     );
   }
 
-  const complaints = data?.data ?? [];
+  const complaints = (data?.data ?? []) as Complaint[];
 
   if (complaints.length === 0) {
     return (
@@ -717,7 +724,7 @@ function CustomerComplaints({ customerId }: { customerId: string }) {
           </tr>
         </thead>
         <tbody>
-          {complaints.map((complaint: any) => {
+          {complaints.map((complaint) => {
             const status = complaint.status as ComplaintStatus;
             return (
               <tr key={complaint.id} className="border-b last:border-0 hover:bg-muted/30">
@@ -753,6 +760,13 @@ function CustomerComplaints({ customerId }: { customerId: string }) {
   );
 }
 
+interface InteractionNote {
+  id: string;
+  content: string;
+  channel: string;
+  createdAt: string;
+}
+
 /** CSKH-5: Sub-component: Quick interaction notes (Zalo/WeChat paste) */
 const INTERACTION_CHANNELS = [
   { value: 'ZALO', label: 'Zalo' },
@@ -776,7 +790,7 @@ function CustomerInteractionNotes({ customerId }: { customerId: string }) {
   const [content, setContent] = useState('');
   const [channel, setChannel] = useState<string>('ZALO');
 
-  const notes = (notesData as any)?.data ?? notesData ?? [];
+  const notes: InteractionNote[] = Array.isArray(notesData) ? notesData : [];
 
   const handlePasteAndSave = () => {
     if (!content.trim()) return;
@@ -852,7 +866,7 @@ function CustomerInteractionNotes({ customerId }: { customerId: string }) {
           </div>
         ) : (
           <div className="divide-y max-h-[500px] overflow-auto">
-            {notes.map((note: any) => (
+            {notes.map((note) => (
               <div key={note.id} className="px-4 py-3 space-y-1">
                 <div className="flex items-center justify-between">
                   <span

@@ -1,0 +1,26 @@
+// ============================================
+// CRM ANALYTICS — Du bao hanh vi khach hang
+// ============================================
+
+model CustomerAnalytics {
+  id                   String    @id @default(cuid())
+  customerId           String    @unique @map("customer_id")
+  totalOrders          Int       @default(0) @map("total_orders")
+  avgOrderInterval     Int?      @map("avg_order_interval") // So ngay trung binh giua cac don hang
+  lastOrderDate        DateTime? @map("last_order_date")
+  daysSinceLastOrder   Int?      @map("days_since_last_order")
+  churnRisk            String    @default("LOW") @map("churn_risk") // LOW, MEDIUM, HIGH, CRITICAL
+  predictedNextOrder   DateTime? @map("predicted_next_order")
+  clv                  Decimal?  @db.Decimal(18, 2) @map("clv") // Customer Lifetime Value (3 nam)
+  avgOrderValue        Decimal?  @db.Decimal(18, 2) @map("avg_order_value")
+  preferredServiceType String?   @map("preferred_service_type")
+  metadata             Json?
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  customer             Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([churnRisk])
+  @@index([daysSinceLastOrder])
+  @@map("customer_analytics")
+}

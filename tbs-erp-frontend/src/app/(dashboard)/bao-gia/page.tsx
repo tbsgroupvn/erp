@@ -3,10 +3,11 @@
 export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable } from '@/components/shared/data-table';
+import { QuickQuoteDrawer } from '@/components/shared/quick-quote-drawer';
 import { quotationColumns } from '@/features/quotations/quotation-table-columns';
 import { useQuotations } from '@/lib/hooks/use-quotations';
 import { QuotationStatus } from '@/lib/types';
@@ -26,11 +27,19 @@ const STATUS_TABS = [
 export default function BaoGiaPage() {
   const [activeStatus, setActiveStatus] = useState<QuotationStatus | undefined>();
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useQuotations({ status: activeStatus, page, limit: 20 });
+  const [quickQuoteOpen, setQuickQuoteOpen] = useState(false);
+  const { data, isLoading, refetch } = useQuotations({ status: activeStatus, page, limit: 20 });
 
   return (
     <div>
-      <PageHeader title="Báo giá" description="Quản lý báo giá">
+      <PageHeader title="Báo giá" description="Quản lý báo giá" infoKey="bao-gia">
+        <button
+          onClick={() => setQuickQuoteOpen(true)}
+          className="inline-flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors"
+        >
+          <Zap className="h-4 w-4" />
+          Báo giá nhanh
+        </button>
         <Link
           href="/bao-gia/tao-moi"
           className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
@@ -39,6 +48,12 @@ export default function BaoGiaPage() {
           Tạo báo giá
         </Link>
       </PageHeader>
+
+      <QuickQuoteDrawer
+        open={quickQuoteOpen}
+        onClose={() => setQuickQuoteOpen(false)}
+        onSuccess={() => { setQuickQuoteOpen(false); refetch(); }}
+      />
 
       <div className="space-y-4">
         <div className="flex gap-1 overflow-x-auto rounded-lg border p-1">

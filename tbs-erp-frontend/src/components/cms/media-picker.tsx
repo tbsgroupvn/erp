@@ -71,7 +71,10 @@ export function MediaPicker({ open, onOpenChange, onSelect, type }: MediaPickerP
                 {data?.data.data.map((media) => (
                   <div
                     key={media.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelected(media)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(media); } }}
                     className={`
                       relative group cursor-pointer rounded-lg border-2 overflow-hidden
                       transition-all hover:border-primary

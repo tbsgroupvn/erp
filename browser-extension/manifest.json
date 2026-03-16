@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "TBS ERP - Taobao/1688 Scraper",
+  "version": "1.0.0",
+  "description": "Thu thập sản phẩm từ Taobao/1688 và tạo đơn hàng trực tiếp trong TBS ERP",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*.taobao.com/*",
+    "https://*.tmall.com/*",
+    "https://*.1688.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.taobao.com/item*",
+        "https://*.taobao.com/*/item*",
+        "https://item.taobao.com/*",
+        "https://*.tmall.com/item*"
+      ],
+      "js": ["src/content-scripts/taobao.js"],
+      "css": ["src/content-scripts/shared/floating-button.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.1688.com/offer/*",
+        "https://detail.1688.com/*"
+      ],
+      "js": ["src/content-scripts/alibaba1688.js"],
+      "css": ["src/content-scripts/shared/floating-button.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "public/icons/icon16.png",
+      "48": "public/icons/icon48.png",
+      "128": "public/icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "public/icons/icon16.png",
+    "48": "public/icons/icon48.png",
+    "128": "public/icons/icon128.png"
+  }
+}

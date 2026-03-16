@@ -1,9 +1,10 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { blogPostsApi, blogCategoriesApi } from '@/lib/api/cms';
+import { blogPostsApi, blogCategoriesApi, BlogCategory, CreateBlogPostDto } from '@/lib/api/cms';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,14 +85,14 @@ export default function EditBlogPostPage() {
   }, [postData]);
 
   const updateMutation = useMutation({
-    mutationFn: (data: any) => blogPostsApi.update(postId, data),
+    mutationFn: (data: Partial<CreateBlogPostDto>) => blogPostsApi.update(postId, data),
     onSuccess: () => {
       toast.success('Đã cập nhật bài viết thành công!');
       queryClient.invalidateQueries({ queryKey: ['blog-posts'] });
       queryClient.invalidateQueries({ queryKey: ['blog-post', postId] });
       router.push('/admin/blog/posts');
     },
-    onError: (error: any) => {
+    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
       toast.error(error?.response?.data?.message || 'Không thể cập nhật bài viết');
     },
   });
@@ -110,7 +111,7 @@ export default function EditBlogPostPage() {
 
   const categories = categoriesData?.data?.data || [];
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: string, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -174,7 +175,7 @@ export default function EditBlogPostPage() {
     );
   }
 
-  const selectedCategory = categories.find((cat: any) => cat.id === formData.categoryId);
+  const selectedCategory = categories.find((cat: BlogCategory) => cat.id === formData.categoryId);
 
   return (
     <>
@@ -196,10 +197,13 @@ export default function EditBlogPostPage() {
             {/* Featured Image */}
             {formData.featuredImage && (
               <div className="aspect-video bg-slate-100 rounded-lg overflow-hidden">
-                <img
+                <Image
                   src={formData.featuredImage}
                   alt={formData.title}
+                  width={800}
+                  height={450}
                   className="w-full h-full object-cover"
+                  unoptimized
                 />
               </div>
             )}
@@ -463,10 +467,13 @@ export default function EditBlogPostPage() {
             <CardContent className="space-y-4">
               {formData.featuredImage ? (
                 <div className="relative aspect-video bg-slate-100 rounded-lg overflow-hidden">
-                  <img
+                  <Image
                     src={formData.featuredImage}
                     alt="Featured"
+                    width={800}
+                    height={450}
                     className="w-full h-full object-cover"
+                    unoptimized
                   />
                   <button
                     onClick={() => handleChange('featuredImage', '')}
@@ -525,7 +532,7 @@ export default function EditBlogPostPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Không có danh mục</SelectItem>
-                  {categories.map((cat: any) => (
+                  {categories.map((cat: BlogCategory) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       {cat.name}
                     </SelectItem>
@@ -543,7 +550,7 @@ export default function EditBlogPostPage() {
             <CardContent>
               <Select
                 value={formData.status}
-                onValueChange={(value: any) => handleChange('status', value)}
+                onValueChange={(value: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED') => handleChange('status', value)}
               >
                 <SelectTrigger>
                   <SelectValue />

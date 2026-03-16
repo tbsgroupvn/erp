@@ -5,7 +5,7 @@ import { AccountsPayableService } from '../accounts-payable.service';
 export interface PurchaseCreatedEvent {
   purchaseId: string;
   vendorId?: string;
-  vendorName: string;
+  vendorName?: string;
   amount: number;
   dueDate?: string;
   createdBy: string;
@@ -22,14 +22,14 @@ export class PurchaseEventListener {
    */
   @OnEvent('purchase.confirmed')
   async handlePurchaseConfirmed(event: PurchaseCreatedEvent): Promise<void> {
+    const vendorLabel = event.vendorName ?? event.vendorId ?? 'unknown';
     this.logger.log(
-      `Purchase confirmed event: purchaseId=${event.purchaseId}, vendor=${event.vendorName}, amount=${event.amount}`,
+      `Purchase confirmed event: purchaseId=${event.purchaseId}, vendor=${vendorLabel}, amount=${event.amount}`,
     );
 
     try {
       const dueDate =
-        event.dueDate ??
-        new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString();
+        event.dueDate ?? new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString();
 
       await this.apService.createPayable(
         {
@@ -41,9 +41,7 @@ export class PurchaseEventListener {
         event.createdBy,
       );
 
-      this.logger.log(
-        `AP created for purchase ${event.purchaseId}, vendor=${event.vendorName}`,
-      );
+      this.logger.log(`AP created for purchase ${event.purchaseId}, vendor=${vendorLabel}`);
     } catch (error) {
       this.logger.error(
         `Failed to create AP for purchase ${event.purchaseId}: ${error.message}`,

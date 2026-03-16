@@ -28,9 +28,11 @@ export class SmsService {
   private readonly twilioSid: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.provider = (this.configService.get<string>('SMS_PROVIDER', 'mock') as SmsProvider);
+    this.provider = this.configService.get<string>('SMS_PROVIDER', 'mock') as SmsProvider;
     this.apiKey = this.configService.get<string>('SMS_API_KEY', '');
-    this.sender = this.configService.get<string>('SMS_SENDER', '') || this.configService.get<string>('branding.companyName', 'ERP');
+    this.sender =
+      this.configService.get<string>('SMS_SENDER', '') ||
+      this.configService.get<string>('branding.companyName', 'ERP');
     this.twilioSid = this.configService.get<string>('SMS_TWILIO_SID', '');
   }
 
@@ -71,10 +73,7 @@ export class SmsService {
   // SpeedSMS (Vietnamese provider)
   // API docs: https://speedsms.vn/sms-api-doc
   // ---------------------------------------------------------------------------
-  private async sendViaSpeedSms(
-    phoneNumber: string,
-    message: string,
-  ): Promise<boolean> {
+  private async sendViaSpeedSms(phoneNumber: string, message: string): Promise<boolean> {
     const url = 'https://api.speedsms.vn/index.php/sms/send';
 
     const body = JSON.stringify({
@@ -107,10 +106,7 @@ export class SmsService {
   // ---------------------------------------------------------------------------
   // Twilio (international fallback)
   // ---------------------------------------------------------------------------
-  private async sendViaTwilio(
-    phoneNumber: string,
-    message: string,
-  ): Promise<boolean> {
+  private async sendViaTwilio(phoneNumber: string, message: string): Promise<boolean> {
     const url = `https://api.twilio.com/2010-04-01/Accounts/${this.twilioSid}/Messages.json`;
 
     const params = new URLSearchParams();
@@ -142,9 +138,7 @@ export class SmsService {
   // Mock provider (development / testing)
   // ---------------------------------------------------------------------------
   private sendViaMock(phoneNumber: string, message: string): boolean {
-    this.logger.log(
-      `[MOCK SMS] To: ${phoneNumber} | Message: ${message}`,
-    );
+    this.logger.log(`[MOCK SMS] To: ${phoneNumber} | Message: ${message}`);
     return true;
   }
 }

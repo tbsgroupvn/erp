@@ -10,11 +10,26 @@ import { useAuthStore } from '@/lib/stores/auth-store';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { TwoFactorChallenge } from '@/components/auth/two-factor-challenge';
-import type { UserProfile } from '@/lib/types';
+import type { UserProfile, TokenResponse } from '@/lib/types';
+
+/** Response shape when 2FA is required */
+interface TwoFactorRequiredResponse {
+  requires2FA: true;
+  userId: string;
+  methods: string[];
+  tempToken: string;
+}
+
+/** Response shape for normal (non-2FA) login */
+interface LoginSuccessResponse {
+  requires2FA?: false;
+  user: UserProfile;
+  tokens: TokenResponse;
+}
 
 const loginSchema = z.object({
-  email: z.string().email('Email khong hop le'),
-  password: z.string().min(6, 'Mat khau toi thieu 6 ky tu'),
+  email: z.string().email('Email không hợp lệ'),
+  password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -54,7 +69,7 @@ export default function LoginPage() {
 
   const onSubmit = (data: LoginFormData) => {
     loginMutation.mutate(data, {
-      onSuccess: (res: any) => {
+      onSuccess: (res: TwoFactorRequiredResponse | LoginSuccessResponse) => {
         // Check if 2FA is required
         if (res.requires2FA) {
           setTwoFactorChallenge({
@@ -64,18 +79,19 @@ export default function LoginPage() {
           });
           return;
         }
-        toast.success('Dang nhap thanh cong');
+        toast.success('Đăng nhập thành công');
         router.push(callbackUrl);
       },
-      onError: (err: any) => {
-        toast.error(err.response?.data?.message || 'Dang nhap that bai');
+      onError: (err: unknown) => {
+        const axiosErr = err as { response?: { data?: { message?: string } } };
+        toast.error(axiosErr?.response?.data?.message || 'Đăng nhập thất bại');
       },
     });
   };
 
   const handleTwoFactorSuccess = (user: UserProfile, accessToken: string) => {
     useAuthStore.getState().completeTwoFactorLogin(user, accessToken);
-    toast.success('Dang nhap thanh cong');
+    toast.success('Đăng nhập thành công');
     router.push(callbackUrl);
   };
 
@@ -97,7 +113,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="space-y-6" role="region" aria-label="Dang nhap">
+    <div className="space-y-6" role="region" aria-label="Đăng nhập">
       {/* Logo & Title */}
       <div className="text-center">
         <div
@@ -108,7 +124,7 @@ export default function LoginPage() {
         </div>
         <h1 className="mt-4 text-2xl font-bold">{process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System'}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Dang nhap de tiep tuc
+          Đăng nhập để tiếp tục
         </p>
       </div>
 
@@ -140,14 +156,14 @@ export default function LoginPage() {
         {/* Password */}
         <div className="space-y-2">
           <label htmlFor="password" className="text-sm font-medium">
-            Mat khau <span aria-hidden="true" className="text-destructive">*</span>
+            Mật khẩu <span aria-hidden="true" className="text-destructive">*</span>
           </label>
           <div className="relative">
             <input
               id="password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
-              placeholder="Nhap mat khau"
+              placeholder="Nhập mật khẩu"
               aria-required="true"
               aria-invalid={errors.password ? 'true' : undefined}
               aria-describedby={errors.password ? 'password-error' : undefined}
@@ -158,7 +174,7 @@ export default function LoginPage() {
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring rounded-sm"
-              aria-label={showPassword ? 'An mat khau' : 'Hien mat khau'}
+              aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -184,10 +200,10 @@ export default function LoginPage() {
           {loginMutation.isPending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />
-              <span>Dang xu ly...</span>
+              <span>Đang xử lý...</span>
             </>
           ) : (
-            'Dang nhap'
+            'Đăng nhập'
           )}
         </button>
       </form>

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -63,14 +58,8 @@ const VALID_STATUS_TRANSITIONS: Record<MHHIssueStatus, MHHIssueStatus[]> = {
     MHHIssueStatus.WAITING_CUSTOMER,
     MHHIssueStatus.RESOLVED,
   ],
-  [MHHIssueStatus.WAITING_SUPPLIER]: [
-    MHHIssueStatus.INVESTIGATING,
-    MHHIssueStatus.RESOLVED,
-  ],
-  [MHHIssueStatus.WAITING_CUSTOMER]: [
-    MHHIssueStatus.RESOLVED,
-    MHHIssueStatus.CLOSED,
-  ],
+  [MHHIssueStatus.WAITING_SUPPLIER]: [MHHIssueStatus.INVESTIGATING, MHHIssueStatus.RESOLVED],
+  [MHHIssueStatus.WAITING_CUSTOMER]: [MHHIssueStatus.RESOLVED, MHHIssueStatus.CLOSED],
   [MHHIssueStatus.RESOLVED]: [MHHIssueStatus.CLOSED],
   [MHHIssueStatus.CLOSED]: [],
 };
@@ -139,9 +128,7 @@ export class MHHIssueService {
       });
 
       if (!orderItem) {
-        throw new NotFoundException(
-          `Order item not found: ${dto.orderItemId}`,
-        );
+        throw new NotFoundException(`Order item not found: ${dto.orderItemId}`);
       }
     }
 
@@ -311,12 +298,7 @@ export class MHHIssueService {
    * @throws NotFoundException if the issue does not exist
    * @throws BadRequestException if the transition is not allowed
    */
-  async updateStatus(
-    id: string,
-    newStatus: MHHIssueStatus,
-    userId: string,
-    note?: string,
-  ) {
+  async updateStatus(id: string, newStatus: MHHIssueStatus, userId: string, note?: string) {
     const issue = await this.prisma.mHHIssue.findUnique({
       where: { id },
       select: { id: true, code: true, status: true },
@@ -410,9 +392,7 @@ export class MHHIssueService {
     }
 
     if (issue.status === MHHIssueStatus.CLOSED) {
-      throw new BadRequestException(
-        `Cannot assign handler to a closed issue: ${issue.code}`,
-      );
+      throw new BadRequestException(`Cannot assign handler to a closed issue: ${issue.code}`);
     }
 
     const updated = await this.prisma.mHHIssue.update({
@@ -426,9 +406,7 @@ export class MHHIssueService {
       },
     });
 
-    this.logger.log(
-      `MHH issue ${issue.code} assigned to handler ${handlerId} by ${userId}`,
-    );
+    this.logger.log(`MHH issue ${issue.code} assigned to handler ${handlerId} by ${userId}`);
 
     this.eventEmitter.emit('mhh-issue.assigned', {
       issueId: updated.id,
@@ -459,11 +437,7 @@ export class MHHIssueService {
    * @throws NotFoundException if the issue does not exist
    * @throws BadRequestException if the issue cannot be resolved from its current status
    */
-  async resolveIssue(
-    id: string,
-    input: ResolveMHHIssueInput,
-    userId: string,
-  ) {
+  async resolveIssue(id: string, input: ResolveMHHIssueInput, userId: string) {
     const issue = await this.prisma.mHHIssue.findUnique({
       where: { id },
       select: { id: true, code: true, status: true },
@@ -542,11 +516,7 @@ export class MHHIssueService {
    * @throws NotFoundException if the issue does not exist
    * @throws BadRequestException if the issue is closed or already resolved
    */
-  async recordCustomerDecision(
-    id: string,
-    decision: string,
-    customerNote?: string,
-  ) {
+  async recordCustomerDecision(id: string, decision: string, customerNote?: string) {
     const issue = await this.prisma.mHHIssue.findUnique({
       where: { id },
       select: { id: true, code: true, status: true },
@@ -556,10 +526,7 @@ export class MHHIssueService {
       throw new NotFoundException(`MHH issue not found: ${id}`);
     }
 
-    if (
-      issue.status === MHHIssueStatus.CLOSED ||
-      issue.status === MHHIssueStatus.RESOLVED
-    ) {
+    if (issue.status === MHHIssueStatus.CLOSED || issue.status === MHHIssueStatus.RESOLVED) {
       throw new BadRequestException(
         `Cannot record customer decision on an issue with status ${issue.status}: ${issue.code}`,
       );
@@ -577,9 +544,7 @@ export class MHHIssueService {
       },
     });
 
-    this.logger.log(
-      `MHH issue ${issue.code} customer decision recorded: ${decision}`,
-    );
+    this.logger.log(`MHH issue ${issue.code} customer decision recorded: ${decision}`);
 
     this.eventEmitter.emit('mhh-issue.updated', {
       issueId: updated.id,
@@ -624,10 +589,7 @@ export class MHHIssueService {
     let sequence = 1;
 
     if (latestIssue) {
-      const lastSequence = parseInt(
-        latestIssue.code.replace(prefix, ''),
-        10,
-      );
+      const lastSequence = parseInt(latestIssue.code.replace(prefix, ''), 10);
 
       if (!isNaN(lastSequence)) {
         sequence = lastSequence + 1;

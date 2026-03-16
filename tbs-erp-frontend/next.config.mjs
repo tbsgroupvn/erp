@@ -1,4 +1,4 @@
-import withPWAInit from 'next-pwa';
+import withPWAInit from '@ducanh2912/next-pwa';
 
 const withPWA = withPWAInit({
   dest: 'public',
@@ -7,11 +7,11 @@ const withPWA = withPWAInit({
   disable: process.env.NODE_ENV === 'development',
   runtimeCaching: [
     {
-      urlPattern: /^https:\/\/api\./,
+      urlPattern: /^https?:\/\/.*\/api\//,
       handler: 'NetworkFirst',
       options: {
         cacheName: 'api-cache',
-        expiration: { maxEntries: 200, maxAgeSeconds: 300 },
+        expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 },
       },
     },
     {
@@ -31,9 +31,6 @@ const withPWA = withPWAInit({
       },
     },
   ],
-  buildExcludes: [/middleware-manifest\.json$/],
-  // Don't precache auth-related pages
-  publicExcludes: ['!robots.txt'],
 });
 
 /** @type {import('next').NextConfig} */
@@ -52,10 +49,7 @@ const nextConfig = {
       { key: 'X-XSS-Protection', value: '1; mode=block' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()' },
-      {
-        key: 'Content-Security-Policy',
-        value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://sp.zalo.me; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https:; frame-src 'none';"
-      },
+      // CSP is set dynamically via middleware.ts with per-request nonce
     ];
     return [
       {
@@ -64,12 +58,36 @@ const nextConfig = {
       },
     ];
   },
+  // Redirects for consolidated menu items (absorbed as tabs into parent pages)
+  async redirects() {
+    return [
+      { source: '/theo-doi', destination: '/container?tab=tracking', permanent: true },
+      { source: '/tai-xe', destination: '/phuong-tien?tab=tai-xe', permanent: true },
+      { source: '/tai-chinh/bu-tru-cong-no', destination: '/tai-chinh/cong-no-phai-thu?tab=bu-tru', permanent: true },
+      { source: '/tai-chinh/chua-phan-bo', destination: '/tai-chinh/cong-no-phai-thu?tab=chua-phan-bo', permanent: true },
+      { source: '/tai-chinh/ty-gia', destination: '/so-cai?tab=ty-gia', permanent: true },
+      { source: '/tai-san', destination: '/so-cai?tab=tai-san', permanent: true },
+      { source: '/ngan-sach', destination: '/so-cai?tab=ngan-sach', permanent: true },
+      { source: '/nha-cung-cap', destination: '/mua-hang?tab=nha-cung-cap', permanent: true },
+      { source: '/kho-vat-tu', destination: '/mua-hang?tab=kho-vat-tu', permanent: true },
+      { source: '/nghi-phep', destination: '/cham-cong?tab=nghi-phep', permanent: true },
+      { source: '/wiki', destination: '/tai-lieu?tab=wiki', permanent: true },
+      { source: '/video', destination: '/ai-assistant?tab=video', permanent: true },
+      { source: '/automation', destination: '/ai-assistant?tab=automation', permanent: true },
+      { source: '/uy-quyen', destination: '/phe-duyet?tab=uy-quyen', permanent: true },
+    ];
+  },
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**',
-      },
+      // Production API / media server
+      { protocol: 'https', hostname: 'api.nhaphangchinhngach.vn' },
+      { protocol: 'https', hostname: '*.nhaphangchinhngach.vn' },
+      // MinIO object storage (self-hosted CDN)
+      { protocol: 'https', hostname: 'minio.tbslogistics.com' },
+      { protocol: 'https', hostname: '*.tbslogistics.com' },
+      // Local development
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'http', hostname: '127.0.0.1' },
     ],
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],

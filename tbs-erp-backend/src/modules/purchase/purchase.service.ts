@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { PurchaseStatus, Currency } from '@prisma/client';
@@ -22,17 +17,25 @@ export class PurchaseService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   /**
    * Creates a purchase request with items.
    * Auto-generates code PR-YYYYMM-XXXX.
    */
   async createPurchaseRequest(userId: string, dto: CreatePurchaseRequestDto) {
-    const totalAmount = dto.items.reduce(
-      (sum, item) => sum + item.qty * item.unitPrice,
-      0,
-    );
+    // ORDER-CENTRIC: Validate order exists when orderId is provided
+    if (dto.orderId) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: dto.orderId },
+        select: { id: true },
+      });
+      if (!order) {
+        throw new NotFoundException(`Order ${dto.orderId} not found`);
+      }
+    }
+
+    const totalAmount = dto.items.reduce((sum, item) => sum + item.qty * item.unitPrice, 0);
 
     const code = await this.generateCode('PR');
 
@@ -204,18 +207,14 @@ export class PurchaseService {
     }
 
     if (po.status !== PurchaseStatus.ORDERED && po.status !== PurchaseStatus.APPROVED) {
-      throw new BadRequestException(
-        `Cannot record receipt for PO in status ${po.status}.`,
-      );
+      throw new BadRequestException(`Cannot record receipt for PO in status ${po.status}.`);
     }
 
     const updated = await this.prisma.purchaseOrder.update({
       where: { id: poId },
       data: {
         status: PurchaseStatus.RECEIVED,
-        notes: dto.notes
-          ? `${po.notes ?? ''}\nReceipt: ${dto.notes}`
-          : po.notes,
+        notes: dto.notes ? `${po.notes ?? ''}\nReceipt: ${dto.notes}` : po.notes,
       },
     });
 

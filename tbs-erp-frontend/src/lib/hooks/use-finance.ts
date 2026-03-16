@@ -7,9 +7,12 @@ import {
   apApi,
   vouchersApi,
   invoicesApi,
+  vasApi,
+  reconciliationApi,
 } from '@/lib/api/finance.api';
 import type { QueryParams, CreateVoucherDto, CreateInvoiceDto } from '@/lib/types';
 import type { VoucherQueryParams, InvoiceQueryParams } from '@/lib/types/finance.types';
+import type { VasReportParams, ManualMatchDto } from '@/lib/api/finance.api';
 
 // ---------------------------------------------------------------------------
 // Query key factories
@@ -50,13 +53,23 @@ export const financeKeys = {
     list: (params?: InvoiceQueryParams) =>
       [...financeKeys.invoices.lists(), params] as const,
   },
+  // VAS Report
+  vas: {
+    all: ['vas-report'] as const,
+    report: (params: VasReportParams) => [...financeKeys.vas.all, params] as const,
+  },
+  // Reconciliation
+  reconciliation: {
+    all: ['reconciliation'] as const,
+    summary: () => [...financeKeys.reconciliation.all, 'summary'] as const,
+  },
 };
 
 // ---------------------------------------------------------------------------
 // AR Hooks
 // ---------------------------------------------------------------------------
 
-export function useReceivables(params?: QueryParams) {
+export function useReceivables(params?: QueryParams & { customerId?: string; status?: string }) {
   return useQuery({
     queryKey: financeKeys.ar.list(params),
     queryFn: () => arApi.list(params),
@@ -79,7 +92,7 @@ export function useRecordArPayment() {
       data,
     }: {
       id: string;
-      data: { amount: number; paymentMethod: string; reference?: string; notes?: string };
+      data: { amount: number; reference?: string; note?: string };
     }) => arApi.recordPayment(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: financeKeys.ar.all });
@@ -110,7 +123,7 @@ export function useRecordApPayment() {
       data,
     }: {
       id: string;
-      data: { amount: number; paymentMethod: string; reference?: string; notes?: string };
+      data: { amount: number; reference?: string; note?: string };
     }) => apApi.recordPayment(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: financeKeys.ap.all });
@@ -279,5 +292,45 @@ export function useCashFlow(params?: { dateFrom?: string; dateTo?: string }) {
   return useQuery({
     queryKey: [...financeKeys.vouchers.cashFlow(), params] as const,
     queryFn: () => vouchersApi.getCashFlow(params),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// VAS Report Hooks
+// ---------------------------------------------------------------------------
+
+export function useVasReport(params: VasReportParams, enabled = true) {
+  return useQuery({
+    queryKey: financeKeys.vas.report(params),
+    queryFn: () => vasApi.getReport(params),
+    enabled: enabled && !!params.dateFrom && !!params.dateTo,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Reconciliation Hooks
+// ---------------------------------------------------------------------------
+
+export function useReconciliationSummary() {
+  return useQuery({
+    queryKey: financeKeys.reconciliation.summary(),
+    queryFn: () => reconciliationApi.getSummary(),
+    refetchInterval: 2 * 60 * 1000,
+  });
+}
+
+export function useManualMatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ManualMatchDto) => reconciliationApi.manualMatch(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: financeKeys.reconciliation.all });
+      qc.invalidateQueries({ queryKey: financeKeys.ar.all });
+      toast.success('Khớp lệnh thủ công thành công');
+    },
+    onError: () => {
+      toast.error('Không thể khớp lệnh');
+    },
   });
 }

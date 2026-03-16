@@ -2,9 +2,11 @@ export { StatusBadge } from './status-badge';
 export { CurrencyDisplay } from './currency-display';
 export { PageHeader } from './page-header';
 export { ConfirmDialog } from './confirm-dialog';
-export { EmptyState } from './empty-state';
+export type { ConfirmDialogVariant } from './confirm-dialog';
+export { EmptyState, NoResults, NoData, EmptyList, NoDocuments } from './empty-state';
 export { SearchInput } from './search-input';
 export { StatCard } from './stat-card';
+export type { StatCardVariant } from './stat-card';
 export { LoadingOverlay } from './loading-overlay';
 export { DateDisplay } from './date-display';
 export { RoleGuard } from './role-guard';
@@ -23,11 +25,17 @@ export { InputValidation } from './input-validation';
 export { MobileBottomNav } from './mobile-bottom-nav';
 export { MobileMenu } from './mobile-menu';
 export { AnalyticsWrapper } from './analytics-wrapper';
-export { LanguageSwitcher } from './language-switcher';
 
 // Error handling
 export { ErrorBoundary, withErrorBoundary } from './error-boundary';
+export { ErrorState } from './error-state';
 
 // Skeleton loading states
-export { Skeleton, CardSkeleton, TableSkeleton, TableRowSkeleton, ListSkeleton } from './skeleton';
+export { Skeleton, CardSkeleton, TableSkeleton as LegacyTableSkeleton, TableRowSkeleton, ListSkeleton } from './skeleton';
 export { PageSkeleton, ChartSkeleton, StatCardsSkeleton } from './loading-skeleton';
+
+// Enhanced page loading skeletons
+export { TableSkeleton, DetailSkeleton, CardGridSkeleton, ListPageSkeleton } from './page-loading';
+
+// Breadcrumb
+export { Breadcrumb } from './breadcrumb';

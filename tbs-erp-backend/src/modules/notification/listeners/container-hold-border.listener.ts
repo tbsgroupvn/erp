@@ -26,44 +26,54 @@ export class ContainerHoldBorderListener {
       `Container ${event.containerCode} on hold at border. Notifying ${event.customerIds.length} customers.`,
     );
 
-    for (const customerId of event.customerIds) {
-      // Find the sale owner for this customer
-      const customer = await this.prisma.customer.findUnique({
-        where: { id: customerId },
-        select: { saleId: true, fullName: true },
+    try {
+      // Collect all notified sale IDs to avoid duplicate notifications
+      const notifiedSaleIds = new Set<string>();
+
+      for (const customerId of event.customerIds) {
+        // Find the sale owner for this customer
+        const customer = await this.prisma.customer.findUnique({
+          where: { id: customerId },
+          select: { saleId: true, fullName: true },
+        });
+
+        if (!customer?.saleId || notifiedSaleIds.has(customer.saleId)) continue;
+        notifiedSaleIds.add(customer.saleId);
+
+        await this.notificationService.send({
+          userId: customer.saleId,
+          title: 'Container bi ket tai cua khau',
+          body: `Container ${event.containerCode} dang bi ket tai cua khau. Vui long lien he Sale de biet them chi tiet. Khach hang: ${customer.fullName}`,
+          type: 'WAREHOUSE',
+          referenceId: event.containerId,
+          isUrgent: true,
+        });
+      }
+
+      // Also notify sale owners of orders in the container not covered by customerIds
+      const orders = await this.prisma.order.findMany({
+        where: { containerId: event.containerId },
+        select: { saleId: true },
       });
 
-      if (!customer?.saleId) continue;
+      for (const order of orders) {
+        if (!order.saleId || notifiedSaleIds.has(order.saleId)) continue;
+        notifiedSaleIds.add(order.saleId);
 
-      await this.notificationService.send({
-        userId: customer.saleId,
-        title: 'Container bị kẹt tại cửa khẩu',
-        body: `Container ${event.containerCode} đang bị kẹt tại cửa khẩu. Vui lòng liên hệ Sale để biết thêm chi tiết. Khách hàng: ${customer.fullName}`,
-        type: 'WAREHOUSE',
-        referenceId: event.containerId,
-        isUrgent: true,
-      });
-    }
-
-    // Also create notifications for all affected customers' orders' sale owners
-    const orders = await this.prisma.order.findMany({
-      where: { containerId: event.containerId },
-      select: { saleId: true, code: true, customerId: true },
-    });
-
-    const notifiedSaleIds = new Set<string>();
-    for (const order of orders) {
-      if (notifiedSaleIds.has(order.saleId)) continue;
-      notifiedSaleIds.add(order.saleId);
-
-      await this.notificationService.send({
-        userId: order.saleId,
-        title: 'Container bị kẹt tại cửa khẩu',
-        body: `Container ${event.containerCode} đang bị kẹt tại cửa khẩu. Vui lòng liên hệ Sale để biết thêm chi tiết.`,
-        type: 'WAREHOUSE',
-        referenceId: event.containerId,
-        isUrgent: true,
-      });
+        await this.notificationService.send({
+          userId: order.saleId,
+          title: 'Container bi ket tai cua khau',
+          body: `Container ${event.containerCode} dang bi ket tai cua khau. Vui long lien he Sale de biet them chi tiet.`,
+          type: 'WAREHOUSE',
+          referenceId: event.containerId,
+          isUrgent: true,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to process container.on_hold_border for container ${event.containerId}: ${error.message}`,
+        error.stack,
+      );
     }
   }
 }

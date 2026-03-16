@@ -60,7 +60,7 @@ export const mediaApi = {
   },
 
   list: (filters?: MediaFilters) =>
-    apiClient.get<{ data: Media[]; meta: any }>('/cms/media', { params: filters }),
+    apiClient.get<{ data: Media[]; meta: { total: number; page: number; limit: number; totalPages: number } }>('/cms/media', { params: filters }),
 
   get: (id: string) =>
     apiClient.get<Media>(`/cms/media/${id}`),

@@ -105,7 +105,7 @@ export default function VehicleDetailPage() {
               <dd>{VEHICLE_TYPE_LABELS[vehicle.type as VehicleType] || vehicle.type}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Hãng / Model</dt>
+              <dt className="text-muted-foreground">Hãng / Mẫu xe</dt>
               <dd>{vehicle.brand} {vehicle.model}</dd>
             </div>
             <div className="flex justify-between">
@@ -159,7 +159,7 @@ export default function VehicleDetailPage() {
           <h3 className="text-lg font-semibold mb-4">Ghi nhận nhiên liệu</h3>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium">Số lít</label>
+              <p className="text-xs font-medium">Số lít</p>
               <input
                 type="number"
                 value={fuelLiters}
@@ -168,7 +168,7 @@ export default function VehicleDetailPage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium">Chi phí (VND)</label>
+              <p className="text-xs font-medium">Chi phí (VND)</p>
               <input
                 type="number"
                 value={fuelCost}
@@ -177,7 +177,7 @@ export default function VehicleDetailPage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium">Odometer (km)</label>
+              <p className="text-xs font-medium">Số km đồng hồ</p>
               <input
                 type="number"
                 value={fuelOdometer}
@@ -241,7 +241,7 @@ export default function VehicleDetailPage() {
                   <th className="pb-2 font-medium">Ngày</th>
                   <th className="pb-2 font-medium text-right">Số lít</th>
                   <th className="pb-2 font-medium text-right">Chi phí</th>
-                  <th className="pb-2 font-medium text-right">Odometer (km)</th>
+                  <th className="pb-2 font-medium text-right">Số km đồng hồ</th>
                 </tr>
               </thead>
               <tbody>

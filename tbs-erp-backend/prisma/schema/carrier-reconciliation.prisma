@@ -1,0 +1,103 @@
+// ============================================
+// CARRIER RECONCILIATION — Doi soat hang van chuyen
+// ============================================
+
+enum CarrierReconStatus {
+  PENDING       // Uploaded, chua review
+  CONFIRMED     // Ke toan da confirm, dang xu ly
+  COMPLETED     // Da xu ly xong
+  CANCELLED     // Huy
+}
+
+enum CarrierReconItemStatus {
+  PENDING           // Chua xu ly
+  MATCHED           // Khop - san sang xu ly
+  STATUS_MISMATCH   // Carrier bao giao nhung ERP chua giao (hoac nguoc lai)
+  AMOUNT_MISMATCH   // So tien COD lech
+  UNMATCHED         // Khong tim thay ma van don trong ERP
+  PROCESSED         // Da xu ly (wallet credited, AR cleared)
+  RESOLVED          // Exception da giai quyet thu cong
+  SKIPPED           // Bo qua (vd: hang hoan)
+}
+
+model CarrierReconciliation {
+  id                String   @id @default(cuid())
+  code              String   @unique  // CRECON-YYYYMM-XXXX
+  carrierName       String   @map("carrier_name")
+  fileName          String   @map("file_name")
+  periodStart       DateTime? @map("period_start")
+  periodEnd         DateTime? @map("period_end")
+
+  // Stats
+  totalRows         Int      @default(0) @map("total_rows")
+  matchedRows       Int      @default(0) @map("matched_rows")
+  exceptionRows     Int      @default(0) @map("exception_rows")
+
+  // Tong tien (VND)
+  totalCodAmount    Decimal  @default(0) @map("total_cod_amount") @db.Decimal(18, 2)
+  totalShippingFee  Decimal  @default(0) @map("total_shipping_fee") @db.Decimal(18, 2)
+  totalReturnFee    Decimal  @default(0) @map("total_return_fee") @db.Decimal(18, 2)
+  totalOtherFee     Decimal  @default(0) @map("total_other_fee") @db.Decimal(18, 2)
+  totalNetAmount    Decimal  @default(0) @map("total_net_amount") @db.Decimal(18, 2)
+
+  status            CarrierReconStatus @default(PENDING)
+  confirmedBy       String?  @map("confirmed_by")
+  confirmedAt       DateTime? @map("confirmed_at")
+  uploadedBy        String   @map("uploaded_by")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  items             CarrierReconItem[]
+
+  @@index([status])
+  @@index([carrierName])
+  @@index([createdAt])
+  @@map("carrier_reconciliations")
+}
+
+model CarrierReconItem {
+  id                    String   @id @default(cuid())
+  reconciliationId      String   @map("reconciliation_id")
+  rowNumber             Int      @map("row_number")
+
+  // Tu Excel
+  carrierTrackingNumber String   @map("carrier_tracking_number")
+  carrierStatus         String?  @map("carrier_status")
+  codAmount             Decimal  @default(0) @map("cod_amount") @db.Decimal(18, 2)
+  shippingFee           Decimal  @default(0) @map("shipping_fee") @db.Decimal(18, 2)
+  returnFee             Decimal  @default(0) @map("return_fee") @db.Decimal(18, 2)
+  otherFee              Decimal  @default(0) @map("other_fee") @db.Decimal(18, 2)
+  netAmount             Decimal  @default(0) @map("net_amount") @db.Decimal(18, 2)
+  carrierWeight         Decimal? @map("carrier_weight") @db.Decimal(10, 2)
+
+  // Ket qua matching
+  matchedDeliveryId     String?  @map("matched_delivery_id")
+  matchedOrderId        String?  @map("matched_order_id")
+  matchedOrderCode      String?  @map("matched_order_code")
+  matchedCustomerId     String?  @map("matched_customer_id")
+  erpDeliveryStatus     String?  @map("erp_delivery_status")
+  erpCodAmount          Decimal? @map("erp_cod_amount") @db.Decimal(18, 2)
+
+  // Variance
+  codVariance           Decimal? @map("cod_variance") @db.Decimal(18, 2)
+
+  // Trang thai
+  matchStatus           CarrierReconItemStatus @default(PENDING) @map("match_status")
+  processedAt           DateTime? @map("processed_at")
+  walletTransactionId   String?  @map("wallet_transaction_id")
+
+  // Exception
+  exceptionReason       String?  @map("exception_reason")
+  resolvedBy            String?  @map("resolved_by")
+  resolvedAt            DateTime? @map("resolved_at")
+  resolutionNote        String?  @map("resolution_note")
+
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  reconciliation        CarrierReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+
+  @@index([reconciliationId, matchStatus])
+  @@index([carrierTrackingNumber])
+  @@index([matchedDeliveryId])
+  @@map("carrier_recon_items")
+}

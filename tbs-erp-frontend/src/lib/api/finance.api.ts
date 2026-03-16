@@ -39,7 +39,7 @@ export const arApi = {
   /** PATCH /ar/:id/payment */
   recordPayment: (
     id: string,
-    data: { amount: number; paymentMethod: string; reference?: string; notes?: string },
+    data: { amount: number; reference?: string; note?: string },
   ) =>
     apiClient
       .patch<BaseResponse<AccountReceivable>>(`/ar/${encodeURIComponent(id)}/payment`, data)
@@ -98,7 +98,7 @@ export const apApi = {
   /** PATCH /ap/:id/payment */
   recordPayment: (
     id: string,
-    data: { amount: number; paymentMethod: string; reference?: string; notes?: string },
+    data: { amount: number; reference?: string; note?: string },
   ) =>
     apiClient
       .patch<BaseResponse<AccountPayable>>(`/ap/${encodeURIComponent(id)}/payment`, data)
@@ -189,6 +189,107 @@ export const invoicesApi = {
   ) =>
     apiClient
       .post<BaseResponse<Invoice>>(`/invoices/${encodeURIComponent(id)}/adjust`, data)
+      .then((r) => r.data.data)
+      .catch(handleApiError),
+};
+
+// ---------------------------------------------------------------------------
+// VAS Report (B01/B02/B03)
+// ---------------------------------------------------------------------------
+
+export type VasReportType = 'B01' | 'B02' | 'B03';
+
+export interface VasReportParams {
+  reportType: VasReportType;
+  dateFrom: string;
+  dateTo: string;
+  comparePrevious?: boolean;
+}
+
+export interface VasReportLine {
+  code: string;
+  name: string;
+  isTotal: boolean;
+  isGroup: boolean;
+  indentLevel: number;
+  currentPeriod: number;
+  previousPeriod: number | null;
+  notes: string | null;
+}
+
+export interface VasReportData {
+  reportType: VasReportType;
+  title: string;
+  dateFrom: string;
+  dateTo: string;
+  generatedAt: string;
+  lines: VasReportLine[];
+}
+
+export const vasApi = {
+  /** GET /general-ledger/vas-report */
+  getReport: (params: VasReportParams) =>
+    apiClient
+      .get<BaseResponse<VasReportData>>('/general-ledger/vas-report', { params })
+      .then((r) => r.data.data)
+      .catch(handleApiError),
+
+  /** GET /general-ledger/vas-report/export — returns blob */
+  exportExcel: (params: VasReportParams): Promise<Blob> =>
+    apiClient
+      .get('/general-ledger/vas-report/export', {
+        params,
+        responseType: 'blob',
+      })
+      .then((r) => r.data as Blob)
+      .catch(handleApiError),
+};
+
+// ---------------------------------------------------------------------------
+// Bank Reconciliation
+// ---------------------------------------------------------------------------
+
+export interface ReconciliationSummary {
+  totalTransactions: number;
+  matched: number;
+  unmatched: number;
+  errors: number;
+  lastSyncAt: string | null;
+}
+
+export interface UnmatchedTransaction {
+  id: string;
+  date: string;
+  amount: number;
+  description: string;
+  bankAccount: string;
+  bankRef: string;
+}
+
+export interface ReconciliationData {
+  summary: ReconciliationSummary;
+  unmatchedTransactions: UnmatchedTransaction[];
+}
+
+export interface ManualMatchDto {
+  transactionId: string;
+  arId: string;
+  customerId: string;
+  note?: string;
+}
+
+export const reconciliationApi = {
+  /** GET /banking/reconciliation/summary */
+  getSummary: () =>
+    apiClient
+      .get<BaseResponse<ReconciliationData>>('/banking/reconciliation/summary')
+      .then((r) => r.data.data)
+      .catch(handleApiError),
+
+  /** POST /banking/reconciliation/manual-match */
+  manualMatch: (data: ManualMatchDto) =>
+    apiClient
+      .post<BaseResponse<{ success: boolean }>>('/banking/reconciliation/manual-match', data)
       .then((r) => r.data.data)
       .catch(handleApiError),
 };

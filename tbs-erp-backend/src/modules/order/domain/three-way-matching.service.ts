@@ -52,7 +52,7 @@ export class ThreeWayMatchingService {
     const totalQuotedCNY = Number(supplierOrders._sum.totalCNY ?? 0);
 
     // 2. Total packages received at CN warehouse
-    const packageCount = await this.prisma.package.count({
+    const _packageCount = await this.prisma.package.count({
       where: { orderId, receivedCNAt: { not: null } },
     });
 
@@ -71,9 +71,7 @@ export class ThreeWayMatchingService {
     const discrepancies: string[] = [];
 
     const quantityVariancePercent =
-      quantityOrdered > 0
-        ? ((quantityReceived - quantityOrdered) / quantityOrdered) * 100
-        : 0;
+      quantityOrdered > 0 ? ((quantityReceived - quantityOrdered) / quantityOrdered) * 100 : 0;
 
     if (quantityOrdered > 0 && quantityReceived > quantityOrdered * (1 + TOLERANCE_PERCENT / 100)) {
       discrepancies.push(
@@ -82,9 +80,7 @@ export class ThreeWayMatchingService {
     }
 
     const paymentVariancePercent =
-      totalQuotedCNY > 0
-        ? ((totalPaidCNY - totalQuotedCNY) / totalQuotedCNY) * 100
-        : 0;
+      totalQuotedCNY > 0 ? ((totalPaidCNY - totalQuotedCNY) / totalQuotedCNY) * 100 : 0;
 
     if (totalQuotedCNY > 0 && totalPaidCNY > totalQuotedCNY * (1 + TOLERANCE_PERCENT / 100)) {
       discrepancies.push(
@@ -138,10 +134,7 @@ export class ThreeWayMatchingService {
     });
 
     const breakdown = supplierOrders.map((so) => {
-      const totalPaid = so.paymentVouchers.reduce(
-        (sum, v) => sum + Number(v.amount),
-        0,
-      );
+      const totalPaid = so.paymentVouchers.reduce((sum, v) => sum + Number(v.amount), 0);
       const totalQuoted = Number(so.totalCNY ?? 0);
 
       return {
@@ -153,7 +146,8 @@ export class ThreeWayMatchingService {
         quantityReceived: so.quantityReceived,
         totalQuotedCNY: totalQuoted,
         totalPaidCNY: totalPaid,
-        paymentOverrun: totalQuoted > 0 ? totalPaid > totalQuoted * (1 + TOLERANCE_PERCENT / 100) : false,
+        paymentOverrun:
+          totalQuoted > 0 ? totalPaid > totalQuoted * (1 + TOLERANCE_PERCENT / 100) : false,
         vouchers: so.paymentVouchers.map((v) => ({
           id: v.id,
           code: v.code,

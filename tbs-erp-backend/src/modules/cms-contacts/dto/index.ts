@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEnum, IsInt, Min } from 'class-validator';
+import { IsOptional, IsString, IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class GetContactsDto {
@@ -22,4 +22,3 @@ export class GetContactsDto {
   @Min(1)
   limit?: number;
 }
-

@@ -11,9 +11,7 @@ export class QCRepository {
   /**
    * Create a new QC inspection record.
    */
-  async create(
-    data: Prisma.QCInspectionUncheckedCreateInput,
-  ): Promise<QCInspection> {
+  async create(data: Prisma.QCInspectionUncheckedCreateInput): Promise<QCInspection> {
     return this.prisma.qCInspection.create({ data });
   }
 
@@ -91,10 +89,7 @@ export class QCRepository {
   /**
    * Update a QC inspection record.
    */
-  async update(
-    id: string,
-    data: Prisma.QCInspectionUncheckedUpdateInput,
-  ): Promise<QCInspection> {
+  async update(id: string, data: Prisma.QCInspectionUncheckedUpdateInput): Promise<QCInspection> {
     return this.prisma.qCInspection.update({
       where: { id },
       data,

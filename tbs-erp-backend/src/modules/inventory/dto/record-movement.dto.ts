@@ -12,7 +12,10 @@ export class RecordMovementDto {
   @IsEnum(StockMovementType)
   type: StockMovementType;
 
-  @ApiProperty({ description: 'Quantity (positive for in, negative value will be absolute)', example: 25 })
+  @ApiProperty({
+    description: 'Quantity (positive for in, negative value will be absolute)',
+    example: 25,
+  })
   @IsNumber()
   quantity: number;
 

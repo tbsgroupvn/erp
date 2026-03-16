@@ -24,15 +24,19 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (dto: LoginDto) => authApi.login(dto),
-    onSuccess: (res: any) => {
+    onSuccess: (res) => {
       // If 2FA is required, don't set auth state yet — the login page handles this
-      if (res.requires2FA) {
+      if ((res as { requires2FA?: boolean })?.requires2FA) {
         return;
       }
-      const { user, tokens } = res;
+      const { user, tokens } = res as { user: import('@/lib/types').UserProfile; tokens: import('@/lib/types').TokenResponse };
       // refreshToken is now in HttpOnly cookie, not in response body
       useAuthStore.getState().setAuth(user, tokens.accessToken);
       qc.setQueryData(authKeys.profile(), user);
+    },
+    onError: (error: unknown) => {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Đăng nhập thất bại');
     },
   });
 }

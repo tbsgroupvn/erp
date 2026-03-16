@@ -14,11 +14,7 @@ import { CmsBlogService } from './cms-blog.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
-import {
-  CreateBlogPostDto,
-  UpdateBlogPostDto,
-  BlogPostFiltersDto,
-} from './dto';
+import { CreateBlogPostDto, UpdateBlogPostDto, BlogPostFiltersDto } from './dto';
 import { AuthenticatedRequest } from '@common/interfaces/authenticated-request.interface';
 
 @Controller('cms/blog/posts')

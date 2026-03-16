@@ -45,9 +45,7 @@ export class ChannelDelayListener {
     channel: string;
     containerId: string;
   }): Promise<void> {
-    this.logger.log(
-      `Channel assigned: ${event.channel} for declaration ${event.declarationId}`,
-    );
+    this.logger.log(`Channel assigned: ${event.channel} for declaration ${event.declarationId}`);
 
     // GREEN channel requires no special notification
     if (event.channel === 'GREEN') {
@@ -72,17 +70,14 @@ export class ChannelDelayListener {
 
     const channelLabel = event.channel === 'YELLOW' ? 'VANG' : 'DO';
     const urgencyNote =
-      event.channel === 'RED'
-        ? ' Hang hoa can kiem tra thuc te.'
-        : ' Hang hoa can kiem tra ho so.';
+      event.channel === 'RED' ? ' Hang hoa can kiem tra thuc te.' : ' Hang hoa can kiem tra ho so.';
 
     // Notify XNK managers
     for (const manager of xnkManagers) {
       await this.notificationService.send({
         userId: manager.id,
         title: `To khai ${declaration.code} - Luong ${channelLabel}`,
-        body:
-          `To khai hai quan ${declaration.code} da duoc phan luong ${channelLabel}.${urgencyNote}`,
+        body: `To khai hai quan ${declaration.code} da duoc phan luong ${channelLabel}.${urgencyNote}`,
         type: 'CUSTOMS',
         referenceId: event.declarationId,
         isUrgent: event.channel === 'RED',
@@ -158,8 +153,7 @@ export class ChannelDelayListener {
     for (const decl of declarations) {
       if (!decl.channelAssignedAt) continue;
 
-      const hoursElapsed =
-        (now.getTime() - decl.channelAssignedAt.getTime()) / (1000 * 60 * 60);
+      const hoursElapsed = (now.getTime() - decl.channelAssignedAt.getTime()) / (1000 * 60 * 60);
 
       const isDelayed =
         (decl.channel === 'YELLOW' && hoursElapsed > this.YELLOW_DELAY_HOURS) ||
@@ -168,9 +162,7 @@ export class ChannelDelayListener {
       if (!isDelayed) continue;
 
       const channelLabel = decl.channel === 'YELLOW' ? 'VANG' : 'DO';
-      const maxHours = decl.channel === 'YELLOW'
-        ? this.YELLOW_DELAY_HOURS
-        : this.RED_DELAY_HOURS;
+      const maxHours = decl.channel === 'YELLOW' ? this.YELLOW_DELAY_HOURS : this.RED_DELAY_HOURS;
 
       this.logger.warn(
         `Declaration ${decl.code} (${channelLabel}) has been in ${decl.status} ` +

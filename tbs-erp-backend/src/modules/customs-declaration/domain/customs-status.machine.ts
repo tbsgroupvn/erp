@@ -1,5 +1,6 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CustomsDeclarationStatus } from '@prisma/client';
+import { BaseStatusMachine } from '@common/domain/base-status-machine';
 
 /**
  * Customs Declaration Status Finite State Machine.
@@ -15,89 +16,29 @@ import { CustomsDeclarationStatus } from '@prisma/client';
  *  - REJECTED can be revised back to DRAFT
  */
 @Injectable()
-export class CustomsStatusMachine {
-  private readonly transitions: Record<CustomsDeclarationStatus, CustomsDeclarationStatus[]> = {
-    DRAFT: [
-      CustomsDeclarationStatus.READY,
-      CustomsDeclarationStatus.CANCELLED,
-    ],
-    READY: [
-      CustomsDeclarationStatus.SUBMITTED,
-      CustomsDeclarationStatus.DRAFT,
-      CustomsDeclarationStatus.CANCELLED,
-    ],
-    SUBMITTED: [
-      CustomsDeclarationStatus.CHANNEL_ASSIGNED,
-      CustomsDeclarationStatus.REJECTED,
-      CustomsDeclarationStatus.CANCELLED,
-    ],
-    CHANNEL_ASSIGNED: [
-      CustomsDeclarationStatus.INSPECTING,
-      CustomsDeclarationStatus.CLEARED,
-    ],
-    INSPECTING: [
-      CustomsDeclarationStatus.CLEARED,
-      CustomsDeclarationStatus.REJECTED,
-    ],
-    CLEARED: [],
-    REJECTED: [
-      CustomsDeclarationStatus.DRAFT,
-    ],
-    CANCELLED: [],
-  };
-
-  /**
-   * Validates whether a status transition is allowed.
-   *
-   * @param from - Current customs declaration status
-   * @param to - Target customs declaration status
-   * @returns true if the transition is valid
-   */
-  validateTransition(from: CustomsDeclarationStatus, to: CustomsDeclarationStatus): boolean {
-    const allowedTargets = this.transitions[from];
-
-    if (!allowedTargets) {
-      return false;
-    }
-
-    return allowedTargets.includes(to);
-  }
-
-  /**
-   * Validates and throws if the transition is invalid.
-   * Used by the service to enforce transitions.
-   *
-   * @param from - Current customs declaration status
-   * @param to - Target customs declaration status
-   * @throws BadRequestException if the transition is not allowed
-   */
-  assertTransition(from: CustomsDeclarationStatus, to: CustomsDeclarationStatus): void {
-    if (!this.validateTransition(from, to)) {
-      const allowed = this.getNextStatuses(from);
-      throw new BadRequestException(
-        `Invalid status transition from ${from} to ${to}. ` +
-          `Allowed transitions: ${allowed.join(', ') || 'none (terminal state)'}`,
-      );
-    }
-  }
-
-  /**
-   * Returns all valid next statuses from the current status.
-   *
-   * @param current - The current customs declaration status
-   * @returns Array of valid target statuses
-   */
-  getNextStatuses(current: CustomsDeclarationStatus): CustomsDeclarationStatus[] {
-    return this.transitions[current] ?? [];
-  }
-
-  /**
-   * Returns whether the given status is a terminal state
-   * (no further transitions possible).
-   */
-  isTerminal(status: CustomsDeclarationStatus): boolean {
-    const nextStatuses = this.transitions[status];
-    return !nextStatuses || nextStatuses.length === 0;
+export class CustomsStatusMachine extends BaseStatusMachine<CustomsDeclarationStatus> {
+  constructor() {
+    super(
+      {
+        DRAFT: [CustomsDeclarationStatus.READY, CustomsDeclarationStatus.CANCELLED],
+        READY: [
+          CustomsDeclarationStatus.SUBMITTED,
+          CustomsDeclarationStatus.DRAFT,
+          CustomsDeclarationStatus.CANCELLED,
+        ],
+        SUBMITTED: [
+          CustomsDeclarationStatus.CHANNEL_ASSIGNED,
+          CustomsDeclarationStatus.REJECTED,
+          CustomsDeclarationStatus.CANCELLED,
+        ],
+        CHANNEL_ASSIGNED: [CustomsDeclarationStatus.INSPECTING, CustomsDeclarationStatus.CLEARED],
+        INSPECTING: [CustomsDeclarationStatus.CLEARED, CustomsDeclarationStatus.REJECTED],
+        CLEARED: [],
+        REJECTED: [CustomsDeclarationStatus.DRAFT],
+        CANCELLED: [],
+      },
+      [CustomsDeclarationStatus.CLEARED, CustomsDeclarationStatus.CANCELLED],
+    );
   }
 }
 

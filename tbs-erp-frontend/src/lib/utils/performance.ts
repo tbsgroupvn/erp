@@ -61,8 +61,8 @@ function logMetricToConsole(metric: Metric) {
  */
 function sendMetricToAnalytics(metric: Metric) {
   // Example: Google Analytics 4
-  if (typeof window !== 'undefined' && (window as any).gtag) {
-    (window as any).gtag('event', metric.name, {
+  if (typeof window !== 'undefined' && window.gtag) {
+    window.gtag('event', metric.name, {
       value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value),
       event_category: 'Web Vitals',
       event_label: metric.id,
@@ -71,8 +71,8 @@ function sendMetricToAnalytics(metric: Metric) {
   }
 
   // Example: Vercel Analytics (if installed)
-  if (typeof window !== 'undefined' && (window as any).va) {
-    (window as any).va('track', metric.name, {
+  if (typeof window !== 'undefined' && window.va) {
+    window.va('track', metric.name, {
       value: metric.value,
       rating: metric.rating,
     });

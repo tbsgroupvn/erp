@@ -39,7 +39,7 @@ export default function OrderTemplatesPage() {
         onSuccess: () => {
           setDeletingId(null);
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
           setDeletingId(null);
           console.error('Delete template error:', error);
         },

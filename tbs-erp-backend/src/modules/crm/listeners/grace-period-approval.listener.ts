@@ -16,9 +16,7 @@ export interface ApprovalApprovedEvent {
 export class GracePeriodApprovalListener {
   private readonly logger = new Logger(GracePeriodApprovalListener.name);
 
-  constructor(
-    private readonly gracePeriodService: GracePeriodService,
-  ) {}
+  constructor(private readonly gracePeriodService: GracePeriodService) {}
 
   /**
    * Listen for approval.approved events where type is GRACE_PERIOD_REQUEST.

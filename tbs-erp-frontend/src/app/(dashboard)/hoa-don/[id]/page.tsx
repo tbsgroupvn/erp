@@ -51,12 +51,12 @@ interface Invoice {
 // ---------------------------------------------------------------------------
 
 const INVOICE_STATUS_LABELS: Record<string, string> = {
-  DRAFT: 'Nhap',
-  ISSUED: 'Da phat hanh',
-  PAID: 'Da thanh toan',
-  PARTIALLY_PAID: 'Thanh toan mot phan',
-  OVERDUE: 'Qua han',
-  CANCELLED: 'Da huy',
+  DRAFT: 'Nháp',
+  ISSUED: 'Đã phát hành',
+  PAID: 'Đã thanh toán',
+  PARTIALLY_PAID: 'Thanh toán một phần',
+  OVERDUE: 'Quá hạn',
+  CANCELLED: 'Đã hủy',
 };
 
 const INVOICE_STATUS_COLORS: Record<string, string> = {
@@ -106,9 +106,9 @@ export default function InvoiceDetailPage() {
       <div className="space-y-6">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Quay lai
+          Quay lại
         </Button>
-        <p className="text-muted-foreground">Khong tim thay hoa don.</p>
+        <p className="text-muted-foreground">Không tìm thấy hóa đơn.</p>
       </div>
     );
   }
@@ -128,7 +128,7 @@ export default function InvoiceDetailPage() {
         </Button>
         <div className="flex-1">
           <PageHeader
-            title="Chi tiet hoa don"
+            title="Chi tiết hóa đơn"
             description={invoice.code}
           />
         </div>
@@ -140,15 +140,15 @@ export default function InvoiceDetailPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <FileText className="h-5 w-5" />
-              Thong tin hoa don
+              Thông tin hóa đơn
             </CardTitle>
           </CardHeader>
           <CardContent>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-              <dt className="text-muted-foreground">Ma hoa don</dt>
+              <dt className="text-muted-foreground">Mã hóa đơn</dt>
               <dd className="font-medium">{invoice.code}</dd>
 
-              <dt className="text-muted-foreground">Trang thai</dt>
+              <dt className="text-muted-foreground">Trạng thái</dt>
               <dd>
                 <StatusBadge
                   label={INVOICE_STATUS_LABELS[invoice.status] || invoice.status}
@@ -159,22 +159,22 @@ export default function InvoiceDetailPage() {
                 />
               </dd>
 
-              <dt className="text-muted-foreground">Ngay phat hanh</dt>
+              <dt className="text-muted-foreground">Ngày phát hành</dt>
               <dd>{formatDate(invoice.issueDate, 'dd/MM/yyyy')}</dd>
 
-              <dt className="text-muted-foreground">Han thanh toan</dt>
+              <dt className="text-muted-foreground">Hạn thanh toán</dt>
               <dd>
                 {invoice.dueDate
                   ? formatDate(invoice.dueDate, 'dd/MM/yyyy')
                   : '---'}
               </dd>
 
-              <dt className="text-muted-foreground">Ngay tao</dt>
+              <dt className="text-muted-foreground">Ngày tạo</dt>
               <dd>{formatDate(invoice.createdAt)}</dd>
 
               {invoice.note && (
                 <>
-                  <dt className="text-muted-foreground">Ghi chu</dt>
+                  <dt className="text-muted-foreground">Ghi chú</dt>
                   <dd>{invoice.note}</dd>
                 </>
               )}
@@ -185,11 +185,11 @@ export default function InvoiceDetailPage() {
         {/* Card 2: Customer info */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Khach hang</CardTitle>
+            <CardTitle className="text-lg">Khách hàng</CardTitle>
           </CardHeader>
           <CardContent>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-              <dt className="text-muted-foreground">Ma KH</dt>
+              <dt className="text-muted-foreground">Mã KH</dt>
               <dd>
                 <Link
                   href={`/khach-hang/${invoice.customerId}`}
@@ -199,12 +199,12 @@ export default function InvoiceDetailPage() {
                 </Link>
               </dd>
 
-              <dt className="text-muted-foreground">Ten</dt>
+              <dt className="text-muted-foreground">Tên</dt>
               <dd className="font-medium">{invoice.customerName}</dd>
 
               {invoice.customerPhone && (
                 <>
-                  <dt className="text-muted-foreground">Dien thoai</dt>
+                  <dt className="text-muted-foreground">Điện thoại</dt>
                   <dd>{invoice.customerPhone}</dd>
                 </>
               )}
@@ -218,7 +218,7 @@ export default function InvoiceDetailPage() {
 
               {invoice.customerAddress && (
                 <>
-                  <dt className="text-muted-foreground">Dia chi</dt>
+                  <dt className="text-muted-foreground">Địa chỉ</dt>
                   <dd className="col-span-1">{invoice.customerAddress}</dd>
                 </>
               )}
@@ -231,7 +231,7 @@ export default function InvoiceDetailPage() {
       {invoice.items && invoice.items.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Chi tiet hang muc</CardTitle>
+            <CardTitle className="text-lg">Chi tiết hạng mục</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -239,10 +239,10 @@ export default function InvoiceDetailPage() {
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
                     <th className="pb-2 font-medium w-10">STT</th>
-                    <th className="pb-2 font-medium">Ten san pham</th>
+                    <th className="pb-2 font-medium">Tên sản phẩm</th>
                     <th className="pb-2 font-medium w-16 text-center">SL</th>
-                    <th className="pb-2 font-medium text-right">Don gia</th>
-                    <th className="pb-2 font-medium text-right">Thanh tien</th>
+                    <th className="pb-2 font-medium text-right">Đơn giá</th>
+                    <th className="pb-2 font-medium text-right">Thành tiền</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -276,28 +276,28 @@ export default function InvoiceDetailPage() {
       {/* Amounts summary */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Tong hop</CardTitle>
+          <CardTitle className="text-lg">Tổng hợp</CardTitle>
         </CardHeader>
         <CardContent>
           <dl className="space-y-3 text-sm max-w-sm ml-auto">
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Tam tinh</dt>
+              <dt className="text-muted-foreground">Tạm tính</dt>
               <dd>{formatCurrency(invoice.subtotal)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Thue</dt>
+              <dt className="text-muted-foreground">Thuế</dt>
               <dd>{formatCurrency(invoice.taxAmount)}</dd>
             </div>
             <div className="flex justify-between border-t pt-3 font-semibold text-base">
-              <dt>Tong cong</dt>
+              <dt>Tổng cộng</dt>
               <dd>{formatCurrency(invoice.totalAmount)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Da thanh toan</dt>
+              <dt className="text-muted-foreground">Đã thanh toán</dt>
               <dd className="text-green-600">{formatCurrency(invoice.paidAmount)}</dd>
             </div>
             <div className="flex justify-between font-semibold">
-              <dt>Con lai</dt>
+              <dt>Còn lại</dt>
               <dd className={remaining > 0 ? 'text-red-600' : 'text-green-600'}>
                 {formatCurrency(remaining)}
               </dd>

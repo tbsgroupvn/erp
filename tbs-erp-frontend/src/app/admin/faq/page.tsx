@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { faqApi } from '@/lib/api/cms';
+import { faqApi, FAQ, CreateFAQDto } from '@/lib/api/cms';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +35,7 @@ export default function FAQPage() {
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingFAQ, setEditingFAQ] = useState<any | null>(null);
+  const [editingFAQ, setEditingFAQ] = useState<FAQ | null>(null);
   const [formData, setFormData] = useState({
     question: '',
     answer: '',
@@ -68,7 +68,7 @@ export default function FAQPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateFAQDto> }) =>
       faqApi.update(id, data),
     onSuccess: () => {
       toast.success('Đã cập nhật câu hỏi thành công');
@@ -108,7 +108,7 @@ export default function FAQPage() {
     setEditingFAQ(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!formData.question || !formData.answer) {
       toast.error('Vui lòng nhập đầy đủ câu hỏi và câu trả lời');
@@ -122,7 +122,7 @@ export default function FAQPage() {
     }
   };
 
-  const handleEdit = (faq: any) => {
+  const handleEdit = (faq: FAQ) => {
     setEditingFAQ(faq);
     setFormData({
       question: faq.question,

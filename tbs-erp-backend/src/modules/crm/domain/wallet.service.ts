@@ -16,6 +16,21 @@ export class WalletService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Lock wallet row with SELECT ... FOR UPDATE to prevent race conditions.
+   * Must be called within a transaction.
+   */
+  private async lockWalletRow(
+    tx: Prisma.TransactionClient,
+    customerId: string,
+  ): Promise<{ id: string; balance: number } | null> {
+    const rows = await tx.$queryRaw<Array<{ id: string; balance: any }>>`
+      SELECT id, balance FROM wallets WHERE customer_id = ${customerId} FOR UPDATE`;
+
+    if (rows.length === 0) return null;
+    return { id: rows[0].id, balance: Number(rows[0].balance) };
+  }
+
+  /**
    * Get or create a wallet for a customer.
    */
   async getOrCreateWallet(customerId: string): Promise<Wallet> {
@@ -64,14 +79,21 @@ export class WalletService {
     }
 
     return this.prisma.executeInTransaction(async (tx) => {
-      const wallet = await tx.wallet.upsert({
+      // Ensure wallet exists
+      await tx.wallet.upsert({
         where: { customerId },
         create: { customerId },
         update: {},
       });
 
+      // Lock wallet row to prevent concurrent operations from overwriting
+      const locked = await this.lockWalletRow(tx, customerId);
+      if (!locked) {
+        throw new NotFoundException(`Wallet not found for customer ${customerId}`);
+      }
+
       const updatedWallet = await tx.wallet.update({
-        where: { id: wallet.id },
+        where: { id: locked.id },
         data: {
           balance: { increment: new Prisma.Decimal(amount) },
         },
@@ -79,7 +101,7 @@ export class WalletService {
 
       const transaction = await tx.walletTransaction.create({
         data: {
-          walletId: wallet.id,
+          walletId: locked.id,
           amount: new Prisma.Decimal(amount),
           type: 'TOPUP',
           reference,
@@ -109,30 +131,22 @@ export class WalletService {
       throw new BadRequestException('Deduct amount must be positive');
     }
 
-    // Validate UUID format before using in raw SQL query
-    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!UUID_REGEX.test(customerId)) {
-      throw new BadRequestException('Invalid customer ID format');
-    }
-
     return this.prisma.executeInTransaction(async (tx) => {
       // FOR UPDATE lock to prevent concurrent deduction race condition
-      const rows = await tx.$queryRaw<Array<{ id: string; balance: any }>>`
-        SELECT id, balance FROM wallets WHERE customer_id = ${customerId} FOR UPDATE`;
+      const locked = await this.lockWalletRow(tx, customerId);
 
-      if (rows.length === 0) {
+      if (!locked) {
         throw new NotFoundException(`Wallet not found for customer ${customerId}`);
       }
 
-      const wallet = rows[0];
-      if (Number(wallet.balance) < amount) {
+      if (locked.balance < amount) {
         throw new BadRequestException(
-          `Insufficient wallet balance. Current balance: ${wallet.balance}, requested: ${amount}`,
+          `Insufficient wallet balance. Current balance: ${locked.balance}, requested: ${amount}`,
         );
       }
 
       const updatedWallet = await tx.wallet.update({
-        where: { id: wallet.id },
+        where: { id: locked.id },
         data: {
           balance: { decrement: new Prisma.Decimal(amount) },
         },
@@ -140,7 +154,7 @@ export class WalletService {
 
       const transaction = await tx.walletTransaction.create({
         data: {
-          walletId: wallet.id,
+          walletId: locked.id,
           amount: new Prisma.Decimal(-amount),
           type: 'DEDUCT',
           reference,
@@ -170,16 +184,15 @@ export class WalletService {
     }
 
     return this.prisma.executeInTransaction(async (tx) => {
-      const wallet = await tx.wallet.findUnique({
-        where: { customerId },
-      });
+      // Lock wallet row to prevent concurrent operations from overwriting
+      const locked = await this.lockWalletRow(tx, customerId);
 
-      if (!wallet) {
+      if (!locked) {
         throw new NotFoundException(`Wallet not found for customer ${customerId}`);
       }
 
       const updatedWallet = await tx.wallet.update({
-        where: { id: wallet.id },
+        where: { id: locked.id },
         data: {
           balance: { increment: new Prisma.Decimal(amount) },
         },
@@ -187,7 +200,7 @@ export class WalletService {
 
       const transaction = await tx.walletTransaction.create({
         data: {
-          walletId: wallet.id,
+          walletId: locked.id,
           amount: new Prisma.Decimal(amount),
           type: 'REFUND',
           reference,

@@ -7,18 +7,11 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
-import {
-  OrderStatus,
-  MasterOrderStatus,
-  Prisma,
-} from '@prisma/client';
+import { OrderStatus, MasterOrderStatus, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { DataScopeFilter } from '@common/guards/data-scope.guard';
-import {
-  MasterOrderRepository,
-  MasterOrderWithRelations,
-} from './master-order.repository';
+import { MasterOrderRepository, MasterOrderWithRelations } from './master-order.repository';
 import { OrderRepository } from './order.repository';
 import { DepositGateService } from './domain/deposit-gate.service';
 import { CreateMasterOrderDto, CreateSubOrderDto } from './dto/create-master-order.dto';
@@ -67,9 +60,7 @@ export class MasterOrderService {
     });
 
     if (!customer) {
-      throw new NotFoundException(
-        `Customer with ID ${dto.customerId} not found`,
-      );
+      throw new NotFoundException(`Customer with ID ${dto.customerId} not found`);
     }
 
     if (!customer.isActive) {
@@ -296,17 +287,11 @@ export class MasterOrderService {
    * Adds a new sub order to an existing master order.
    * Wrapped in a transaction for atomicity.
    */
-  async addSubOrder(
-    masterOrderId: string,
-    dto: CreateSubOrderDto,
-    currentUser: ICurrentUser,
-  ) {
+  async addSubOrder(masterOrderId: string, dto: CreateSubOrderDto, currentUser: ICurrentUser) {
     const masterOrder = await this.masterOrderRepo.findById(masterOrderId);
 
     if (!masterOrder) {
-      throw new NotFoundException(
-        `Master order with ID ${masterOrderId} not found`,
-      );
+      throw new NotFoundException(`Master order with ID ${masterOrderId} not found`);
     }
 
     if (masterOrder.overallStatus !== MasterOrderStatus.ACTIVE) {
@@ -416,12 +401,8 @@ export class MasterOrderService {
 
     if (subOrders.length === 0) return;
 
-    const allCompleted = subOrders.every(
-      (o) => o.status === OrderStatus.COMPLETED,
-    );
-    const allCancelled = subOrders.every(
-      (o) => o.status === OrderStatus.CANCELLED,
-    );
+    const allCompleted = subOrders.every((o) => o.status === OrderStatus.COMPLETED);
+    const allCancelled = subOrders.every((o) => o.status === OrderStatus.CANCELLED);
 
     let newStatus: MasterOrderStatus;
     if (allCompleted) {
@@ -436,9 +417,7 @@ export class MasterOrderService {
       overallStatus: newStatus,
     });
 
-    this.logger.log(
-      `Master order ${masterOrderId} overall status recalculated to ${newStatus}`,
-    );
+    this.logger.log(`Master order ${masterOrderId} overall status recalculated to ${newStatus}`);
   }
 
   /**

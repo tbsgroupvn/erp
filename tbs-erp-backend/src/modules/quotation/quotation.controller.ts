@@ -14,16 +14,12 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { DataScopeGuard } from '@common/guards/data-scope.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginated } from '@common/decorators/api-paginated.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
@@ -38,6 +34,7 @@ import {
   SaveAsTemplateDto,
   CreateFromTemplateDto,
 } from './dto/quotation-template.dto';
+import { QuickQuoteDto } from './dto/quick-quote.dto';
 
 @ApiTags('Quotations')
 @ApiBearerAuth()
@@ -49,7 +46,26 @@ export class QuotationController {
     private readonly quotationExportService: QuotationExportService,
   ) {}
 
+  @Post('quick')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CSKH)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Báo giá nhanh (Quick Quote)',
+    description: 'Tạo báo giá nhanh cho VCT (vận chuyển thuần) hoặc MHH (mua hàng hộ có sourcing). Tự động tra Rate Card + tính phí dịch vụ + tỷ giá CNY.',
+  })
+  @ApiResponse({ status: 201, description: 'Báo giá nhanh tạo thành công' })
+  @ApiResponse({ status: 400, description: 'Không có tỷ giá CNY hoặc Rate Card' })
+  @ApiResponse({ status: 404, description: 'Khách hàng không tìm thấy' })
+  async quickQuote(@Body() dto: QuickQuoteDto, @CurrentUser() user: ICurrentUser) {
+    if (!dto.branch && user.branch) {
+      dto.branch = user.branch;
+    }
+    const result = await this.quotationService.quickQuote(user.id, dto);
+    return BaseResponse.ok(result, 'Báo giá nhanh tạo thành công');
+  }
+
   @Post()
+  @Roles(UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new quotation',
@@ -59,18 +75,19 @@ export class QuotationController {
   @ApiResponse({ status: 201, description: 'Quotation created successfully' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 404, description: 'Customer not found' })
-  async create(
-    @Body() dto: CreateQuotationDto,
-    @CurrentUser() user: ICurrentUser,
-  ) {
-    const quotation = await this.quotationService.createQuotation(
-      user.id,
-      dto,
-    );
+  async create(@Body() dto: CreateQuotationDto, @CurrentUser() user: ICurrentUser) {
+    // Inject the user's branch so the service does not rely on a hardcoded default.
+    // dto.branch may already be set by the client; user.branch takes precedence.
+    const dtoWithBranch: CreateQuotationDto = {
+      ...dto,
+      branch: user.branch ?? dto.branch,
+    };
+    const quotation = await this.quotationService.createQuotation(user.id, dtoWithBranch);
     return BaseResponse.ok(quotation, 'Quotation created successfully');
   }
 
   @Get()
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CSKH)
   @ApiOperation({
     summary: 'List quotations',
     description:
@@ -80,12 +97,7 @@ export class QuotationController {
   @ApiResponse({ status: 200, description: 'Quotations retrieved successfully' })
   async findAll(@Query() query: QuotationQueryDto) {
     const result = await this.quotationService.findAll(query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   // =========================================================================
@@ -93,18 +105,17 @@ export class QuotationController {
   // =========================================================================
 
   @Post('templates')
+  @Roles(UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a quotation template' })
   @ApiResponse({ status: 201, description: 'Template created successfully' })
-  async createTemplate(
-    @Body() dto: CreateTemplateDto,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async createTemplate(@Body() dto: CreateTemplateDto, @CurrentUser() user: ICurrentUser) {
     const template = await this.quotationService.createTemplate(user.id, dto);
     return BaseResponse.ok(template, 'Template created successfully');
   }
 
   @Get('templates')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CSKH)
   @ApiOperation({ summary: 'List quotation templates' })
   @ApiResponse({ status: 200, description: 'Templates retrieved successfully' })
   async listTemplates(@CurrentUser() user: ICurrentUser) {
@@ -113,21 +124,20 @@ export class QuotationController {
   }
 
   @Delete('templates/:id')
+  @Roles(UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a quotation template' })
   @ApiParam({ name: 'id', description: 'Template ID' })
   @ApiResponse({ status: 200, description: 'Template deleted' })
   @ApiResponse({ status: 403, description: 'Not the owner' })
   @ApiResponse({ status: 404, description: 'Template not found' })
-  async deleteTemplate(
-    @Param('id') id: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async deleteTemplate(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
     await this.quotationService.deleteTemplate(id, user.id);
     return BaseResponse.ok(null, 'Template deleted successfully');
   }
 
   @Post('from-template/:templateId')
+  @Roles(UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create quotation from template' })
   @ApiParam({ name: 'templateId', description: 'Template ID' })
@@ -138,32 +148,47 @@ export class QuotationController {
     @Body() dto: CreateFromTemplateDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const quotation = await this.quotationService.createFromTemplate(
-      templateId,
-      user.id,
-      dto,
-    );
+    const quotation = await this.quotationService.createFromTemplate(templateId, user.id, dto);
     return BaseResponse.ok(quotation, 'Quotation created from template');
   }
 
+  @Get('suggestions')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CSKH)
+  @ApiOperation({
+    summary: 'Get quotation suggestions for a customer',
+    description:
+      'Returns suggestions based on customer order/quotation history: common service types, common routes, and recent prices.',
+  })
+  @ApiResponse({ status: 200, description: 'Suggestions retrieved' })
+  async getSuggestions(@Query('customerId') customerId: string) {
+    if (!customerId) {
+      return BaseResponse.ok({
+        commonServiceTypes: [],
+        commonRoutes: [],
+        recentPrices: [],
+        totalOrders: 0,
+        totalQuotations: 0,
+      });
+    }
+    const suggestions = await this.quotationService.getSuggestionsForCustomer(customerId);
+    return BaseResponse.ok(suggestions);
+  }
+
   @Get('customer/:customerId/recent-items')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CSKH)
   @ApiOperation({ summary: 'Get recent quotation items for a customer' })
   @ApiParam({ name: 'customerId', description: 'Customer ID' })
   @ApiResponse({ status: 200, description: 'Recent items retrieved' })
-  async getRecentItemsForCustomer(
-    @Param('customerId') customerId: string,
-  ) {
-    const items = await this.quotationService.getRecentItemsForCustomer(
-      customerId,
-    );
+  async getRecentItemsForCustomer(@Param('customerId') customerId: string) {
+    const items = await this.quotationService.getRecentItemsForCustomer(customerId);
     return BaseResponse.ok(items);
   }
 
   @Get(':id')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CSKH)
   @ApiOperation({
     summary: 'Get quotation detail',
-    description:
-      'Returns full quotation details including customer info and items.',
+    description: 'Returns full quotation details including customer info and items.',
   })
   @ApiParam({ name: 'id', description: 'Quotation ID' })
   @ApiResponse({ status: 200, description: 'Quotation retrieved successfully' })
@@ -174,6 +199,7 @@ export class QuotationController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR)
   @ApiOperation({
     summary: 'Update a quotation',
     description:
@@ -183,42 +209,33 @@ export class QuotationController {
   @ApiResponse({ status: 200, description: 'Quotation updated successfully' })
   @ApiResponse({ status: 400, description: 'Quotation cannot be edited in current status' })
   @ApiResponse({ status: 404, description: 'Quotation not found' })
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateQuotationDto,
-  ) {
+  async update(@Param('id') id: string, @Body() dto: UpdateQuotationDto) {
     const quotation = await this.quotationService.updateQuotation(id, dto);
     return BaseResponse.ok(quotation, 'Quotation updated successfully');
   }
 
   @Post(':id/approve')
+  @Roles(UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Approve a quotation',
-    description:
-      'Approves a quotation that is in PENDING_APPROVAL status.',
+    description: 'Approves a quotation that is in PENDING_APPROVAL status.',
   })
   @ApiParam({ name: 'id', description: 'Quotation ID' })
   @ApiResponse({ status: 200, description: 'Quotation approved successfully' })
   @ApiResponse({ status: 400, description: 'Quotation cannot be approved' })
   @ApiResponse({ status: 404, description: 'Quotation not found' })
-  async approve(
-    @Param('id') id: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
-    const quotation = await this.quotationService.approveQuotation(
-      id,
-      user.id,
-    );
+  async approve(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
+    const quotation = await this.quotationService.approveQuotation(id, user.id);
     return BaseResponse.ok(quotation, 'Quotation approved successfully');
   }
 
   @Post(':id/reject')
+  @Roles(UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Reject a quotation',
-    description:
-      'Rejects a quotation that is in PENDING_APPROVAL status with a reason.',
+    description: 'Rejects a quotation that is in PENDING_APPROVAL status with a reason.',
   })
   @ApiParam({ name: 'id', description: 'Quotation ID' })
   @ApiResponse({ status: 200, description: 'Quotation rejected' })
@@ -229,15 +246,12 @@ export class QuotationController {
     @Body('reason') reason: string,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const quotation = await this.quotationService.rejectQuotation(
-      id,
-      user.id,
-      reason,
-    );
+    const quotation = await this.quotationService.rejectQuotation(id, user.id, reason);
     return BaseResponse.ok(quotation, 'Quotation rejected');
   }
 
   @Post(':id/convert')
+  @Roles(UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Convert quotation to order',
@@ -248,36 +262,28 @@ export class QuotationController {
   @ApiResponse({ status: 201, description: 'Order created from quotation' })
   @ApiResponse({ status: 400, description: 'Quotation cannot be converted' })
   @ApiResponse({ status: 404, description: 'Quotation not found' })
-  async convertToOrder(
-    @Param('id') id: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async convertToOrder(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
     const result = await this.quotationService.convertToOrder(id, user.id);
     return BaseResponse.ok(result, 'Quotation converted to order successfully');
   }
 
   @Post(':id/duplicate')
+  @Roles(UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Duplicate a quotation',
-    description:
-      'Clones an existing quotation as a new DRAFT with reset discount.',
+    description: 'Clones an existing quotation as a new DRAFT with reset discount.',
   })
   @ApiParam({ name: 'id', description: 'Quotation ID' })
   @ApiResponse({ status: 201, description: 'Quotation duplicated successfully' })
   @ApiResponse({ status: 404, description: 'Quotation not found' })
-  async duplicate(
-    @Param('id') id: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
-    const quotation = await this.quotationService.duplicateQuotation(
-      id,
-      user.id,
-    );
+  async duplicate(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
+    const quotation = await this.quotationService.duplicateQuotation(id, user.id);
     return BaseResponse.ok(quotation, 'Quotation duplicated successfully');
   }
 
   @Post(':id/save-as-template')
+  @Roles(UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Save quotation as template',
@@ -291,19 +297,15 @@ export class QuotationController {
     @Body() dto: SaveAsTemplateDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const template = await this.quotationService.saveAsTemplate(
-      id,
-      user.id,
-      dto,
-    );
+    const template = await this.quotationService.saveAsTemplate(id, user.id, dto);
     return BaseResponse.ok(template, 'Template saved successfully');
   }
 
   @Get(':id/versions')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CSKH)
   @ApiOperation({
     summary: 'Get quotation version history',
-    description:
-      'Returns all versions of a quotation chain (parent and children).',
+    description: 'Returns all versions of a quotation chain (parent and children).',
   })
   @ApiParam({ name: 'id', description: 'Quotation ID' })
   @ApiResponse({ status: 200, description: 'Version history retrieved' })
@@ -314,21 +316,18 @@ export class QuotationController {
   }
 
   @Get(':id/export/excel')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CSKH)
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 exports per minute
   @ApiOperation({ summary: 'Export quotation as Excel file' })
   @ApiParam({ name: 'id', description: 'Quotation ID' })
   @ApiResponse({ status: 200, description: 'Excel file downloaded' })
   @ApiResponse({ status: 404, description: 'Quotation not found' })
-  async exportExcel(
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async exportExcel(@Param('id') id: string, @Res() res: Response) {
     // Verify quotation exists (throws NotFoundException if not found)
     await this.quotationService.findById(id);
     const buffer = await this.quotationExportService.generateExcel(id);
     res.set({
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="quotation-${id}.xlsx"`,
       'Content-Length': buffer.length.toString(),
     });
@@ -336,15 +335,13 @@ export class QuotationController {
   }
 
   @Get(':id/export/pdf')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CSKH)
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 exports per minute
   @ApiOperation({ summary: 'Export quotation as PDF file' })
   @ApiParam({ name: 'id', description: 'Quotation ID' })
   @ApiResponse({ status: 200, description: 'PDF file downloaded' })
   @ApiResponse({ status: 404, description: 'Quotation not found' })
-  async exportPdf(
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async exportPdf(@Param('id') id: string, @Res() res: Response) {
     // Verify quotation exists (throws NotFoundException if not found)
     await this.quotationService.findById(id);
     const buffer = await this.quotationExportService.generatePdf(id);

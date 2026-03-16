@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -32,9 +27,7 @@ export class OperationCostService {
     });
 
     if (!container) {
-      throw new NotFoundException(
-        `Container with ID ${dto.containerId} not found`,
-      );
+      throw new NotFoundException(`Container with ID ${dto.containerId} not found`);
     }
 
     const cost = await this.prisma.operationCost.create({
@@ -45,9 +38,7 @@ export class OperationCostService {
         currency: dto.currency ?? 'VND',
         description: dto.description,
         invoiceRef: dto.invoiceRef,
-        estimatedAmount: dto.estimatedAmount
-          ? new Decimal(dto.estimatedAmount)
-          : null,
+        estimatedAmount: dto.estimatedAmount ? new Decimal(dto.estimatedAmount) : null,
         note: dto.note,
       },
     });
@@ -145,9 +136,7 @@ export class OperationCostService {
     });
 
     if (!container) {
-      throw new NotFoundException(
-        `Container with ID ${containerId} not found`,
-      );
+      throw new NotFoundException(`Container with ID ${containerId} not found`);
     }
 
     const costs = await this.prisma.operationCost.findMany({
@@ -163,10 +152,7 @@ export class OperationCostService {
       _count: { id: true },
     });
 
-    const totalAmount = costs.reduce(
-      (sum, c) => sum + Number(c.amount),
-      0,
-    );
+    const totalAmount = costs.reduce((sum, c) => sum + Number(c.amount), 0);
 
     return {
       container,
@@ -219,9 +205,7 @@ export class OperationCostService {
     });
 
     if (!container) {
-      throw new NotFoundException(
-        `Container with ID ${containerId} not found`,
-      );
+      throw new NotFoundException(`Container with ID ${containerId} not found`);
     }
 
     // Get total chargeable weight from packages
@@ -234,9 +218,7 @@ export class OperationCostService {
     const totalChargeableWeight = weightAgg._sum.chargeableWeight
       ? Number(weightAgg._sum.chargeableWeight)
       : 0;
-    const totalActualWeight = weightAgg._sum.actualWeight
-      ? Number(weightAgg._sum.actualWeight)
-      : 0;
+    const totalActualWeight = weightAgg._sum.actualWeight ? Number(weightAgg._sum.actualWeight) : 0;
     const totalPackages = weightAgg._count.id;
 
     // Get total costs
@@ -247,15 +229,9 @@ export class OperationCostService {
 
     const totalCost = costAgg._sum.amount ? Number(costAgg._sum.amount) : 0;
 
-    const costPerKg =
-      totalChargeableWeight > 0
-        ? Math.round(totalCost / totalChargeableWeight)
-        : 0;
+    const costPerKg = totalChargeableWeight > 0 ? Math.round(totalCost / totalChargeableWeight) : 0;
 
-    const costPerKgActual =
-      totalActualWeight > 0
-        ? Math.round(totalCost / totalActualWeight)
-        : 0;
+    const costPerKgActual = totalActualWeight > 0 ? Math.round(totalCost / totalActualWeight) : 0;
 
     return {
       containerId,
@@ -295,10 +271,7 @@ export class OperationCostService {
       where: { orderId },
     });
 
-    const totalAllocatedCost = allocations.reduce(
-      (sum, a) => sum + Number(a.allocatedAmount),
-      0,
-    );
+    const totalAllocatedCost = allocations.reduce((sum, a) => sum + Number(a.allocatedAmount), 0);
 
     // Fetch container codes for the allocations
     const allocationContainerIds = [...new Set(allocations.map((a) => a.containerId))];
@@ -309,19 +282,14 @@ export class OperationCostService {
     const allocationContainerMap = new Map(allocationContainers.map((c) => [c.id, c]));
 
     // Cost per kg for this order
-    const chargeableWeight = order.totalChargeableWeight
-      ? Number(order.totalChargeableWeight)
-      : 0;
+    const chargeableWeight = order.totalChargeableWeight ? Number(order.totalChargeableWeight) : 0;
     const orderCostPerKg =
-      chargeableWeight > 0
-        ? Math.round(totalAllocatedCost / chargeableWeight)
-        : 0;
+      chargeableWeight > 0 ? Math.round(totalAllocatedCost / chargeableWeight) : 0;
 
     // Profit margin estimate
     const revenue = Number(order.totalAmount);
-    const margin = revenue > 0
-      ? Math.round(((revenue - totalAllocatedCost) / revenue) * 10000) / 100
-      : 0;
+    const margin =
+      revenue > 0 ? Math.round(((revenue - totalAllocatedCost) / revenue) * 10000) / 100 : 0;
 
     return {
       orderId: order.id,
@@ -351,9 +319,7 @@ export class OperationCostService {
     });
 
     if (!container) {
-      throw new NotFoundException(
-        `Container with ID ${containerId} not found`,
-      );
+      throw new NotFoundException(`Container with ID ${containerId} not found`);
     }
 
     const costs = await this.prisma.operationCost.findMany({
@@ -363,14 +329,9 @@ export class OperationCostService {
 
     const variances = costs.map((cost) => {
       const actual = Number(cost.amount);
-      const estimated = cost.estimatedAmount
-        ? Number(cost.estimatedAmount)
-        : 0;
+      const estimated = cost.estimatedAmount ? Number(cost.estimatedAmount) : 0;
       const variance = actual - estimated;
-      const variancePercent =
-        estimated > 0
-          ? Math.round((variance / estimated) * 10000) / 100
-          : 0;
+      const variancePercent = estimated > 0 ? Math.round((variance / estimated) * 10000) / 100 : 0;
 
       return {
         costId: cost.id,
@@ -395,9 +356,7 @@ export class OperationCostService {
 
     const totalVariancePercent =
       totals.totalEstimated > 0
-        ? Math.round(
-            (totals.totalVariance / totals.totalEstimated) * 10000,
-          ) / 100
+        ? Math.round((totals.totalVariance / totals.totalEstimated) * 10000) / 100
         : 0;
 
     return {
@@ -411,9 +370,7 @@ export class OperationCostService {
       },
       costItemCount: costs.length,
       itemsWithEstimate: variances.filter((v) => v.hasEstimate).length,
-      overBudgetItems: variances.filter(
-        (v) => v.hasEstimate && v.isOverBudget,
-      ).length,
+      overBudgetItems: variances.filter((v) => v.hasEstimate && v.isOverBudget).length,
     };
   }
 
@@ -471,7 +428,7 @@ export class OperationCostService {
     });
 
     // Fetch container codes for the top containers
-    const containerIds = byContainer.map((c) => c.containerId);
+    const containerIds = byContainer.map((c) => c.containerId).filter((id): id is string => id !== null);
     const containers = await this.prisma.container.findMany({
       where: { id: { in: containerIds } },
       select: { id: true, code: true, shippingRoute: true },
@@ -493,7 +450,7 @@ export class OperationCostService {
         count: c._count.id,
       })),
       topContainers: byContainer.map((c) => {
-        const container = containerMap.get(c.containerId);
+        const container = c.containerId ? containerMap.get(c.containerId) : undefined;
         return {
           containerId: c.containerId,
           containerCode: container?.code,

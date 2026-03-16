@@ -1,12 +1,7 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
-import { AttendanceType, LeaveStatus, LeaveType, Prisma } from '@prisma/client';
+import { AttendanceType, LeaveStatus, LeaveType } from '@prisma/client';
 import { CheckInDto, CheckOutDto } from './dto/check-in.dto';
 import { ManualCheckInDto } from './dto/manual-check-in.dto';
 import { RequestLeaveDto } from './dto/leave-request.dto';
@@ -28,7 +23,7 @@ export class AttendanceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   /**
    * Records check-in for an employee.
@@ -49,8 +44,10 @@ export class AttendanceService {
       throw new BadRequestException('Already checked in today');
     }
 
-    const isLate = checkInTime.getHours() > AttendanceService.STANDARD_CHECK_IN ||
-      (checkInTime.getHours() === AttendanceService.STANDARD_CHECK_IN && checkInTime.getMinutes() > 0);
+    const isLate =
+      checkInTime.getHours() > AttendanceService.STANDARD_CHECK_IN ||
+      (checkInTime.getHours() === AttendanceService.STANDARD_CHECK_IN &&
+        checkInTime.getMinutes() > 0);
 
     if (existing) {
       // Update existing record
@@ -106,8 +103,7 @@ export class AttendanceService {
     }
 
     const workHours =
-      (checkOutTime.getTime() - new Date(attendance.checkIn).getTime()) /
-      (1000 * 60 * 60);
+      (checkOutTime.getTime() - new Date(attendance.checkIn).getTime()) / (1000 * 60 * 60);
 
     return this.prisma.attendance.update({
       where: { id: attendance.id },
@@ -170,7 +166,7 @@ export class AttendanceService {
         employee: sub,
         totalDays: records.length,
         lateDays: records.filter((a) => a.isLate).length,
-        totalWorkHours: records.reduce((sum, a) => sum + (a.workHours || 0), 0),
+        totalWorkHours: records.reduce((sum, a) => sum + Number(a.workHours || 0), 0),
       };
     });
 
@@ -226,9 +222,7 @@ export class AttendanceService {
       totalDays,
     });
 
-    this.logger.log(
-      `Leave request created: ${employee.code} - ${dto.type} for ${totalDays} days`,
-    );
+    this.logger.log(`Leave request created: ${employee.code} - ${dto.type} for ${totalDays} days`);
 
     return leave;
   }
@@ -310,15 +304,17 @@ export class AttendanceService {
     const usedByType: Partial<Record<LeaveType, number>> = {};
     approvedLeaves.forEach((leave) => {
       const type = leave.type as LeaveType;
-      usedByType[type] = (usedByType[type] || 0) + leave.totalDays;
+      usedByType[type] = (usedByType[type] || 0) + Number(leave.totalDays);
     });
 
-    return (Object.entries(AttendanceService.LEAVE_BALANCES) as [LeaveType, number][]).map(([type, total]) => ({
-      type,
-      total,
-      used: usedByType[type] || 0,
-      remaining: total - (usedByType[type] || 0),
-    }));
+    return (Object.entries(AttendanceService.LEAVE_BALANCES) as [LeaveType, number][]).map(
+      ([type, total]) => ({
+        type,
+        total,
+        used: usedByType[type] || 0,
+        remaining: total - (usedByType[type] || 0),
+      }),
+    );
   }
 
   /**
@@ -382,9 +378,9 @@ export class AttendanceService {
 
     const workDays = attendances.filter((a) => a.checkIn).length;
     const lateDays = attendances.filter((a) => a.isLate).length;
-    const totalWorkHours = attendances.reduce((sum, a) => sum + (a.workHours || 0), 0);
-    const otHours = overtimeRequests.reduce((sum, ot) => sum + ot.hours, 0);
-    const leaveDays = leaveRequests.reduce((sum, l) => sum + l.totalDays, 0);
+    const totalWorkHours = attendances.reduce((sum, a) => sum + Number(a.workHours || 0), 0);
+    const otHours = overtimeRequests.reduce((sum, ot) => sum + Number(ot.hours), 0);
+    const leaveDays = leaveRequests.reduce((sum, l) => sum + Number(l.totalDays), 0);
 
     return {
       employee: { id: employee.id, code: employee.code, fullName: employee.fullName },
@@ -418,7 +414,8 @@ export class AttendanceService {
       throw new BadRequestException('Already checked in today');
     }
 
-    const isLate = now.getHours() > AttendanceService.STANDARD_CHECK_IN ||
+    const isLate =
+      now.getHours() > AttendanceService.STANDARD_CHECK_IN ||
       (now.getHours() === AttendanceService.STANDARD_CHECK_IN && now.getMinutes() > 0);
 
     if (existing) {
@@ -485,7 +482,9 @@ export class AttendanceService {
     }
 
     if (attendance.hrReviewStatus !== 'PENDING_REVIEW') {
-      throw new BadRequestException(`This manual check-in has already been reviewed (${attendance.hrReviewStatus})`);
+      throw new BadRequestException(
+        `This manual check-in has already been reviewed (${attendance.hrReviewStatus})`,
+      );
     }
 
     const updated = await this.prisma.attendance.update({
@@ -522,7 +521,9 @@ export class AttendanceService {
         hrReviewStatus: 'PENDING_REVIEW',
       },
       include: {
-        employee: { select: { id: true, code: true, fullName: true, departmentCode: true, branch: true } },
+        employee: {
+          select: { id: true, code: true, fullName: true, departmentCode: true, branch: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });

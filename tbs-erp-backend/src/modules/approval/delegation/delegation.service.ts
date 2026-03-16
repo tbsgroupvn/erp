@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { CreateDelegationDto } from './dto/create-delegation.dto';
 
@@ -8,14 +14,22 @@ export class DelegationService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByUser(userId: string) {
-    return this.prisma.approvalDelegation.findMany({
-      where: {
-        OR: [{ fromUserId: userId }, { toUserId: userId }],
-        isActive: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+  async findByUser(userId: string, page = 1, limit = 50) {
+    const skip = (page - 1) * limit;
+    const where = {
+      OR: [{ fromUserId: userId }, { toUserId: userId }],
+      isActive: true,
+    };
+    const [data, total] = await Promise.all([
+      this.prisma.approvalDelegation.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.approvalDelegation.count({ where }),
+    ]);
+    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
   async create(dto: CreateDelegationDto, userId: string) {
@@ -79,10 +93,7 @@ export class DelegationService {
         endDate: { gte: now },
         ...(approvalType
           ? {
-              OR: [
-                { approvalTypes: { isEmpty: true } },
-                { approvalTypes: { has: approvalType } },
-              ],
+              OR: [{ approvalTypes: { isEmpty: true } }, { approvalTypes: { has: approvalType } }],
             }
           : {}),
       },
@@ -106,10 +117,7 @@ export class DelegationService {
     }
 
     // Same person — try to find a delegation
-    const delegation = await this.findActiveDelegation(
-      currentApproverId,
-      approvalType,
-    );
+    const delegation = await this.findActiveDelegation(currentApproverId, approvalType);
 
     if (delegation) {
       this.logger.log(

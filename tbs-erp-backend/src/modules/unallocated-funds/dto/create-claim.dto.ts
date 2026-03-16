@@ -46,7 +46,10 @@ export class CreateClaimDto {
   @IsString()
   targetContractId?: string;
 
-  @ApiPropertyOptional({ description: 'Additional note', example: 'Customer confirmed via phone call' })
+  @ApiPropertyOptional({
+    description: 'Additional note',
+    example: 'Customer confirmed via phone call',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(1000)

@@ -1,6 +1,8 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
+import { ApprovalService } from '@modules/approval/approval.service';
+import { ApprovalType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export interface AddExtraChargeDto {
@@ -25,6 +27,7 @@ export class ExtraChargeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly approvalService: ApprovalService,
   ) {}
 
   /**
@@ -41,6 +44,19 @@ export class ExtraChargeService {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
+    // Neu order da ON_HOLD (tu charge khac), tim trang thai goc tu charge dau tien
+    let savedPreviousStatus: string = order.status;
+    if (order.status === 'ON_HOLD') {
+      const firstCharge = await this.prisma.orderExtraCharge.findFirst({
+        where: { orderId, previousOrderStatus: { not: 'ON_HOLD' } },
+        orderBy: { createdAt: 'asc' },
+        select: { previousOrderStatus: true },
+      });
+      if (firstCharge?.previousOrderStatus) {
+        savedPreviousStatus = firstCharge.previousOrderStatus;
+      }
+    }
+
     const charge = await this.prisma.orderExtraCharge.create({
       data: {
         orderId,
@@ -50,17 +66,25 @@ export class ExtraChargeService {
         description: dto.description,
         imageUrls: dto.imageUrls ?? [],
         status: 'PENDING',
-        previousOrderStatus: order.status, // Luu trang thai truoc ON_HOLD de khoi phuc dung
+        previousOrderStatus: savedPreviousStatus,
         createdBy,
       },
     });
 
-    // Put order ON_HOLD
-    const previousStatus = order.status;
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: 'ON_HOLD' as any },
-    });
+    // Put order ON_HOLD (skip if already ON_HOLD)
+    // Use optimistic lock: only update if status hasn't changed since we read it
+    if (order.status !== 'ON_HOLD') {
+      const result = await this.prisma.order.updateMany({
+        where: { id: orderId, status: order.status as any },
+        data: { status: 'ON_HOLD' as any },
+      });
+
+      if (result.count === 0) {
+        throw new ConflictException(
+          `Order status changed concurrently (expected ${order.status}). Please refresh and try again.`,
+        );
+      }
+    }
 
     this.eventEmitter.emit('order.extra_charge_pending', {
       chargeId: charge.id,
@@ -68,9 +92,25 @@ export class ExtraChargeService {
       orderCode: order.code,
       chargeType: dto.chargeType,
       amount: dto.amount,
-      previousStatus,
+      previousStatus: savedPreviousStatus,
       createdBy,
     });
+
+    // Create approval request: WH VN Manager (24h) -> Chief Accountant (24h)
+    await this.approvalService.createApprovalRequest(
+      ApprovalType.EXTRA_CHARGE_APPROVAL,
+      charge.id,
+      createdBy,
+      {
+        referenceCode: order.code,
+        requestData: {
+          orderId,
+          chargeType: dto.chargeType,
+          amount: dto.amount,
+          currency: dto.currency ?? 'CNY',
+        },
+      },
+    );
 
     this.logger.log(
       `Extra charge added to order ${order.code}: ${dto.chargeType} = ${dto.amount} ${dto.currency ?? 'CNY'}. Order set to ON_HOLD.`,
@@ -114,17 +154,32 @@ export class ExtraChargeService {
     // Determine the correct status to restore when removing ON_HOLD
     let restoreStatus: string | undefined;
     if (await this.shouldRemoveHold(charge.orderId)) {
-      // Use the previousOrderStatus from the charge being approved (not from findFirst)
-      restoreStatus = charge.previousOrderStatus ?? charge.order.status;
+      restoreStatus = await this.getOriginalStatus(charge);
     }
 
-    await this.prisma.order.update({
-      where: { id: charge.orderId },
-      data: {
-        totalAmount: new Decimal(newTotal),
-        ...(restoreStatus ? { status: restoreStatus as any } : {}),
-      },
-    });
+    // Use optimistic lock when restoring status from ON_HOLD
+    if (restoreStatus) {
+      const result = await this.prisma.order.updateMany({
+        where: { id: charge.orderId, status: 'ON_HOLD' as any },
+        data: {
+          totalAmount: new Decimal(newTotal),
+          status: restoreStatus as any,
+        },
+      });
+
+      if (result.count === 0) {
+        throw new ConflictException(
+          `Order status changed concurrently (expected ON_HOLD). Please refresh and try again.`,
+        );
+      }
+    } else {
+      await this.prisma.order.update({
+        where: { id: charge.orderId },
+        data: {
+          totalAmount: new Decimal(newTotal),
+        },
+      });
+    }
 
     this.eventEmitter.emit('order.extra_charge_approved', {
       chargeId,
@@ -170,13 +225,20 @@ export class ExtraChargeService {
     });
 
     // Remove ON_HOLD if no other pending charges — restore correct previous status
+    // Use optimistic lock to ensure ON_HOLD hasn't been changed concurrently
     if (await this.shouldRemoveHold(charge.orderId)) {
-      // Use the previousOrderStatus from the charge being rejected (not from findFirst)
-      const restoreStatus = charge.previousOrderStatus ?? charge.order.status;
-      await this.prisma.order.update({
-        where: { id: charge.orderId },
+      const restoreStatus = await this.getOriginalStatus(charge);
+      const result = await this.prisma.order.updateMany({
+        where: { id: charge.orderId, status: 'ON_HOLD' as any },
         data: { status: restoreStatus as any },
       });
+
+      if (result.count === 0) {
+        this.logger.warn(
+          `Order ${charge.orderId} status was not ON_HOLD when trying to restore to ${restoreStatus}. ` +
+            `Possible concurrent modification — skipping status restore.`,
+        );
+      }
     }
 
     this.eventEmitter.emit('order.extra_charge_rejected', {
@@ -204,10 +266,27 @@ export class ExtraChargeService {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
-    return this.prisma.orderExtraCharge.findMany({
+    const charges = await this.prisma.orderExtraCharge.findMany({
       where: { orderId },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Join approval status for FE to show progress
+    const chargeIds = charges.map((c) => c.id);
+    const approvals = chargeIds.length
+      ? await this.prisma.approval.findMany({
+          where: {
+            referenceId: { in: chargeIds },
+            type: 'EXTRA_CHARGE_APPROVAL',
+          },
+          include: { steps: { orderBy: { stepNumber: 'asc' } } },
+        })
+      : [];
+
+    return charges.map((c) => ({
+      ...c,
+      approval: approvals.find((a) => a.referenceId === c.id) ?? null,
+    }));
   }
 
   /**
@@ -219,5 +298,22 @@ export class ExtraChargeService {
       where: { orderId, status: 'PENDING' },
     });
     return pendingCount === 0;
+  }
+
+  /**
+   * Get the original pre-ON_HOLD status from charge data.
+   * If the charge's previousOrderStatus is ON_HOLD (edge case),
+   * find the earliest charge that recorded the real status.
+   */
+  private async getOriginalStatus(charge: { orderId: string; previousOrderStatus: string | null; order: { status: string } }): Promise<string> {
+    if (charge.previousOrderStatus && charge.previousOrderStatus !== 'ON_HOLD') {
+      return charge.previousOrderStatus;
+    }
+    const firstCharge = await this.prisma.orderExtraCharge.findFirst({
+      where: { orderId: charge.orderId, previousOrderStatus: { not: 'ON_HOLD' } },
+      orderBy: { createdAt: 'asc' },
+      select: { previousOrderStatus: true },
+    });
+    return firstCharge?.previousOrderStatus ?? charge.order.status;
   }
 }

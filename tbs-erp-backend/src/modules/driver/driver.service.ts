@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { Prisma, DriverStatus, Branch } from '@prisma/client';
@@ -142,9 +137,7 @@ export class DriverService {
       data: { vehicleId },
     });
 
-    this.logger.log(
-      `Vehicle ${vehicle.plateNumber} assigned to driver ${driver.fullName}`,
-    );
+    this.logger.log(`Vehicle ${vehicle.plateNumber} assigned to driver ${driver.fullName}`);
 
     return updated;
   }
@@ -218,12 +211,8 @@ export class DriverService {
     });
 
     const totalDeliveries = deliveries.length;
-    const completedDeliveries = deliveries.filter(
-      (d) => d.status === 'DELIVERED',
-    ).length;
-    const failedDeliveries = deliveries.filter(
-      (d) => d.status === 'FAILED',
-    ).length;
+    const completedDeliveries = deliveries.filter((d) => d.status === 'DELIVERED').length;
+    const failedDeliveries = deliveries.filter((d) => d.status === 'FAILED').length;
 
     // On-time rate: deliveries completed on/before scheduled date
     const onTimeDeliveries = deliveries.filter((d) => {
@@ -232,9 +221,7 @@ export class DriverService {
     }).length;
 
     const onTimeRate =
-      completedDeliveries > 0
-        ? Math.round((onTimeDeliveries / completedDeliveries) * 100)
-        : 0;
+      completedDeliveries > 0 ? Math.round((onTimeDeliveries / completedDeliveries) * 100) : 0;
 
     // COD collected
     const codCollected = deliveries

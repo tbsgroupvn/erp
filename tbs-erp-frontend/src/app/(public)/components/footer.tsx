@@ -9,7 +9,7 @@ import {
   Phone,
   MessageCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -20,7 +20,7 @@ export default function Footer() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleNewsletterSubscribe = async (e: React.FormEvent) => {
+  const handleNewsletterSubscribe = async (e: FormEvent) => {
     e.preventDefault();
 
     if (!newsletterEmail || !newsletterEmail.includes('@')) {

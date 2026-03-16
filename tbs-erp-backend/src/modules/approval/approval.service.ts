@@ -1,30 +1,13 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  ApprovalAction,
-  ApprovalType,
-  ApprovalStatus,
-  UserRole,
-} from '@prisma/client';
+import { ApprovalAction, ApprovalStatus, ApprovalType, UserRole } from '@prisma/client';
 import { PrismaService } from '@core/database/prisma.service';
-import { ApprovalEngine } from './domain/approval-engine';
 import { ApprovalGraphEngine } from './domain/approval-graph-engine';
 import { ApprovalRepository } from './approval.repository';
 import { FlowDefinitionRepository } from './flow-definition/flow-definition.repository';
 import { DelegationService } from './delegation/delegation.service';
-import { DiscountApprovalFlow } from './domain/approval-flows/discount.flow';
-import { PaymentApprovalFlow } from './domain/approval-flows/payment.flow';
-import {
-  CancelOrderApprovalFlow,
-  CancelOrderStage,
-} from './domain/approval-flows/cancel-order.flow';
 import { ApprovalQueryDto } from './dto/approval-query.dto';
 import { PaginatedResponse } from '@common/dto/base-response.dto';
 
@@ -33,23 +16,18 @@ export class ApprovalService {
   private readonly logger = new Logger(ApprovalService.name);
 
   constructor(
-    private readonly approvalEngine: ApprovalEngine,
     private readonly graphEngine: ApprovalGraphEngine,
     private readonly approvalRepository: ApprovalRepository,
     private readonly flowDefRepo: FlowDefinitionRepository,
     private readonly delegationService: DelegationService,
-    private readonly discountFlow: DiscountApprovalFlow,
-    private readonly paymentFlow: PaymentApprovalFlow,
-    private readonly cancelOrderFlow: CancelOrderApprovalFlow,
     private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
     private readonly prisma: PrismaService,
   ) {}
 
   /**
-   * Create an approval request. Dual-path routing:
-   * 1. If a flow definition exists in DB → use graph engine
-   * 2. Otherwise → use legacy engine (hardcoded flows)
+   * Create an approval request using the graph engine.
+   * Requires a flow definition to be configured for the given type.
    */
   async createApprovalRequest(
     type: ApprovalType,
@@ -61,38 +39,30 @@ export class ApprovalService {
       isUrgent?: boolean;
     },
   ) {
-    // Try to find a graph-based flow definition
     const flowDef = await this.flowDefRepo.findActiveByTriggerType(type);
 
-    if (flowDef) {
-      // NEW: use graph engine
-      this.logger.log(
-        `Using graph engine for ${type} (flow: ${flowDef.name} v${flowDef.version})`,
-      );
-      return this.graphEngine.initiateApproval(
-        flowDef.id,
-        referenceId,
-        requestedBy,
-        options?.requestData ?? {},
-        {
-          referenceCode: options?.referenceCode,
-          isUrgent: options?.isUrgent,
-        },
+    if (!flowDef) {
+      throw new BadRequestException(
+        `Chưa có quy trình phê duyệt cho loại "${type}". ` +
+          `Vui lòng cài đặt template tại Cài đặt > Quy trình phê duyệt.`,
       );
     }
 
-    // LEGACY: use hardcoded flow engine
-    const overrideSteps = this.resolveFlowSteps(type, options?.requestData);
-    return this.approvalEngine.submitForApproval(type, referenceId, requestedBy, {
-      referenceCode: options?.referenceCode,
-      requestData: options?.requestData,
-      overrideSteps,
-    });
+    this.logger.log(`Using graph engine for ${type} (flow: ${flowDef.name} v${flowDef.version})`);
+    return this.graphEngine.initiateApproval(
+      flowDef.id,
+      referenceId,
+      requestedBy,
+      options?.requestData ?? {},
+      {
+        referenceCode: options?.referenceCode,
+        isUrgent: options?.isUrgent,
+      },
+    );
   }
 
   /**
-   * Process a step in the approval workflow.
-   * Supports both legacy and graph-based approvals.
+   * Process a step in the approval workflow (graph engine only).
    */
   async processStep(
     approvalId: string,
@@ -106,31 +76,129 @@ export class ApprovalService {
       throw new NotFoundException(`Approval ${approvalId} not found`);
     }
 
-    // Graph-based approval
-    if (approval.flowDefinitionId) {
-      const currentStep = approval.steps.find(
-        (s) => s.stepNumber === approval.currentStep && s.status === ApprovalStatus.PENDING,
-      );
-      if (!currentStep) {
-        throw new BadRequestException('No pending step found');
-      }
-      return this.graphEngine.processDecision(
-        approvalId,
-        currentStep.id,
-        decision,
-        approverId,
-        { comment },
-      );
+    const currentStep = approval.steps.find(
+      (s) => s.stepNumber === approval.currentStep && s.status === ApprovalStatus.PENDING,
+    );
+    if (!currentStep) {
+      throw new BadRequestException('No pending step found');
     }
 
-    // Legacy approval
-    return this.approvalEngine.processDecision(
-      approvalId,
-      decision,
-      approverId,
-      approverRole,
+    return this.graphEngine.processDecision(approvalId, currentStep.id, decision, approverId, {
       comment,
-    );
+    });
+  }
+
+  /**
+   * Batch approve multiple approvals at once.
+   */
+  async batchApprove(
+    approvalIds: string[],
+    approverId: string,
+    approverRole: UserRole,
+    comment?: string,
+  ) {
+    const batchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const results: Array<{ approvalId: string; success: boolean; error?: string }> = [];
+
+    for (const id of approvalIds) {
+      try {
+        const approval = await this.approvalRepository.findById(id);
+        if (!approval) {
+          results.push({ approvalId: id, success: false, error: 'Not found' });
+          continue;
+        }
+
+        if (approval.status !== ApprovalStatus.PENDING) {
+          results.push({ approvalId: id, success: false, error: `Already ${approval.status}` });
+          continue;
+        }
+
+        const currentStep = approval.steps.find(
+          (s) => s.stepNumber === approval.currentStep && s.status === ApprovalStatus.PENDING,
+        );
+        if (!currentStep) {
+          results.push({ approvalId: id, success: false, error: 'No pending step' });
+          continue;
+        }
+
+        // Tag with batchId
+        await this.prisma.approval.update({
+          where: { id },
+          data: { batchId },
+        });
+
+        await this.graphEngine.processDecision(id, currentStep.id, 'APPROVE', approverId, {
+          comment: comment ? `[Batch] ${comment}` : '[Batch approve]',
+        });
+
+        results.push({ approvalId: id, success: true });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        results.push({ approvalId: id, success: false, error: message });
+        this.logger.warn(`Batch approve failed for ${id}: ${message}`);
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    this.logger.log(`Batch approve: ${successCount}/${approvalIds.length} succeeded (batch=${batchId})`);
+
+    return { batchId, results, successCount, failCount: approvalIds.length - successCount };
+  }
+
+  /**
+   * Batch reject multiple approvals at once.
+   */
+  async batchReject(
+    approvalIds: string[],
+    approverId: string,
+    approverRole: UserRole,
+    comment?: string,
+  ) {
+    const batchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const results: Array<{ approvalId: string; success: boolean; error?: string }> = [];
+
+    for (const id of approvalIds) {
+      try {
+        const approval = await this.approvalRepository.findById(id);
+        if (!approval) {
+          results.push({ approvalId: id, success: false, error: 'Not found' });
+          continue;
+        }
+
+        if (approval.status !== ApprovalStatus.PENDING) {
+          results.push({ approvalId: id, success: false, error: `Already ${approval.status}` });
+          continue;
+        }
+
+        const currentStep = approval.steps.find(
+          (s) => s.stepNumber === approval.currentStep && s.status === ApprovalStatus.PENDING,
+        );
+        if (!currentStep) {
+          results.push({ approvalId: id, success: false, error: 'No pending step' });
+          continue;
+        }
+
+        await this.prisma.approval.update({
+          where: { id },
+          data: { batchId },
+        });
+
+        await this.graphEngine.processDecision(id, currentStep.id, 'REJECT', approverId, {
+          comment: comment ? `[Batch] ${comment}` : '[Batch reject]',
+        });
+
+        results.push({ approvalId: id, success: true });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        results.push({ approvalId: id, success: false, error: message });
+        this.logger.warn(`Batch reject failed for ${id}: ${message}`);
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    this.logger.log(`Batch reject: ${successCount}/${approvalIds.length} succeeded (batch=${batchId})`);
+
+    return { batchId, results, successCount, failCount: approvalIds.length - successCount };
   }
 
   /**
@@ -153,7 +221,6 @@ export class ApprovalService {
       throw new BadRequestException('Step not found or not pending');
     }
 
-    // Get the target user's role
     const toUser = await this.prisma.user.findUnique({
       where: { id: toUserId },
       select: { role: true },
@@ -206,10 +273,7 @@ export class ApprovalService {
     }
 
     return this.prisma.executeInTransaction(async (tx) => {
-      // Shift subsequent steps
-      const stepsToShift = approval.steps.filter(
-        (s) => s.stepNumber > afterStepNumber,
-      );
+      const stepsToShift = approval.steps.filter((s) => s.stepNumber > afterStepNumber);
       for (const step of stepsToShift) {
         await tx.approvalStep.update({
           where: { id: step.id },
@@ -217,7 +281,6 @@ export class ApprovalService {
         });
       }
 
-      // Create new step
       const newStep = await tx.approvalStep.create({
         data: {
           approvalId,
@@ -228,7 +291,6 @@ export class ApprovalService {
         },
       });
 
-      // Update total steps
       await tx.approval.update({
         where: { id: approvalId },
         data: { totalSteps: approval.totalSteps + 1 },
@@ -436,14 +498,8 @@ export class ApprovalService {
   }
 
   /**
-   * Escalate overdue approvals. Can be called by a cron job.
-   */
-  async escalateIfOverdue(thresholdHours = 24): Promise<number> {
-    return this.approvalEngine.escalateOverdue(thresholdHours);
-  }
-
-  /**
    * Cron job: Check for overdue approval steps every hour.
+   * Emits escalation events for overdue approvals.
    */
   @Cron(CronExpression.EVERY_HOUR)
   async checkOverdueApprovals(): Promise<void> {
@@ -452,12 +508,7 @@ export class ApprovalService {
       24,
     );
 
-    const overdueThreshold = new Date(
-      Date.now() - escalateAfterHours * 60 * 60 * 1000,
-    );
-    const autoEscalateThreshold = new Date(
-      Date.now() - escalateAfterHours * 2 * 60 * 60 * 1000,
-    );
+    const overdueThreshold = new Date(Date.now() - escalateAfterHours * 60 * 60 * 1000);
 
     const overdueApprovals = await this.prisma.approval.findMany({
       where: {
@@ -471,14 +522,18 @@ export class ApprovalService {
       return;
     }
 
-    this.logger.warn(
-      `Found ${overdueApprovals.length} overdue approval(s)`,
-    );
+    this.logger.warn(`Found ${overdueApprovals.length} overdue approval(s)`);
 
     for (const approval of overdueApprovals) {
-      const currentStep = approval.steps.find(
-        (s) => s.stepNumber === approval.currentStep,
-      );
+      const currentStep = approval.steps.find((s) => s.stepNumber === approval.currentStep);
+
+      // Mark step as overdue
+      if (currentStep && !currentStep.isOverdue) {
+        await this.prisma.approvalStep.update({
+          where: { id: currentStep.id },
+          data: { isOverdue: true },
+        });
+      }
 
       this.eventEmitter.emit('approval.overdue', {
         approvalId: approval.id,
@@ -490,55 +545,25 @@ export class ApprovalService {
         pendingSince: approval.updatedAt,
       });
 
+      // Auto-escalate if pending for 2x the threshold
+      const autoEscalateThreshold = new Date(
+        Date.now() - escalateAfterHours * 2 * 60 * 60 * 1000,
+      );
       if (approval.updatedAt < autoEscalateThreshold) {
-        const escalated = await this.approvalEngine.escalateOverdue(
-          escalateAfterHours * 2,
-        );
+        this.eventEmitter.emit('approval.escalated', {
+          approvalId: approval.id,
+          type: approval.type,
+          referenceId: approval.referenceId,
+          currentStep: approval.currentStep,
+          currentStepRole: currentStep?.approverRole,
+          pendingSince: approval.updatedAt,
+        });
 
-        if (escalated > 0) {
-          this.logger.warn(
-            `Auto-escalated approval ${approval.id} (type=${approval.type}) ` +
-              `— pending since ${approval.updatedAt.toISOString()}`,
-          );
-        }
-      }
-    }
-  }
-
-  /**
-   * Resolve the correct approval flow steps based on the type
-   * and any data that determines the flow variant.
-   */
-  private resolveFlowSteps(
-    type: ApprovalType,
-    requestData?: Record<string, unknown>,
-  ) {
-    switch (type) {
-      case ApprovalType.DISCOUNT: {
-        const discountPercent =
-          (requestData?.discountPercent as number) ?? 0;
-        const discountAmount =
-          (requestData?.discountAmount as number) ?? 0;
-        return this.discountFlow.getStepsForDiscount(
-          discountPercent,
-          discountAmount,
+        this.logger.warn(
+          `Auto-escalated approval ${approval.id} (type=${approval.type}) ` +
+            `- pending since ${approval.updatedAt.toISOString()}`,
         );
       }
-
-      case ApprovalType.PAYMENT_VOUCHER: {
-        const amount = (requestData?.amount as number) ?? 0;
-        return this.paymentFlow.getStepsForAmount(amount);
-      }
-
-      case ApprovalType.ORDER_CANCEL: {
-        const stage =
-          (requestData?.cancelStage as CancelOrderStage) ??
-          CancelOrderStage.NO_DEPOSIT;
-        return this.cancelOrderFlow.getStepsForStage(stage);
-      }
-
-      default:
-        return undefined;
     }
   }
 }

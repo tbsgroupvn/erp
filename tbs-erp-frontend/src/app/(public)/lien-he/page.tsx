@@ -1,5 +1,10 @@
 'use client';
 
+declare global {
+  // eslint-disable-next-line no-var
+  interface Window { google?: Record<string, any>; }
+}
+
 import { Phone, Mail, MapPin, Clock, Send } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -413,64 +418,21 @@ export default function ContactPage() {
 }
 
 function GoogleMap() {
-  const mapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.google && mapRef.current) {
-      // Default location: Hanoi, Vietnam
-      const location = { lat: 21.028511, lng: 105.804817 };
-
-      const map = new window.google.maps.Map(mapRef.current, {
-        center: location,
-        zoom: 15,
-        mapTypeControl: true,
-        streetViewControl: true,
-        fullscreenControl: true,
-      });
-
-      new window.google.maps.Marker({
-        position: location,
-        map,
-        title: 'TBS Logistics',
-        animation: window.google.maps.Animation.DROP,
-      });
-
-      // Add info window
-      const infoWindow = new window.google.maps.InfoWindow({
-        content: `
-          <div style="padding: 10px;">
-            <h3 style="font-weight: bold; margin-bottom: 5px;">TBS Logistics</h3>
-            <p style="margin: 5px 0;">Vận chuyển Trung Quốc - Việt Nam</p>
-            <p style="margin: 5px 0;">${process.env.NEXT_PUBLIC_COMPANY_ADDRESS || 'Hà Nội, Việt Nam'}</p>
-            <p style="margin: 5px 0;">Hotline: ${process.env.NEXT_PUBLIC_COMPANY_PHONE || '0123 456 789'}</p>
-          </div>
-        `,
-      });
-
-      const marker = new window.google.maps.Marker({
-        position: location,
-        map,
-        title: 'TBS Logistics',
-      });
-
-      marker.addListener('click', () => {
-        infoWindow.open(map, marker);
-      });
-    }
-  }, []);
+  // OpenStreetMap embed — works in China (Google Maps is blocked by GFW)
+  const lat = process.env.NEXT_PUBLIC_LATITUDE || '21.028511';
+  const lng = process.env.NEXT_PUBLIC_LONGITUDE || '105.804817';
 
   return (
-    <div
-      ref={mapRef}
-      className="h-96 w-full rounded-lg shadow-lg border border-gray-200"
-    >
-      {/* Fallback for when Google Maps is not loaded */}
-      <div className="h-full w-full flex items-center justify-center bg-gray-100 rounded-lg">
-        <div className="text-center">
-          <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-          <p className="text-muted-foreground">Đang tải bản đồ...</p>
-        </div>
-      </div>
+    <div className="h-96 w-full rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+      <iframe
+        title="Vị trí công ty"
+        width="100%"
+        height="100%"
+        style={{ border: 0 }}
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+        src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(lng) - 0.01}%2C${Number(lat) - 0.005}%2C${Number(lng) + 0.01}%2C${Number(lat) + 0.005}&layer=mapnik&marker=${lat}%2C${lng}`}
+      />
     </div>
   );
 }

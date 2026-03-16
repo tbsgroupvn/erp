@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { Prisma, EmployeeStatus, Branch } from '@prisma/client';
@@ -206,9 +201,7 @@ export class EmployeeService {
     }
 
     if (employee.status !== EmployeeStatus.ACTIVE) {
-      throw new BadRequestException(
-        `Employee ${employee.code} is already ${employee.status}`,
-      );
+      throw new BadRequestException(`Employee ${employee.code} is already ${employee.status}`);
     }
 
     const targetStatus = dto.status || EmployeeStatus.RESIGNED;
@@ -229,9 +222,14 @@ export class EmployeeService {
       effectiveDate,
     });
 
-    this.logger.log(
-      `Employee ${employee.code} deactivated: ${targetStatus} - ${dto.reason}`,
-    );
+    // KT-6: Emit status changed event for commission clawback listener
+    this.eventEmitter.emit('employee.status.changed', {
+      employeeId: id,
+      oldStatus: employee.status,
+      newStatus: targetStatus,
+    });
+
+    this.logger.log(`Employee ${employee.code} deactivated: ${targetStatus} - ${dto.reason}`);
 
     return updated;
   }
@@ -263,6 +261,84 @@ export class EmployeeService {
         count: r._count.id,
       })),
     };
+  }
+
+  // ─── NS-4: Training Records ───
+
+  /**
+   * Creates a training record for an employee.
+   */
+  async createTrainingRecord(
+    employeeId: string,
+    data: {
+      courseName: string;
+      provider?: string;
+      completedAt: string;
+      certificateUrl?: string;
+      certificateExpiry?: string;
+      note?: string;
+    },
+    createdBy: string,
+  ) {
+    const employee = await this.prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { id: true, code: true },
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee with ID ${employeeId} not found`);
+    }
+
+    const record = await this.prisma.trainingRecord.create({
+      data: {
+        employeeId,
+        courseName: data.courseName,
+        provider: data.provider,
+        completedAt: new Date(data.completedAt),
+        certificateUrl: data.certificateUrl,
+        certificateExpiry: data.certificateExpiry ? new Date(data.certificateExpiry) : undefined,
+        note: data.note,
+        createdBy,
+      },
+    });
+
+    this.logger.log(`Training record created for employee ${employee.code}: ${data.courseName}`);
+
+    return record;
+  }
+
+  /**
+   * Lists training records for an employee.
+   */
+  async listTrainingRecords(employeeId: string) {
+    const employee = await this.prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { id: true },
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee with ID ${employeeId} not found`);
+    }
+
+    return this.prisma.trainingRecord.findMany({
+      where: { employeeId },
+      orderBy: { completedAt: 'desc' },
+    });
+  }
+
+  /**
+   * Deletes a training record.
+   */
+  async deleteTrainingRecord(recordId: string) {
+    const record = await this.prisma.trainingRecord.findUnique({
+      where: { id: recordId },
+    });
+    if (!record) {
+      throw new NotFoundException(`Training record with ID ${recordId} not found`);
+    }
+
+    await this.prisma.trainingRecord.delete({ where: { id: recordId } });
+
+    this.logger.log(`Training record ${recordId} deleted`);
+    return { deleted: true };
   }
 
   /**

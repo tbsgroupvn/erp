@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
+import { CacheService } from '@core/cache/cache.service';
 import { Prisma, Order, OrderStatus, OrderItem } from '@prisma/client';
 import { DataScopeFilter } from '@common/guards/data-scope.guard';
 import { generateCode } from '@common/utils/code-generator.util';
@@ -98,7 +99,10 @@ export interface OrderWithRelations extends Order {
 export class OrderRepository {
   private readonly logger = new Logger(OrderRepository.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   /**
    * Creates a new order with its items in a single transaction.
@@ -356,6 +360,12 @@ export class OrderRepository {
 
   /**
    * Update order status and create a status history record atomically.
+   *
+   * Uses optimistic locking: the UPDATE only matches when the current DB status
+   * equals `fromStatus`. If another request changed the status first (race condition),
+   * updateMany returns count=0 and we throw ConflictException.
+   * This prevents two concurrent transitions from the same state both succeeding
+   * (e.g., QUOTATION->PENDING_DEPOSIT and QUOTATION->SOURCING).
    */
   async updateStatus(
     id: string,
@@ -366,14 +376,38 @@ export class OrderRepository {
     additionalData?: Prisma.OrderUpdateInput,
   ): Promise<Order> {
     return this.prisma.executeInTransaction(async (tx) => {
-      // Update the order status
-      const order = await tx.order.update({
-        where: { id },
-        data: {
-          status: toStatus,
-          ...additionalData,
-        },
-      });
+      // Optimistic lock: only update if current status matches fromStatus
+      if (fromStatus !== null) {
+        const result = await tx.order.updateMany({
+          where: { id, status: fromStatus },
+          data: {
+            status: toStatus,
+            ...additionalData,
+          },
+        });
+
+        if (result.count === 0) {
+          // Status was already changed by another concurrent request
+          const current = await tx.order.findUnique({
+            where: { id },
+            select: { status: true, code: true },
+          });
+          const currentStatus = current?.status ?? 'UNKNOWN';
+          throw new ConflictException(
+            `Order status conflict: expected ${fromStatus} but found ${currentStatus}. ` +
+              `Another user may have changed the status concurrently. Please refresh and try again.`,
+          );
+        }
+      } else {
+        // fromStatus is null (initial creation) — no optimistic lock needed
+        await tx.order.update({
+          where: { id },
+          data: {
+            status: toStatus,
+            ...additionalData,
+          },
+        });
+      }
 
       // Create status history record
       await tx.orderStatusHistory.create({
@@ -386,7 +420,8 @@ export class OrderRepository {
         },
       });
 
-      return order;
+      // Return the updated order
+      return tx.order.findUnique({ where: { id } }) as Promise<Order>;
     });
   }
 
@@ -437,7 +472,7 @@ export class OrderRepository {
       prefix: 'TBS-ORD',
       datePrefixFormat: 'YYMMDD',
       sequenceLength: 4,
-    });
+    }, this.cacheService);
   }
 
   /**

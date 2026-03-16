@@ -25,9 +25,10 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { extname } from 'path';
-import { Request } from 'express';
-import * as multer from 'multer';
+import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
 import { BlogService } from './blog.service';
 import { CreateBlogPostDto } from './dto/create-blog-post.dto';
@@ -40,7 +41,8 @@ export class BlogController {
   constructor(private readonly blogService: BlogService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.MARKETING_STAFF)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -97,11 +99,13 @@ export class BlogController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.MARKETING_STAFF)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Update a blog post',
-    description: 'Updates an existing blog post. Slug is auto-regenerated if title changes. Requires JWT authentication.',
+    description:
+      'Updates an existing blog post. Slug is auto-regenerated if title changes. Requires JWT authentication.',
   })
   @ApiParam({ name: 'id', description: 'Blog post ID' })
   @ApiResponse({ status: 200, description: 'Blog post updated successfully' })
@@ -114,7 +118,8 @@ export class BlogController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CEO, UserRole.COO)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -132,7 +137,8 @@ export class BlogController {
 
   @Post('upload-cover')
   @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 uploads per minute
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.MARKETING_STAFF)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')

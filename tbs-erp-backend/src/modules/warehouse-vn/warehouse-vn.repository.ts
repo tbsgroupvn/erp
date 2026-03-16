@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
-import { Prisma, Package, Delivery, Branch } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma, Package, Delivery, WarehouseVNStatus } from '@prisma/client';
 
 @Injectable()
 export class WarehouseVNRepository {
@@ -13,14 +12,11 @@ export class WarehouseVNRepository {
    * Receive packages at Warehouse VN from a container.
    * Updates package status and timestamps.
    */
-  async receivePackages(
-    packageIds: string[],
-    receivedBy: string,
-  ): Promise<number> {
+  async receivePackages(packageIds: string[], receivedBy: string): Promise<number> {
     const result = await this.prisma.package.updateMany({
       where: { id: { in: packageIds } },
       data: {
-        warehouseVNStatus: 'RECEIVED',
+        warehouseVNStatus: WarehouseVNStatus.RECEIVED,
         receivedVNAt: new Date(),
         receivedVNBy: receivedBy,
       },
@@ -32,15 +28,12 @@ export class WarehouseVNRepository {
   /**
    * Update a package's VN warehouse status.
    */
-  async updatePackageStatus(
-    packageId: string,
-    status: string,
-  ): Promise<Package> {
+  async updatePackageStatus(packageId: string, status: WarehouseVNStatus): Promise<Package> {
     const updateData: Prisma.PackageUpdateInput = {
       warehouseVNStatus: status,
     };
 
-    if (status === 'DELIVERED') {
+    if (status === WarehouseVNStatus.DELIVERED) {
       updateData.deliveredAt = new Date();
     }
 
@@ -96,9 +89,7 @@ export class WarehouseVNRepository {
   /**
    * Create a delivery record.
    */
-  async createDelivery(
-    data: Prisma.DeliveryCreateInput,
-  ): Promise<Delivery> {
+  async createDelivery(data: Prisma.DeliveryCreateInput): Promise<Delivery> {
     return this.prisma.delivery.create({
       data,
     });
@@ -161,10 +152,7 @@ export class WarehouseVNRepository {
 
     let sequence = 1;
     if (latest) {
-      const lastSequence = parseInt(
-        latest.code.split('-').pop() || '0',
-        10,
-      );
+      const lastSequence = parseInt(latest.code.split('-').pop() || '0', 10);
       sequence = lastSequence + 1;
     }
 

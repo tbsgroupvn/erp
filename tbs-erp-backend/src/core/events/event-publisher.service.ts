@@ -3,6 +3,8 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { v4 as uuidv4 } from 'uuid';
 import { DomainEvent, DomainEventType } from './domain-events';
+import { PrismaService } from '@core/database/prisma.service';
+import { OutboxStatus, Prisma } from '@prisma/client';
 
 /**
  * Central event publisher that routes domain events to the appropriate BullMQ queue.
@@ -23,6 +25,7 @@ export class EventPublisherService {
     @InjectQueue('finance-events') private readonly financeQueue: Queue,
     @InjectQueue('warehouse-events') private readonly warehouseQueue: Queue,
     @InjectQueue('integration-events') private readonly integrationQueue: Queue,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -47,28 +50,63 @@ export class EventPublisherService {
 
     this.logger.log(
       `Publishing event ${event.type} to queue [${queueName}] ` +
-      `(correlationId: ${event.metadata.correlationId}, ` +
-      `aggregateId: ${event.metadata.aggregateId ?? 'N/A'})`,
+        `(correlationId: ${event.metadata.correlationId}, ` +
+        `aggregateId: ${event.metadata.aggregateId ?? 'N/A'})`,
     );
 
-    const job = await queue.add(event.type, event, {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 1000, // 1s, 2s, 4s
-      },
-      removeOnComplete: {
-        age: 86400, // Keep completed jobs for 24 hours
-        count: 1000, // Keep at most 1000 completed jobs
-      },
-      removeOnFail: {
-        age: 604800, // Keep failed jobs for 7 days
-      },
-      // Use correlation ID as job ID prefix for easier debugging
-      jobId: `${event.type}-${event.metadata.correlationId}`,
-    });
+    try {
+      const job = await queue.add(event.type, event, {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000, // 1s, 2s, 4s
+        },
+        removeOnComplete: {
+          age: 86400, // Keep completed jobs for 24 hours
+          count: 1000, // Keep at most 1000 completed jobs
+        },
+        removeOnFail: {
+          age: 604800, // Keep failed jobs for 7 days
+        },
+        // Use correlation ID as job ID prefix for easier debugging
+        jobId: `${event.type}-${event.metadata.correlationId}`,
+      });
 
-    return job.id ?? event.metadata.correlationId;
+      return job.id ?? event.metadata.correlationId;
+    } catch (queueError) {
+      // BullMQ/Redis unavailable - fall back to Outbox pattern (DB-backed)
+      this.logger.warn(
+        `BullMQ queue [${queueName}] unavailable, falling back to Outbox: ${queueError.message}`,
+      );
+
+      try {
+        await this.prisma.outboxEvent.create({
+          data: {
+            aggregateType: event.type.split('.')[0],
+            aggregateId:
+              event.metadata.aggregateId ?? event.metadata.correlationId,
+            eventType: event.type,
+            payload: event as unknown as Prisma.InputJsonValue,
+            status: OutboxStatus.PENDING,
+            maxAttempts: 10,
+          },
+        });
+
+        this.logger.log(
+          `Event ${event.type} saved to Outbox (correlationId: ${event.metadata.correlationId})`,
+        );
+      } catch (dbError) {
+        // Both Redis and DB are unavailable - log CRITICAL but do NOT throw
+        // so the calling service does not crash
+        this.logger.error(
+          `CRITICAL: Failed to publish event ${event.type} via both BullMQ and Outbox. ` +
+            `Queue error: ${queueError.message}. DB error: ${dbError.message}`,
+          dbError.stack,
+        );
+      }
+
+      return event.metadata.correlationId;
+    }
   }
 
   /**
@@ -121,13 +159,20 @@ export class EventPublisherService {
   private getQueueName(eventType: DomainEventType): string {
     const prefix = eventType.split('.')[0];
     switch (prefix) {
-      case 'order': return 'order-events';
-      case 'finance': return 'finance-events';
-      case 'warehouse': return 'warehouse-events';
-      case 'notification': return 'notification-events';
-      case 'approval': return 'notification-events';
-      case 'crm': return 'integration-events';
-      default: return 'integration-events';
+      case 'order':
+        return 'order-events';
+      case 'finance':
+        return 'finance-events';
+      case 'warehouse':
+        return 'warehouse-events';
+      case 'notification':
+        return 'notification-events';
+      case 'approval':
+        return 'notification-events';
+      case 'crm':
+        return 'integration-events';
+      default:
+        return 'integration-events';
     }
   }
 }

@@ -47,6 +47,15 @@ import {
   Calendar,
   type LucideIcon,
   PackageCheck,
+  MessageSquare,
+  Newspaper,
+  HelpCircle,
+  Target,
+  Download,
+  Video,
+  Bot,
+  Zap,
+  LayoutGrid,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils/cn';
@@ -59,6 +68,7 @@ import { ROLE_LABELS as ROLE_LABELS_CONSTANTS } from '@/lib/utils/constants';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { useSidebarStore } from '@/lib/stores/sidebar-store';
 import { useApprovalCounts } from '@/lib/hooks/use-approvals';
+import { useChatUnreadCount } from '@/lib/hooks/use-chat';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -108,6 +118,15 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Calendar,
   CheckCircle,
   Settings,
+  MessageSquare,
+  Newspaper,
+  HelpCircle,
+  Target,
+  Download,
+  Video,
+  Bot,
+  Zap,
+  LayoutGrid,
 };
 
 function getInitials(name: string): string {
@@ -140,9 +159,17 @@ function getAllowedPaths(role: UserRole): string[] {
 export function AppSidebar() {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
-  const { isCollapsed, toggleCollapsed } = useSidebarStore();
+  const { isCollapsed, toggleCollapsed, isOpen, toggle: toggleMobile, setOpen } = useSidebarStore();
   const approvalCounts = useApprovalCounts();
   const pendingCount = approvalCounts.data?.pendingForMe ?? 0;
+  const chatUnreadCount = useChatUnreadCount();
+  const chatUnread = chatUnreadCount.data ?? 0;
+
+  // Close mobile sidebar when route changes
+  React.useEffect(() => {
+    setOpen(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const allowedPaths = React.useMemo(
     () => (user ? getAllowedPaths(user.role) : []),
@@ -167,22 +194,36 @@ export function AppSidebar() {
   const roleLabel = user ? (ROLE_LABELS[user.role] ?? ROLE_LABELS_CONSTANTS[user.role] ?? user.role) : '';
 
   return (
+    <>
+      {/* Mobile overlay backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+          aria-hidden="true"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
     <aside
       role="navigation"
       aria-label="Menu chinh"
       className={cn(
         'flex h-screen flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300',
-        isCollapsed ? 'w-[68px]' : 'w-[280px]'
+        // Desktop: collapse/expand
+        'hidden lg:flex',
+        isCollapsed ? 'lg:w-[68px]' : 'lg:w-[280px]',
+        // Mobile: fixed overlay drawer
+        isOpen && 'fixed inset-y-0 left-0 z-50 flex w-[280px] lg:relative lg:z-auto'
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center border-b px-4">
-        <Link href="/tong-quan" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-bold text-sm">
+      <div className="flex h-16 items-center border-b px-4 bg-gradient-to-r from-primary/5 to-transparent">
+        <Link href="/tong-quan" className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-bold text-sm shadow-md shadow-primary/20">
             {(process.env.NEXT_PUBLIC_APP_TITLE || 'ERP')[0]}
           </div>
           {!isCollapsed && (
-            <span className="text-lg font-bold tracking-tight">
+            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
               {process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System'}
             </span>
           )}
@@ -191,10 +232,10 @@ export function AppSidebar() {
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-2 py-4">
-        <nav className="flex flex-col gap-1">
+        <nav id="sidebar-nav" className="flex flex-col gap-1">
           {NAV_GROUPS.map((group) => {
-            const filteredItems = group.items.filter((item) =>
-              allowedPaths.includes(item.href)
+            const filteredItems = group.items.filter(
+              (item) => allowedPaths.includes(item.href) && !item.tabOf
             );
 
             if (filteredItems.length === 0) return null;
@@ -207,7 +248,9 @@ export function AppSidebar() {
                       pathname === item.href ||
                       pathname.startsWith(item.href + '/');
                     const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
-                    const showBadge = item.href === '/phe-duyet' && pendingCount > 0;
+                    const showBadge =
+                      (item.href === '/phe-duyet' && pendingCount > 0) ||
+                      (item.href === '/tro-chuyen' && chatUnread > 0);
 
                     return (
                       <Link
@@ -217,9 +260,9 @@ export function AppSidebar() {
                         aria-current={isActive ? 'page' : undefined}
                         aria-label={item.title}
                         className={cn(
-                          'relative flex h-10 w-10 mx-auto items-center justify-center rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-ring',
+                          'relative flex h-10 w-10 mx-auto items-center justify-center rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring',
                           isActive
-                            ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                            ? 'bg-primary/10 text-primary font-medium shadow-sm'
                             : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                         )}
                       >
@@ -227,9 +270,10 @@ export function AppSidebar() {
                         {showBadge && (
                           <span
                             className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
-                            aria-label={`${pendingCount} cho phe duyet`}
                           >
-                            {pendingCount > 9 ? '9+' : pendingCount}
+                            {item.href === '/tro-chuyen'
+                              ? chatUnread > 9 ? '9+' : chatUnread
+                              : pendingCount > 9 ? '9+' : pendingCount}
                           </span>
                         )}
                       </Link>
@@ -272,7 +316,9 @@ export function AppSidebar() {
                       pathname === item.href ||
                       pathname.startsWith(item.href + '/');
                     const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
-                    const showBadge = item.href === '/phe-duyet' && pendingCount > 0;
+                    const showBadge =
+                      (item.href === '/phe-duyet' && pendingCount > 0) ||
+                      (item.href === '/tro-chuyen' && chatUnread > 0);
 
                     return (
                       <Link
@@ -280,20 +326,21 @@ export function AppSidebar() {
                         href={item.href}
                         aria-current={isActive ? 'page' : undefined}
                         className={cn(
-                          'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring',
+                          'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring',
                           isActive
-                            ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                            ? 'bg-primary/10 text-primary font-medium sidebar-active-indicator'
                             : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                         )}
                       >
-                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <Icon className={cn('h-4 w-4 shrink-0', isActive && 'text-primary')} aria-hidden="true" />
                         <span className="flex-1">{item.title}</span>
                         {showBadge && (
                           <span
                             className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-semibold text-white"
-                            aria-label={`${pendingCount} cho phe duyet`}
                           >
-                            {pendingCount > 99 ? '99+' : pendingCount}
+                            {item.href === '/tro-chuyen'
+                              ? chatUnread > 99 ? '99+' : chatUnread
+                              : pendingCount > 99 ? '99+' : pendingCount}
                           </span>
                         )}
                       </Link>
@@ -317,7 +364,7 @@ export function AppSidebar() {
             )}
           >
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="text-xs bg-sidebar-primary text-sidebar-primary-foreground">
+              <AvatarFallback className="text-xs bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
                 {getInitials(user.fullName)}
               </AvatarFallback>
             </Avatar>
@@ -335,15 +382,17 @@ export function AppSidebar() {
         </>
       )}
 
-      {/* Collapse / Expand button */}
+      {/* Collapse / Expand button — desktop only */}
       <Separator />
       <div className="flex items-center justify-center p-2">
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleCollapsed}
-          className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground"
-          aria-label={isCollapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
+          className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hidden lg:flex"
+          aria-label={isCollapsed ? 'Mo rong sidebar' : 'Thu gon sidebar'}
+          aria-expanded={!isCollapsed}
+          aria-controls="sidebar-nav"
         >
           {isCollapsed ? (
             <ChevronRight className="h-4 w-4" />
@@ -351,7 +400,18 @@ export function AppSidebar() {
             <ChevronLeft className="h-4 w-4" />
           )}
         </Button>
+        {/* Mobile close button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setOpen(false)}
+          className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground lg:hidden"
+          aria-label="Dong menu"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
       </div>
     </aside>
+    </>
   );
 }

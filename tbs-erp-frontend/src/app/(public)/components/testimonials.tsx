@@ -16,6 +16,13 @@ interface Testimonial {
   location: string;
 }
 
+/**
+ * STATIC MARKETING CONTENT
+ * These testimonials are curated marketing copy, not sourced from a backend API.
+ * To update, edit the entries below directly. No backend endpoint exists for this data.
+ * If a CMS-managed testimonials feature is added in the future, replace this array
+ * with an API call following the pattern in success-metrics.tsx or pricing-calculator.tsx.
+ */
 const testimonials: Testimonial[] = [
   {
     id: 1,

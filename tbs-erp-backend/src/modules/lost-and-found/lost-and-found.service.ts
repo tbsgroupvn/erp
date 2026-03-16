@@ -1,11 +1,7 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
+import { WarehouseCNStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CreateLostItemDto } from './dto/create-lost-item.dto';
 import { LostAndFoundQueryDto } from './dto/lost-and-found-query.dto';
@@ -162,9 +158,7 @@ export class LostAndFoundService {
       }
     }
 
-    this.logger.log(
-      `Match attempt for ${item.code}: found ${matches.length} potential matches`,
-    );
+    this.logger.log(`Match attempt for ${item.code}: found ${matches.length} potential matches`);
 
     return {
       itemId: id,
@@ -207,9 +201,7 @@ export class LostAndFoundService {
       warehouse,
     });
 
-    this.logger.log(
-      `Orphan package ${code} received at warehouse ${warehouse} by ${userId}`,
-    );
+    this.logger.log(`Orphan package ${code} received at warehouse ${warehouse} by ${userId}`);
 
     return item;
   }
@@ -218,11 +210,7 @@ export class LostAndFoundService {
    * B7: Claim an orphan package and link it to an order.
    * Creates a Package record from the LostAndFound data and sets status=CLAIMED.
    */
-  async claimOrphan(
-    lostAndFoundId: string,
-    saleId: string,
-    orderId: string,
-  ) {
+  async claimOrphan(lostAndFoundId: string, saleId: string, orderId: string) {
     const item = await this.prisma.lostAndFound.findUnique({
       where: { id: lostAndFoundId },
     });
@@ -271,7 +259,7 @@ export class LostAndFoundService {
         imageUrls: item.imageUrls ?? [],
         actualWeight: item.weight,
         cnWeight: item.weight,
-        warehouseCNStatus: 'RECEIVED',
+        warehouseCNStatus: WarehouseCNStatus.RECEIVED,
         receivedCNAt: item.createdAt,
         receivedCNBy: item.receivedBy,
         note: `Created from Lost & Found item ${item.code}`,

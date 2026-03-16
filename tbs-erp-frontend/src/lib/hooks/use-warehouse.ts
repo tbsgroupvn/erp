@@ -51,7 +51,11 @@ export function useReceivePackageCN() {
     mutationFn: (data: ReceivePackageDto) => warehouseCnApi.receive(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['packages-cn'] });
-      toast.success('Nhận kiện hàng thành công');
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      qc.invalidateQueries({ queryKey: ['containers'] });
+      toast.success('Nhận kiện hàng thành công', {
+        description: 'Don hang se tu dong chuyen trang thai neu day la kien dau tien.',
+      });
     },
     onError: () => {
       toast.error('Không thể nhận kiện hàng');
@@ -120,10 +124,11 @@ export function useAddPackagesToContainer() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['containers'] });
       qc.invalidateQueries({ queryKey: ['packages-cn'] });
-      toast.success('Thêm kiện vào container thành công');
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      toast.success('Them kien vao container thanh cong');
     },
     onError: () => {
-      toast.error('Không thể thêm kiện vào container');
+      toast.error('Khong the them kien vao container');
     },
   });
 }

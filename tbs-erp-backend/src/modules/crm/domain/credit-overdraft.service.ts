@@ -1,8 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '@core/database/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
+import { calculateBusinessHoursDeadline } from '@common/utils/business-hours';
 
 @Injectable()
 export class CreditOverdraftService {
@@ -11,54 +13,93 @@ export class CreditOverdraftService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
    * Request a temporary credit overdraft for a customer.
    * Creates an approval request of type CREDIT_OVERDRAFT and sets
    * tempOverdraftLimit with a 24-hour expiry.
+   *
+   * Uses SELECT FOR UPDATE to prevent concurrent overdraft requests
+   * from racing and overwriting each other's limits.
    */
   async requestTempOverdraft(customerId: string, amount: number, saleLeaderId: string) {
-    const customer = await this.prisma.customer.findUnique({ where: { id: customerId } });
-    if (!customer) throw new NotFoundException('Customer not found');
+    return this.prisma.executeInTransaction(async (tx) => {
+      // Lock the customer row to prevent concurrent overdraft requests
+      const lockedCustomers = await tx.$queryRaw<Array<{
+        id: string;
+        code: string;
+        fullName: string;
+        creditLimit: any;
+        currentDebt: any;
+        tempOverdraftLimit: any;
+      }>>`SELECT id, code, "fullName", "creditLimit", "currentDebt", "tempOverdraftLimit"
+         FROM "Customer" WHERE id = ${customerId} FOR UPDATE`;
 
-    // Create approval request
-    const approval = await this.prisma.approval.create({
-      data: {
-        type: 'CREDIT_OVERDRAFT',
-        referenceId: customerId,
-        referenceCode: customer.code,
-        requestedBy: saleLeaderId,
-        requestData: {
-          customerId,
-          amount,
-          customerName: customer.fullName,
-          currentCreditLimit: customer.creditLimit.toNumber(),
-          currentDebt: customer.currentDebt.toNumber(),
+      if (!lockedCustomers || lockedCustomers.length === 0) {
+        throw new NotFoundException('Customer not found');
+      }
+
+      const customer = lockedCustomers[0];
+
+      // Reject if there's already an active overdraft
+      if (customer.tempOverdraftLimit !== null) {
+        throw new ConflictException(
+          `Customer ${customer.code} already has an active temporary overdraft of ${customer.tempOverdraftLimit}. ` +
+            `Wait for it to expire or be cleared before requesting a new one.`,
+        );
+      }
+
+      // Create approval request
+      const approval = await tx.approval.create({
+        data: {
+          type: 'CREDIT_OVERDRAFT',
+          referenceId: customerId,
+          referenceCode: customer.code,
+          requestedBy: saleLeaderId,
+          requestData: {
+            customerId,
+            amount,
+            customerName: customer.fullName,
+            currentCreditLimit: Number(customer.creditLimit),
+            currentDebt: Number(customer.currentDebt),
+          },
+          status: 'PENDING',
         },
-        status: 'PENDING',
-      },
+      });
+
+      // Set temp overdraft limit with expiry based on business hours (KD-3)
+      const OVERDRAFT_BUSINESS_HOURS = this.configService.get<number>(
+        'business.overdraft.defaultExpiryHours',
+        24,
+      );
+      const businessHoursConfig = this.configService.get('business.businessHours');
+      const tempOverdraftExpiry = calculateBusinessHoursDeadline(
+        new Date(),
+        OVERDRAFT_BUSINESS_HOURS,
+        businessHoursConfig,
+      );
+
+      await tx.customer.update({
+        where: { id: customerId },
+        data: {
+          tempOverdraftLimit: new Prisma.Decimal(amount),
+          tempOverdraftExpiry,
+          tempOverdraftApprovedBy: saleLeaderId,
+        },
+      });
+
+      this.eventEmitter.emit('approval.created', {
+        approvalId: approval.id,
+        type: 'CREDIT_OVERDRAFT',
+      });
+      this.logger.log(
+        `Temporary credit overdraft requested for customer ${customer.code}: ${amount} by ${saleLeaderId}, expires at ${tempOverdraftExpiry.toISOString()}`,
+      );
+
+      return approval;
     });
-
-    // Set temp overdraft limit with 24h expiry
-    const tempOverdraftExpiry = new Date();
-    tempOverdraftExpiry.setHours(tempOverdraftExpiry.getHours() + 24);
-
-    await this.prisma.customer.update({
-      where: { id: customerId },
-      data: {
-        tempOverdraftLimit: new Prisma.Decimal(amount),
-        tempOverdraftExpiry,
-        tempOverdraftApprovedBy: saleLeaderId,
-      },
-    });
-
-    this.eventEmitter.emit('approval.created', { approvalId: approval.id, type: 'CREDIT_OVERDRAFT' });
-    this.logger.log(
-      `Temporary credit overdraft requested for customer ${customer.code}: ${amount} by ${saleLeaderId}, expires at ${tempOverdraftExpiry.toISOString()}`,
-    );
-
-    return approval;
   }
 
   /**

@@ -28,10 +28,7 @@ import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse } from '@common/dto/base-response.dto';
 import { DataRetentionService } from './data-retention.service';
-import {
-  AnonymizeUserDto,
-  ExecuteRetentionDto,
-} from './dto/retention-policy.dto';
+import { AnonymizeUserDto, ExecuteRetentionDto } from './dto/retention-policy.dto';
 
 @ApiTags('Data Retention & Compliance')
 @ApiBearerAuth()
@@ -72,14 +69,8 @@ export class DataRetentionController {
       'Can optionally specify which entity policies to execute.',
   })
   @ApiResponse({ status: 200, description: 'Retention report' })
-  async executeRetention(
-    @CurrentUser() user: ICurrentUser,
-    @Body() dto?: ExecuteRetentionDto,
-  ) {
-    const report = await this.dataRetentionService.executeRetentionPolicies(
-      user.id,
-      dto?.entities,
-    );
+  async executeRetention(@CurrentUser() user: ICurrentUser, @Body() dto?: ExecuteRetentionDto) {
+    const report = await this.dataRetentionService.executeRetentionPolicies(user.id, dto?.entities);
     return BaseResponse.ok(report, 'Retention policies executed successfully');
   }
 
@@ -125,14 +116,8 @@ export class DataRetentionController {
   })
   @ApiParam({ name: 'id', description: 'User ID to export data for' })
   @ApiResponse({ status: 200, description: 'User data export' })
-  async exportUserData(
-    @Param('id') userId: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
-    const exportData = await this.dataRetentionService.exportUserData(
-      userId,
-      user.id,
-    );
+  async exportUserData(@Param('id') userId: string, @CurrentUser() user: ICurrentUser) {
+    const exportData = await this.dataRetentionService.exportUserData(userId, user.id);
     return BaseResponse.ok(exportData, 'User data exported successfully');
   }
 
@@ -140,7 +125,7 @@ export class DataRetentionController {
   @Roles(UserRole.CEO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Anonymize a user\'s personal data (right to be forgotten)',
+    summary: "Anonymize a user's personal data (right to be forgotten)",
     description:
       'NĐ 13/2023/NĐ-CP Article 16 — Right to deletion. ' +
       'Anonymizes all personal data for the specified user. ' +
@@ -149,10 +134,7 @@ export class DataRetentionController {
   })
   @ApiParam({ name: 'id', description: 'User ID to anonymize' })
   @ApiResponse({ status: 200, description: 'User data anonymized' })
-  async anonymizeUser(
-    @Param('id') userId: string,
-    @Body() dto: AnonymizeUserDto,
-  ) {
+  async anonymizeUser(@Param('id') userId: string, @Body() dto: AnonymizeUserDto) {
     await this.dataRetentionService.anonymizeUserData(userId, dto.reason);
     return BaseResponse.ok(null, 'User data anonymized successfully');
   }

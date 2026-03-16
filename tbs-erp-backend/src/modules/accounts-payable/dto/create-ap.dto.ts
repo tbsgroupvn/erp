@@ -19,11 +19,11 @@ export class CreateApDto {
   @MaxLength(100)
   vendorId?: string;
 
-  @ApiProperty({ description: 'Vendor/supplier name', example: 'Nha cung cap ABC' })
-  @IsNotEmpty()
+  @ApiPropertyOptional({ description: 'Vendor/supplier name (deprecated, use vendorId instead)', example: 'Nha cung cap ABC' })
+  @IsOptional()
   @IsString()
   @MaxLength(255)
-  vendorName: string;
+  vendorName?: string;
 
   @ApiProperty({ description: 'Amount payable', example: 30000000 })
   @IsNotEmpty()

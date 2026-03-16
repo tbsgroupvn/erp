@@ -56,36 +56,30 @@ export class CompressionMiddleware implements NestMiddleware {
       return next();
     }
 
-    // Store original write and end methods
-    const originalWrite = res.write.bind(res);
+    // Store original end method
     const originalEnd = res.end.bind(res);
 
     const chunks: Buffer[] = [];
-    let totalLength = 0;
 
     // Override write to buffer the response
-    res.write = function (chunk: any, ...args: any[]): boolean {
+    res.write = function (chunk: any): boolean {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       chunks.push(buffer);
-      totalLength += buffer.length;
       return true;
     } as any;
 
     // Override end to compress and send
-    res.end = function (chunk?: any, ...args: any[]): Response {
+    res.end = function (chunk?: any): Response {
       if (chunk) {
         const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
         chunks.push(buffer);
-        totalLength += buffer.length;
       }
 
       const body = Buffer.concat(chunks);
 
       // Check if compression is worthwhile
       const contentType = res.getHeader('content-type')?.toString() || '';
-      const isCompressible = COMPRESSIBLE_TYPES.some((type) =>
-        contentType.includes(type),
-      );
+      const isCompressible = COMPRESSIBLE_TYPES.some((type) => contentType.includes(type));
 
       if (!isCompressible || body.length < MIN_COMPRESSION_SIZE) {
         res.setHeader('Content-Length', body.length);

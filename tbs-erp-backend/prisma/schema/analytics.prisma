@@ -1,0 +1,20 @@
+// ============================================
+// ANALYTICS — Snapshot KPI hang ngay
+// ============================================
+
+model DailyMetricSnapshot {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  // Ten metric: total_orders, revenue_month, ar_outstanding, ar_overdue,
+  //   containers_in_transit, packages_in_warehouse_cn, packages_in_warehouse_vn,
+  //   active_customers, total_orders_today
+  metric    String
+  value     Decimal  @db.Decimal(18, 2)
+  branch    String?
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([date, metric, branch])
+  @@index([metric, date])
+  @@map("daily_metric_snapshots")
+}

@@ -46,9 +46,18 @@ export const NON_CANCELLABLE_STATUSES: OrderStatus[] = [
 /**
  * Terminal statuses -- orders in these statuses cannot transition further.
  */
-export const TERMINAL_STATUSES: OrderStatus[] = [
-  OrderStatus.COMPLETED,
-  OrderStatus.CANCELLED,
+export const TERMINAL_STATUSES: OrderStatus[] = [OrderStatus.COMPLETED, OrderStatus.CANCELLED];
+
+/**
+ * Statuses from which a return request (late cancel) can be submitted.
+ * These are statuses where goods are already in transit or beyond.
+ */
+export const RETURN_REQUESTABLE_STATUSES: OrderStatus[] = [
+  OrderStatus.IN_TRANSIT,
+  OrderStatus.CUSTOMS,
+  OrderStatus.WAREHOUSE_VN,
+  OrderStatus.DELIVERING,
+  OrderStatus.SETTLEMENT,
 ];
 
 /**
@@ -99,31 +108,11 @@ const TRANSITION_MAP: Record<OrderStatus, OrderStatus[]> = {
     OrderStatus.CANCELLED,
     OrderStatus.ISSUE,
   ],
-  [OrderStatus.IN_TRANSIT]: [
-    OrderStatus.CUSTOMS,
-    OrderStatus.ON_HOLD,
-    OrderStatus.ISSUE,
-  ],
-  [OrderStatus.CUSTOMS]: [
-    OrderStatus.WAREHOUSE_VN,
-    OrderStatus.ON_HOLD,
-    OrderStatus.ISSUE,
-  ],
-  [OrderStatus.WAREHOUSE_VN]: [
-    OrderStatus.DELIVERING,
-    OrderStatus.ON_HOLD,
-    OrderStatus.ISSUE,
-  ],
-  [OrderStatus.DELIVERING]: [
-    OrderStatus.SETTLEMENT,
-    OrderStatus.ON_HOLD,
-    OrderStatus.ISSUE,
-  ],
-  [OrderStatus.SETTLEMENT]: [
-    OrderStatus.COMPLETED,
-    OrderStatus.ON_HOLD,
-    OrderStatus.ISSUE,
-  ],
+  [OrderStatus.IN_TRANSIT]: [OrderStatus.CUSTOMS, OrderStatus.ON_HOLD, OrderStatus.ISSUE, OrderStatus.RETURNED],
+  [OrderStatus.CUSTOMS]: [OrderStatus.WAREHOUSE_VN, OrderStatus.ON_HOLD, OrderStatus.ISSUE, OrderStatus.RETURNED],
+  [OrderStatus.WAREHOUSE_VN]: [OrderStatus.DELIVERING, OrderStatus.ON_HOLD, OrderStatus.ISSUE, OrderStatus.RETURNED],
+  [OrderStatus.DELIVERING]: [OrderStatus.SETTLEMENT, OrderStatus.ON_HOLD, OrderStatus.ISSUE, OrderStatus.RETURNED],
+  [OrderStatus.SETTLEMENT]: [OrderStatus.COMPLETED, OrderStatus.ON_HOLD, OrderStatus.ISSUE, OrderStatus.RETURNED],
   [OrderStatus.COMPLETED]: [],
   [OrderStatus.CANCELLED]: [],
   [OrderStatus.RETURNED]: [],
@@ -151,10 +140,7 @@ export function getNextStatuses(current: OrderStatus): OrderStatus[] {
 /**
  * Checks whether transitioning from one status to another is valid.
  */
-export function isValidTransition(
-  from: OrderStatus,
-  to: OrderStatus,
-): boolean {
+export function isValidTransition(from: OrderStatus, to: OrderStatus): boolean {
   const validTargets = TRANSITION_MAP[from];
   if (!validTargets) {
     return false;

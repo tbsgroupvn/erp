@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { createHash } from 'crypto';
 import { PrismaService } from '@core/database/prisma.service';
+import { DeadLetterQueueService } from '@core/event-bus/dead-letter-queue.service';
 import { WebhookRetryService } from '../webhook/webhook-retry.service';
+import { CircuitBreaker } from '@common/utils/circuit-breaker.util';
 
 /**
  * Represents a sync operation result.
@@ -64,10 +67,33 @@ export class SyncEngineService {
   /** Conflict resolution strategies per entity type */
   private readonly conflictStrategies = new Map<string, ConflictStrategy>();
 
+  /** Circuit breakers per entity type to protect outbound sync calls */
+  private readonly circuitBreakers = new Map<string, CircuitBreaker>();
+
+  /**
+   * Get or create a CircuitBreaker for the given entity type.
+   * Each entity type gets its own breaker so a failure in one entity
+   * does not block sync for unrelated entity types.
+   */
+  private getCircuitBreaker(entity: string): CircuitBreaker {
+    if (!this.circuitBreakers.has(entity)) {
+      this.circuitBreakers.set(
+        entity,
+        new CircuitBreaker({
+          name: `sync-${entity}`,
+          failureThreshold: 5,
+          resetTimeoutMs: 60_000, // 1 minute
+        }),
+      );
+    }
+    return this.circuitBreakers.get(entity)!;
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
     private readonly webhookRetryService: WebhookRetryService,
+    private readonly deadLetterQueueService: DeadLetterQueueService,
   ) {
     this.initializeDefaultTransformers();
     this.initializeDefaultStrategies();
@@ -91,6 +117,8 @@ export class SyncEngineService {
     const timestamp = new Date();
     const eventType = `${entity}.${action}`;
 
+    const breaker = this.getCircuitBreaker(entity);
+
     try {
       // Transform data to external format
       const transformer = this.outboundTransformers.get(entity);
@@ -99,11 +127,13 @@ export class SyncEngineService {
       // Remove sensitive/internal fields before sending externally
       const sanitizedData = this.sanitizeForExternal(transformedData);
 
-      // Dispatch via webhook system
-      await this.webhookRetryService.dispatch(eventType, {
-        event: eventType,
-        timestamp: timestamp.toISOString(),
-        data: sanitizedData,
+      // Dispatch via webhook system, wrapped in circuit breaker
+      await breaker.execute(async () => {
+        await this.webhookRetryService.dispatch(eventType, {
+          event: eventType,
+          timestamp: timestamp.toISOString(),
+          data: sanitizedData,
+        });
       });
 
       this.logger.log(`Outbound sync: ${eventType} dispatched for entity ${data.id || 'unknown'}`);
@@ -116,7 +146,14 @@ export class SyncEngineService {
         timestamp,
       };
     } catch (error) {
-      this.logger.error(`Outbound sync failed for ${eventType}: ${error.message}`);
+      // Log specific warning when circuit breaker is open
+      if (error.message?.includes('Circuit breaker') && error.message?.includes('is OPEN')) {
+        this.logger.warn(
+          `Circuit breaker OPEN for sync entity "${entity}" - outbound sync skipped for ${eventType}`,
+        );
+      } else {
+        this.logger.error(`Outbound sync failed for ${eventType}: ${error.message}`);
+      }
 
       return {
         success: false,
@@ -145,11 +182,34 @@ export class SyncEngineService {
     data: Record<string, any>,
   ): Promise<SyncResult> {
     const timestamp = new Date();
+    let idempotencyKey: string | undefined;
+    let externalId: string | undefined;
+    let conflicts: DataConflict[] | undefined;
 
     try {
       // Validate the incoming data has required fields
       if (!data.id && !data.externalId) {
         throw new Error('Incoming sync data must have an id or externalId field');
+      }
+
+      // Compute idempotency key to prevent duplicate processing
+      externalId = data.id || data.externalId;
+      const payloadHash = createHash('sha256').update(JSON.stringify(data)).digest('hex').slice(0, 16);
+      idempotencyKey = `${source}:${entity}:${externalId}:${payloadHash}`;
+
+      // Check if this exact sync was already processed
+      const existingSync = await this.prisma.syncLog.findUnique({
+        where: { idempotencyKey },
+      });
+      if (existingSync) {
+        this.logger.log(`Duplicate sync skipped: ${idempotencyKey} (processed at ${existingSync.createdAt})`);
+        return {
+          success: true,
+          entity,
+          action: existingSync.action as SyncResult['action'],
+          sourceId: externalId ?? '',
+          timestamp,
+        };
       }
 
       // Transform to internal format
@@ -160,16 +220,35 @@ export class SyncEngineService {
       const existingRecord = await this.findExistingRecord(entity, data.id || data.externalId);
 
       if (existingRecord) {
-        const conflicts = this.detectConflicts(entity, existingRecord, internalData);
+        conflicts = this.detectConflicts(entity, existingRecord, internalData);
 
         if (conflicts.length > 0) {
-          const resolved = await this.resolveConflicts(entity, conflicts, existingRecord, internalData);
+          const resolved = await this.resolveConflicts(
+            entity,
+            conflicts,
+            existingRecord,
+            internalData,
+          );
           Object.assign(internalData, resolved);
         }
       }
 
       // Upsert to database
       const result = await this.upsertEntity(entity, internalData);
+
+      // Log the successful sync
+      await this.prisma.syncLog.create({
+        data: {
+          idempotencyKey,
+          source,
+          entity,
+          externalId: externalId ?? '',
+          action: existingRecord ? 'update' : 'create',
+          status: 'SUCCESS',
+          conflictsResolved: conflicts?.length || 0,
+          payload: data as any,
+        },
+      });
 
       // Emit internal event for other modules to react
       this.eventEmitter.emit(`sync.${entity}.received`, {
@@ -192,9 +271,32 @@ export class SyncEngineService {
         timestamp,
       };
     } catch (error) {
-      this.logger.error(
-        `Inbound sync from ${source} failed for ${entity}: ${error.message}`,
-      );
+      this.logger.error(`Inbound sync from ${source} failed for ${entity}: ${error.message}`);
+
+      // Log the failed sync
+      if (idempotencyKey) {
+        await this.prisma.syncLog.create({
+          data: {
+            idempotencyKey,
+            source,
+            entity,
+            externalId: data.id || data.externalId || '',
+            action: 'update',
+            status: 'FAILED',
+            errorMessage: error.message,
+            payload: data as any,
+          },
+        }).catch(err => {
+          this.logger.error(`Failed to persist sync log: ${err.message}`, err.stack);
+          // Try to capture in DLQ as last resort
+          this.deadLetterQueueService.addToDeadLetterQueue(
+            'sync_log_persist_failed',
+            { source, entity, externalId: data.id || data.externalId, action: 'update' },
+            err.message,
+            'sync_engine',
+          ).catch(() => {}); // Only this last-resort DLQ write can be silently caught
+        });
+      }
 
       return {
         success: false,
@@ -252,7 +354,7 @@ export class SyncEngineService {
     entity: string,
     conflicts: DataConflict[],
     localData: Record<string, any>,
-    remoteData: Record<string, any>,
+    _remoteData: Record<string, any>,
   ): Promise<Record<string, any>> {
     const strategy = this.conflictStrategies.get(entity) || 'last_write_wins';
     const resolved: Record<string, any> = {};
@@ -279,7 +381,7 @@ export class SyncEngineService {
           // Log for manual resolution — keep local value for now
           this.logger.warn(
             `Manual conflict resolution needed for ${entity}.${conflict.field}: ` +
-            `local="${conflict.localValue}" vs remote="${conflict.remoteValue}"`,
+              `local="${conflict.localValue}" vs remote="${conflict.remoteValue}"`,
           );
           resolved[conflict.field] = conflict.localValue;
           break;

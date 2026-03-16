@@ -1,5 +1,4 @@
 import { DynamicModule, Logger, Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CustomsModule } from './customs/customs.module';
 import { AccountingIntegrationModule } from './accounting/accounting.module';
 import { BankingIntegrationModule } from './banking/banking.module';
@@ -7,6 +6,8 @@ import { ShippingIntegrationModule } from './shipping/shipping.module';
 import { LarkSuiteModule } from './larksuite/larksuite.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { SyncEngineModule } from './sync/sync-engine.module';
+import { ReconciliationModule } from './reconciliation/reconciliation.module';
+import { OutboxSyncListener } from './listeners/outbox-sync.listener';
 
 /**
  * Master integration module that conditionally registers sub-modules
@@ -44,14 +45,16 @@ export class IntegrationModule {
       ShippingIntegrationModule,
       LarkSuiteModule,
 
-      // Webhook and sync are always-on infrastructure modules
+      // Webhook, sync, and reconciliation are always-on infrastructure modules
       WebhookModule,
       SyncEngineModule,
+      ReconciliationModule,
     );
 
     return {
       module: IntegrationModule,
       imports,
+      providers: [OutboxSyncListener],
       exports: [
         CustomsModule,
         AccountingIntegrationModule,
@@ -60,6 +63,7 @@ export class IntegrationModule {
         LarkSuiteModule,
         WebhookModule,
         SyncEngineModule,
+        ReconciliationModule,
       ],
     };
   }

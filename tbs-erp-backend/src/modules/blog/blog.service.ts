@@ -1,15 +1,10 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { BlogPostStatus, Prisma } from '@prisma/client';
 import { CreateBlogPostDto } from './dto/create-blog-post.dto';
 import { UpdateBlogPostDto } from './dto/update-blog-post.dto';
 import { BlogPostQueryDto } from './dto/blog-post-query.dto';
+import { sanitizeHtml, sanitizeHtmlOptional } from '@common/utils/html-sanitizer.util';
 
 @Injectable()
 export class BlogService {
@@ -69,8 +64,8 @@ export class BlogService {
       data: {
         slug,
         title: dto.title,
-        excerpt: dto.excerpt,
-        content: dto.content,
+        excerpt: sanitizeHtmlOptional(dto.excerpt) ?? undefined,
+        content: sanitizeHtml(dto.content),
         coverImage: dto.coverImage,
         authorId: 'system', // Placeholder - will be updated when auth is integrated
         authorName: dto.author,
@@ -189,11 +184,11 @@ export class BlogService {
     }
 
     if (dto.excerpt !== undefined) {
-      updateData.excerpt = dto.excerpt;
+      updateData.excerpt = sanitizeHtmlOptional(dto.excerpt) ?? undefined;
     }
 
     if (dto.content !== undefined) {
-      updateData.content = dto.content;
+      updateData.content = sanitizeHtml(dto.content);
     }
 
     if (dto.coverImage !== undefined) {

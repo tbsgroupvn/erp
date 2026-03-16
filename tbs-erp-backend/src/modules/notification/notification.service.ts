@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '@core/database/prisma.service';
 import { NotificationChannel, NotificationType } from '@prisma/client';
 import { withRetry } from '@common/utils/retry.util';
@@ -19,7 +20,7 @@ export interface SendNotificationDto {
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Route notification to appropriate channel(s) and persist in DB.
@@ -58,11 +59,7 @@ export class NotificationService {
           select: { email: true },
         });
         if (user?.email) {
-          await this.sendEmail(
-            user.email,
-            notification.title,
-            notification.body,
-          );
+          await this.sendEmail(user.email, notification.title, notification.body);
         }
         break;
       }
@@ -117,7 +114,27 @@ export class NotificationService {
     isUrgent?: boolean,
     data?: Record<string, unknown>,
   ): Promise<void> {
-    await this.prisma.notificationRecord.create({
+    // Deduplicate: if referenceId is provided, check if the same notification
+    // was already created within the last 5 minutes to guard against duplicate
+    // event emissions (e.g. retries, at-least-once delivery).
+    if (referenceId) {
+      const existing = await this.prisma.notification.findFirst({
+        where: {
+          userId,
+          referenceId,
+          type: (type ?? 'SYSTEM') as NotificationType,
+          createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
+        },
+      });
+      if (existing) {
+        this.logger.debug(
+          `Duplicate notification skipped for user ${userId}, ref ${referenceId}`,
+        );
+        return;
+      }
+    }
+
+    await this.prisma.notification.create({
       data: {
         userId,
         title,
@@ -131,9 +148,7 @@ export class NotificationService {
       },
     });
 
-    this.logger.log(
-      `${channel} notification sent to user ${userId}: ${title}`,
-    );
+    this.logger.log(`${channel} notification sent to user ${userId}: ${title}`);
   }
 
   /**
@@ -149,8 +164,14 @@ export class NotificationService {
     data?: Record<string, unknown>,
   ): Promise<void> {
     await this.persistNotification(
-      userId, title, body, NotificationChannel.APP_PUSH,
-      type, referenceId, isUrgent, data,
+      userId,
+      title,
+      body,
+      NotificationChannel.APP_PUSH,
+      type,
+      referenceId,
+      isUrgent,
+      data,
     );
   }
 
@@ -158,11 +179,7 @@ export class NotificationService {
    * Send an email with retry logic (3 retries, exponential backoff).
    * In production, this would integrate with an email provider (SES, SendGrid, etc.).
    */
-  async sendEmail(
-    email: string,
-    subject: string,
-    body: string,
-  ): Promise<void> {
+  async sendEmail(email: string, subject: string, body: string): Promise<void> {
     await withRetry(
       () => this.callEmailProvider(email, subject, body),
       { maxRetries: 3, baseDelayMs: 1000, maxDelayMs: 10_000 },
@@ -173,16 +190,10 @@ export class NotificationService {
   /**
    * Internal method performing the actual email provider API call.
    */
-  private async callEmailProvider(
-    email: string,
-    subject: string,
-    body: string,
-  ): Promise<void> {
+  private async callEmailProvider(email: string, subject: string, _body: string): Promise<void> {
     // TODO: Integrate with email provider (SES, SendGrid, etc.)
     const maskedEmail = email.replace(/^(.{2}).*(@.*)$/, '$1***$2');
-    this.logger.log(
-      `[Email Placeholder] To: ${maskedEmail}, Subject: ${subject}`,
-    );
+    this.logger.log(`[Email Placeholder] To: ${maskedEmail}, Subject: ${subject}`);
   }
 
   /**
@@ -200,37 +211,26 @@ export class NotificationService {
   /**
    * Internal method performing the actual SMS provider API call.
    */
-  private async callSmsProvider(
-    phone: string,
-    message: string,
-  ): Promise<void> {
+  private async callSmsProvider(phone: string, message: string): Promise<void> {
     // TODO: Integrate with SMS provider (Twilio, Zalo ZNS, etc.)
-    const maskedPhone = phone.length > 4
-      ? '***' + phone.slice(-4)
-      : '***';
-    this.logger.log(
-      `[SMS Placeholder] To: ${maskedPhone}, Message length: ${message.length}`,
-    );
+    const maskedPhone = phone.length > 4 ? '***' + phone.slice(-4) : '***';
+    this.logger.log(`[SMS Placeholder] To: ${maskedPhone}, Message length: ${message.length}`);
   }
 
   /**
    * Get paginated notifications for a user.
    */
-  async getUserNotifications(
-    userId: string,
-    page = 1,
-    limit = 20,
-  ) {
+  async getUserNotifications(userId: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.prisma.notificationRecord.findMany({
+      this.prisma.notification.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
-      this.prisma.notificationRecord.count({
+      this.prisma.notification.count({
         where: { userId },
       }),
     ]);
@@ -250,7 +250,7 @@ export class NotificationService {
    * Mark a notification as read.
    */
   async markAsRead(notificationId: string, userId: string) {
-    const notification = await this.prisma.notificationRecord.findUnique({
+    const notification = await this.prisma.notification.findUnique({
       where: { id: notificationId },
     });
 
@@ -258,7 +258,7 @@ export class NotificationService {
       throw new NotFoundException('Notification not found');
     }
 
-    return this.prisma.notificationRecord.update({
+    return this.prisma.notification.update({
       where: { id: notificationId },
       data: {
         isRead: true,
@@ -271,7 +271,7 @@ export class NotificationService {
    * Get unread notification count for a user.
    */
   async getUnreadCount(userId: string): Promise<{ count: number }> {
-    const count = await this.prisma.notificationRecord.count({
+    const count = await this.prisma.notification.count({
       where: { userId, isRead: false },
     });
 
@@ -282,7 +282,7 @@ export class NotificationService {
    * Mark all notifications as read for a user.
    */
   async markAllAsRead(userId: string) {
-    const result = await this.prisma.notificationRecord.updateMany({
+    const result = await this.prisma.notification.updateMany({
       where: { userId, isRead: false },
       data: { isRead: true, readAt: new Date() },
     });
@@ -300,12 +300,12 @@ export class NotificationService {
   ): Promise<void> {
     if (userIds.length === 0) return;
 
-    await this.prisma.notificationRecord.createMany({
+    await this.prisma.notification.createMany({
       data: userIds.map((userId) => ({
         userId,
         title: notification.title,
         body: notification.body,
-        type: ((notification.type ?? 'SYSTEM') as NotificationType),
+        type: (notification.type ?? 'SYSTEM') as NotificationType,
         channel: notification.channel ?? NotificationChannel.APP_PUSH,
         data: (notification.data as any) ?? undefined,
         referenceId: notification.referenceId ?? null,
@@ -340,13 +340,11 @@ export class NotificationService {
       const BATCH_SIZE = 50;
       for (let i = 0; i < users.length; i += BATCH_SIZE) {
         const batch = users.slice(i, i + BATCH_SIZE);
-        await Promise.all(batch.map(user => this.send({ ...notification, userId: user.id })));
+        await Promise.all(batch.map((user) => this.send({ ...notification, userId: user.id })));
       }
     }
 
-    this.logger.log(
-      `Notification broadcast to role ${role}: ${users.length} users`,
-    );
+    this.logger.log(`Notification broadcast to role ${role}: ${users.length} users`);
 
     return { sent: users.length, role };
   }
@@ -367,13 +365,11 @@ export class NotificationService {
       const BATCH_SIZE = 50;
       for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
         const batch = userIds.slice(i, i + BATCH_SIZE);
-        await Promise.all(batch.map(userId => this.send({ ...notification, userId })));
+        await Promise.all(batch.map((userId) => this.send({ ...notification, userId })));
       }
     }
 
-    this.logger.log(
-      `Bulk notification sent to ${userIds.length} users: ${notification.title}`,
-    );
+    this.logger.log(`Bulk notification sent to ${userIds.length} users: ${notification.title}`);
 
     return { sent: userIds.length };
   }
@@ -385,7 +381,7 @@ export class NotificationService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-    const result = await this.prisma.notificationRecord.deleteMany({
+    const result = await this.prisma.notification.deleteMany({
       where: {
         createdAt: { lt: cutoffDate },
         isRead: true,
@@ -394,6 +390,38 @@ export class NotificationService {
 
     this.logger.log(`Deleted ${result.count} old notifications (> ${daysOld} days)`);
     return { deleted: result.count };
+  }
+
+  /**
+   * Automatic notification cleanup — runs daily at 2:05 AM.
+   * Staggered 5 minutes after CustomerAnalyticsService (02:00) to avoid
+   * simultaneous heavy DB operations.
+   * Tier 1: Delete read notifications older than 30 days.
+   * Tier 2: Delete ALL notifications (read + unread) older than 90 days.
+   */
+  @Cron('5 2 * * *')
+  async scheduledCleanup(): Promise<void> {
+    this.logger.log('Starting scheduled notification cleanup...');
+
+    const now = new Date();
+
+    // Tier 1: read notifications > 30 days
+    const cutoff30 = new Date(now);
+    cutoff30.setDate(cutoff30.getDate() - 30);
+    const tier1 = await this.prisma.notification.deleteMany({
+      where: { createdAt: { lt: cutoff30 }, isRead: true },
+    });
+
+    // Tier 2: all notifications > 90 days
+    const cutoff90 = new Date(now);
+    cutoff90.setDate(cutoff90.getDate() - 90);
+    const tier2 = await this.prisma.notification.deleteMany({
+      where: { createdAt: { lt: cutoff90 } },
+    });
+
+    this.logger.log(
+      `Notification cleanup complete: ${tier1.count} read (>30d) + ${tier2.count} all (>90d) deleted`,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -463,15 +491,17 @@ export class NotificationService {
       select: { id: true },
     });
 
-    await Promise.all(accountants.map(user =>
-      this.send({
-        userId: user.id,
-        title: 'Payment Received',
-        body: `Payment of ${event.paymentAmount.toLocaleString()} VND recorded. ${event.isFullyPaid ? 'Fully paid.' : 'Partial payment.'}`,
-        type: 'PAYMENT',
-        referenceId: event.arId,
-      }),
-    ));
+    await Promise.all(
+      accountants.map((user) =>
+        this.send({
+          userId: user.id,
+          title: 'Payment Received',
+          body: `Payment of ${event.paymentAmount.toLocaleString()} VND recorded. ${event.isFullyPaid ? 'Fully paid.' : 'Partial payment.'}`,
+          type: 'PAYMENT',
+          referenceId: event.arId,
+        }),
+      ),
+    );
   }
 
   @OnEvent('approval.submitted')
@@ -488,16 +518,18 @@ export class NotificationService {
       select: { id: true },
     });
 
-    await Promise.all(approvers.map(user =>
-      this.send({
-        userId: user.id,
-        title: 'New Approval Request',
-        body: `A new ${event.type} approval request is waiting for your review.`,
-        type: 'APPROVAL',
-        referenceId: event.approvalId,
-        isUrgent: true,
-      }),
-    ));
+    await Promise.all(
+      approvers.map((user) =>
+        this.send({
+          userId: user.id,
+          title: 'New Approval Request',
+          body: `A new ${event.type} approval request is waiting for your review.`,
+          type: 'APPROVAL',
+          referenceId: event.approvalId,
+          isUrgent: true,
+        }),
+      ),
+    );
   }
 
   @OnEvent('approval.completed')
@@ -537,16 +569,18 @@ export class NotificationService {
       select: { id: true },
     });
 
-    await Promise.all(approvers.map(user =>
-      this.send({
-        userId: user.id,
-        title: 'Overdue Approval Reminder',
-        body: `Approval for ${event.type} (${event.referenceCode ?? event.approvalId}) is overdue. Please review.`,
-        type: 'APPROVAL',
-        referenceId: event.approvalId,
-        isUrgent: true,
-      }),
-    ));
+    await Promise.all(
+      approvers.map((user) =>
+        this.send({
+          userId: user.id,
+          title: 'Overdue Approval Reminder',
+          body: `Approval for ${event.type} (${event.referenceCode ?? event.approvalId}) is overdue. Please review.`,
+          type: 'APPROVAL',
+          referenceId: event.approvalId,
+          isUrgent: true,
+        }),
+      ),
+    );
   }
 
   @OnEvent('sla.breached')
@@ -601,15 +635,17 @@ export class NotificationService {
       select: { id: true },
     });
 
-    await Promise.all(users.map(user =>
-      this.send({
-        userId: user.id,
-        title: 'AR Overdue Alert',
-        body: `AR ${event.arCode} for ${event.customerName} is ${event.daysOverdue} day(s) overdue. Outstanding: ${event.outstanding.toLocaleString()} VND.`,
-        type: 'FINANCE',
-        isUrgent: true,
-      }),
-    ));
+    await Promise.all(
+      users.map((user) =>
+        this.send({
+          userId: user.id,
+          title: 'AR Overdue Alert',
+          body: `AR ${event.arCode} for ${event.customerName} is ${event.daysOverdue} day(s) overdue. Outstanding: ${event.outstanding.toLocaleString()} VND.`,
+          type: 'FINANCE',
+          isUrgent: true,
+        }),
+      ),
+    );
   }
 
   @OnEvent('ar.aging.critical')
@@ -625,15 +661,17 @@ export class NotificationService {
       select: { id: true },
     });
 
-    await Promise.all(users.map(user =>
-      this.send({
-        userId: user.id,
-        title: 'CRITICAL: AR 30+ Days Overdue',
-        body: `AR ${event.arCode} for ${event.customerName} is ${event.daysOverdue} day(s) overdue. Outstanding: ${event.outstanding.toLocaleString()} VND. Requires executive review.`,
-        type: 'FINANCE',
-        isUrgent: true,
-      }),
-    ));
+    await Promise.all(
+      users.map((user) =>
+        this.send({
+          userId: user.id,
+          title: 'CRITICAL: AR 30+ Days Overdue',
+          body: `AR ${event.arCode} for ${event.customerName} is ${event.daysOverdue} day(s) overdue. Outstanding: ${event.outstanding.toLocaleString()} VND. Requires executive review.`,
+          type: 'FINANCE',
+          isUrgent: true,
+        }),
+      ),
+    );
   }
 
   @OnEvent('auth.password.reset.requested')

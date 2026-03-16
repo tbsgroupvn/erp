@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
-import { Prisma, MasterOrder, MasterOrderStatus } from '@prisma/client';
+import { Prisma, MasterOrder } from '@prisma/client';
 import { DataScopeFilter } from '@common/guards/data-scope.guard';
 
 export interface MasterOrderWithRelations extends MasterOrder {
@@ -101,7 +101,9 @@ export class MasterOrderRepository {
    */
   generateSubOrderCode(masterCode: string, index: number): string {
     if (index >= 26) {
-      throw new BadRequestException(`Sub order index ${index} exceeds maximum (25). Maximum 26 sub orders per master order.`);
+      throw new BadRequestException(
+        `Sub order index ${index} exceeds maximum (25). Maximum 26 sub orders per master order.`,
+      );
     }
     const suffix = String.fromCharCode(65 + index); // 65 = 'A'
     return `${masterCode}-${suffix}`;
@@ -112,7 +114,9 @@ export class MasterOrderRepository {
    */
   getSubOrderSuffix(index: number): string {
     if (index >= 26) {
-      throw new BadRequestException(`Sub order index ${index} exceeds maximum (25). Maximum 26 sub orders per master order.`);
+      throw new BadRequestException(
+        `Sub order index ${index} exceeds maximum (25). Maximum 26 sub orders per master order.`,
+      );
     }
     return String.fromCharCode(65 + index);
   }
@@ -225,10 +229,7 @@ export class MasterOrderRepository {
   /**
    * Update master order.
    */
-  async update(
-    id: string,
-    data: Prisma.MasterOrderUpdateInput,
-  ): Promise<MasterOrder> {
+  async update(id: string, data: Prisma.MasterOrderUpdateInput): Promise<MasterOrder> {
     return this.prisma.masterOrder.update({ where: { id }, data });
   }
 

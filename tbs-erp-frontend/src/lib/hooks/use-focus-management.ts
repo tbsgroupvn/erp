@@ -87,7 +87,7 @@ export function useRovingTabIndex({
   }, []);
 
   const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
+    (event: KeyboardEvent) => {
       const { key } = event;
       let nextIndex = activeIndex;
 

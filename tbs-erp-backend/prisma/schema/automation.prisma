@@ -1,0 +1,68 @@
+// ============================================
+// AUTOMATION — Workflow Rules
+// ============================================
+
+enum AutomationStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+enum TriggerType {
+  ORDER_CREATED
+  ORDER_STATUS_CHANGED
+  PAYMENT_RECEIVED
+  COMPLAINT_OPENED
+  TASK_OVERDUE
+  APPROVAL_COMPLETED
+  SCHEDULE_DAILY
+  SCHEDULE_WEEKLY
+  MANUAL
+}
+
+enum ActionType {
+  SEND_NOTIFICATION
+  CREATE_TASK
+  SEND_EMAIL
+  UPDATE_FIELD
+  WEBHOOK_CALL
+  ASSIGN_USER
+}
+
+model AutomationRule {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  status      AutomationStatus @default(ACTIVE)
+  trigger     Json             // TriggerConfig: { type, params }
+  conditions  Json             @default("[]") // ConditionConfig[]
+  actions     Json             // ActionConfig[]
+  createdBy   String           @map("created_by")
+  runCount    Int              @default(0) @map("run_count")
+  lastRunAt   DateTime?        @map("last_run_at")
+  lastError   String?          @map("last_error")
+
+  executions  AutomationExecution[]
+
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("automation_rules")
+}
+
+model AutomationExecution {
+  id          String         @id @default(cuid())
+  ruleId      String         @map("rule_id")
+  rule        AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  triggeredBy String?        @map("triggered_by") // event name or userId
+  status      String         @default("SUCCESS") // SUCCESS | FAILED | SKIPPED
+  input       Json?
+  output      Json?
+  errorMsg    String?        @map("error_msg")
+  executedAt  DateTime       @default(now()) @map("executed_at")
+  durationMs  Int?           @map("duration_ms")
+
+  @@index([ruleId])
+  @@map("automation_executions")
+}

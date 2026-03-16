@@ -28,22 +28,29 @@ export class PaymentEventsListener {
   }) {
     this.logger.log(`Payroll approved for ${event.month}/${event.year}: ${event.count} records`);
 
-    // Notify finance team
-    const financeUsers = await this.prisma.user.findMany({
-      where: {
-        role: { in: ['CHIEF_ACCOUNTANT', 'ACCOUNTANT_AR'] },
-        isActive: true,
-      },
-      select: { id: true },
-    });
-
-    for (const user of financeUsers) {
-      await this.notificationService.send({
-        userId: user.id,
-        title: 'Payroll Approved',
-        body: `Payroll for ${event.month}/${event.year} has been approved (${event.count} employees).`,
-        type: 'PAYMENT',
+    try {
+      // Notify finance team
+      const financeUsers = await this.prisma.user.findMany({
+        where: {
+          role: { in: ['CHIEF_ACCOUNTANT', 'ACCOUNTANT_AR'] },
+          isActive: true,
+        },
+        select: { id: true },
       });
+
+      for (const user of financeUsers) {
+        await this.notificationService.send({
+          userId: user.id,
+          title: 'Payroll Approved',
+          body: `Payroll for ${event.month}/${event.year} has been approved (${event.count} employees).`,
+          type: 'PAYMENT',
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to process payroll.approved for ${event.month}/${event.year}: ${error.message}`,
+        error.stack,
+      );
     }
   }
 }

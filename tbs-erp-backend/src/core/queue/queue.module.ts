@@ -6,6 +6,7 @@ import { OrderEventProcessor } from '@core/events/processors/order-event.process
 import { NotificationEventProcessor } from '@core/events/processors/notification-event.processor';
 import { FinanceEventProcessor } from '@core/events/processors/finance-event.processor';
 import { WarehouseEventProcessor } from '@core/events/processors/warehouse-event.processor';
+import { FailedJobCaptureService } from '@core/queue/failed-job-capture.service';
 import { OperationCostModule } from '@modules/operation-cost/operation-cost.module';
 
 /**
@@ -35,8 +36,21 @@ import { OperationCostModule } from '@modules/operation-cost/operation-cost.modu
           port: configService.get<number>('REDIS_PORT', 6379),
           password: configService.get<string>('REDIS_PASSWORD'),
           maxRetriesPerRequest: null, // Required by BullMQ
+          retryStrategy: (times: number) => {
+            // Exponential backoff: 500ms, 1s, 2s, 4s, ... max 30s
+            const delay = Math.min(times * 500, 30000);
+            return delay;
+          },
+          reconnectOnError: (err: Error) => {
+            // Reconnect on READONLY errors (e.g., failover)
+            return err.message.includes('READONLY');
+          },
+          enableReadyCheck: true,
+          connectTimeout: 10000,
+          lazyConnect: false,
         },
         defaultJobOptions: {
+          timeout: 300_000, // 5 minutes - prevent zombie jobs
           attempts: 3,
           backoff: {
             type: 'exponential',
@@ -71,10 +85,8 @@ import { OperationCostModule } from '@modules/operation-cost/operation-cost.modu
     NotificationEventProcessor,
     FinanceEventProcessor,
     WarehouseEventProcessor,
+    FailedJobCaptureService,
   ],
-  exports: [
-    BullModule,
-    EventPublisherService,
-  ],
+  exports: [BullModule, EventPublisherService],
 })
 export class QueueModule {}

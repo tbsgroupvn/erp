@@ -30,7 +30,7 @@ const voucherSchema = z.object({
     return true;
   },
   {
-    message: 'Ma giao dich ngan hang bat buoc cho Phieu thu + Chuyen khoan (toi thieu 5 ky tu)',
+    message: 'Mã giao dịch ngân hàng bắt buộc cho Phiếu thu + Chuyển khoản (tối thiểu 5 ký tự)',
     path: ['bankTraceId'],
   },
 );
@@ -79,7 +79,7 @@ export default function PhieuThuChiPage() {
 
   return (
     <div>
-      <PageHeader title="Phiếu thu chi" description="Quản lý phiếu thu và phiếu chi">
+      <PageHeader title="Phiếu thu chi" description="Quản lý phiếu thu và phiếu chi" infoKey="phieu-thu-chi">
         <button
           type="button"
           onClick={() => setShowForm(true)}

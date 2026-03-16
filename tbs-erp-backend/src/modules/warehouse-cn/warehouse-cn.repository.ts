@@ -1,13 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
-import { Prisma, Package } from '@prisma/client';
+import { CacheService } from '@core/cache/cache.service';
+import { Prisma, Package, WarehouseCNStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { generateCode } from '@common/utils/code-generator.util';
 
 @Injectable()
 export class WarehouseCNRepository {
   private readonly logger = new Logger(WarehouseCNRepository.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   /**
    * Create a new package record upon receiving at Warehouse CN.
@@ -30,7 +35,7 @@ export class WarehouseCNRepository {
         description: data.description,
         imageUrls: data.imageUrls ?? [],
         note: data.note,
-        warehouseCNStatus: 'RECEIVED',
+        warehouseCNStatus: WarehouseCNStatus.RECEIVED,
         receivedCNAt: new Date(),
         receivedCNBy: data.receivedCNBy,
       },
@@ -60,7 +65,7 @@ export class WarehouseCNRepository {
         height: new Decimal(measurements.height),
         volumetricWeight: new Decimal(measurements.volumetricWeight),
         chargeableWeight: new Decimal(measurements.chargeableWeight),
-        warehouseCNStatus: 'CHECKED',
+        warehouseCNStatus: WarehouseCNStatus.CHECKED,
       },
     });
   }
@@ -68,12 +73,12 @@ export class WarehouseCNRepository {
   /**
    * Update package warehouse CN status.
    */
-  async updateStatus(packageId: string, status: string): Promise<Package> {
+  async updateStatus(packageId: string, status: WarehouseCNStatus): Promise<Package> {
     const updateData: Prisma.PackageUpdateInput = {
       warehouseCNStatus: status,
     };
 
-    if (status === 'PACKED') {
+    if (status === WarehouseCNStatus.PACKED) {
       updateData.packedAt = new Date();
     }
 
@@ -168,22 +173,29 @@ export class WarehouseCNRepository {
   }
 
   /**
+   * Find ALL packages with the same tracking number (multi-piece shipment).
+   */
+  async findAllByTrackingNumber(trackingNumberCN: string): Promise<Package[]> {
+    return this.prisma.package.findMany({
+      where: {
+        trackingNumberCN: { equals: trackingNumberCN, mode: 'insensitive' },
+      },
+      include: {
+        order: {
+          select: { id: true, code: true, customerId: true },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
    * Generate the next package code: TBS-PKG-NNNNNN.
    */
-  private async generatePackageCode(): Promise<string> {
-    const latest = await this.prisma.package.findFirst({
-      orderBy: { createdAt: 'desc' },
-      select: { code: true },
-    });
-
-    let sequence = 1;
-    if (latest) {
-      const match = latest.code.match(/TBS-PKG-(\d+)/);
-      if (match) {
-        sequence = parseInt(match[1], 10) + 1;
-      }
-    }
-
-    return `TBS-PKG-${String(sequence).padStart(6, '0')}`;
+  async generatePackageCode(): Promise<string> {
+    return generateCode(this.prisma.package, {
+      prefix: 'TBS-PKG',
+      sequenceLength: 6,
+    }, this.cacheService);
   }
 }

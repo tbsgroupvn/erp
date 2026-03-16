@@ -31,6 +31,8 @@ import { ApiPaginated } from '@common/decorators/api-paginated.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
 import { CustomsDeclarationService } from './customs-declaration.service';
+import { CustomsDocumentService } from './customs-document.service';
+import { CustomsServiceRateService } from './customs-service-rate.service';
 import {
   CreateDeclarationDto,
   UpdateDeclarationHeaderDto,
@@ -50,6 +52,8 @@ import {
 export class CustomsDeclarationController {
   constructor(
     private readonly customsService: CustomsDeclarationService,
+    private readonly customsDocumentService: CustomsDocumentService,
+    private readonly customsServiceRateService: CustomsServiceRateService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════════
@@ -66,12 +70,14 @@ export class CustomsDeclarationController {
       'Searches the HS code library by code, Vietnamese/English description, or keywords.',
   })
   @ApiQuery({ name: 'q', required: true, description: 'Search query' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Max results (default: 20)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Max results (default: 20)',
+  })
   @ApiResponse({ status: 200, description: 'HS codes retrieved' })
-  async searchHSCodes(
-    @Query('q') query: string,
-    @Query('limit') limit?: number,
-  ) {
+  async searchHSCodes(@Query('q') query: string, @Query('limit') limit?: number) {
     const results = await this.customsService.searchHSCodes(query, limit);
     return BaseResponse.ok(results);
   }
@@ -85,12 +91,14 @@ export class CustomsDeclarationController {
       'and historical usage patterns. Learns from user selections over time.',
   })
   @ApiQuery({ name: 'description', required: true, description: 'Product description' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Max suggestions (default: 5)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Max suggestions (default: 5)',
+  })
   @ApiResponse({ status: 200, description: 'HS code suggestions retrieved' })
-  async suggestHSCode(
-    @Query('description') description: string,
-    @Query('limit') limit?: number,
-  ) {
+  async suggestHSCode(@Query('description') description: string, @Query('limit') limit?: number) {
     const suggestions = await this.customsService.suggestHSCode(description, limit);
     return BaseResponse.ok(suggestions);
   }
@@ -135,10 +143,7 @@ export class CustomsDeclarationController {
   })
   @ApiParam({ name: 'id', description: 'Compliance rule ID' })
   @ApiResponse({ status: 200, description: 'Rule updated successfully' })
-  async updateComplianceRule(
-    @Param('id') id: string,
-    @Body() dto: UpdateComplianceRuleDto,
-  ) {
+  async updateComplianceRule(@Param('id') id: string, @Body() dto: UpdateComplianceRuleDto) {
     const rule = await this.customsService.updateComplianceRule(id, dto);
     return BaseResponse.ok(rule, 'Compliance rule updated');
   }
@@ -154,10 +159,7 @@ export class CustomsDeclarationController {
   })
   @ApiParam({ name: 'alertId', description: 'Compliance alert ID' })
   @ApiResponse({ status: 200, description: 'Alert acknowledged' })
-  async acknowledgeAlert(
-    @Param('alertId') alertId: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async acknowledgeAlert(@Param('alertId') alertId: string, @CurrentUser() user: ICurrentUser) {
     const alert = await this.customsService.acknowledgeAlert(alertId, user.id);
     return BaseResponse.ok(alert, 'Alert acknowledged');
   }
@@ -195,10 +197,7 @@ export class CustomsDeclarationController {
   @ApiResponse({ status: 200, description: 'Line removed successfully' })
   @ApiResponse({ status: 400, description: 'Cannot edit in current status' })
   @ApiResponse({ status: 404, description: 'Line not found' })
-  async removeLine(
-    @Param('lineId') lineId: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async removeLine(@Param('lineId') lineId: string, @CurrentUser() user: ICurrentUser) {
     const result = await this.customsService.removeLine(lineId, user.id);
     return BaseResponse.ok(result, 'Line removed successfully');
   }
@@ -214,14 +213,45 @@ export class CustomsDeclarationController {
   })
   @ApiParam({ name: 'lineId', description: 'Declaration line ID' })
   @ApiResponse({ status: 200, description: 'Line ungrouped successfully' })
-  @ApiResponse({ status: 400, description: 'Line has only 1 source item or cannot ungroup in current status' })
+  @ApiResponse({
+    status: 400,
+    description: 'Line has only 1 source item or cannot ungroup in current status',
+  })
   @ApiResponse({ status: 404, description: 'Line not found' })
-  async ungroupLine(
-    @Param('lineId') lineId: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async ungroupLine(@Param('lineId') lineId: string, @CurrentUser() user: ICurrentUser) {
     const result = await this.customsService.ungroupLine(lineId, user.id);
     return BaseResponse.ok(result, 'Line ungrouped into individual items');
+  }
+
+  // ─── Service Rates (static paths) ───
+
+  @Get('service-rates')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.XNK_MANAGER, UserRole.XNK_STAFF)
+  @ApiOperation({
+    summary: 'List customs service rates',
+    description: 'Returns available customs service rates and fee schedules.',
+  })
+  @ApiResponse({ status: 200, description: 'Service rates retrieved' })
+  async getServiceRates(
+    @Query('portName') portName?: string,
+    @Query('cargoType') cargoType?: string,
+  ) {
+    const data = await this.customsServiceRateService.findAll(portName, cargoType);
+    return BaseResponse.ok(data);
+  }
+
+  @Post('service-rates')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.XNK_MANAGER)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create customs service rate',
+    description: 'Creates a new customs service rate entry.',
+  })
+  @ApiResponse({ status: 201, description: 'Service rate created successfully' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  async createServiceRate(@Body() dto: any) {
+    const rate = await this.customsServiceRateService.create(dto);
+    return BaseResponse.ok(rate);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -234,21 +264,15 @@ export class CustomsDeclarationController {
   @ApiOperation({
     summary: 'Create customs declaration from container',
     description:
-      'Creates a new DRAFT customs declaration pre-populated from a container\'s orders and items. ' +
+      "Creates a new DRAFT customs declaration pre-populated from a container's orders and items. " +
       'Each order item becomes a declaration line with internal and declared data.',
   })
   @ApiResponse({ status: 201, description: 'Declaration created successfully' })
   @ApiResponse({ status: 400, description: 'Container has no orders' })
   @ApiResponse({ status: 404, description: 'Container not found' })
   @ApiResponse({ status: 409, description: 'Declaration already exists for this container' })
-  async createFromContainer(
-    @Body() dto: CreateDeclarationDto,
-    @CurrentUser() user: ICurrentUser,
-  ) {
-    const declaration = await this.customsService.createFromContainer(
-      dto.containerId,
-      user.id,
-    );
+  async createFromContainer(@Body() dto: CreateDeclarationDto, @CurrentUser() user: ICurrentUser) {
+    const declaration = await this.customsService.createFromContainer(dto.containerId, user.id);
     return BaseResponse.ok(declaration, 'Customs declaration created successfully');
   }
 
@@ -264,12 +288,7 @@ export class CustomsDeclarationController {
   @ApiResponse({ status: 200, description: 'Declarations retrieved successfully' })
   async findAll(@Query() query: DeclarationQueryDto) {
     const result = await this.customsService.findAll(query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get(':id')
@@ -352,12 +371,7 @@ export class CustomsDeclarationController {
     @Body() dto: UpdateStatusDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const declaration = await this.customsService.updateStatus(
-      id,
-      dto.status,
-      user.id,
-      dto.note,
-    );
+    const declaration = await this.customsService.updateStatus(id, dto.status, user.id, dto.note);
     return BaseResponse.ok(declaration, `Status changed to ${dto.status}`);
   }
 
@@ -378,11 +392,7 @@ export class CustomsDeclarationController {
     @Body() dto: UpdateChannelDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const declaration = await this.customsService.updateChannel(
-      id,
-      dto.channel,
-      user.id,
-    );
+    const declaration = await this.customsService.updateChannel(id, dto.channel, user.id);
     return BaseResponse.ok(declaration, `Channel assigned: ${dto.channel}`);
   }
 
@@ -416,10 +426,7 @@ export class CustomsDeclarationController {
   @ApiParam({ name: 'id', description: 'Declaration ID' })
   @ApiResponse({ status: 200, description: 'File download' })
   @ApiResponse({ status: 404, description: 'Declaration not found' })
-  async exportEcus5(
-    @Param('id') id: string,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async exportEcus5(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
     const result = await this.customsService.exportEcus5(id);
 
     res.set({
@@ -441,7 +448,12 @@ export class CustomsDeclarationController {
       'Creates OrderExtraCharge records for financial tracking. Only available for CLEARED declarations.',
   })
   @ApiParam({ name: 'id', description: 'Declaration ID' })
-  @ApiQuery({ name: 'method', required: false, enum: ['VALUE', 'WEIGHT'], description: 'Allocation method (default: VALUE)' })
+  @ApiQuery({
+    name: 'method',
+    required: false,
+    enum: ['VALUE', 'WEIGHT'],
+    description: 'Allocation method (default: VALUE)',
+  })
   @ApiResponse({ status: 200, description: 'Taxes allocated successfully' })
   @ApiResponse({ status: 400, description: 'Declaration not CLEARED or no taxes calculated' })
   @ApiResponse({ status: 404, description: 'Declaration not found' })
@@ -469,10 +481,7 @@ export class CustomsDeclarationController {
   @ApiResponse({ status: 200, description: 'Lines grouped successfully' })
   @ApiResponse({ status: 400, description: 'Cannot group in current status' })
   @ApiResponse({ status: 404, description: 'Declaration not found' })
-  async groupByHsCode(
-    @Param('id') id: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async groupByHsCode(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
     const result = await this.customsService.groupByHsCode(id, user.id);
     return BaseResponse.ok(result, 'Lines grouped by HS code');
   }
@@ -488,7 +497,10 @@ export class CustomsDeclarationController {
   })
   @ApiParam({ name: 'id', description: 'Declaration ID' })
   @ApiResponse({ status: 200, description: 'Lines grouped successfully' })
-  @ApiResponse({ status: 400, description: 'Less than 2 lines selected or cannot group in current status' })
+  @ApiResponse({
+    status: 400,
+    description: 'Less than 2 lines selected or cannot group in current status',
+  })
   @ApiResponse({ status: 404, description: 'Declaration not found' })
   async groupCustom(
     @Param('id') id: string,
@@ -529,11 +541,48 @@ export class CustomsDeclarationController {
   @ApiParam({ name: 'id', description: 'Declaration ID' })
   @ApiResponse({ status: 200, description: 'Compliance check completed' })
   @ApiResponse({ status: 404, description: 'Declaration not found' })
-  async checkCompliance(
-    @Param('id') id: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async checkCompliance(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
     const result = await this.customsService.checkCompliance(id, user.id);
     return BaseResponse.ok(result, 'Compliance check completed');
+  }
+
+  // ─── Document Checklist ───
+
+  @Get(':id/documents')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.XNK_MANAGER, UserRole.XNK_STAFF)
+  @ApiOperation({
+    summary: 'Get document checklist for declaration',
+    description: 'Returns the list of required and uploaded documents for a customs declaration.',
+  })
+  @ApiParam({ name: 'id', description: 'Declaration ID' })
+  @ApiResponse({ status: 200, description: 'Document checklist retrieved' })
+  @ApiResponse({ status: 404, description: 'Declaration not found' })
+  async getDocuments(@Param('id') declarationId: string) {
+    const docs = await this.customsDocumentService.getChecklist(declarationId);
+    return BaseResponse.ok(docs);
+  }
+
+  @Post(':id/documents/upload')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.XNK_MANAGER, UserRole.XNK_STAFF)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Upload customs document',
+    description: 'Uploads a document for a customs declaration.',
+  })
+  @ApiParam({ name: 'id', description: 'Declaration ID' })
+  @ApiResponse({ status: 201, description: 'Document uploaded successfully' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  @ApiResponse({ status: 404, description: 'Declaration not found' })
+  async uploadDocument(
+    @Param('id') declarationId: string,
+    @Body() dto: { checklistItemId: string; documentUrl: string },
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const result = await this.customsDocumentService.uploadDocument(
+      dto.checklistItemId,
+      dto.documentUrl,
+      user.id,
+    );
+    return BaseResponse.ok(result);
   }
 }

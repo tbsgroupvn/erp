@@ -68,7 +68,7 @@ export default function CongNoPhaiTraPage() {
 
   return (
     <div>
-      <PageHeader title="Công nợ phải trả" description="Quản lý công nợ phải trả cho nhà cung cấp" />
+      <PageHeader title="Công nợ phải trả" description="Quản lý công nợ phải trả cho nhà cung cấp" infoKey="cong-no-phai-tra" />
       <DataTable
         columns={apColumns}
         data={data?.data ?? []}

@@ -29,7 +29,7 @@ export default function HopDongPage() {
 
   return (
     <div>
-      <PageHeader title="Hợp đồng" description="Quản lý hợp đồng & phụ lục">
+      <PageHeader title="Hợp đồng" description="Quản lý hợp đồng & phụ lục" infoKey="hop-dong">
         <Link
           href="/hop-dong/tao-moi"
           className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"

@@ -7,6 +7,7 @@ import { SHIPPING_ROUTE_LABELS, CUSTOMER_TIER_LABELS } from '@/lib/utils/constan
 import { formatCurrency, formatPercent } from '@/lib/utils/format';
 import { ShippingRoute, CustomerTier } from '@/lib/types/enums';
 import type { MHHPriceCalculateDto, MHHPriceResult } from '@/lib/types';
+import { InfoTooltip } from '@/components/shared/info-tooltip';
 
 interface MHHPriceCalculatorProps {
   /** Pre-fill shipping route from order */
@@ -60,12 +61,13 @@ export function MHHPriceCalculator({
       <h4 className="text-sm font-semibold flex items-center gap-2">
         <Calculator className="h-4 w-4" />
         Tính giá MHH
+        <InfoTooltip tipKey="mhh" />
       </h4>
 
       {/* Input fields */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs font-medium text-muted-foreground">Giá sản phẩm (CNY) *</label>
+          <p className="text-xs font-medium text-muted-foreground">Giá sản phẩm (CNY) *</p>
           <input
             type="number"
             value={form.productPriceCNY || ''}
@@ -77,7 +79,7 @@ export function MHHPriceCalculator({
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-muted-foreground">Số lượng *</label>
+          <p className="text-xs font-medium text-muted-foreground">Số lượng *</p>
           <input
             type="number"
             value={form.quantity || ''}
@@ -88,7 +90,7 @@ export function MHHPriceCalculator({
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-muted-foreground">Ship nội TQ (CNY)</label>
+          <p className="text-xs font-medium text-muted-foreground">Ship nội TQ (CNY)</p>
           <input
             type="number"
             value={form.domesticShippingCNY || ''}
@@ -100,7 +102,10 @@ export function MHHPriceCalculator({
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-muted-foreground">KL ước tính (kg)</label>
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            KL ước tính (kg)
+            <InfoTooltip tipKey="chargeable-weight" />
+          </p>
           <input
             type="number"
             value={form.estimatedWeightKg || ''}
@@ -112,7 +117,7 @@ export function MHHPriceCalculator({
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-muted-foreground">Tuyến vận chuyển</label>
+          <p className="text-xs font-medium text-muted-foreground">Tuyến vận chuyển</p>
           <select
             value={form.shippingRoute || ''}
             onChange={(e) => setForm((p) => ({ ...p, shippingRoute: (e.target.value || undefined) as any }))}
@@ -127,7 +132,7 @@ export function MHHPriceCalculator({
           </select>
         </div>
         <div>
-          <label className="text-xs font-medium text-muted-foreground">Hạng khách</label>
+          <p className="text-xs font-medium text-muted-foreground">Hạng khách</p>
           <select
             value={form.customerTier || ''}
             onChange={(e) => setForm((p) => ({ ...p, customerTier: e.target.value || undefined }))}

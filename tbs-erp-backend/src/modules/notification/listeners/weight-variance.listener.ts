@@ -11,9 +11,7 @@ import { NotificationService } from '../notification.service';
 export class WeightVarianceListener {
   private readonly logger = new Logger(WeightVarianceListener.name);
 
-  constructor(
-    private readonly notificationService: NotificationService,
-  ) {}
+  constructor(private readonly notificationService: NotificationService) {}
 
   @OnEvent('package.weight_variance_alert')
   async handleWeightVarianceAlert(event: {
@@ -29,20 +27,27 @@ export class WeightVarianceListener {
       `Weight variance alert: package ${event.packageCode} - CN: ${event.cnWeight}kg, VN: ${event.vnWeight}kg, variance: ${event.variancePercent.toFixed(2)}%`,
     );
 
-    const notification = {
-      title: 'Cảnh báo chênh lệch cân nặng',
-      body:
-        `Kiện hàng ${event.packageCode} có chênh lệch cân nặng ${event.variancePercent.toFixed(1)}%. ` +
-        `Kho TQ: ${event.cnWeight}kg, Kho VN: ${event.vnWeight}kg.`,
-      type: 'WAREHOUSE',
-      referenceId: event.packageId,
-      isUrgent: true,
-    };
+    try {
+      const notification = {
+        title: 'Canh bao chenh lech can nang',
+        body:
+          `Kien hang ${event.packageCode} co chenh lech can nang ${event.variancePercent.toFixed(1)}%. ` +
+          `Kho TQ: ${event.cnWeight}kg, Kho VN: ${event.vnWeight}kg.`,
+        type: 'WAREHOUSE',
+        referenceId: event.packageId,
+        isUrgent: true,
+      };
 
-    // Notify WAREHOUSE_VN_MANAGER role
-    await this.notificationService.sendToRole('WAREHOUSE_VN_MANAGER', notification);
+      // Notify WAREHOUSE_VN_MANAGER role
+      await this.notificationService.sendToRole('WAREHOUSE_VN_MANAGER', notification);
 
-    // Notify CHIEF_ACCOUNTANT role
-    await this.notificationService.sendToRole('CHIEF_ACCOUNTANT', notification);
+      // Notify CHIEF_ACCOUNTANT role
+      await this.notificationService.sendToRole('CHIEF_ACCOUNTANT', notification);
+    } catch (error) {
+      this.logger.error(
+        `Failed to process package.weight_variance_alert for package ${event.packageId}: ${error.message}`,
+        error.stack,
+      );
+    }
   }
 }

@@ -68,7 +68,7 @@ export default function CaiDatPage() {
 
   return (
     <div>
-      <PageHeader title="Cài đặt" description="Quản lý tài khoản cá nhân" />
+      <PageHeader title="Cài đặt" description="Quản lý tài khoản cá nhân" infoKey="cai-dat" />
 
       {/* Tabs */}
       <div className="border-b mb-6">
@@ -155,7 +155,7 @@ export default function CaiDatPage() {
           <h3 className="text-lg font-semibold mb-4">Đổi mật khẩu</h3>
           <form onSubmit={handleSubmit(onChangePassword)} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Mật khẩu hiện tại</label>
+              <p className="text-sm font-medium">Mật khẩu hiện tại</p>
               <input
                 type="password"
                 {...register('currentPassword')}
@@ -167,7 +167,7 @@ export default function CaiDatPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Mật khẩu mới</label>
+              <p className="text-sm font-medium">Mật khẩu mới</p>
               <input
                 type="password"
                 {...register('newPassword')}
@@ -179,7 +179,7 @@ export default function CaiDatPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Xác nhận mật khẩu mới</label>
+              <p className="text-sm font-medium">Xác nhận mật khẩu mới</p>
               <input
                 type="password"
                 {...register('confirmPassword')}

@@ -13,10 +13,9 @@ export class CustomsDeclarationRepository {
    */
   async generateCode(): Promise<string> {
     const now = new Date();
-    const yearMonth = [
-      String(now.getFullYear()),
-      String(now.getMonth() + 1).padStart(2, '0'),
-    ].join('');
+    const yearMonth = [String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, '0')].join(
+      '',
+    );
 
     const prefix = `CD-${yearMonth}`;
 
@@ -38,9 +37,7 @@ export class CustomsDeclarationRepository {
   /**
    * Create a new customs declaration with initial lines.
    */
-  async create(
-    data: Prisma.CustomsDeclarationCreateInput,
-  ) {
+  async create(data: Prisma.CustomsDeclarationCreateInput) {
     return this.prisma.customsDeclaration.create({
       data,
       include: {
@@ -258,7 +255,7 @@ export class CustomsDeclarationRepository {
         declarationId: data.declarationId,
         fromStatus: data.fromStatus ?? null,
         toStatus: data.toStatus,
-        channel: data.channel as any ?? null,
+        channel: (data.channel as any) ?? null,
         note: data.note ?? null,
         changedBy: data.changedBy,
       },
@@ -336,10 +333,7 @@ export class CustomsDeclarationRepository {
         ],
       },
       include: { keywords: true },
-      orderBy: [
-        { usageCount: 'desc' },
-        { code: 'asc' },
-      ],
+      orderBy: [{ usageCount: 'desc' }, { code: 'asc' }],
       take: limit,
     });
   }
@@ -375,10 +369,7 @@ export class CustomsDeclarationRepository {
         ],
       },
       include: { keywords: true },
-      orderBy: [
-        { usageCount: 'desc' },
-        { code: 'asc' },
-      ],
+      orderBy: [{ usageCount: 'desc' }, { code: 'asc' }],
       take: limit,
     });
   }
@@ -404,7 +395,7 @@ export class CustomsDeclarationRepository {
   /**
    * Find compliance rules matching an HS code.
    */
-  async findMatchingComplianceRules(hsCode: string) {
+  async findMatchingComplianceRules(_hsCode: string) {
     return this.prisma.complianceRule.findMany({
       where: {
         isActive: true,

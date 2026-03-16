@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -54,9 +55,9 @@ interface ManualCheckIn {
 // ---------------------------------------------------------------------------
 
 const REVIEW_STATUS_LABELS: Record<string, string> = {
-  PENDING: 'Cho duyet',
-  APPROVED: 'Da duyet',
-  REJECTED: 'Tu choi',
+  PENDING: 'Chờ duyệt',
+  APPROVED: 'Đã duyệt',
+  REJECTED: 'Từ chối',
 };
 
 const REVIEW_STATUS_COLORS: Record<string, string> = {
@@ -91,10 +92,10 @@ function useApproveCheckIn() {
         .then((r) => r.data.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manual-check-ins'] });
-      toast.success('Da duyet cham cong');
+      toast.success('Đã duyệt chấm công');
     },
     onError: () => {
-      toast.error('Khong the duyet cham cong');
+      toast.error('Không thể duyệt chấm công');
     },
   });
 }
@@ -111,10 +112,10 @@ function useRejectCheckIn() {
         .then((r) => r.data.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manual-check-ins'] });
-      toast.success('Da tu choi cham cong');
+      toast.success('Đã từ chối chấm công');
     },
     onError: () => {
-      toast.error('Khong the tu choi cham cong');
+      toast.error('Không thể từ chối chấm công');
     },
   });
 }
@@ -131,6 +132,7 @@ function SelfieDialog({
   onClose: () => void;
 }) {
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- role="dialog" is interactive; onKeyDown handles Escape
     <div
       role="dialog"
       aria-modal="true"
@@ -153,10 +155,13 @@ function SelfieDialog({
         >
           <X className="h-5 w-5" />
         </Button>
-        <img
+        <Image
           src={imageUrl}
           alt="Selfie check-in"
-          className="rounded-lg max-h-[80vh] object-contain"
+          width={640}
+          height={480}
+          className="rounded-lg max-h-[80vh] w-auto object-contain"
+          unoptimized
         />
       </div>
     </div>
@@ -192,7 +197,7 @@ export default function AttendanceReviewPage() {
   const handleReject = useCallback(
     (id: string) => {
       if (!rejectNote.trim()) {
-        toast.error('Vui long nhap ly do tu choi');
+        toast.error('Vui lòng nhập lý do từ chối');
         return;
       }
       rejectMutation.mutate(
@@ -211,7 +216,7 @@ export default function AttendanceReviewPage() {
   const columns: ColumnDef<ManualCheckIn>[] = [
     {
       accessorKey: 'employee',
-      header: 'Nhan vien',
+      header: 'Nhân viên',
       cell: ({ row }) => (
         <div>
           <p className="font-medium">
@@ -225,7 +230,7 @@ export default function AttendanceReviewPage() {
     },
     {
       accessorKey: 'checkInDate',
-      header: 'Ngay cham cong',
+      header: 'Ngày chấm công',
       cell: ({ row }) => (
         <div className="flex items-center gap-1.5">
           <Clock className="h-3.5 w-3.5 text-muted-foreground" />
@@ -235,7 +240,7 @@ export default function AttendanceReviewPage() {
     },
     {
       accessorKey: 'reason',
-      header: 'Ly do',
+      header: 'Lý do',
       cell: ({ row }) => (
         <span className="max-w-[200px] truncate block">{row.original.reason}</span>
       ),
@@ -250,25 +255,25 @@ export default function AttendanceReviewPage() {
           className="inline-flex items-center gap-1 text-primary hover:underline text-xs"
         >
           <Eye className="h-3.5 w-3.5" />
-          Xem anh
+          Xem ảnh
         </button>
       ),
     },
     {
       accessorKey: 'location',
-      header: 'Vi tri',
+      header: 'Vị trí',
       cell: ({ row }) => (
         <div className="flex items-center gap-1 text-xs">
           <MapPin className="h-3 w-3 text-muted-foreground" />
           <span>
-            {row.original.latitude.toFixed(4)}, {row.original.longitude.toFixed(4)}
+            {Number(row.original.latitude).toFixed(4)}, {Number(row.original.longitude).toFixed(4)}
           </span>
         </div>
       ),
     },
     {
       accessorKey: 'status',
-      header: 'Trang thai',
+      header: 'Trạng thái',
       cell: ({ row }) => (
         <StatusBadge
           label={REVIEW_STATUS_LABELS[row.original.status] || row.original.status}
@@ -278,14 +283,14 @@ export default function AttendanceReviewPage() {
     },
     {
       accessorKey: 'createdAt',
-      header: 'Gui luc',
+      header: 'Gửi lúc',
       cell: ({ row }) => (
         <span className="text-xs">{formatDateTime(row.original.createdAt)}</span>
       ),
     },
     {
       id: 'actions',
-      header: 'Thao tac',
+      header: 'Thao tác',
       cell: ({ row }) => {
         if (row.original.status !== 'PENDING') {
           if (row.original.reviewNote) {
@@ -304,7 +309,7 @@ export default function AttendanceReviewPage() {
               <Input
                 value={rejectNote}
                 onChange={(e) => setRejectNote(e.target.value)}
-                placeholder="Ly do tu choi"
+                placeholder="Lý do từ chối"
                 className="h-7 text-xs w-28"
               />
               <Button
@@ -349,7 +354,7 @@ export default function AttendanceReviewPage() {
               ) : (
                 <Check className="mr-1 h-3.5 w-3.5" />
               )}
-              Duyet
+              Duyệt
             </Button>
             <Button
               variant="ghost"
@@ -358,7 +363,7 @@ export default function AttendanceReviewPage() {
               onClick={() => setRejectingId(row.original.id)}
             >
               <Ban className="mr-1 h-3.5 w-3.5" />
-              Tu choi
+              Từ chối
             </Button>
           </div>
         );
@@ -369,15 +374,15 @@ export default function AttendanceReviewPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Duyet cham cong thu cong"
-        description="Xem va duyet yeu cau cham cong thu cong cua nhan vien"
+        title="Duyệt chấm công thủ công"
+        description="Xem và duyệt yêu cầu chấm công thủ công của nhân viên"
       />
 
       {/* Filters */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Label htmlFor="review-status-filter" className="whitespace-nowrap text-sm">
-            Trang thai:
+            Trạng thái:
           </Label>
           <select
             id="review-status-filter"
@@ -388,10 +393,10 @@ export default function AttendanceReviewPage() {
             }}
             className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <option value="">Tat ca</option>
-            <option value="PENDING">Cho duyet</option>
-            <option value="APPROVED">Da duyet</option>
-            <option value="REJECTED">Tu choi</option>
+            <option value="">Tất cả</option>
+            <option value="PENDING">Chờ duyệt</option>
+            <option value="APPROVED">Đã duyệt</option>
+            <option value="REJECTED">Từ chối</option>
           </select>
         </div>
       </div>

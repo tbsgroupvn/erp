@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { Prisma, QCStatus } from '@prisma/client';
@@ -31,10 +26,7 @@ const STATUS_TRANSITIONS: Record<QCStatus, QCStatus[]> = {
   [QCStatus.PASSED]: [QCStatus.CUSTOMER_REVIEW],
   [QCStatus.PARTIAL]: [QCStatus.CUSTOMER_REVIEW],
   [QCStatus.FAILED]: [QCStatus.CUSTOMER_REVIEW],
-  [QCStatus.CUSTOMER_REVIEW]: [
-    QCStatus.CUSTOMER_APPROVED,
-    QCStatus.CUSTOMER_REJECTED,
-  ],
+  [QCStatus.CUSTOMER_REVIEW]: [QCStatus.CUSTOMER_APPROVED, QCStatus.CUSTOMER_REJECTED],
   [QCStatus.CUSTOMER_APPROVED]: [],
   [QCStatus.CUSTOMER_REJECTED]: [QCStatus.INSPECTING],
 };
@@ -75,9 +67,7 @@ export class QCService {
       });
 
       if (!pkg) {
-        throw new NotFoundException(
-          `Package with ID ${dto.packageId} not found`,
-        );
+        throw new NotFoundException(`Package with ID ${dto.packageId} not found`);
       }
 
       if (pkg.orderId !== dto.orderId) {
@@ -106,9 +96,7 @@ export class QCService {
       createdBy: userId,
     });
 
-    this.logger.log(
-      `QC inspection ${code} created for order ${order.code} by user ${userId}`,
-    );
+    this.logger.log(`QC inspection ${code} created for order ${order.code} by user ${userId}`);
 
     return inspection;
   }
@@ -211,9 +199,7 @@ export class QCService {
       inspectedBy: userId,
     });
 
-    this.logger.log(
-      `QC inspection ${inspection.code} started by user ${userId}`,
-    );
+    this.logger.log(`QC inspection ${inspection.code} started by user ${userId}`);
 
     return updated;
   }
@@ -227,24 +213,16 @@ export class QCService {
    * - FAILED: if passedQuantity === 0
    * - PARTIAL: if both passed and failed quantities are non-zero
    */
-  async submitInspection(
-    id: string,
-    dto: SubmitInspectionDto,
-    userId: string,
-  ) {
+  async submitInspection(id: string, dto: SubmitInspectionDto, userId: string) {
     const inspection = await this.findById(id);
 
     // Validate quantities are non-negative integers
     if (dto.inspectedQuantity < 0 || dto.passedQuantity < 0 || dto.failedQuantity < 0) {
-      throw new BadRequestException(
-        'Quantities must be non-negative values',
-      );
+      throw new BadRequestException('Quantities must be non-negative values');
     }
 
     if (dto.inspectedQuantity === 0) {
-      throw new BadRequestException(
-        'inspectedQuantity must be greater than 0',
-      );
+      throw new BadRequestException('inspectedQuantity must be greater than 0');
     }
 
     // Validate quantities are consistent
@@ -265,12 +243,15 @@ export class QCService {
     }
 
     // D5: Mandatory photos for QC submission
-    const totalPhotos = (dto.photoUrls?.length ?? 0) + (dto.detailPhotoUrls?.length ?? 0) + (dto.defectPhotoUrls?.length ?? 0) +
-      (inspection.photoUrls?.length ?? 0) + (inspection.detailPhotoUrls?.length ?? 0) + (inspection.defectPhotoUrls?.length ?? 0);
+    const totalPhotos =
+      (dto.photoUrls?.length ?? 0) +
+      (dto.detailPhotoUrls?.length ?? 0) +
+      (dto.defectPhotoUrls?.length ?? 0) +
+      (inspection.photoUrls?.length ?? 0) +
+      (inspection.detailPhotoUrls?.length ?? 0) +
+      (inspection.defectPhotoUrls?.length ?? 0);
     if (totalPhotos < 1) {
-      throw new BadRequestException(
-        'Bắt buộc đính kèm ít nhất 1 ảnh khi nộp kết quả QC',
-      );
+      throw new BadRequestException('Bắt buộc đính kèm ít nhất 1 ảnh khi nộp kết quả QC');
     }
 
     // Determine result status based on quantities
@@ -312,24 +293,15 @@ export class QCService {
     }
 
     if (dto.photoUrls?.length) {
-      updateData.photoUrls = [
-        ...(inspection.photoUrls ?? []),
-        ...dto.photoUrls,
-      ];
+      updateData.photoUrls = [...(inspection.photoUrls ?? []), ...dto.photoUrls];
     }
 
     if (dto.detailPhotoUrls?.length) {
-      updateData.detailPhotoUrls = [
-        ...(inspection.detailPhotoUrls ?? []),
-        ...dto.detailPhotoUrls,
-      ];
+      updateData.detailPhotoUrls = [...(inspection.detailPhotoUrls ?? []), ...dto.detailPhotoUrls];
     }
 
     if (dto.defectPhotoUrls?.length) {
-      updateData.defectPhotoUrls = [
-        ...(inspection.defectPhotoUrls ?? []),
-        ...dto.defectPhotoUrls,
-      ];
+      updateData.defectPhotoUrls = [...(inspection.defectPhotoUrls ?? []), ...dto.defectPhotoUrls];
     }
 
     const updated = await this.qcRepository.update(id, updateData);
@@ -393,16 +365,10 @@ export class QCService {
    * Moves to CUSTOMER_APPROVED or CUSTOMER_REJECTED based on the
    * approved flag, and records the customer note and review timestamp.
    */
-  async recordCustomerDecision(
-    id: string,
-    approved: boolean,
-    customerNote?: string,
-  ) {
+  async recordCustomerDecision(id: string, approved: boolean, customerNote?: string) {
     const inspection = await this.findById(id);
 
-    const targetStatus = approved
-      ? QCStatus.CUSTOMER_APPROVED
-      : QCStatus.CUSTOMER_REJECTED;
+    const targetStatus = approved ? QCStatus.CUSTOMER_APPROVED : QCStatus.CUSTOMER_REJECTED;
 
     this.validateTransition(inspection.status, targetStatus);
 
@@ -440,7 +406,10 @@ export class QCService {
   async addPhotos(id: string, photoUrls: string[], type: PhotoType) {
     const inspection = await this.findById(id);
 
-    const fieldMap: Record<PhotoType, keyof Pick<typeof inspection, 'photoUrls' | 'detailPhotoUrls' | 'defectPhotoUrls'>> = {
+    const fieldMap: Record<
+      PhotoType,
+      keyof Pick<typeof inspection, 'photoUrls' | 'detailPhotoUrls' | 'defectPhotoUrls'>
+    > = {
       [PhotoType.GENERAL]: 'photoUrls',
       [PhotoType.DETAIL]: 'detailPhotoUrls',
       [PhotoType.DEFECT]: 'defectPhotoUrls',
@@ -462,16 +431,192 @@ export class QCService {
     return updated;
   }
 
+  // ─────────────────────────────────────────────────────────────────
+  // STATISTICS — Thong ke QC
+  // ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Thong ke tong the QC.
+   *
+   * Bao gom:
+   *   - Tong so kiem tra, so dat/khong dat/phan
+   *   - Ty le dat (passRate), ty le khong dat (failRate), ty le phan (partialRate)
+   *   - Diem danh gia trung binh (overallRating)
+   *   - Phan bo theo thang (so kiem tra moi thang, ty le dat theo thang)
+   *   - So kiem tra dang cho xu ly (PENDING, INSPECTING, CUSTOMER_REVIEW)
+   */
+  async getStatistics(params: { startDate?: string; endDate?: string; months: number }) {
+    const { startDate, endDate, months } = params;
+
+    // Xay dung bo loc thoi gian
+    const dateFilter: Prisma.DateTimeFilter = {};
+    if (startDate) dateFilter.gte = new Date(startDate);
+    if (endDate) dateFilter.lte = new Date(endDate);
+
+    const hasDateFilter = startDate || endDate;
+
+    // --- Thong ke tong theo status ---
+    const statusGroups = await this.prisma.qCInspection.groupBy({
+      by: ['status'],
+      where: hasDateFilter ? { createdAt: dateFilter } : {},
+      _count: { id: true },
+    });
+
+    const statusMap = new Map(statusGroups.map(s => [s.status, s._count.id]));
+    const total = statusGroups.reduce((sum, s) => sum + s._count.id, 0);
+
+    const passed = statusMap.get(QCStatus.PASSED) ?? 0;
+    const failed = statusMap.get(QCStatus.FAILED) ?? 0;
+    const partial = statusMap.get(QCStatus.PARTIAL) ?? 0;
+    const customerApproved = statusMap.get(QCStatus.CUSTOMER_APPROVED) ?? 0;
+    const customerRejected = statusMap.get(QCStatus.CUSTOMER_REJECTED) ?? 0;
+
+    // Tong so da co ket qua (PASSED + FAILED + PARTIAL + CUSTOMER_*)
+    const completed = passed + failed + partial + customerApproved + customerRejected;
+
+    // --- Diem danh gia trung binh ---
+    const ratingAgg = await this.prisma.qCInspection.aggregate({
+      where: {
+        overallRating: { not: null },
+        ...(hasDateFilter ? { createdAt: dateFilter } : {}),
+      },
+      _avg: { overallRating: true },
+      _count: { overallRating: true },
+    });
+
+    // --- Thong ke dang cho xu ly ---
+    const pending = statusMap.get(QCStatus.PENDING) ?? 0;
+    const inspecting = statusMap.get(QCStatus.INSPECTING) ?? 0;
+    const customerReview = statusMap.get(QCStatus.CUSTOMER_REVIEW) ?? 0;
+
+    // --- Phan bo theo thang ---
+    const monthlyBreakdown = await this._getMonthlyBreakdown(months);
+
+    this.logger.log(
+      `Thong ke QC: ${total} kiem tra, ${passed} dat, ${failed} khong dat, ${partial} phan`,
+    );
+
+    return {
+      total,
+      completed,
+      byStatus: {
+        pending,
+        inspecting,
+        passed,
+        failed,
+        partial,
+        customerReview,
+        customerApproved,
+        customerRejected,
+      },
+      rates: {
+        passRate: completed > 0 ? Math.round((passed + customerApproved) / completed * 1000) / 10 : 0,
+        failRate: completed > 0 ? Math.round((failed + customerRejected) / completed * 1000) / 10 : 0,
+        partialRate: completed > 0 ? Math.round(partial / completed * 1000) / 10 : 0,
+      },
+      avgRating: ratingAgg._avg.overallRating
+        ? Math.round(Number(ratingAgg._avg.overallRating) * 10) / 10
+        : null,
+      ratedCount: ratingAgg._count.overallRating,
+      inProgress: pending + inspecting + customerReview,
+      monthlyBreakdown,
+    };
+  }
+
+  /**
+   * Lay danh sach anh cua mot QC inspection, phan loai theo kieu.
+   *
+   * Tra ve:
+   *   - general: anh tong quan (photoUrls)
+   *   - detail: anh chi tiet san pham (detailPhotoUrls)
+   *   - defect: anh loi (defectPhotoUrls)
+   *   - summary: tong so anh tung kieu
+   */
+  async getInspectionPhotos(id: string) {
+    const inspection = await this.findById(id);
+
+    const photos = {
+      general: inspection.photoUrls ?? [],
+      detail: inspection.detailPhotoUrls ?? [],
+      defect: inspection.defectPhotoUrls ?? [],
+    };
+
+    return {
+      inspectionId: id,
+      code: inspection.code,
+      status: inspection.status,
+      photos,
+      summary: {
+        general: photos.general.length,
+        detail: photos.detail.length,
+        defect: photos.defect.length,
+        total: photos.general.length + photos.detail.length + photos.defect.length,
+      },
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Private helpers
+  // ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Lay phan bo theo thang trong N thang gan nhat.
+   *
+   * Tra ve moi thang: so kiem tra tao, so dat, so khong dat, ty le dat.
+   */
+  private async _getMonthlyBreakdown(months: number) {
+    const now = new Date();
+    const result: {
+      yearMonth: string;
+      total: number;
+      passed: number;
+      failed: number;
+      partial: number;
+      passRate: number;
+    }[] = [];
+
+    for (let i = months - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const start = new Date(d.getFullYear(), d.getMonth(), 1);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+
+      const yearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+      const groups = await this.prisma.qCInspection.groupBy({
+        by: ['status'],
+        where: { createdAt: { gte: start, lte: end } },
+        _count: { id: true },
+      });
+
+      const statusMap = new Map(groups.map(g => [g.status, g._count.id]));
+      const monthTotal = groups.reduce((s, g) => s + g._count.id, 0);
+      const monthPassed = statusMap.get(QCStatus.PASSED) ?? 0;
+      const monthFailed = statusMap.get(QCStatus.FAILED) ?? 0;
+      const monthPartial = statusMap.get(QCStatus.PARTIAL) ?? 0;
+      const monthCompleted = monthPassed + monthFailed + monthPartial +
+        (statusMap.get(QCStatus.CUSTOMER_APPROVED) ?? 0) +
+        (statusMap.get(QCStatus.CUSTOMER_REJECTED) ?? 0);
+
+      result.push({
+        yearMonth,
+        total: monthTotal,
+        passed: monthPassed,
+        failed: monthFailed,
+        partial: monthPartial,
+        passRate: monthCompleted > 0 ? Math.round(monthPassed / monthCompleted * 1000) / 10 : 0,
+      });
+    }
+
+    return result;
+  }
+
   /**
    * Validates that a status transition is allowed.
    *
    * Throws BadRequestException if the transition is not permitted
    * according to the STATUS_TRANSITIONS map.
    */
-  private validateTransition(
-    currentStatus: QCStatus,
-    targetStatus: QCStatus,
-  ): void {
+  private validateTransition(currentStatus: QCStatus, targetStatus: QCStatus): void {
     const allowed = STATUS_TRANSITIONS[currentStatus] ?? [];
 
     if (!allowed.includes(targetStatus)) {

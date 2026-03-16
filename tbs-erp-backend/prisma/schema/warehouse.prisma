@@ -19,8 +19,8 @@ model Package {
   chargeableWeight  Decimal? @map("chargeable_weight") @db.Decimal(10, 2) // MAX(actual, volumetric)
 
   // Trạng thái
-  warehouseCNStatus String?  @map("warehouse_cn_status") // RECEIVED, CHECKED, PACKED, SHIPPED
-  warehouseVNStatus String?  @map("warehouse_vn_status") // RECEIVED, SORTED, READY, DELIVERED
+  warehouseCNStatus WarehouseCNStatus?  @map("warehouse_cn_status")
+  warehouseVNStatus WarehouseVNStatus?  @map("warehouse_vn_status")
 
   // Timestamps kho
   receivedCNAt      DateTime? @map("received_cn_at")
@@ -47,19 +47,61 @@ model Package {
   weightConfirmedBy String?   @map("weight_confirmed_by")
 
   containerId       String?  @map("container_id")
+  storageLocationId String?  @map("storage_location_id") // KhoVN-1: bin location
   note              String?
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
   order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  container         Container? @relation(fields: [containerId], references: [id])
+  container         Container? @relation(fields: [containerId], references: [id], onDelete: SetNull)
   trackingEvents    TrackingEvent[]
   qcInspections     QCInspection[]
+  deliveryPackages  DeliveryPackage[]
+  weightAuditLogs   WeightAuditLog[]
 
   @@index([orderId])
+  @@index([orderId, warehouseCNStatus])
   @@index([trackingNumberCN])
   @@index([containerId])
+  @@index([containerId, warehouseCNStatus])
+  @@index([warehouseCNStatus])
+  @@index([warehouseCNStatus, createdAt])
+  @@index([warehouseVNStatus])
+  @@index([storageLocationId])
   @@map("packages")
+}
+
+// ============================================
+// WEIGHT AUDIT LOG — Track all weight changes for fraud prevention
+// ============================================
+
+model WeightAuditLog {
+  id                  String   @id @default(cuid())
+  packageId           String   @map("package_id")
+  package             Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  action              String   // MEASURE, UNLOCK, REMEASURE, REWEIGH_VN
+
+  // Old values
+  oldActualWeight     Decimal? @map("old_actual_weight") @db.Decimal(10, 2)
+  oldLength           Decimal? @map("old_length") @db.Decimal(10, 2)
+  oldWidth            Decimal? @map("old_width") @db.Decimal(10, 2)
+  oldHeight           Decimal? @map("old_height") @db.Decimal(10, 2)
+  oldChargeableWeight Decimal? @map("old_chargeable_weight") @db.Decimal(10, 2)
+
+  // New values
+  newActualWeight     Decimal? @map("new_actual_weight") @db.Decimal(10, 2)
+  newLength           Decimal? @map("new_length") @db.Decimal(10, 2)
+  newWidth            Decimal? @map("new_width") @db.Decimal(10, 2)
+  newHeight           Decimal? @map("new_height") @db.Decimal(10, 2)
+  newChargeableWeight Decimal? @map("new_chargeable_weight") @db.Decimal(10, 2)
+
+  reason              String?
+  performedBy         String   @map("performed_by")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@index([packageId])
+  @@index([performedBy])
+  @@map("weight_audit_logs")
 }
 
 model LostAndFound {
@@ -79,6 +121,144 @@ model LostAndFound {
 
   @@index([trackingNumber])
   @@map("lost_and_found")
+}
+
+// ============================================
+// QC PHOTO GUIDELINE — Required photo angles per category (KhoTQ-3)
+// ============================================
+
+model QCPhotoGuideline {
+  id              String   @id @default(cuid())
+  productCategory String   @unique @map("product_category") // ELECTRONICS, CLOTHING, FOOD, etc.
+  requiredAngles  Json     // ["front","back","detail","packaging","label"]
+  minPhotoCount   Int      @map("min_photo_count")
+  instructions    String?
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("qc_photo_guidelines")
+}
+
+// ============================================
+// PACKAGE CONSOLIDATION — Merge packages at CN warehouse (KhoTQ-5)
+// ============================================
+
+model PackageConsolidation {
+  id              String    @id @default(cuid())
+  code            String    @unique // CONS-YYYYMM-XXXX
+  customerId      String    @map("customer_id")
+  sourcePackageIds String[] @map("source_package_ids")
+  resultPackageId String?   @map("result_package_id")
+  totalWeight     Decimal   @map("total_weight") @db.Decimal(10, 2)
+  status          String    @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  consolidatedBy  String    @map("consolidated_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([customerId])
+  @@map("package_consolidations")
+}
+
+// ============================================
+// STORAGE LOCATION — Warehouse bin management (KhoVN-1)
+// ============================================
+
+model StorageLocation {
+  id                String   @id @default(cuid())
+  code              String   @unique // A1-02-05 (Shelf-Level-Slot)
+  shelf             String
+  level             String
+  slot              String
+  branch            Branch
+  zone              String?  // REGULAR, COLD, HAZARDOUS
+  isOccupied        Boolean  @default(false) @map("is_occupied")
+  currentPackageId  String?  @map("current_package_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@index([branch, isOccupied])
+  @@map("storage_locations")
+}
+
+// ============================================
+// INVENTORY COUNT — Periodic stock counting (KhoVN-4)
+// ============================================
+
+model InventoryCount {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  type            String   // CYCLE (daily by zone) | FULL (monthly full count)
+  branch          Branch
+  zone            String?  // null = entire warehouse
+  status          String   @default("DRAFT") // DRAFT, IN_PROGRESS, COMPLETED
+  totalSystemQty  Int      @default(0) @map("total_system_qty")
+  totalActualQty  Int      @default(0) @map("total_actual_qty")
+  discrepancy     Int      @default(0)
+  countedBy       String   @map("counted_by")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  items           InventoryCountItem[]
+
+  @@index([branch])
+  @@index([status])
+  @@map("inventory_counts")
+}
+
+model InventoryCountItem {
+  id              String         @id @default(cuid())
+  countId         String         @map("count_id")
+  count           InventoryCount @relation(fields: [countId], references: [id], onDelete: Cascade)
+  packageId       String?        @map("package_id")
+  locationCode    String         @map("location_code")
+  systemQty       Int            @map("system_qty")
+  actualQty       Int            @map("actual_qty")
+  discrepancy     Int
+  explanation     String?
+
+  @@index([countId])
+  @@map("inventory_count_items")
+}
+
+// ============================================
+// STORAGE BIN — Quan ly vi tri luu tru kien hang (Warehouse Slotting)
+// ============================================
+
+model StorageBin {
+  id            String    @id @default(cuid())
+  code          String    @unique            // VD: A-01-03 (khu A, hang 1, o 3)
+  zone          String                       // A, B, C (phan loai ABC theo tan suat xuat nhap)
+  aisle         String                       // Hang (01, 02, ...)
+  shelf         String                       // Tang (01, 02, ...)
+  position      String?                      // Vi tri chi tiet (o, ngan)
+
+  // Thuoc tinh vat ly
+  maxWeight     Decimal?  @map("max_weight") @db.Decimal(10, 2) // Trong luong toi da (kg)
+  maxVolume     Decimal?  @map("max_volume") @db.Decimal(10, 4) // The tich toi da (m3)
+  currentWeight Decimal   @default(0) @map("current_weight") @db.Decimal(10, 2)
+  currentVolume Decimal   @default(0) @map("current_volume") @db.Decimal(10, 4)
+
+  // Phan loai ABC
+  abcClass      String    @default("C") @map("abc_class") // A (tan suat cao), B (trung binh), C (thap)
+  frequency     Int       @default(0)  // So lan xuat/nhap trong 30 ngay gan nhat
+
+  // Trang thai o hang
+  isOccupied    Boolean   @default(false) @map("is_occupied")
+  isActive      Boolean   @default(true) @map("is_active")
+  packageId     String?   @map("package_id") // ID kien hang dang duoc luu (nullable)
+
+  warehouse     String    @default("CN") // CN hoac VN
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([zone])
+  @@index([abcClass])
+  @@index([isOccupied])
+  @@index([warehouse])
+  @@index([warehouse, zone])
+  @@index([packageId])
+  @@map("storage_bins")
 }
 
 // ============================================
@@ -126,12 +306,13 @@ model QCInspection {
   updatedAt           DateTime   @updatedAt @map("updated_at")
 
   // Relations
-  order               Order      @relation(fields: [orderId], references: [id])
-  package             Package?   @relation(fields: [packageId], references: [id])
+  order               Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  package             Package?   @relation(fields: [packageId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
   @@index([packageId])
   @@index([status])
+  @@index([createdBy])
   @@index([createdAt])
   @@map("qc_inspections")
 }

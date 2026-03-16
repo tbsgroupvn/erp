@@ -1,13 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { BadRequestException, Logger } from '@nestjs/common';
 
 // ---------------------------------------------------------------------------
@@ -54,7 +47,19 @@ export enum SortOrder {
   DESC = 'DESC',
 }
 
-const ALLOWED_SORT_FIELDS = ['createdAt', 'updatedAt', 'code', 'name', 'fullName', 'status', 'amount', 'totalAmount', 'date', 'dueDate', 'id'];
+const ALLOWED_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'code',
+  'name',
+  'fullName',
+  'status',
+  'amount',
+  'totalAmount',
+  'date',
+  'dueDate',
+  'id',
+];
 
 export class PaginationDto {
   @ApiPropertyOptional({

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { pagesApi, Page } from '@/lib/api/cms';
+import { pagesApi, Page, PageFilters } from '@/lib/api/cms';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +40,7 @@ export default function PagesListPage() {
     queryFn: () =>
       pagesApi.list({
         search: search || undefined,
-        status: (status && status !== 'all') ? status as any : undefined,
+        status: (status && status !== 'all') ? status as PageFilters['status'] : undefined,
         page,
         limit: 20,
       }),
@@ -68,11 +68,13 @@ export default function PagesListPage() {
     },
   });
 
+  type TableRow = { original: Page };
+
   const columns = [
     {
       header: 'Tiêu đề',
       accessorKey: 'title',
-      cell: ({ row }: any) => (
+      cell: ({ row }: { row: TableRow }) => (
         <div>
           <Link
             href={`/admin/pages/${row.original.id}`}
@@ -87,7 +89,7 @@ export default function PagesListPage() {
     {
       header: 'Trạng thái',
       accessorKey: 'status',
-      cell: ({ row }: any) => {
+      cell: ({ row }: { row: TableRow }) => {
         const status = row.original.status;
         const colorMap: Record<string, string> = {
           PUBLISHED: 'bg-green-100 text-green-700',
@@ -110,7 +112,7 @@ export default function PagesListPage() {
     {
       header: 'Cập nhật',
       accessorKey: 'updatedAt',
-      cell: ({ row }: any) => (
+      cell: ({ row }: { row: TableRow }) => (
         <span className="text-sm text-muted-foreground">
           {formatDistanceToNow(new Date(row.original.updatedAt), {
             addSuffix: true,
@@ -122,7 +124,7 @@ export default function PagesListPage() {
     {
       header: '',
       id: 'actions',
-      cell: ({ row }: any) => (
+      cell: ({ row }: { row: TableRow }) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">

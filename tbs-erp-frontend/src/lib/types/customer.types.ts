@@ -109,10 +109,34 @@ export interface CustomerQueryParams extends QueryParams {
   isActive?: boolean;
 }
 
+/** AI-predicted analytics for a single customer */
+export interface CustomerAnalytics {
+  customerId: string;
+  churnRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  daysSinceLastOrder: number | null;
+  avgOrderIntervalDays: number | null;
+  predictedNextOrderDate: string | null;
+  clv: number;
+  avgOrderValue: number;
+  preferredServiceType: string | null;
+  totalOrdersLast12Months: number;
+}
+
+/** One entry in the churn-risk list */
+export interface ChurnRiskEntry {
+  customerId: string;
+  customerCode: string;
+  customerName: string;
+  churnRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  daysSinceLastOrder: number | null;
+  clv: number;
+}
+
 /** DTO for topping up a wallet */
 export interface TopupWalletDto {
   customerId: string;
   amount: number;
+  confirmAmount: number;
   bankTraceId: string;
   note?: string;
   reference?: string;

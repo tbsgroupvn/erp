@@ -4,16 +4,16 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheService } from './cache.service';
 import { CacheWarmingService } from './cache-warming.service';
 import { CacheInvalidationService } from './cache-invalidation.service';
-import { redisStore } from 'cache-manager-redis-yet';
-import type { RedisClientOptions } from 'redis';
+import KeyvRedis from '@keyv/redis';
+import Keyv from 'keyv';
 
-/** Cache key prefix to prevent collisions in shared Redis instances. */
-export const CACHE_KEY_PREFIX = 'tbs-erp:';
+/** Cache key prefix / Keyv namespace to prevent collisions in shared Redis instances. */
+export const CACHE_KEY_PREFIX = 'tbs-erp';
 
 @Global()
 @Module({
   imports: [
-    NestCacheModule.registerAsync<RedisClientOptions>({
+    NestCacheModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => {
@@ -23,25 +23,25 @@ export const CACHE_KEY_PREFIX = 'tbs-erp:';
 
         // Try to connect to Redis, fallback to in-memory if unavailable
         try {
+          const redisUrl = redisPassword
+            ? `redis://:${encodeURIComponent(redisPassword)}@${redisHost}:${redisPort}`
+            : `redis://${redisHost}:${redisPort}`;
+
+          const keyvRedis = new KeyvRedis(redisUrl);
+          const keyv = new Keyv({ store: keyvRedis, namespace: CACHE_KEY_PREFIX });
+
           return {
-            store: await redisStore({
-              socket: {
-                host: redisHost,
-                port: redisPort,
-              },
-              password: redisPassword,
-              ttl: 60 * 5 * 1000, // 5 minutes default TTL (in milliseconds)
-              keyPrefix: CACHE_KEY_PREFIX,
-            }),
-            isGlobal: true,
+            stores: [keyv],
+            ttl: 60 * 5 * 1000, // 5 minutes default TTL (in milliseconds)
           };
-        } catch (error) {
-          new Logger('CacheModule').warn('Redis connection failed, using in-memory cache fallback');
-          // Fallback to in-memory cache
+        } catch (err) {
+          new Logger('CacheModule').warn(
+            `Redis connection failed (${err?.message}), using in-memory cache fallback`,
+          );
+          // Fallback to in-memory cache (no stores → default memory store)
           return {
-            ttl: 60 * 5 * 1000, // 5 minutes (in milliseconds for memory store)
+            ttl: 60 * 5 * 1000,
             max: 500,
-            isGlobal: true,
           };
         }
       },

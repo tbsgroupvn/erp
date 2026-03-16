@@ -10,29 +10,27 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
-import { OrderStatus } from '@prisma/client';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { DataScopeGuard, DataScopeFilter } from '@common/guards/data-scope.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { DataScope } from '@common/decorators/data-scope.decorator';
 import { ApiPaginated } from '@common/decorators/api-paginated.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
+import { UserRole } from '@prisma/client';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
 import { OrderService } from './order.service';
+import { OrderStatusService } from './order-status.service';
+import { OrderCancellationService } from './order-cancellation.service';
 import { OrderReadService } from './order-read.service';
 import { DepositGateService } from './domain/deposit-gate.service';
 import { ThreeWayMatchingService } from './domain/three-way-matching.service';
 import { MHHPriceCalculatorService } from './domain/mhh-price-calculator.service';
 import { MHHIssueService } from './domain/mhh-issue.service';
 import { ExtraChargeService, AddExtraChargeDto } from './domain/extra-charge.service';
+import { ReturnRequestService } from './domain/return-request.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderQueryDto } from './dto/order-query.dto';
@@ -43,7 +41,9 @@ import { ResolveMHHIssueDto } from './dto/resolve-mhh-issue.dto';
 import { UpdateMHHIssueStatusDto } from './dto/update-mhh-issue-status.dto';
 import { AssignMHHIssueDto } from './dto/assign-mhh-issue.dto';
 import { RecordCustomerDecisionDto } from './dto/record-customer-decision.dto';
+import { CreateReturnRequestDto } from './dto/create-return-request.dto';
 import { CreditCheckGuard } from './guards/credit-check.guard';
+import { ComplianceCheckerService } from '@modules/customs-declaration/domain/compliance-checker.service';
 
 @ApiTags('Orders')
 @ApiBearerAuth()
@@ -52,13 +52,60 @@ import { CreditCheckGuard } from './guards/credit-check.guard';
 export class OrderController {
   constructor(
     private readonly orderService: OrderService,
+    private readonly orderStatusService: OrderStatusService,
+    private readonly orderCancellationService: OrderCancellationService,
     private readonly orderReadService: OrderReadService,
     private readonly depositGateService: DepositGateService,
     private readonly threeWayMatchingService: ThreeWayMatchingService,
     private readonly mhhPriceCalculator: MHHPriceCalculatorService,
     private readonly mhhIssueService: MHHIssueService,
     private readonly extraChargeService: ExtraChargeService,
+    private readonly returnRequestService: ReturnRequestService,
+    private readonly complianceChecker: ComplianceCheckerService,
   ) {}
+
+  // ─── XNK-5: Compliance Check ───
+
+  @Post('compliance-check')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Check items for prohibited/restricted goods',
+    description:
+      'Accepts a list of items with optional HS codes and descriptions, ' +
+      'and returns compliance results indicating any prohibited or restricted items.',
+  })
+  @ApiResponse({ status: 200, description: 'Compliance check completed' })
+  async complianceCheck(@Body() body: { items: Array<{ description: string; hsCode?: string }> }) {
+    const results = [];
+
+    for (const item of body.items) {
+      if (item.hsCode) {
+        const check = await this.complianceChecker.checkHsCode(item.hsCode);
+        results.push({
+          description: item.description,
+          hsCode: item.hsCode,
+          status: check.status,
+          alerts: check.alerts,
+        });
+      } else {
+        // No HS code provided — return CLEAR status
+        results.push({
+          description: item.description,
+          hsCode: null,
+          status: 'CLEAR',
+          alerts: [],
+        });
+      }
+    }
+
+    const overallStatus = results.some((r) => r.status === 'BLOCKED')
+      ? 'BLOCKED'
+      : results.some((r) => r.status === 'WARNING')
+        ? 'WARNING'
+        : 'CLEAR';
+
+    return BaseResponse.ok({ overallStatus, items: results }, 'Compliance check completed');
+  }
 
   @Post()
   @UseGuards(CreditCheckGuard)
@@ -70,12 +117,12 @@ export class OrderController {
   })
   @ApiResponse({ status: 201, description: 'Order created successfully' })
   @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 403, description: 'Credit check failed - customer has overdue debt or insufficient credit limit' })
+  @ApiResponse({
+    status: 403,
+    description: 'Credit check failed - customer has overdue debt or insufficient credit limit',
+  })
   @ApiResponse({ status: 404, description: 'Customer not found' })
-  async create(
-    @Body() dto: CreateOrderDto,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async create(@Body() dto: CreateOrderDto, @CurrentUser() user: ICurrentUser) {
     const order = await this.orderService.createOrder(dto, user);
     return BaseResponse.ok(order, 'Order created successfully');
   }
@@ -93,12 +140,7 @@ export class OrderController {
     @DataScope() dataScope: DataScopeFilter | undefined,
   ) {
     const result = await this.orderService.findAll(query, dataScope);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get(':id/procurement-gate')
@@ -154,10 +196,7 @@ export class OrderController {
   @ApiParam({ name: 'id', description: 'Order ID' })
   @ApiResponse({ status: 200, description: 'Order retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Order not found' })
-  async findById(
-    @Param('id') id: string,
-    @DataScope() dataScope: DataScopeFilter | undefined,
-  ) {
+  async findById(@Param('id') id: string, @DataScope() dataScope: DataScopeFilter | undefined) {
     const order = await this.orderService.findById(id, dataScope);
     return BaseResponse.ok(order);
   }
@@ -196,12 +235,7 @@ export class OrderController {
     @Body() dto: ChangeStatusDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const order = await this.orderService.changeStatus(
-      id,
-      dto.status,
-      user.id,
-      dto.note,
-    );
+    const order = await this.orderStatusService.changeStatus(id, dto.status, user.id, dto.note, user.role);
     return BaseResponse.ok(order, `Status changed to ${dto.status}`);
   }
 
@@ -221,7 +255,7 @@ export class OrderController {
     @Body() dto: CancelOrderDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const result = await this.orderService.cancelOrder(id, dto.reason, user.id);
+    const result = await this.orderCancellationService.cancelOrder(id, dto.reason, user.id);
     return BaseResponse.ok(result);
   }
 
@@ -253,7 +287,8 @@ export class OrderController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create MHH issue',
-    description: 'Reports an issue with an MHH order item (out of stock, wrong item, damaged, etc.)',
+    description:
+      'Reports an issue with an MHH order item (out of stock, wrong item, damaged, etc.)',
   })
   @ApiParam({ name: 'id', description: 'Order ID' })
   @ApiResponse({ status: 201, description: 'Issue created' })
@@ -262,10 +297,7 @@ export class OrderController {
     @Body() dto: CreateMHHIssueDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const issue = await this.mhhIssueService.createIssue(
-      { ...dto, orderId: id },
-      user.id,
-    );
+    const issue = await this.mhhIssueService.createIssue({ ...dto, orderId: id }, user.id);
     return BaseResponse.ok(issue, 'MHH issue created');
   }
 
@@ -342,8 +374,7 @@ export class OrderController {
   @Patch('mhh-issues/:issueId/assign')
   @ApiOperation({
     summary: 'Assign handler to MHH issue',
-    description:
-      'Assigns a user as the handler for an MHH issue. Cannot assign to closed issues.',
+    description: 'Assigns a user as the handler for an MHH issue. Cannot assign to closed issues.',
   })
   @ApiParam({ name: 'issueId', description: 'MHH Issue ID' })
   @ApiResponse({ status: 200, description: 'Handler assigned successfully' })
@@ -354,11 +385,7 @@ export class OrderController {
     @Body() dto: AssignMHHIssueDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const issue = await this.mhhIssueService.assignHandler(
-      issueId,
-      dto.handlerId,
-      user.id,
-    );
+    const issue = await this.mhhIssueService.assignHandler(issueId, dto.handlerId, user.id);
     return BaseResponse.ok(issue, 'Handler assigned successfully');
   }
 
@@ -403,53 +430,41 @@ export class OrderController {
     @Body() dto: AddExtraChargeDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const charge = await this.extraChargeService.addExtraCharge(
-      id,
-      dto,
-      user.id,
-    );
+    const charge = await this.extraChargeService.addExtraCharge(id, dto, user.id);
     return BaseResponse.ok(charge, 'Extra charge added to order');
   }
 
   @Patch('extra-charges/:chargeId/approve')
+  @Roles(UserRole.CEO, UserRole.COO)
   @ApiOperation({
-    summary: 'Approve extra charge',
+    summary: 'Approve extra charge (admin override)',
     description:
-      'Approves an extra charge, adding it to the order total and removing ON_HOLD status.',
+      'Admin override: approves an extra charge directly, bypassing the approval chain. ' +
+      'Normal approval goes through the approval module (WH VN Manager -> Chief Accountant).',
   })
   @ApiParam({ name: 'chargeId', description: 'Extra Charge ID' })
   @ApiResponse({ status: 200, description: 'Extra charge approved' })
   @ApiResponse({ status: 400, description: 'Charge is not PENDING' })
   @ApiResponse({ status: 404, description: 'Extra charge not found' })
-  async approveExtraCharge(
-    @Param('chargeId') chargeId: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
-    const charge = await this.extraChargeService.approveExtraCharge(
-      chargeId,
-      user.id,
-    );
+  async approveExtraCharge(@Param('chargeId') chargeId: string, @CurrentUser() user: ICurrentUser) {
+    const charge = await this.extraChargeService.approveExtraCharge(chargeId, user.id);
     return BaseResponse.ok(charge, 'Extra charge approved');
   }
 
   @Patch('extra-charges/:chargeId/reject')
+  @Roles(UserRole.CEO, UserRole.COO)
   @ApiOperation({
-    summary: 'Reject extra charge',
+    summary: 'Reject extra charge (admin override)',
     description:
-      'Rejects an extra charge and removes ON_HOLD status from the order.',
+      'Admin override: rejects an extra charge directly, bypassing the approval chain. ' +
+      'Normal rejection goes through the approval module.',
   })
   @ApiParam({ name: 'chargeId', description: 'Extra Charge ID' })
   @ApiResponse({ status: 200, description: 'Extra charge rejected' })
   @ApiResponse({ status: 400, description: 'Charge is not PENDING' })
   @ApiResponse({ status: 404, description: 'Extra charge not found' })
-  async rejectExtraCharge(
-    @Param('chargeId') chargeId: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
-    const charge = await this.extraChargeService.rejectExtraCharge(
-      chargeId,
-      user.id,
-    );
+  async rejectExtraCharge(@Param('chargeId') chargeId: string, @CurrentUser() user: ICurrentUser) {
+    const charge = await this.extraChargeService.rejectExtraCharge(chargeId, user.id);
     return BaseResponse.ok(charge, 'Extra charge rejected');
   }
 
@@ -464,5 +479,55 @@ export class OrderController {
   async getExtraCharges(@Param('id') id: string) {
     const charges = await this.extraChargeService.getExtraCharges(id);
     return BaseResponse.ok(charges);
+  }
+
+  // ─── Return Request (Late Cancel) ───
+
+  @Get(':id/return-request/preview')
+  @ApiOperation({
+    summary: 'Preview return penalty',
+    description:
+      'Calculates and previews the penalty breakdown for a return request, ' +
+      'including cascade deduction from deposit, wallet, and AR.',
+  })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 200, description: 'Penalty preview retrieved' })
+  @ApiResponse({ status: 404, description: 'Order or penalty config not found' })
+  async previewReturnPenalty(@Param('id') id: string) {
+    const preview = await this.returnRequestService.previewPenalty(id);
+    return BaseResponse.ok(preview);
+  }
+
+  @Post(':id/return-request')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create return request',
+    description:
+      'Submits a return request (late cancel) for an order that is IN_TRANSIT or beyond. ' +
+      'Calculates penalty and creates an approval request for COO.',
+  })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 201, description: 'Return request created' })
+  @ApiResponse({ status: 400, description: 'Invalid status or pending request exists' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async createReturnRequest(
+    @Param('id') id: string,
+    @Body() dto: CreateReturnRequestDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const rr = await this.returnRequestService.createReturnRequest(id, dto, user.id);
+    return BaseResponse.ok(rr, 'Return request created');
+  }
+
+  @Get(':id/return-requests')
+  @ApiOperation({
+    summary: 'List return requests for order',
+    description: 'Returns all return requests associated with this order.',
+  })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 200, description: 'Return requests retrieved' })
+  async getReturnRequests(@Param('id') id: string) {
+    const requests = await this.returnRequestService.findByOrderId(id);
+    return BaseResponse.ok(requests);
   }
 }

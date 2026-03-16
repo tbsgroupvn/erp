@@ -1,14 +1,9 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { FlowDefinitionRepository } from './flow-definition.repository';
 import { CreateFlowDefinitionDto } from './dto/create-flow-definition.dto';
 import { UpdateFlowDefinitionDto } from './dto/update-flow-definition.dto';
-import { ApprovalType, ApprovalCategory, Prisma } from '@prisma/client';
+import { ApprovalCategory } from '@prisma/client';
 import { ApprovalGraphEngine } from '../domain/approval-graph-engine';
 
 @Injectable()
@@ -19,10 +14,10 @@ export class FlowDefinitionService {
     private readonly prisma: PrismaService,
     private readonly flowDefRepo: FlowDefinitionRepository,
     private readonly graphEngine: ApprovalGraphEngine,
-  ) { }
+  ) {}
 
-  async findAll() {
-    return this.flowDefRepo.findAll();
+  async findAll(page = 1, limit = 50) {
+    return this.flowDefRepo.findAll(page, limit);
   }
 
   async findById(id: string) {
@@ -96,9 +91,7 @@ export class FlowDefinitionService {
         });
       }
 
-      this.logger.log(
-        `Created flow definition: ${flowDef.name} (${flowDef.id})`,
-      );
+      this.logger.log(`Created flow definition: ${flowDef.name} (${flowDef.id})`);
 
       return this.flowDefRepo.findById(flowDef.id);
     });

@@ -1,0 +1,41 @@
+// ============================================
+// SUPPORT TICKET — Customer support request system (CSKH-2)
+// ============================================
+
+model SupportTicket {
+  id              String   @id @default(cuid())
+  code            String   @unique // TK-YYYYMM-XXXX
+  customerId      String   @map("customer_id")
+  category        String   // INQUIRY, INFO_REQUEST, CHANGE_REQUEST, FEEDBACK
+  subject         String
+  description     String
+  status          String   @default("OPEN") // OPEN, IN_PROGRESS, WAITING_CUSTOMER, RESOLVED, CLOSED
+  priority        String   @default("NORMAL") // LOW, NORMAL, HIGH
+  assignedTo      String?  @map("assigned_to")
+  firstResponseAt DateTime? @map("first_response_at")
+  resolvedAt      DateTime? @map("resolved_at")
+  responses       TicketResponse[]
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([customerId])
+  @@index([assignedTo, status])
+  @@index([status])
+  @@index([createdBy])
+  @@index([createdAt])
+  @@map("support_tickets")
+}
+
+model TicketResponse {
+  id          String        @id @default(cuid())
+  ticketId    String        @map("ticket_id")
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  content     String
+  isInternal  Boolean       @default(false) @map("is_internal")
+  createdBy   String        @map("created_by")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  @@index([ticketId])
+  @@map("ticket_responses")
+}

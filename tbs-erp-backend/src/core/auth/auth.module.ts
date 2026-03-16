@@ -18,19 +18,14 @@ import { SmsModule } from '@core/sms/sms.module';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('jwt.secret'),
         signOptions: {
-          expiresIn: configService.get<string>('jwt.expiresIn', '15m'),
+          expiresIn: configService.get<string>('jwt.expiresIn', '15m') as any,
         },
       }),
     }),
     SmsModule,
   ],
   controllers: [AuthController],
-  providers: [
-    AuthService,
-    ApiKeyRotationService,
-    JwtStrategy,
-    RefreshTokenStrategy,
-  ],
+  providers: [AuthService, ApiKeyRotationService, JwtStrategy, RefreshTokenStrategy],
   exports: [AuthService, ApiKeyRotationService, JwtModule, PassportModule],
 })
 export class AuthModule {}

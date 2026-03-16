@@ -22,7 +22,9 @@ export class CreateComplianceRuleDto {
     example: ComplianceRuleType.PERMIT_REQUIRED,
   })
   @IsNotEmpty({ message: 'Rule type is required' })
-  @IsEnum(ComplianceRuleType, { message: 'Rule type must be RESTRICTED, PROHIBITED, or PERMIT_REQUIRED' })
+  @IsEnum(ComplianceRuleType, {
+    message: 'Rule type must be RESTRICTED, PROHIBITED, or PERMIT_REQUIRED',
+  })
   ruleType: string;
 
   @ApiPropertyOptional({
@@ -64,7 +66,9 @@ export class UpdateComplianceRuleDto {
     enum: ComplianceRuleType,
   })
   @IsOptional()
-  @IsEnum(ComplianceRuleType, { message: 'Rule type must be RESTRICTED, PROHIBITED, or PERMIT_REQUIRED' })
+  @IsEnum(ComplianceRuleType, {
+    message: 'Rule type must be RESTRICTED, PROHIBITED, or PERMIT_REQUIRED',
+  })
   ruleType?: string;
 
   @ApiPropertyOptional({

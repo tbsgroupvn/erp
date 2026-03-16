@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import Image from 'next/image';
+import { useState, useRef, useCallback, useEffect, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Camera, MapPin, Loader2, X, Check } from 'lucide-react';
@@ -26,7 +27,7 @@ function useGeoLocation() {
 
   const detect = useCallback(() => {
     if (!navigator.geolocation) {
-      setError('Trinh duyet khong ho tro dinh vi GPS');
+      setError('Trình duyệt không hỗ trợ định vị GPS');
       return;
     }
     setLoading(true);
@@ -40,7 +41,7 @@ function useGeoLocation() {
         setLoading(false);
       },
       (err) => {
-        setError(`Khong the lay vi tri: ${err.message}`);
+        setError(`Không thể lấy vị trí: ${err.message}`);
         setLoading(false);
       },
       { enableHighAccuracy: true, timeout: 10000 },
@@ -82,7 +83,7 @@ function CameraCapture({
       }
       setIsStreaming(true);
     } catch (err) {
-      setCameraError('Khong the truy cap camera. Vui long cap quyen.');
+      setCameraError('Không thể truy cập camera. Vui lòng cấp quyền.');
       console.error('Camera error:', err);
     }
   }, []);
@@ -121,12 +122,15 @@ function CameraCapture({
   if (capturedImage) {
     return (
       <div className="space-y-2">
-        <Label>Anh selfie</Label>
+        <p className="text-sm font-medium leading-none">Ảnh selfie</p>
         <div className="relative inline-block">
-          <img
+          <Image
             src={capturedImage}
             alt="Selfie"
-            className="rounded-md border max-w-[320px] max-h-[240px] object-cover"
+            width={320}
+            height={240}
+            className="rounded-md border object-cover"
+            unoptimized
           />
           <Button
             variant="destructive"
@@ -145,7 +149,7 @@ function CameraCapture({
 
   return (
     <div className="space-y-2">
-      <Label>Chup anh selfie *</Label>
+      <p className="text-sm font-medium leading-none">Chụp ảnh selfie *</p>
       {cameraError && (
         <p className="text-xs text-destructive">{cameraError}</p>
       )}
@@ -162,10 +166,10 @@ function CameraCapture({
           <div className="flex gap-2">
             <Button type="button" onClick={capture}>
               <Camera className="mr-2 h-4 w-4" />
-              Chup
+              Chụp
             </Button>
             <Button type="button" variant="outline" onClick={stopCamera}>
-              Huy
+              Hủy
             </Button>
           </div>
         </div>
@@ -173,7 +177,7 @@ function CameraCapture({
         <div>
           <Button type="button" variant="outline" onClick={startCamera}>
             <Camera className="mr-2 h-4 w-4" />
-            Mo camera
+            Mở camera
           </Button>
         </div>
       )}
@@ -197,10 +201,10 @@ function useManualCheckIn() {
         .post<BaseResponse<{ id: string }>>('/attendance/manual-check-in', data)
         .then((r) => r.data.data),
     onSuccess: () => {
-      toast.success('Cham cong thu cong thanh cong. Cho HR duyet.');
+      toast.success('Chấm công thủ công thành công. Chờ HR duyệt.');
     },
     onError: () => {
-      toast.error('Khong the gui yeu cau cham cong');
+      toast.error('Không thể gửi yêu cầu chấm công');
     },
   });
 }
@@ -221,19 +225,19 @@ export default function ManualAttendancePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     if (!selfieImage) {
-      toast.error('Vui long chup anh selfie');
+      toast.error('Vui lòng chụp ảnh selfie');
       return;
     }
     if (!geo.location) {
-      toast.error('Vui long cho dinh vi GPS');
+      toast.error('Vui lòng chờ định vị GPS');
       return;
     }
     if (!reason.trim()) {
-      toast.error('Vui long nhap ly do');
+      toast.error('Vui lòng nhập lý do');
       return;
     }
 
@@ -256,13 +260,13 @@ export default function ManualAttendancePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Cham cong thu cong"
-        description="Gui yeu cau cham cong khi khong the su dung may cham cong"
+        title="Chấm công thủ công"
+        description="Gửi yêu cầu chấm công khi không thể sử dụng máy chấm công"
       />
 
       <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle className="text-lg">Gui yeu cau cham cong</CardTitle>
+          <CardTitle className="text-lg">Gửi yêu cầu chấm công</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -275,32 +279,32 @@ export default function ManualAttendancePage() {
 
             {/* GPS Status */}
             <div className="space-y-2">
-              <Label>Vi tri GPS</Label>
+              <p className="text-sm font-medium leading-none">Vị trí GPS</p>
               <div className="flex items-center gap-3">
                 {geo.loading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Dang lay vi tri...
+                    Đang lấy vị trí...
                   </div>
                 ) : geo.location ? (
                   <div className="flex items-center gap-2 text-sm">
                     <MapPin className="h-4 w-4 text-green-600" />
                     <span className="text-green-700 font-medium">
-                      {geo.location.latitude.toFixed(6)}, {geo.location.longitude.toFixed(6)}
+                      {Number(geo.location.latitude).toFixed(6)}, {Number(geo.location.longitude).toFixed(6)}
                     </span>
                     <Check className="h-4 w-4 text-green-600" />
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Chua co vi tri</span>
+                    <span className="text-sm text-muted-foreground">Chưa có vị trí</span>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={geo.detect}
                     >
-                      Lay vi tri
+                      Lấy vị trí
                     </Button>
                   </div>
                 )}
@@ -312,12 +316,12 @@ export default function ManualAttendancePage() {
 
             {/* Reason */}
             <div className="space-y-2">
-              <Label htmlFor="manual-reason">Ly do *</Label>
+              <Label htmlFor="manual-reason">Lý do *</Label>
               <Input
                 id="manual-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="VD: Quen the, may cham cong hong..."
+                placeholder="VD: Quên thẻ, máy chấm công hỏng..."
               />
             </div>
 
@@ -330,10 +334,10 @@ export default function ManualAttendancePage() {
               {checkInMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Dang gui...
+                  Đang gửi...
                 </>
               ) : (
-                'Gui yeu cau cham cong'
+                'Gửi yêu cầu chấm công'
               )}
             </Button>
           </form>

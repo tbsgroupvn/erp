@@ -22,6 +22,11 @@ export const customerKeys = {
   detail: (id: string) => [...customerKeys.details(), id] as const,
   wallets: () => [...customerKeys.all, 'wallet'] as const,
   wallet: (id: string) => [...customerKeys.wallets(), id] as const,
+  interactionNotes: (id: string) => [...customerKeys.all, 'interaction-notes', id] as const,
+  analytics: (id: string) => [...customerKeys.all, 'analytics', id] as const,
+  churnRiskList: (page: number, limit: number) =>
+    [...customerKeys.all, 'churn-risk', page, limit] as const,
+  trend: (id: string) => [...customerKeys.all, 'trend', id] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -85,6 +90,29 @@ export function useUpdateCustomer() {
   });
 }
 
+export function useInteractionNotes(customerId: string) {
+  return useQuery({
+    queryKey: customerKeys.interactionNotes(customerId),
+    queryFn: () => customersApi.getInteractionNotes(customerId),
+    enabled: !!customerId,
+  });
+}
+
+export function useCreateInteractionNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, data }: { customerId: string; data: { content: string; channel: string } }) =>
+      customersApi.createInteractionNote(customerId, data),
+    onSuccess: (_data, { customerId }) => {
+      qc.invalidateQueries({ queryKey: customerKeys.interactionNotes(customerId) });
+      toast.success('Lưu ghi chú thành công');
+    },
+    onError: () => {
+      toast.error('Không thể lưu ghi chú');
+    },
+  });
+}
+
 export function useTopupWallet() {
   const qc = useQueryClient();
   return useMutation({
@@ -103,5 +131,32 @@ export function useTopupWallet() {
     onError: () => {
       toast.error('Không thể nạp ví');
     },
+  });
+}
+
+export function useCustomerAnalytics(customerId: string) {
+  return useQuery({
+    queryKey: customerKeys.analytics(customerId),
+    queryFn: () => customersApi.getCustomerAnalytics(customerId),
+    enabled: !!customerId,
+    staleTime: 5 * 60 * 1000, // analytics are relatively stable — cache 5 min
+  });
+}
+
+export function useChurnRiskList(page: number, limit: number) {
+  return useQuery({
+    queryKey: customerKeys.churnRiskList(page, limit),
+    queryFn: () => customersApi.getChurnRiskList(page, limit),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Hook lay xu huong 12 thang cua mot khach hang */
+export function useCustomerTrend(customerId: string) {
+  return useQuery({
+    queryKey: customerKeys.trend(customerId),
+    queryFn: () => customersApi.getCustomerTrend(customerId),
+    enabled: !!customerId,
+    staleTime: 10 * 60 * 1000,
   });
 }

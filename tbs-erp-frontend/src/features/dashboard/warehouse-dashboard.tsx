@@ -1,79 +1,79 @@
 'use client';
 
-import { useDashboardOverview } from '@/lib/hooks/use-dashboard';
-import { cn } from '@/lib/utils/cn';
+import { useWarehouseStats } from '@/lib/hooks/use-dashboard';
+import { StatCard, type StatCardVariant } from '@/components/shared/stat-card';
 import {
   Package,
-  Ruler,
-  Box,
-  Container,
+  BoxSelect,
+  Layers,
   Ship,
+  FileCheck,
   Warehouse,
   Truck,
+  ArrowRight,
 } from 'lucide-react';
+import { cn } from '@/lib/utils/cn';
+
+const VARIANT_ROTATION: StatCardVariant[] = ['blue', 'cyan', 'violet', 'emerald', 'amber', 'rose'];
 
 const STAGE_CONFIG = [
-  { key: 'packagesCNPending', label: 'Nhận tại kho TQ', icon: Package, color: 'bg-blue-500' },
-  { key: 'packagesCNToday', label: 'Đo/cân hôm nay', icon: Ruler, color: 'bg-cyan-500' },
-  { key: 'containersInTransit', label: 'Đang vận chuyển', icon: Ship, color: 'bg-indigo-500' },
-  { key: 'containersAtCustoms', label: 'Thông quan', icon: Container, color: 'bg-violet-500' },
-  { key: 'packagesVNPending', label: 'Kho VN chờ xử lý', icon: Warehouse, color: 'bg-emerald-500' },
-  { key: 'deliveriesPending', label: 'Chờ giao hàng', icon: Truck, color: 'bg-orange-500' },
+  { key: 'warehouseCN', label: 'Kho TQ', icon: Package, color: 'bg-blue-500', href: '/kho-trung-quoc' },
+  { key: 'packing', label: 'Đóng gói', icon: BoxSelect, color: 'bg-cyan-500', href: '/kho-trung-quoc' },
+  { key: 'consolidation', label: 'Gom hàng', icon: Layers, color: 'bg-indigo-500', href: '/container' },
+  { key: 'inTransit', label: 'Vận chuyển', icon: Ship, color: 'bg-violet-500', href: '/container' },
+  { key: 'atCustoms', label: 'Thông quan', icon: FileCheck, color: 'bg-amber-500', href: '/thong-quan' },
+  { key: 'warehouseVN', label: 'Kho VN', icon: Warehouse, color: 'bg-emerald-500', href: '/kho-viet-nam' },
+  { key: 'pendingDelivery', label: 'Chờ giao', icon: Truck, color: 'bg-orange-500', href: '/giao-hang' },
+  { key: 'delivering', label: 'Đang giao', icon: ArrowRight, color: 'bg-rose-500', href: '/giao-hang' },
 ] as const;
 
 export function WarehouseDashboard() {
-  const { data, isLoading } = useDashboardOverview();
-
-  const wh = data?.warehouse;
+  const { data: wh, isLoading } = useWarehouseStats();
 
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-semibold">Pipeline kho hàng</h2>
 
-      {/* Funnel visualization */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {STAGE_CONFIG.map((stage) => {
-          const Icon = stage.icon;
-          const count = wh ? (wh as any)[stage.key] ?? 0 : 0;
+      {/* Pipeline visualization */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
+        {STAGE_CONFIG.map((stage, index) => {
+          const count = wh ? (wh[stage.key as keyof typeof wh] as number ?? 0) : 0;
           return (
-            <div
+            <StatCard
               key={stage.key}
-              className="rounded-lg border bg-card p-4 text-center"
-            >
-              <div
-                className={cn(
-                  'mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full text-white',
-                  stage.color,
-                )}
-              >
-                <Icon className="h-6 w-6" />
-              </div>
-              <p className="text-2xl font-bold">{isLoading ? '...' : count}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{stage.label}</p>
-            </div>
+              title={stage.label}
+              value={isLoading ? '...' : count}
+              icon={stage.icon}
+              variant={VARIANT_ROTATION[index % VARIANT_ROTATION.length]}
+              href={stage.href}
+            />
           );
         })}
       </div>
 
-      {/* Arrow connections */}
-      <div className="rounded-lg border bg-card p-6">
-        <h3 className="text-lg font-semibold mb-4">Tổng quan hôm nay</h3>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex justify-between py-2 border-b">
-            <span className="text-muted-foreground">Kiện nhận kho TQ hôm nay</span>
-            <span className="font-medium">{wh?.packagesCNToday ?? 0}</span>
-          </div>
-          <div className="flex justify-between py-2 border-b">
-            <span className="text-muted-foreground">Kiện nhận kho VN hôm nay</span>
-            <span className="font-medium">{wh?.packagesVNToday ?? 0}</span>
-          </div>
-          <div className="flex justify-between py-2 border-b">
-            <span className="text-muted-foreground">Container đang vận chuyển</span>
-            <span className="font-medium">{wh?.containersInTransit ?? 0}</span>
-          </div>
-          <div className="flex justify-between py-2 border-b">
-            <span className="text-muted-foreground">Đơn giao hôm nay</span>
-            <span className="font-medium">{wh?.deliveriesToday ?? 0}</span>
+      {/* Summary */}
+      <div className="section-card">
+        <div className="section-card-header">
+          <h3 className="text-sm font-semibold text-foreground/80">Tổng quan</h3>
+        </div>
+        <div className="px-6 pb-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="flex justify-between py-2 border-b hover:bg-muted/30 transition-colors">
+              <span className="text-muted-foreground">Tổng kiện trong pipeline</span>
+              <span className="font-medium">{wh?.pipeline?.total ?? 0}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b hover:bg-muted/30 transition-colors">
+              <span className="text-muted-foreground">Chờ giao hàng</span>
+              <span className="font-medium">{wh?.pendingDelivery ?? 0}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b hover:bg-muted/30 transition-colors">
+              <span className="text-muted-foreground">Đang vận chuyển</span>
+              <span className="font-medium">{wh?.inTransit ?? 0}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b hover:bg-muted/30 transition-colors">
+              <span className="text-muted-foreground">Đang giao</span>
+              <span className="font-medium">{wh?.delivering ?? 0}</span>
+            </div>
           </div>
         </div>
       </div>

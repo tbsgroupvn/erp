@@ -44,7 +44,7 @@ export class ContactsService {
     ]);
 
     // Map response to include computed status
-    const dataWithStatus = data.map(contact => ({
+    const dataWithStatus = data.map((contact) => ({
       ...contact,
       status: contact.isReplied ? 'REPLIED' : contact.isRead ? 'READ' : 'NEW',
     }));
@@ -65,7 +65,7 @@ export class ContactsService {
   }
 
   async updateStatus(id: string, status: 'READ' | 'REPLIED') {
-    const contact = await this.findOne(id);
+    await this.findOne(id);
 
     const updateData: any = {};
 
@@ -88,7 +88,7 @@ export class ContactsService {
   }
 
   async remove(id: string) {
-    const contact = await this.findOne(id);
+    await this.findOne(id);
 
     await this.prisma.contactSubmission.delete({
       where: { id },

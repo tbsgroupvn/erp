@@ -33,10 +33,7 @@ export class CreditCheckGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Check if credit check should be skipped
-    const skipCreditCheck = this.reflector.get<boolean>(
-      'skipCreditCheck',
-      context.getHandler(),
-    );
+    const skipCreditCheck = this.reflector.get<boolean>('skipCreditCheck', context.getHandler());
     if (skipCreditCheck) {
       return true;
     }
@@ -83,8 +80,8 @@ export class CreditCheckGuard implements CanActivate {
       );
       throw new ForbiddenException(
         `Không thể tạo đơn hàng. Khách hàng "${customer.fullName}" (${customer.code}) đã bị chặn. ` +
-        `Lý do: ${customer.blockReason}. ` +
-        `Vui lòng liên hệ bộ phận tài chính để xử lý công nợ trước khi tạo đơn hàng mới.`,
+          `Lý do: ${customer.blockReason}. ` +
+          `Vui lòng liên hệ bộ phận tài chính để xử lý công nợ trước khi tạo đơn hàng mới.`,
       );
     }
 
@@ -97,8 +94,8 @@ export class CreditCheckGuard implements CanActivate {
       );
       throw new ForbiddenException(
         `Không thể tạo đơn hàng. Khách hàng "${customer.fullName}" (${customer.code}) có công nợ quá hạn ${overdueDebt.maxOverdueDays} ngày (vượt quá ${this.OVERDUE_THRESHOLD_DAYS} ngày cho phép). ` +
-        `Tổng công nợ quá hạn: ${this.formatCurrency(overdueDebt.total)} VND. ` +
-        `Vui lòng thanh toán công nợ trước khi tạo đơn hàng mới.`,
+          `Tổng công nợ quá hạn: ${this.formatCurrency(overdueDebt.total)} VND. ` +
+          `Vui lòng thanh toán công nợ trước khi tạo đơn hàng mới.`,
       );
     }
 
@@ -116,10 +113,10 @@ export class CreditCheckGuard implements CanActivate {
       );
       throw new ForbiddenException(
         `Không thể tạo đơn hàng. Giá trị đơn hàng ${this.formatCurrency(orderAmount)} VND vượt quá hạn mức tín dụng khả dụng. ` +
-        `Hạn mức tín dụng: ${this.formatCurrency(creditLimit)} VND. ` +
-        `Công nợ hiện tại: ${this.formatCurrency(currentDebt)} VND. ` +
-        `Hạn mức khả dụng: ${this.formatCurrency(availableCredit)} VND. ` +
-        `Vui lòng thanh toán công nợ hoặc liên hệ bộ phận tài chính để tăng hạn mức.`,
+          `Hạn mức tín dụng: ${this.formatCurrency(creditLimit)} VND. ` +
+          `Công nợ hiện tại: ${this.formatCurrency(currentDebt)} VND. ` +
+          `Hạn mức khả dụng: ${this.formatCurrency(availableCredit)} VND. ` +
+          `Vui lòng thanh toán công nợ hoặc liên hệ bộ phận tài chính để tăng hạn mức.`,
       );
     }
 

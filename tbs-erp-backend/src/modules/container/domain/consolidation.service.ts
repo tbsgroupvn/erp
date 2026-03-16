@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
-import { ShippingRoute } from '@prisma/client';
+import { ShippingRoute, WarehouseCNStatus } from '@prisma/client';
 
 export interface PackageGrouping {
   shippingRoute: ShippingRoute;
@@ -63,7 +63,7 @@ export class ConsolidationService {
     const packages = await this.prisma.package.findMany({
       where: {
         containerId: null,
-        warehouseCNStatus: 'PACKED',
+        warehouseCNStatus: WarehouseCNStatus.PACKED,
       },
       include: {
         order: {
@@ -93,9 +93,7 @@ export class ConsolidationService {
 
       const group = groups.get(route)!;
       group.packageIds.push(pkg.id);
-      group.totalWeight += pkg.chargeableWeight
-        ? Number(pkg.chargeableWeight)
-        : 0;
+      group.totalWeight += pkg.chargeableWeight ? Number(pkg.chargeableWeight) : 0;
       group.totalPackages += 1;
     }
 
@@ -153,9 +151,7 @@ export class ConsolidationService {
       const capacity = this.DEFAULT_CAPACITIES[group.shippingRoute];
       const suggestedContainers = Math.ceil(group.totalWeight / capacity);
       const fillRate =
-        suggestedContainers > 0
-          ? (group.totalWeight / (suggestedContainers * capacity)) * 100
-          : 0;
+        suggestedContainers > 0 ? (group.totalWeight / (suggestedContainers * capacity)) * 100 : 0;
 
       // Fetch package details for the suggestion
       const packages = await this.prisma.package.findMany({
@@ -179,9 +175,7 @@ export class ConsolidationService {
         packages: packages.map((p) => ({
           id: p.id,
           code: p.code,
-          chargeableWeight: p.chargeableWeight
-            ? Number(p.chargeableWeight)
-            : 0,
+          chargeableWeight: p.chargeableWeight ? Number(p.chargeableWeight) : 0,
           orderId: p.orderId,
         })),
       });

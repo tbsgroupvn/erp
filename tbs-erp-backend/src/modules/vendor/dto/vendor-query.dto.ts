@@ -4,7 +4,10 @@ import { Type } from 'class-transformer';
 import { PaginationDto } from '@common/dto/pagination.dto';
 
 export class VendorQueryDto extends PaginationDto {
-  @ApiPropertyOptional({ description: 'Search by name, code, or contact person', example: 'Guangzhou' })
+  @ApiPropertyOptional({
+    description: 'Search by name, code, or contact person',
+    example: 'Guangzhou',
+  })
   @IsOptional()
   @IsString()
   search?: string;

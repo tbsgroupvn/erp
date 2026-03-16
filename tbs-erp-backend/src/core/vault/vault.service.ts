@@ -45,15 +45,13 @@ export class VaultService implements OnModuleInit, OnModuleDestroy {
     if (!this.enabled) {
       this.logger.log(
         'Vault integration is DISABLED. Falling back to environment variables. ' +
-        'Set VAULT_ENABLED=true to enable.',
+          'Set VAULT_ENABLED=true to enable.',
       );
       return;
     }
 
     if (!this.vaultToken) {
-      this.logger.warn(
-        'VAULT_TOKEN is not set. Vault integration disabled.',
-      );
+      this.logger.warn('VAULT_TOKEN is not set. Vault integration disabled.');
       this.enabled = false;
       return;
     }
@@ -67,8 +65,10 @@ export class VaultService implements OnModuleInit, OnModuleDestroy {
       this.startRenewal();
     } catch (error) {
       this.logger.error(
-        `Failed to connect to Vault at ${this.vaultAddr}: ${error.message}. ` +
-        'Falling back to environment variables.',
+        this.redactSensitive(
+          `Failed to connect to Vault at ${this.vaultAddr}: ${error.message}. ` +
+            'Falling back to environment variables.',
+        ),
       );
       this.enabled = false;
     }
@@ -118,12 +118,12 @@ export class VaultService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.warn(
         `Secret "${key}" not found in Vault at path "${this.secretPath}". ` +
-        'Using default/env fallback.',
+          'Using default/env fallback.',
       );
       return this.configService.get<string>(key, defaultValue ?? '');
     } catch (error) {
       this.logger.error(
-        `Failed to read secret "${key}" from Vault: ${error.message}. Using fallback.`,
+        this.redactSensitive(`Failed to read secret "${key}" from Vault: ${error.message}. Using fallback.`),
       );
       return this.configService.get<string>(key, defaultValue ?? '');
     }
@@ -154,7 +154,7 @@ export class VaultService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.log(`Secret "${key}" stored in Vault.`);
     } catch (error) {
-      this.logger.error(`Failed to store secret "${key}" in Vault: ${error.message}`);
+      this.logger.error(this.redactSensitive(`Failed to store secret "${key}" in Vault: ${error.message}`));
       throw error;
     }
   }
@@ -174,8 +174,10 @@ export class VaultService implements OnModuleInit, OnModuleDestroy {
     try {
       const secrets = await this.readSecrets();
       return {
-        username: secrets.POSTGRES_USER || this.configService.get<string>('POSTGRES_USER', 'postgres'),
-        password: secrets.POSTGRES_PASSWORD || this.configService.get<string>('POSTGRES_PASSWORD', ''),
+        username:
+          secrets.POSTGRES_USER || this.configService.get<string>('POSTGRES_USER', 'postgres'),
+        password:
+          secrets.POSTGRES_PASSWORD || this.configService.get<string>('POSTGRES_PASSWORD', ''),
       };
     } catch {
       return {
@@ -203,8 +205,18 @@ export class VaultService implements OnModuleInit, OnModuleDestroy {
       await this.vaultRequest('POST', '/v1/auth/token/renew-self', {});
       this.logger.log('Vault token lease renewed.');
     } catch (error) {
-      this.logger.error(`Failed to renew Vault token: ${error.message}`);
+      this.logger.error(this.redactSensitive(`Failed to renew Vault token: ${error.message}`));
     }
+  }
+
+  /**
+   * Redact sensitive information from error messages before logging.
+   */
+  private redactSensitive(message: string): string {
+    return message
+      .replace(/X-Vault-Token:\s*\S+/gi, 'X-Vault-Token: [REDACTED]')
+      .replace(/token[=:]\s*\S+/gi, 'token=[REDACTED]')
+      .replace(/hvs\.\S+/g, 'hvs.[REDACTED]');
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────
@@ -236,11 +248,7 @@ export class VaultService implements OnModuleInit, OnModuleDestroy {
   /**
    * Make an HTTP request to the Vault API.
    */
-  private vaultRequest(
-    method: string,
-    path: string,
-    body?: any,
-  ): Promise<any> {
+  private vaultRequest(method: string, path: string, body?: any): Promise<any> {
     return new Promise((resolve, reject) => {
       const url = new URL(path, this.vaultAddr);
       const isHttps = url.protocol === 'https:';

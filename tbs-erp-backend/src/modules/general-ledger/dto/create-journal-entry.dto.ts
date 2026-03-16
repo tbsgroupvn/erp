@@ -50,7 +50,10 @@ export class CreateJournalEntryDto {
   @IsString()
   reference?: string;
 
-  @ApiProperty({ description: 'Journal entry lines (debits and credits)', type: [JournalEntryLineDto] })
+  @ApiProperty({
+    description: 'Journal entry lines (debits and credits)',
+    type: [JournalEntryLineDto],
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => JournalEntryLineDto)

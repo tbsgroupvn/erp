@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@core/database/prisma.service';
+import { CashFlowGuardService } from './cash-flow-guard.service';
 
 export interface VoucherValidationInput {
   type: string;
@@ -46,21 +47,35 @@ export class PaymentVoucherValidator {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly cashFlowGuard: CashFlowGuardService,
   ) {
-    this.expensePercentThreshold = this.configService.get<number>('business.antifraud.expensePercentThreshold', 0.9);
-    this.miscExpenseThreshold = this.configService.get<number>('business.antifraud.miscExpenseThreshold', 5_000_000);
-    this.maxVouchersPerDay = this.configService.get<number>('business.antifraud.maxVouchersPerDay', 5);
+    this.expensePercentThreshold = this.configService.get<number>(
+      'business.antifraud.expensePercentThreshold',
+      0.9,
+    );
+    this.miscExpenseThreshold = this.configService.get<number>(
+      'business.antifraud.miscExpenseThreshold',
+      5_000_000,
+    );
+    this.maxVouchersPerDay = this.configService.get<number>(
+      'business.antifraud.maxVouchersPerDay',
+      5,
+    );
     this.minReasonLength = this.configService.get<number>('business.antifraud.minReasonLength', 20);
-    this.businessHoursStart = this.configService.get<number>('business.antifraud.businessHoursStart', 7);
-    this.businessHoursEnd = this.configService.get<number>('business.antifraud.businessHoursEnd', 19);
+    this.businessHoursStart = this.configService.get<number>(
+      'business.antifraud.businessHoursStart',
+      7,
+    );
+    this.businessHoursEnd = this.configService.get<number>(
+      'business.antifraud.businessHoursEnd',
+      19,
+    );
   }
 
   /**
    * Run all validation checks on a payment voucher.
    */
-  async validate(
-    input: VoucherValidationInput,
-  ): Promise<VoucherValidationResult> {
+  async validate(input: VoucherValidationInput): Promise<VoucherValidationResult> {
     const blockReasons: string[] = [];
     const flagReasons: string[] = [];
 
@@ -102,6 +117,20 @@ export class PaymentVoucherValidator {
           blockReasons.push(
             `Order ${order.code} is ${order.status}. Cannot create payment voucher for closed orders.`,
           );
+        }
+
+        // B3. Cash flow control: Tien TBS tra NCC <= (Coc khach + Vi khach)
+        if (order.status !== 'COMPLETED' && order.status !== 'CANCELLED') {
+          const cfCheck = await this.cashFlowGuard.validateSupplierPayment(
+            input.orderId,
+            input.amount,
+          );
+          if (!cfCheck.allowed) {
+            blockReasons.push(cfCheck.reason!);
+          }
+          if (cfCheck.alertLevel === 'WARNING' && cfCheck.warningMessage) {
+            flagReasons.push(cfCheck.warningMessage);
+          }
         }
 
         // ==================== FLAG CHECKS ====================
@@ -179,13 +208,9 @@ export class PaymentVoucherValidator {
     // F4. Vendor/beneficiary not in approved list
     if (
       this.APPROVED_VENDORS.length > 0 &&
-      !this.APPROVED_VENDORS.some(
-        (v) => v.toLowerCase() === input.beneficiary.toLowerCase(),
-      )
+      !this.APPROVED_VENDORS.some((v) => v.toLowerCase() === input.beneficiary.toLowerCase())
     ) {
-      flagReasons.push(
-        `Beneficiary "${input.beneficiary}" is not in the approved vendor list.`,
-      );
+      flagReasons.push(`Beneficiary "${input.beneficiary}" is not in the approved vendor list.`);
     }
 
     // F5. Created outside business hours

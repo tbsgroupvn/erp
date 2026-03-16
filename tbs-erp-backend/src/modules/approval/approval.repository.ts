@@ -1,12 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
-import {
-  Approval,
-  ApprovalStatus,
-  ApprovalType,
-  Prisma,
-  UserRole,
-} from '@prisma/client';
+import { Approval, ApprovalStatus, Prisma, UserRole } from '@prisma/client';
 import { ApprovalQueryDto } from './dto/approval-query.dto';
 
 export type ApprovalWithSteps = Approval & {
@@ -49,9 +43,7 @@ export class ApprovalRepository {
     }) as Promise<ApprovalWithSteps | null>;
   }
 
-  async findMany(
-    query: ApprovalQueryDto,
-  ): Promise<{ data: ApprovalWithSteps[]; total: number }> {
+  async findMany(query: ApprovalQueryDto): Promise<{ data: ApprovalWithSteps[]; total: number }> {
     const where: Prisma.ApprovalWhereInput = {};
 
     if (query.type) {
@@ -111,13 +103,8 @@ export class ApprovalRepository {
     });
 
     const filtered = (approvals as ApprovalWithSteps[]).filter((a) => {
-      const currentStep = a.steps.find(
-        (s) => s.stepNumber === a.currentStep,
-      );
-      return (
-        currentStep?.approverRole === role &&
-        currentStep?.status === ApprovalStatus.PENDING
-      );
+      const currentStep = a.steps.find((s) => s.stepNumber === a.currentStep);
+      return currentStep?.approverRole === role && currentStep?.status === ApprovalStatus.PENDING;
     });
 
     const total = filtered.length;
@@ -220,10 +207,7 @@ export class ApprovalRepository {
         steps: {
           some: {
             status: ApprovalStatus.PENDING,
-            OR: [
-              { approverRole: role },
-              { assignedUserId: userId },
-            ],
+            OR: [{ approverRole: role }, { assignedUserId: userId }],
           },
         },
       },
@@ -273,10 +257,7 @@ export class ApprovalRepository {
     offset = 0,
   ): Promise<{ data: ApprovalWithSteps[]; total: number }> {
     const where: Prisma.ApprovalWhereInput = {
-      OR: [
-        { requestedBy: userId },
-        { steps: { some: { approverId: userId } } },
-      ],
+      OR: [{ requestedBy: userId }, { steps: { some: { approverId: userId } } }],
       status: { in: [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED] },
     };
 

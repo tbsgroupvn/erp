@@ -9,12 +9,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import {
-  ComplaintType,
-  ComplaintSeverity,
-  ComplaintStatus,
-  ResolutionType,
-} from '@prisma/client';
+import { ComplaintType, ComplaintSeverity, ComplaintStatus, ResolutionType } from '@prisma/client';
 
 // Re-export for convenience
 export { ComplaintType, ComplaintSeverity, ComplaintStatus, ResolutionType };

@@ -23,17 +23,23 @@ export class WarehouseEventsListener {
     warehouse: 'CN' | 'VN';
     packageCode?: string;
   }) {
-    this.logger.log(
-      `Package received at warehouse ${event.warehouse} for order ${event.orderId}`,
-    );
+    this.logger.log(`Package received at warehouse ${event.warehouse} for order ${event.orderId}`);
 
-    // Find the sale owner for this order to notify them
-    const order = await this.prisma.order.findUnique({
-      where: { id: event.orderId },
-      select: { saleId: true, code: true },
-    });
+    try {
+      // Find the sale owner for this order to notify them
+      const order = await this.prisma.order.findUnique({
+        where: { id: event.orderId },
+        select: { saleId: true, code: true },
+      });
 
-    if (order) {
+      // Guard: order must exist and have a sale owner
+      if (!order?.saleId) {
+        this.logger.warn(
+          `warehouse.received: order ${event.orderId} not found or has no saleId, skipping notification`,
+        );
+        return;
+      }
+
       await this.notificationService.send({
         userId: order.saleId,
         title: `Package Received - Warehouse ${event.warehouse}`,
@@ -41,6 +47,11 @@ export class WarehouseEventsListener {
         type: 'WAREHOUSE',
         referenceId: event.orderId,
       });
+    } catch (error) {
+      this.logger.error(
+        `Failed to process warehouse.received for order ${event.orderId}: ${error.message}`,
+        error.stack,
+      );
     }
   }
 }

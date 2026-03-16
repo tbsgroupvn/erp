@@ -89,15 +89,17 @@ model CustomsDeclaration {
   updatedAt             DateTime                  @updatedAt @map("updated_at")
 
   // Relations
-  container             Container                 @relation(fields: [containerId], references: [id])
+  container             Container                 @relation(fields: [containerId], references: [id], onDelete: Cascade)
   lines                 CustomsDeclarationLine[]
   complianceAlerts      ComplianceAlert[]
   taxAllocations        CustomsTaxAllocation[]
   statusHistory         CustomsStatusHistory[]
+  documentChecklists    CustomsDocumentChecklist[]
 
   @@index([containerId])
   @@index([status])
   @@index([channel])
+  @@index([createdBy])
   @@index([createdAt])
   @@map("customs_declarations")
 }
@@ -162,6 +164,7 @@ model CustomsLineSourceItem {
 
   contributedQuantity Decimal                   @map("contributed_quantity") @db.Decimal(15, 3)
   contributedValue    Decimal                   @map("contributed_value") @db.Decimal(18, 2)
+  createdAt           DateTime                  @default(now()) @map("created_at")
 
   line                CustomsDeclarationLine    @relation(fields: [lineId], references: [id], onDelete: Cascade)
 
@@ -294,4 +297,46 @@ model ComplianceRule {
   @@index([hsCodePattern])
   @@index([isActive])
   @@map("compliance_rules")
+}
+
+// ============================================
+// CUSTOMS DOCUMENT CHECKLIST — Required documents tracking (XNK-2)
+// ============================================
+
+model CustomsDocumentChecklist {
+  id              String    @id @default(cuid())
+  declarationId   String    @map("declaration_id")
+  documentType    String    @map("document_type") // COMMERCIAL_INVOICE, PACKING_LIST, BILL_OF_LADING, C/O, INSPECTION_CERT
+  isRequired      Boolean   @default(true) @map("is_required")
+  documentUrl     String?   @map("document_url")
+  uploadedAt      DateTime? @map("uploaded_at")
+  uploadedBy      String?   @map("uploaded_by")
+  expiryDate      DateTime? @map("expiry_date")
+  status          String    @default("MISSING") // MISSING, UPLOADED, VERIFIED, EXPIRED
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  declaration     CustomsDeclaration @relation(fields: [declarationId], references: [id], onDelete: Cascade)
+
+  @@index([declarationId])
+  @@map("customs_document_checklists")
+}
+
+// ============================================
+// CUSTOMS SERVICE RATE — Service fee schedule per port (XNK-4)
+// ============================================
+
+model CustomsServiceRate {
+  id              String    @id @default(cuid())
+  portName        String    @map("port_name") // Cửa khẩu
+  cargoType       String    @map("cargo_type") // GENERAL, FOOD, ELECTRONICS, etc.
+  serviceFee      Decimal   @map("service_fee") @db.Decimal(18, 2)
+  currency        Currency  @default(VND)
+  effectiveFrom   DateTime  @map("effective_from")
+  effectiveTo     DateTime? @map("effective_to")
+  note            String?
+  createdBy       String    @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([portName, cargoType])
+  @@map("customs_service_rates")
 }

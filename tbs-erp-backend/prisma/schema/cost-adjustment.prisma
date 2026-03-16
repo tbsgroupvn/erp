@@ -1,0 +1,63 @@
+// ============================================
+// COST ADJUSTMENT — Chi phi dieu chinh sau hoan thanh
+// ============================================
+
+enum CostAdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model CostAdjustment {
+  id                    String                @id @default(cuid())
+  code                  String                @unique  // CA-YYYYMM-XXXX
+  orderId               String                @map("order_id")
+
+  // Chi phi
+  costType              CostType              @map("cost_type")
+  amount                Decimal               @db.Decimal(18, 2)
+  currency              Currency              @default(VND)
+  description           String
+  invoiceRef            String?               @map("invoice_ref")
+  attachments           String[]              @default([])
+
+  // Doi tac
+  vendorName            String?               @map("vendor_name")
+
+  // Ky ke toan
+  originalPeriodYear    Int                   @map("original_period_year")
+  originalPeriodMonth   Int                   @map("original_period_month")
+  adjustmentPeriodYear  Int                   @map("adjustment_period_year")
+  adjustmentPeriodMonth Int                   @map("adjustment_period_month")
+
+  // Phe duyet
+  status                CostAdjustmentStatus  @default(PENDING)
+  approvedBy            String?               @map("approved_by")
+  approvedAt            DateTime?             @map("approved_at")
+  rejectedBy            String?               @map("rejected_by")
+  rejectedAt            DateTime?             @map("rejected_at")
+  rejectionNote         String?               @map("rejection_note")
+
+  // GL reference
+  journalEntryId        String?               @map("journal_entry_id")
+
+  // Anh huong loi nhuan (snapshot khi approve)
+  previousProfit        Decimal?              @map("previous_profit") @db.Decimal(18, 2)
+  newProfit             Decimal?              @map("new_profit") @db.Decimal(18, 2)
+  previousCommission    Decimal?              @map("previous_commission") @db.Decimal(18, 2)
+  newCommission         Decimal?              @map("new_commission") @db.Decimal(18, 2)
+  commissionDelta       Decimal?              @map("commission_delta") @db.Decimal(18, 2)
+
+  createdBy             String                @map("created_by")
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+
+  order                 Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status])
+  @@index([adjustmentPeriodYear, adjustmentPeriodMonth])
+  @@index([createdBy])
+  @@index([createdAt])
+  @@map("cost_adjustments")
+}

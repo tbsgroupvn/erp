@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from 'react';
 import { Loader2, ArrowLeft, Smartphone, Shield, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { twoFactorApi } from '@/lib/api/two-factor.api';
@@ -67,7 +67,7 @@ export function TwoFactorChallenge({
         onSuccess(user, result.accessToken);
       } catch (err: any) {
         const message =
-          err.response?.data?.message || 'Ma xac thuc khong dung';
+          err.response?.data?.message || 'Mã xác thực không đúng';
         setError(message);
         toast.error(message);
         // Clear the code on error
@@ -110,7 +110,7 @@ export function TwoFactorChallenge({
     }
   };
 
-  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !code[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -148,10 +148,10 @@ export function TwoFactorChallenge({
     setIsSendingSms(true);
     try {
       await twoFactorApi.sendSmsOtp(userId);
-      toast.success('Ma OTP da duoc gui qua SMS');
+      toast.success('Mã OTP đã được gửi qua SMS');
       setSmsCooldown(60);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Khong the gui SMS');
+      toast.error(err.response?.data?.message || 'Không thể gửi SMS');
     } finally {
       setIsSendingSms(false);
     }
@@ -183,7 +183,7 @@ export function TwoFactorChallenge({
   }, [mode]);
 
   return (
-    <div className="space-y-6" role="region" aria-label="Xac thuc 2 yeu to">
+    <div className="space-y-6" role="region" aria-label="Xác thực 2 yếu tố">
       {/* Header */}
       <div className="text-center">
         <div
@@ -192,11 +192,11 @@ export function TwoFactorChallenge({
         >
           <Shield className="h-7 w-7" />
         </div>
-        <h2 className="mt-4 text-xl font-bold">Xac thuc 2 yeu to</h2>
+        <h2 className="mt-4 text-xl font-bold">Xác thực 2 yếu tố</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {mode === 'TOTP' && 'Nhap ma tu ung dung xac thuc cua ban'}
-          {mode === 'SMS' && 'Nhap ma OTP da gui toi dien thoai cua ban'}
-          {mode === 'BACKUP' && 'Nhap mot trong cac ma backup cua ban'}
+          {mode === 'TOTP' && 'Nhập mã từ ứng dụng xác thực của bạn'}
+          {mode === 'SMS' && 'Nhập mã OTP đã gửi tới điện thoại của bạn'}
+          {mode === 'BACKUP' && 'Nhập một trong các mã backup của bạn'}
         </p>
       </div>
 
@@ -224,7 +224,7 @@ export function TwoFactorChallenge({
               onChange={(e) => handleDigitChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               disabled={isVerifying}
-              aria-label={`So thu ${index + 1}`}
+              aria-label={`Số thứ ${index + 1}`}
               className="h-12 w-10 rounded-md border bg-background text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
             />
           ))}
@@ -249,9 +249,9 @@ export function TwoFactorChallenge({
               }
             }}
             disabled={isVerifying}
-            placeholder="Nhap ma backup"
+            placeholder="Nhập mã backup"
             className="flex h-12 w-full rounded-md border bg-background px-3 py-2 text-center font-mono text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
-            aria-label="Ma backup"
+            aria-label="Mã backup"
           />
         </div>
       )}
@@ -260,7 +260,7 @@ export function TwoFactorChallenge({
       {isVerifying && (
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          Dang xac thuc...
+          Đang xác thực...
         </div>
       )}
 
@@ -276,12 +276,12 @@ export function TwoFactorChallenge({
             {isSendingSms ? (
               <span className="flex items-center gap-1">
                 <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
-                Dang gui...
+                Đang gửi...
               </span>
             ) : smsCooldown > 0 ? (
-              `Gui lai sau ${smsCooldown}s`
+              `Gửi lại sau ${smsCooldown}s`
             ) : (
-              'Gui ma SMS'
+              'Gửi mã SMS'
             )}
           </button>
         </div>
@@ -299,12 +299,12 @@ export function TwoFactorChallenge({
             {mode === 'TOTP' ? (
               <>
                 <Smartphone className="h-4 w-4" aria-hidden="true" />
-                Dung ma SMS
+                Dùng mã SMS
               </>
             ) : (
               <>
                 <Shield className="h-4 w-4" aria-hidden="true" />
-                Dung ung dung xac thuc
+                Dùng ứng dụng xác thực
               </>
             )}
           </button>
@@ -318,7 +318,7 @@ export function TwoFactorChallenge({
             className="flex w-full items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <KeyRound className="h-4 w-4" aria-hidden="true" />
-            Dung ma backup
+            Dùng mã backup
           </button>
         ) : (
           <button
@@ -327,7 +327,7 @@ export function TwoFactorChallenge({
             className="flex w-full items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <Shield className="h-4 w-4" aria-hidden="true" />
-            Quay lai xac thuc thuong
+            Quay lại xác thực thường
           </button>
         )}
       </div>
@@ -339,7 +339,7 @@ export function TwoFactorChallenge({
         className="flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted/50 transition-colors"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Quay lai
+        Quay lại
       </button>
     </div>
   );

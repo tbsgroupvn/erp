@@ -63,7 +63,7 @@ export default function MediaLibraryPage() {
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     uploadMutation.mutate(acceptedFiles);
-  }, [folder]);
+  }, [uploadMutation]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -182,6 +182,8 @@ export default function MediaLibraryPage() {
             {data?.data.data.map((media: Media) => (
               <div
                 key={media.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => {
                   if (selected.includes(media.id)) {
                     setSelected(selected.filter(id => id !== media.id));
@@ -189,6 +191,7 @@ export default function MediaLibraryPage() {
                     setSelected([...selected, media.id]);
                   }
                 }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (selected.includes(media.id)) { setSelected(selected.filter(id => id !== media.id)); } else { setSelected([...selected, media.id]); } } }}
                 className={`
                   relative group cursor-pointer rounded-lg border-2 overflow-hidden
                   transition-all hover:border-primary
@@ -225,6 +228,8 @@ export default function MediaLibraryPage() {
             {data?.data.data.map((media: Media) => (
               <div
                 key={media.id}
+                role="button"
+                tabIndex={0}
                 className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 cursor-pointer"
                 onClick={() => {
                   if (selected.includes(media.id)) {
@@ -233,6 +238,7 @@ export default function MediaLibraryPage() {
                     setSelected([...selected, media.id]);
                   }
                 }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (selected.includes(media.id)) { setSelected(selected.filter(id => id !== media.id)); } else { setSelected([...selected, media.id]); } } }}
               >
                 <input
                   type="checkbox"

@@ -84,7 +84,7 @@ export function NotificationBell({
           <ScrollArea className="max-h-[400px]">
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Bell className="h-10 w-10 text-muted-foreground/40 mb-2" />
+                <Bell className="h-10 w-10 text-muted-foreground/60 mb-2" />
                 <p className="text-sm text-muted-foreground">
                   Kh&#244;ng c&#243; th&#244;ng b&#225;o
                 </p>
@@ -121,7 +121,7 @@ export function NotificationBell({
                         <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
                           {notification.body}
                         </p>
-                        <p className="mt-1 text-[11px] text-muted-foreground/70">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(notification.createdAt), {
                             addSuffix: true,
                             locale: vi,

@@ -1,0 +1,248 @@
+# ============================================
+# TBS ERP v3.0 — Dev Docker Compose
+# Only 4 core services: PostgreSQL, Redis, Backend, Frontend
+# Usage: docker compose -f docker-compose.dev.yml up -d
+# ============================================
+
+services:
+  # ============================================
+  # DATABASE — PostgreSQL 16
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: tbs_dev_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tbs_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tbs_password}
+      POSTGRES_DB: ${POSTGRES_DB:-tbs_erp}
+    command: >-
+      postgres
+      -c password_encryption=scram-sha-256
+      -c max_connections=100
+      -c shared_buffers=256MB
+      -c work_mem=4MB
+      -c wal_level=replica
+      -c max_wal_senders=2
+    ports:
+      - '${POSTGRES_PORT:-5433}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-tbs_user} -d ${POSTGRES_DB:-tbs_erp}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - tbs_dev
+
+  # ============================================
+  # CACHE — Redis 7
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: tbs_dev_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-dev_redis_pass} --save 60 1000 --save 300 100
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD:-dev_redis_pass}', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - tbs_dev
+
+  # ============================================
+  # BACKEND — NestJS API
+  # ============================================
+  backend:
+    build:
+      context: ./tbs-erp-backend
+      dockerfile: Dockerfile
+      target: build
+    container_name: tbs_dev_backend
+    restart: unless-stopped
+    ports:
+      - '${BACKEND_PORT:-3001}:3000'
+    command: ['node', 'dist/src/main']
+    environment:
+      NODE_ENV: development
+      APP_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tbs_user}:${POSTGRES_PASSWORD:-tbs_password}@postgres:5432/${POSTGRES_DB:-tbs_erp}
+      DIRECT_DATABASE_URL: postgresql://${POSTGRES_USER:-tbs_user}:${POSTGRES_PASSWORD:-tbs_password}@postgres:5432/${POSTGRES_DB:-tbs_erp}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-dev_redis_pass}
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_me_in_production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret_change_me_in_production}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      FRONTEND_URL: http://localhost:3000
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3001
+      TWO_FA_ENCRYPTION_KEY: ${TWO_FA_ENCRYPTION_KEY:-a9c8643d9ef428a1307a938304c1cb0f86cfa5f2c37b5869e191cf4f6b41498a}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:-30dea182329ef2501f0d484f07dd66501d2b182455e9eec61981ae69529dc646}
+      SENTRY_DSN: ''
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      RATE_LIMIT_TTL: 60
+      RATE_LIMIT_MAX: 200
+      ELK_ENABLED: 'false'
+      BULLMQ_REDIS_HOST: redis
+      BULLMQ_REDIS_PORT: 6379
+      GRAPHQL_PLAYGROUND: 'true'
+      GRAPHQL_INTROSPECTION: 'true'
+      STORAGE_TYPE: local
+      STORAGE_PATH: ./uploads
+      SEED_EMAIL_DOMAIN: nhaphangchinhngach.vn
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/api/v1/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - tbs_dev
+    volumes:
+      - backend_logs:/app/logs
+      - backend_uploads:/app/uploads
+
+  # ============================================
+  # FRONTEND — Next.js ERP
+  # ============================================
+  frontend:
+    build:
+      context: ./tbs-erp-frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+    container_name: tbs_dev_frontend
+    restart: unless-stopped
+    ports:
+      - '${FRONTEND_PORT:-3000}:3000'
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+      NEXT_TELEMETRY_DISABLED: 1
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://127.0.0.1:3000']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - tbs_dev
+
+  # ============================================
+  # DATABASE UI — Prisma Studio
+  # ============================================
+  prisma-studio:
+    build:
+      context: ./tbs-erp-backend
+      dockerfile: Dockerfile
+      target: build
+    container_name: tbs_dev_prisma_studio
+    restart: unless-stopped
+    command: ['npx', 'prisma', 'studio', '--port', '5555', '--browser', 'none']
+    ports:
+      - '${PRISMA_STUDIO_PORT:-5555}:5555'
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tbs_user}:${POSTGRES_PASSWORD:-tbs_password}@postgres:5432/${POSTGRES_DB:-tbs_erp}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - tbs_dev
+
+  # ============================================
+  # STORAGE — MinIO Object Storage
+  # ============================================
+  minio:
+    image: minio/minio:latest
+    container_name: tbs_dev_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web Console
+    volumes:
+      - tbs_dev_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - tbs_dev
+
+  # ============================================
+  # BACKUP — Daily PostgreSQL backup
+  # ============================================
+  pg-backup:
+    image: postgres:16-alpine
+    container_name: tbs_dev_pg_backup
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-tbs_user}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-tbs_password}
+      PGDATABASE: ${POSTGRES_DB:-tbs_erp}
+    entrypoint: /bin/sh
+    command: >-
+      -c "while true; do
+        echo \"[$(date)] Starting daily backup...\";
+        pg_dump -Fc > /backups/tbs_erp_$(date +%Y%m%d_%H%M%S).dump;
+        echo \"[$(date)] Backup completed.\";
+        find /backups -name '*.dump' -mtime +7 -delete;
+        echo \"[$(date)] Old backups cleaned. Sleeping 24h...\";
+        sleep 86400;
+      done"
+    volumes:
+      - pg_backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - tbs_dev
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  tbs_dev:
+    driver: bridge
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  pgdata:
+    name: tbs_dev_pgdata
+  redisdata:
+    name: tbs_dev_redisdata
+  backend_logs:
+    name: tbs_dev_backend_logs
+  backend_uploads:
+    name: tbs_dev_backend_uploads
+  pg_backups:
+    name: tbs_dev_pg_backups
+  tbs_dev_minio_data:
+    name: tbs_dev_minio_data

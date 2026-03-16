@@ -24,7 +24,7 @@ export class CrmService {
     private readonly walletService: WalletService,
     private readonly dataScopeService: DataScopeService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   /**
    * Create a new customer with auto-generated code and initial wallet.
@@ -59,6 +59,44 @@ export class CrmService {
     this.logger.log(`Customer created: ${customer.code}`);
 
     // Re-fetch to include wallet in response
+    return this.crmRepository.findById(customer.id) as Promise<Customer>;
+  }
+
+  /**
+   * Create a new customer quickly from order form.
+   * Checks for duplicate phone numbers.
+   */
+  async createQuickCustomer(dto: any, user?: ICurrentUser): Promise<Customer> {
+    const code = await this.crmRepository.generateCode();
+
+    // Check if phone already exists
+    const existing = await this.crmRepository.findByPhone(dto.phone);
+    if (existing) {
+      throw new BadRequestException(`Khách hàng với số điện thoại ${dto.phone} đã tồn tại trong hệ thống.`);
+    }
+
+    // Auto-assign saleId: from creator if they are SALE
+    const saleId = user && SALE_ROLES.includes(user.role) ? user.id : undefined;
+
+    const customer = await this.crmRepository.create({
+      code,
+      fullName: dto.fullName,
+      phone: dto.phone,
+      email: dto.email,
+      note: `Source: ${dto.source || 'QUICK_ADD'}`,
+      tier: CustomerTier.NEW,
+      depositRate: this.customerTierService.getDepositRate(CustomerTier.NEW),
+      creditLimit: this.customerTierService.getCreditLimit(CustomerTier.NEW),
+      saleId,
+      isActive: true,
+    } as any);
+
+    // Create a wallet for the customer
+    await this.walletService.getOrCreateWallet(customer.id);
+
+    this.eventEmitter.emit('customer.created', { customer });
+    this.logger.log(`Quick customer created: ${customer.code}`);
+
     return this.crmRepository.findById(customer.id) as Promise<Customer>;
   }
 

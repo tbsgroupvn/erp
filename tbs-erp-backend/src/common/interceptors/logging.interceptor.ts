@@ -1,10 +1,4 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  Logger,
-  NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request } from 'express';
@@ -14,6 +8,11 @@ export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    // Skip detailed HTTP logging for non-HTTP contexts (e.g. GraphQL)
+    if (context.getType<string>() !== 'http') {
+      return next.handle();
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
     const { method, url, ip } = request;
     const userAgent = request.get('user-agent') || '-';
@@ -33,9 +32,7 @@ export class LoggingInterceptor implements NestInterceptor {
 
           // Log slow requests as warnings
           if (duration > 3000) {
-            this.logger.warn(
-              `Slow request: ${method} ${url} took ${duration}ms - ${userId}`,
-            );
+            this.logger.warn(`Slow request: ${method} ${url} took ${duration}ms - ${userId}`);
           }
         },
         error: (error) => {

@@ -83,9 +83,9 @@ export default function TaoMoiQuyTrinhPage() {
       <div className="rounded-lg border bg-card p-6 space-y-4 max-w-3xl">
         {/* Tên quy trình */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">
+          <p className="text-sm font-medium">
             Tên quy trình <span className="text-destructive">*</span>
-          </label>
+          </p>
           <input
             type="text"
             value={name}
@@ -97,7 +97,7 @@ export default function TaoMoiQuyTrinhPage() {
 
         {/* Mô tả */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Mô tả</label>
+          <p className="text-sm font-medium">Mô tả</p>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -110,7 +110,7 @@ export default function TaoMoiQuyTrinhPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Danh mục */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Danh mục</label>
+            <p className="text-sm font-medium">Danh mục</p>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
@@ -126,7 +126,7 @@ export default function TaoMoiQuyTrinhPage() {
 
           {/* Loại kích hoạt */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Loại kích hoạt</label>
+            <p className="text-sm font-medium">Loại kích hoạt</p>
             <select
               value={triggerType}
               onChange={(e) => setTriggerType(e.target.value as ApprovalType)}

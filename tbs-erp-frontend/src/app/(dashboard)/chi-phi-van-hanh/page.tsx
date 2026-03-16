@@ -33,7 +33,7 @@ interface OperationCostsResponse {
 const columns: ColumnDef<OperationCost>[] = [
   {
     accessorKey: 'costType',
-    header: 'Loai chi phi',
+    header: 'Loại chi phí',
     cell: ({ row }) => (
       <span className="font-medium">{row.original.costType || '---'}</span>
     ),
@@ -45,19 +45,19 @@ const columns: ColumnDef<OperationCost>[] = [
   },
   {
     accessorKey: 'amount',
-    header: 'So tien',
+    header: 'Số tiền',
     cell: ({ row }) => (
       <span className="font-medium">{formatCurrency(row.original.amount)}</span>
     ),
   },
   {
     accessorKey: 'allocation',
-    header: 'Phan bo',
+    header: 'Phân bổ',
     cell: ({ row }) => <span>{row.original.allocation || '---'}</span>,
   },
   {
     accessorKey: 'date',
-    header: 'Ngay',
+    header: 'Ngày',
     cell: ({ row }) => (
       <span>
         {row.original.date ? formatDate(row.original.date, 'dd/MM/yyyy') : '---'}
@@ -84,8 +84,9 @@ export default function ChiPhiVanHanhPage() {
   return (
     <div>
       <PageHeader
-        title="Chi phi van hanh"
-        description="Quan ly chi phi van hanh theo container"
+        title="Chi phí vận hành"
+        description="Quản lý chi phí vận hành theo container"
+        infoKey="chi-phi-van-hanh"
       />
 
       <DataTable

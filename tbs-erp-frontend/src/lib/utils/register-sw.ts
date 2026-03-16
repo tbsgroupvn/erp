@@ -32,8 +32,8 @@ export function registerServiceWorker() {
             console.log('[SW] New service worker available');
 
             // You can show a toast notification here
-            if (typeof window !== 'undefined' && (window as any).showUpdateNotification) {
-              (window as any).showUpdateNotification();
+            if (typeof window !== 'undefined' && window.showUpdateNotification) {
+              window.showUpdateNotification();
             }
           }
         });
@@ -102,7 +102,7 @@ export function isServiceWorkerRegistered(): boolean {
 /**
  * Send message to service worker
  */
-export async function sendMessageToSW(message: any): Promise<void> {
+export async function sendMessageToSW(message: unknown): Promise<void> {
   if (!isServiceWorkerRegistered() || !navigator.serviceWorker.controller) {
     console.warn('[SW] Service worker not available');
     return;
@@ -123,7 +123,7 @@ export async function requestBackgroundSync(tag: string): Promise<void> {
   try {
     const registration = await navigator.serviceWorker.ready;
     if ('sync' in registration) {
-      await (registration as any).sync.register(tag);
+      await (registration as ServiceWorkerRegistration & { sync: { register(tag: string): Promise<void> } }).sync.register(tag);
       console.log('[SW] Background sync registered:', tag);
     }
   } catch (error) {

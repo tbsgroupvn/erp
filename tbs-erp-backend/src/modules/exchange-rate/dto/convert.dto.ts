@@ -16,7 +16,9 @@ export class ConvertDto {
   @IsEnum(Currency)
   to: Currency;
 
-  @ApiPropertyOptional({ description: 'Date for historical rate (ISO 8601). Defaults to latest rate.' })
+  @ApiPropertyOptional({
+    description: 'Date for historical rate (ISO 8601). Defaults to latest rate.',
+  })
   @IsOptional()
   @IsDateString()
   date?: string;

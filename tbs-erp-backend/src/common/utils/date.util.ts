@@ -30,10 +30,7 @@ const FIXED_HOLIDAYS: string[] = [
  * formatDate(new Date('2025-03-15'), 'YYYY-MM-DD')  // "2025-03-15"
  * formatDate(new Date('2025-03-15T14:30:00'), 'DD/MM/YYYY HH:mm:ss') // "15/03/2025 14:30:00"
  */
-export function formatDate(
-  date: Date,
-  format: string = 'DD/MM/YYYY',
-): string {
+export function formatDate(date: Date, format: string = 'DD/MM/YYYY'): string {
   const pad = (n: number): string => n.toString().padStart(2, '0');
 
   const tokens: Record<string, string> = {
@@ -64,10 +61,7 @@ export function formatDate(
  * isBusinessDay(new Date('2025-03-17')) // true (Monday)
  * isBusinessDay(new Date('2025-01-01')) // false (New Year)
  */
-export function isBusinessDay(
-  date: Date,
-  additionalHolidays: string[] = [],
-): boolean {
+export function isBusinessDay(date: Date, additionalHolidays: string[] = []): boolean {
   const dayOfWeek = date.getDay();
 
   // Weekend check: Sunday = 0, Saturday = 6
@@ -178,4 +172,46 @@ export function getCurrentMonthRange(): { start: Date; end: Date } {
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   return { start, end };
+}
+
+/**
+ * Builds a Prisma-compatible date filter object from optional start/end date strings.
+ *
+ * The end date is set to 23:59:59.999 so that the entire day is included.
+ * Returns `undefined` when neither date is provided, which allows clean
+ * spreading into Prisma `where` clauses without polluting them with empty objects.
+ *
+ * @param startDate - ISO 8601 date string for the range start (inclusive)
+ * @param endDate   - ISO 8601 date string for the range end (inclusive, end of day)
+ * @returns A `{ gte?: Date; lte?: Date }` object, or `undefined` if no dates given
+ *
+ * @example
+ * ```ts
+ * // In a service's findAll method:
+ * if (query.startDate || query.endDate) {
+ *   where.createdAt = buildDateFilter(query.startDate, query.endDate);
+ * }
+ * ```
+ */
+export function buildDateFilter(
+  startDate?: string,
+  endDate?: string,
+): { gte?: Date; lte?: Date } | undefined {
+  if (!startDate && !endDate) {
+    return undefined;
+  }
+
+  const filter: { gte?: Date; lte?: Date } = {};
+
+  if (startDate) {
+    filter.gte = new Date(startDate);
+  }
+
+  if (endDate) {
+    const endOfDay = new Date(endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    filter.lte = endOfDay;
+  }
+
+  return filter;
 }

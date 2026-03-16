@@ -294,6 +294,7 @@ Trong mô hình Mua hàng hộ hoặc Ký gửi, khách thường mua hàng trê
    - Hệ thống tự động tìm trong danh sách Pre-alert
    - **Nếu khớp** → Tự động gán cho khách → Tạo đơn hoặc gán vào đơn có sẵn
    - **Nếu không khớp** → Đưa vào Hàng lạc danh (LNF)
+   - **Tự động chuyển trạng thái đơn hàng** từ MUA HÀNG → NHẬP KHO TQ khi kiện đầu tiên được quét barcode đúng
 
 **Kết quả:** Giảm **80%** lượng hàng lạc danh
 

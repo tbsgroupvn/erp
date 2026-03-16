@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { Clock, CalendarDays, LogIn, LogOut, Plus, X, Users, AlertCircle } from 'lucide-react';
+import { useState, Suspense } from 'react';
+import dynamic from 'next/dynamic';
+import { Clock, CalendarDays, LogIn, LogOut, Plus, X, MapPin } from 'lucide-react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable } from '@/components/shared/data-table';
 import { StatCard } from '@/components/shared/stat-card';
@@ -9,7 +11,6 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   useMyAttendance,
   useAttendanceSummary,
@@ -20,13 +21,37 @@ import {
   useCreateLeaveRequest,
   useCancelLeaveRequest,
 } from '@/lib/hooks/use-attendance';
+import { GpsCheckIn } from '@/features/attendance/gps-checkin';
+import { AttendanceMap } from '@/features/attendance/attendance-map';
 import { LeaveType, LeaveStatus } from '@/lib/types/enums';
 import { LEAVE_TYPE_LABELS, LEAVE_STATUS_LABELS } from '@/lib/utils/constants';
 import { formatDate } from '@/lib/utils/format';
+import { cn } from '@/lib/utils/cn';
+import { Users, AlertCircle } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { AttendanceRecord, LeaveRequest } from '@/lib/api/attendance.api';
 
-type Tab = 'attendance' | 'leave';
+const NghiPhepTabContent = dynamic(
+  () => import('./_components/nghi-phep-tab').then((m) => ({ default: m.NghiPhepTab })),
+  { ssr: false, loading: () => <div className="py-12 text-center text-sm text-muted-foreground">Đang tải...</div> },
+);
+
+// ---------------------------------------------------------------------------
+// Tab definitions
+// ---------------------------------------------------------------------------
+
+const TABS = [
+  { key: 'attendance', label: 'Chấm công', icon: Clock },
+  { key: 'leave', label: 'Nghỉ phép cá nhân', icon: CalendarDays },
+  { key: 'gps', label: 'Chấm công GPS', icon: MapPin },
+  { key: 'nghi-phep', label: 'Quản lý nghỉ phép', icon: CalendarDays },
+] as const;
+
+type TabKey = (typeof TABS)[number]['key'];
+
+// ---------------------------------------------------------------------------
+// Status maps
+// ---------------------------------------------------------------------------
 
 const ATTENDANCE_STATUS_MAP: Record<string, { label: string; colorClass: string }> = {
   PRESENT: { label: 'Có mặt', colorClass: 'bg-green-100 text-green-700' },
@@ -62,13 +87,13 @@ const attendanceColumns: ColumnDef<AttendanceRecord>[] = [
   {
     accessorKey: 'workHours',
     header: 'Số giờ',
-    cell: ({ row }) => `${row.original.workHours.toFixed(1)}h`,
+    cell: ({ row }) => `${Number(row.original.workHours).toFixed(1)}h`,
   },
   {
     accessorKey: 'overtimeHours',
     header: 'Tăng ca',
     cell: ({ row }) =>
-      row.original.overtimeHours > 0 ? `${row.original.overtimeHours.toFixed(1)}h` : '—',
+      row.original.overtimeHours > 0 ? `${Number(row.original.overtimeHours).toFixed(1)}h` : '—',
   },
   {
     accessorKey: 'status',
@@ -140,8 +165,23 @@ const leaveColumns: ColumnDef<LeaveRequest>[] = [
   },
 ];
 
-export default function ChamCongPage() {
-  const [tab, setTab] = useState<Tab>('attendance');
+// ---------------------------------------------------------------------------
+// Page inner (uses useSearchParams)
+// ---------------------------------------------------------------------------
+
+function ChamCongPageInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const activeTab = (searchParams.get('tab') ?? 'attendance') as TabKey;
+
+  const setTab = (tab: TabKey) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === 'attendance') params.delete('tab');
+    else params.set('tab', tab);
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
   const [attPage, setAttPage] = useState(1);
   const [leavePage, setLeavePage] = useState(1);
   const [showLeaveForm, setShowLeaveForm] = useState(false);
@@ -157,7 +197,6 @@ export default function ChamCongPage() {
   const { data: leaveBalance } = useLeaveBalance();
   const createLeave = useCreateLeaveRequest();
 
-  // Leave form state
   const [leaveForm, setLeaveForm] = useState({
     leaveType: 'ANNUAL' as LeaveType,
     startDate: '',
@@ -177,9 +216,9 @@ export default function ChamCongPage() {
 
   return (
     <div>
-      <PageHeader title="Chấm công" description="Quản lý chấm công và nghỉ phép">
+      <PageHeader title="Chấm công" description="Quản lý chấm công và nghỉ phép" infoKey="cham-cong">
         <div className="flex gap-2">
-          {tab === 'attendance' ? (
+          {activeTab === 'attendance' && (
             <>
               <Button onClick={() => checkIn.mutate(undefined)} disabled={checkIn.isPending}>
                 <LogIn className="mr-2 h-4 w-4" />
@@ -190,7 +229,8 @@ export default function ChamCongPage() {
                 {checkOut.isPending ? 'Đang xử lý...' : 'Chấm ra'}
               </Button>
             </>
-          ) : (
+          )}
+          {activeTab === 'leave' && (
             <Button onClick={() => setShowLeaveForm((p) => !p)}>
               {showLeaveForm ? (
                 <>
@@ -208,36 +248,28 @@ export default function ChamCongPage() {
         </div>
       </PageHeader>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b">
-        <button
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            tab === 'attendance'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-          onClick={() => setTab('attendance')}
-        >
-          <Clock className="inline-block mr-2 h-4 w-4" />
-          Chấm công
-        </button>
-        <button
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            tab === 'leave'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-          onClick={() => setTab('leave')}
-        >
-          <CalendarDays className="inline-block mr-2 h-4 w-4" />
-          Nghỉ phép
-        </button>
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b mb-6">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={cn(
+              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+              activeTab === t.key
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <t.icon className="inline-block mr-2 h-4 w-4" />
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {/* Attendance Tab */}
-      {tab === 'attendance' && (
+      {activeTab === 'attendance' && (
         <div className="space-y-6">
-          {/* Summary Cards */}
           {summary && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
@@ -278,10 +310,19 @@ export default function ChamCongPage() {
         </div>
       )}
 
-      {/* Leave Tab */}
-      {tab === 'leave' && (
+      {/* GPS Tab */}
+      {activeTab === 'gps' && (
         <div className="space-y-6">
-          {/* Leave Balance */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <GpsCheckIn />
+            <AttendanceMap />
+          </div>
+        </div>
+      )}
+
+      {/* Personal Leave Tab */}
+      {activeTab === 'leave' && (
+        <div className="space-y-6">
           {leaveBalance && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Card>
@@ -326,7 +367,6 @@ export default function ChamCongPage() {
             </div>
           )}
 
-          {/* Leave Request Form */}
           {showLeaveForm && (
             <Card>
               <CardHeader>
@@ -335,7 +375,7 @@ export default function ChamCongPage() {
               <CardContent>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Loại nghỉ *</Label>
+                    <p className="text-sm font-medium leading-none">Loại nghỉ *</p>
                     <select
                       value={leaveForm.leaveType}
                       onChange={(e) =>
@@ -352,7 +392,7 @@ export default function ChamCongPage() {
                   </div>
                   <div />
                   <div className="space-y-2">
-                    <Label>Từ ngày *</Label>
+                    <p className="text-sm font-medium leading-none">Từ ngày *</p>
                     <Input
                       type="date"
                       value={leaveForm.startDate}
@@ -360,7 +400,7 @@ export default function ChamCongPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Đến ngày *</Label>
+                    <p className="text-sm font-medium leading-none">Đến ngày *</p>
                     <Input
                       type="date"
                       value={leaveForm.endDate}
@@ -368,7 +408,7 @@ export default function ChamCongPage() {
                     />
                   </div>
                   <div className="space-y-2 sm:col-span-2">
-                    <Label>Lý do *</Label>
+                    <p className="text-sm font-medium leading-none">Lý do *</p>
                     <Input
                       placeholder="Nhập lý do xin nghỉ"
                       value={leaveForm.reason}
@@ -401,6 +441,21 @@ export default function ChamCongPage() {
           />
         </div>
       )}
+
+      {/* Manager Leave Overview Tab */}
+      {activeTab === 'nghi-phep' && (
+        <Suspense fallback={<div className="py-12 text-center text-sm text-muted-foreground">Đang tải...</div>}>
+          <NghiPhepTabContent />
+        </Suspense>
+      )}
     </div>
+  );
+}
+
+export default function ChamCongPage() {
+  return (
+    <Suspense>
+      <ChamCongPageInner />
+    </Suspense>
   );
 }

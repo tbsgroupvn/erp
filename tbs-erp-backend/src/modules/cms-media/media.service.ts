@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { MediaType, Prisma } from '@prisma/client';
 import { UpdateMediaDto, MediaFiltersDto } from './dto';
@@ -87,9 +87,7 @@ export class MediaService {
     if (declaredMimeType === 'image/svg+xml') {
       const content = buffer.toString('utf-8', 0, 100);
       if (!content.includes('<svg') && !content.includes('<?xml')) {
-        throw new BadRequestException(
-          'File signature validation failed: Not a valid SVG file',
-        );
+        throw new BadRequestException('File signature validation failed: Not a valid SVG file');
       }
       return; // SVG is valid
     }
@@ -123,7 +121,7 @@ export class MediaService {
     let thumbnailUrl: string | null = null;
     let width: number | null = null;
     let height: number | null = null;
-    let duration: number | null = null;
+    const duration: number | null = null;
 
     // Determine media type
     const type = this.getMediaType(file.mimetype);
@@ -187,9 +185,7 @@ export class MediaService {
   }
 
   async uploadMultiple(files: Express.Multer.File[], userId: string, folder?: string) {
-    const uploads = await Promise.all(
-      files.map((file) => this.upload(file, userId, folder)),
-    );
+    const uploads = await Promise.all(files.map((file) => this.upload(file, userId, folder)));
     return uploads;
   }
 
@@ -288,10 +284,7 @@ export class MediaService {
 
       // Delete thumbnail if exists
       if (media.thumbnailUrl) {
-        const thumbnailPath = path.join(
-          this.thumbnailDir,
-          path.basename(media.thumbnailUrl),
-        );
+        const thumbnailPath = path.join(this.thumbnailDir, path.basename(media.thumbnailUrl));
         await fs.unlink(thumbnailPath).catch(() => {
           // Ignore if thumbnail doesn't exist
         });
@@ -317,10 +310,7 @@ export class MediaService {
         try {
           await fs.unlink(item.path);
           if (item.thumbnailUrl) {
-            const thumbnailPath = path.join(
-              this.thumbnailDir,
-              path.basename(item.thumbnailUrl),
-            );
+            const thumbnailPath = path.join(this.thumbnailDir, path.basename(item.thumbnailUrl));
             await fs.unlink(thumbnailPath).catch(() => {});
           }
         } catch (error) {

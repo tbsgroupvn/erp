@@ -1,0 +1,88 @@
+// ============================================
+// DRIVE — File Storage & Document Management
+// ============================================
+
+enum DrivePermission {
+  VIEW
+  DOWNLOAD
+  EDIT
+  MANAGE
+}
+
+model DriveFolder {
+  id        String        @id @default(cuid())
+  name      String
+  parentId  String?       @map("parent_id")
+  parent    DriveFolder?  @relation("FolderTree", fields: [parentId], references: [id])
+  children  DriveFolder[] @relation("FolderTree")
+  ownerId   String        @map("owner_id")
+  teamScope String?       @map("team_scope")
+  files     DriveFile[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([parentId])
+  @@index([ownerId])
+  @@map("drive_folders")
+}
+
+model DriveFile {
+  id          String       @id @default(cuid())
+  name        String
+  mimeType    String       @map("mime_type")
+  size        Int
+  storageKey  String       @map("storage_key")
+  bucket      String       @default("tbs-drive")
+  folderId    String?      @map("folder_id")
+  folder      DriveFolder? @relation(fields: [folderId], references: [id])
+  uploadedBy  String       @map("uploaded_by")
+  description String?
+  tags        String[]
+
+  currentVersion Int                @default(1) @map("current_version")
+  versions       DriveFileVersion[]
+  shares         DriveFileShare[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([folderId])
+  @@index([uploadedBy])
+  @@index([name])
+  @@map("drive_files")
+}
+
+model DriveFileVersion {
+  id         String    @id @default(cuid())
+  fileId     String    @map("file_id")
+  file       DriveFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  version    Int
+  storageKey String    @map("storage_key")
+  size       Int
+  uploadedBy String    @map("uploaded_by")
+  changeNote String?   @map("change_note")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@unique([fileId, version])
+  @@index([fileId])
+  @@map("drive_file_versions")
+}
+
+model DriveFileShare {
+  id         String          @id @default(cuid())
+  fileId     String          @map("file_id")
+  file       DriveFile       @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  userId     String?         @map("user_id")
+  permission DrivePermission @default(VIEW)
+  shareToken String?         @unique @map("share_token")
+  expiresAt  DateTime?       @map("expires_at")
+  createdBy  String          @map("created_by")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  @@unique([fileId, userId])
+  @@index([shareToken])
+  @@map("drive_file_shares")
+}

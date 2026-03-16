@@ -29,21 +29,18 @@ export class AccountsPayableRepository {
     return `TBS-AP-${String(nextNumber).padStart(6, '0')}`;
   }
 
-  async create(
-    data: Prisma.AccountPayableCreateInput,
-  ): Promise<AccountPayable> {
+  async create(data: Prisma.AccountPayableCreateInput): Promise<AccountPayable> {
     return this.prisma.accountPayable.create({ data });
   }
 
   async findById(id: string): Promise<AccountPayable | null> {
     return this.prisma.accountPayable.findUnique({
       where: { id },
+      include: { vendor: true },
     });
   }
 
-  async findMany(
-    query: ApQueryDto,
-  ): Promise<{ data: AccountPayable[]; total: number }> {
+  async findMany(query: ApQueryDto): Promise<{ data: AccountPayable[]; total: number }> {
     const where: Prisma.AccountPayableWhereInput = {};
 
     if (query.status) {
@@ -57,7 +54,7 @@ export class AccountsPayableRepository {
     if (query.search) {
       where.OR = [
         { code: { contains: query.search, mode: 'insensitive' } },
-        { vendorName: { contains: query.search, mode: 'insensitive' } },
+        { vendor: { name: { contains: query.search, mode: 'insensitive' } } },
       ];
     }
 
@@ -67,6 +64,7 @@ export class AccountsPayableRepository {
         orderBy: query.orderBy,
         skip: query.skip,
         take: query.limit,
+        include: { vendor: true },
       }),
       this.prisma.accountPayable.count({ where }),
     ]);
@@ -81,13 +79,11 @@ export class AccountsPayableRepository {
     return this.prisma.accountPayable.findMany({
       where: { vendorId },
       orderBy: { createdAt: 'desc' },
+      include: { vendor: true },
     });
   }
 
-  async update(
-    id: string,
-    data: Prisma.AccountPayableUpdateInput,
-  ): Promise<AccountPayable> {
+  async update(id: string, data: Prisma.AccountPayableUpdateInput): Promise<AccountPayable> {
     return this.prisma.accountPayable.update({
       where: { id },
       data,

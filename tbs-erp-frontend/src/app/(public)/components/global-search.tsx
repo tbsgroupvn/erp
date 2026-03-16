@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, type ComponentType } from 'react';
 import { Search, X, FileText, Package, TrendingUp } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
@@ -10,7 +10,7 @@ interface SearchResult {
   title: string;
   description: string;
   url: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
 }
 
 // Mock search data - in production, this would come from an API

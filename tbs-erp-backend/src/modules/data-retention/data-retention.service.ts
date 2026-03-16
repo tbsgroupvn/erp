@@ -64,7 +64,7 @@ export class DataRetentionService {
       }
     }
 
-    // 3. Archive completed orders (> 3 years, per Vietnamese tax law 5-year minimum kept)
+    // 3. Archive completed orders (> 5 years, per Vietnamese tax law — Luat Ke toan 2015, Art. 41)
     if (shouldRun('Order')) {
       try {
         ordersArchived = await this.flagOldOrders();
@@ -335,12 +335,13 @@ export class DataRetentionService {
 
     for (const user of usersToAnonymize) {
       try {
-        await this.anonymizeUserData(user.id, 'Automated retention policy — 30-day inactive threshold');
+        await this.anonymizeUserData(
+          user.id,
+          'Automated retention policy — 30-day inactive threshold',
+        );
         anonymizedCount++;
       } catch (error) {
-        this.logger.error(
-          `Failed to anonymize user ${user.id}: ${error.message}`,
-        );
+        this.logger.error(`Failed to anonymize user ${user.id}: ${error.message}`);
       }
     }
 
@@ -444,9 +445,7 @@ export class DataRetentionService {
       });
     });
 
-    this.logger.log(
-      `User ${userId} data anonymized. Reason: ${reason}`,
-    );
+    this.logger.log(`User ${userId} data anonymized. Reason: ${reason}`);
   }
 
   /**
@@ -479,83 +478,82 @@ export class DataRetentionService {
     }
 
     // Collect related data
-    const [sessions, auditLogs, consents, orders, tasks, notifications] =
-      await Promise.all([
-        this.prisma.session.findMany({
-          where: { userId },
-          select: {
-            id: true,
-            userAgent: true,
-            ipAddress: true,
-            expiresAt: true,
-            createdAt: true,
-          },
-        }),
-        this.prisma.auditLog.findMany({
-          where: { userId },
-          select: {
-            id: true,
-            action: true,
-            entity: true,
-            entityId: true,
-            ipAddress: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 1000, // Limit to most recent 1000
-        }),
-        this.prisma.userConsent.findMany({
-          where: { userId },
-          select: {
-            id: true,
-            consentType: true,
-            granted: true,
-            grantedAt: true,
-            revokedAt: true,
-            version: true,
-            createdAt: true,
-          },
-        }),
-        this.prisma.order.findMany({
-          where: { saleId: userId },
-          select: {
-            id: true,
-            code: true,
-            serviceType: true,
-            status: true,
-            branch: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 500,
-        }),
-        this.prisma.task.findMany({
-          where: { assigneeId: userId },
-          select: {
-            id: true,
-            code: true,
-            title: true,
-            status: true,
-            priority: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 500,
-        }),
-        this.prisma.notification.findMany({
-          where: { userId },
-          select: {
-            id: true,
-            title: true,
-            body: true,
-            type: true,
-            isRead: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 500,
-        }),
-      ]);
+    const [sessions, auditLogs, consents, orders, tasks, notifications] = await Promise.all([
+      this.prisma.session.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          userAgent: true,
+          ipAddress: true,
+          expiresAt: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.auditLog.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          action: true,
+          entity: true,
+          entityId: true,
+          ipAddress: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 1000, // Limit to most recent 1000
+      }),
+      this.prisma.userConsent.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          consentType: true,
+          granted: true,
+          grantedAt: true,
+          revokedAt: true,
+          version: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.order.findMany({
+        where: { saleId: userId },
+        select: {
+          id: true,
+          code: true,
+          serviceType: true,
+          status: true,
+          branch: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+      }),
+      this.prisma.task.findMany({
+        where: { assigneeId: userId },
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          status: true,
+          priority: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+      }),
+      this.prisma.notification.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          title: true,
+          body: true,
+          type: true,
+          isRead: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+      }),
+    ]);
 
     const totalRecords =
       1 + // user profile
@@ -616,7 +614,8 @@ export class DataRetentionService {
         entity: 'AuditLog',
         retentionDays: 730,
         action: 'archive',
-        description: 'Audit logs archived after 2 years. Archives retained indefinitely for compliance.',
+        description:
+          'Audit logs archived after 2 years. Archives retained indefinitely for compliance.',
         legalBasis: 'ISO 27001 A.12 Operations Security; NĐ 13/2023 Article 26',
       },
       {
@@ -630,7 +629,8 @@ export class DataRetentionService {
         entity: 'Order',
         retentionDays: 1825,
         action: 'archive',
-        description: 'Completed orders retained for minimum 5 years per Vietnamese tax law. No automatic deletion.',
+        description:
+          'Completed orders retained for minimum 5 years per Vietnamese tax law. No automatic deletion.',
         legalBasis: 'Luật Kế toán 2015, Điều 41 — Thời hạn lưu trữ chứng từ kế toán',
       },
       {
@@ -658,14 +658,16 @@ export class DataRetentionService {
         entity: 'FinancialRecord',
         retentionDays: 3650,
         action: 'archive',
-        description: 'Financial records (invoices, payment vouchers, receipts) retained for minimum 10 years. No automatic deletion.',
+        description:
+          'Financial records (invoices, payment vouchers, receipts) retained for minimum 10 years. No automatic deletion.',
         legalBasis: 'Luật Kế toán 2015, Điều 41 — Chứng từ kế toán có tính lịch sử',
       },
       {
         entity: 'AnonymizedUser',
         retentionDays: 30,
         action: 'delete',
-        description: 'Inactive users anonymized 30 days after deactivation. Transaction records retained.',
+        description:
+          'Inactive users anonymized 30 days after deactivation. Transaction records retained.',
         legalBasis: 'NĐ 13/2023 Article 16 — Right to deletion/anonymization',
       },
     ];
@@ -678,7 +680,10 @@ export class DataRetentionService {
   /**
    * Get past retention execution reports.
    */
-  async getReports(page = 1, limit = 20): Promise<{
+  async getReports(
+    page = 1,
+    limit = 20,
+  ): Promise<{
     data: RetentionReportDto[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {

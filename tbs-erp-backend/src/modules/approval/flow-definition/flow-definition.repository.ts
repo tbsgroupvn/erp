@@ -5,11 +5,18 @@ import { PrismaService } from '@core/database/prisma.service';
 export class FlowDefinitionRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll() {
-    return this.prisma.approvalFlowDefinition.findMany({
-      orderBy: [{ category: 'asc' }, { name: 'asc' }],
-      include: { _count: { select: { nodes: true, edges: true, instances: true } } },
-    });
+  async findAll(page = 1, limit = 50) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.approvalFlowDefinition.findMany({
+        skip,
+        take: limit,
+        orderBy: [{ category: 'asc' }, { name: 'asc' }],
+        include: { _count: { select: { nodes: true, edges: true, instances: true } } },
+      }),
+      this.prisma.approvalFlowDefinition.count(),
+    ]);
+    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
   async findById(id: string) {

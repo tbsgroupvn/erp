@@ -1,0 +1,49 @@
+/* Floating "Add to ERP" button on product pages */
+
+.tbs-erp-float-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647; /* Max z-index to stay on top */
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #2563eb; /* blue-600 */
+  color: #ffffff;
+  border: none;
+  border-radius: 50px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  transition: all 0.2s ease;
+  user-select: none;
+  line-height: 1;
+}
+
+.tbs-erp-float-btn:hover {
+  background: #1d4ed8; /* blue-700 */
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+  transform: translateY(-1px);
+}
+
+.tbs-erp-float-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.tbs-erp-float-btn--success {
+  background: #16a34a !important; /* green-600 */
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.4) !important;
+}
+
+.tbs-erp-float-btn--error {
+  background: #dc2626 !important; /* red-600 */
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4) !important;
+}
+
+.tbs-erp-float-btn svg {
+  flex-shrink: 0;
+}

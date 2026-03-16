@@ -99,9 +99,11 @@ export default registerAs('business', () => ({
     api: parseInt(process.env.API_RATE_LIMIT || '100', 10),
   },
 
-  // ─── Weight Variance ───
+  // ─── Weight / CW Alerts ───
   weight: {
     varianceThresholdPercent: parseFloat(process.env.WEIGHT_VARIANCE_THRESHOLD || '5'),
+    bulkyCwRatio: parseFloat(process.env.BULKY_CW_RATIO || '3'),         // CW/actual >= 3 → alert Sale
+    remeasureReductionAlert: parseFloat(process.env.REMEASURE_REDUCTION_ALERT || '0.5'), // CW giam > 50% → spot-check
   },
 
   // ─── RTO (Return to Origin) ───
@@ -116,7 +118,18 @@ export default registerAs('business', () => ({
 
   // ─── Overdraft ───
   overdraft: {
-    defaultExpiryHours: parseInt(process.env.OVERDRAFT_EXPIRY_HOURS || '24', 10),
+    defaultExpiryHours: parseInt(
+      process.env.OVERDRAFT_BUSINESS_HOURS || process.env.OVERDRAFT_EXPIRY_HOURS || '24',
+      10,
+    ),
+  },
+
+  // ─── Business Hours ───
+  businessHours: {
+    workStart: parseInt(process.env.BUSINESS_HOURS_START || '8', 10),
+    workEnd: parseInt(process.env.BUSINESS_HOURS_END || '17', 10),
+    weekends: (process.env.BUSINESS_WEEKENDS || '0,6').split(',').map(Number),
+    holidays: (process.env.BUSINESS_HOLIDAYS || '').split(',').filter(Boolean),
   },
 
   // ─── Cache TTLs (in seconds) ───

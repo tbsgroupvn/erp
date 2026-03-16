@@ -10,11 +10,37 @@ import {
 } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Search } from 'lucide-react';
-import { useState } from 'react';
+import { MessageCircle, Search, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 
-const faqCategories = [
+// Icon mapping for FAQ categories
+const categoryIcons: Record<string, string> = {
+  'Dịch vụ vận chuyển': '🚚',
+  'Mua hàng và đặt hàng': '🛍️',
+  'Hải quan và thủ tục': '📋',
+  'Bảo hiểm và bồi thường': '🛡️',
+  'Theo dõi và giao nhận': '📦',
+};
+
+interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+  order: number;
+  isActive: boolean;
+  viewCount: number;
+}
+
+interface FaqCategory {
+  title: string;
+  icon: string;
+  faqs: { question: string; answer: string }[];
+}
+
+// Fallback hardcoded data
+const fallbackFaqCategories: FaqCategory[] = [
   {
     title: 'Dịch vụ vận chuyển',
     icon: '🚚',
@@ -162,9 +188,53 @@ const faqCategories = [
   },
 ];
 
+function groupFaqsByCategory(items: FaqItem[]): FaqCategory[] {
+  const grouped: Record<string, { question: string; answer: string }[]> = {};
+
+  for (const item of items) {
+    if (!grouped[item.category]) {
+      grouped[item.category] = [];
+    }
+    grouped[item.category].push({
+      question: item.question,
+      answer: item.answer,
+    });
+  }
+
+  return Object.entries(grouped).map(([category, faqs]) => ({
+    title: category,
+    icon: categoryIcons[category] || '❓',
+    faqs,
+  }));
+}
+
 export default function FAQPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [faqCategories, setFaqCategories] = useState<FaqCategory[]>(fallbackFaqCategories);
+  const [isLoading, setIsLoading] = useState(true);
   const breadcrumbItems = [{ label: 'Hỏi đáp' }];
+
+  useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+
+    fetch(`${apiUrl}/public/cms/faqs`)
+      .then((res) => {
+        if (!res.ok) throw new Error('API error');
+        return res.json();
+      })
+      .then((data: FaqItem[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setFaqCategories(groupFaqsByCategory(data));
+        }
+        // If empty array, keep fallback data
+      })
+      .catch(() => {
+        // Keep fallback data on error
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, []);
 
   // Filter FAQs based on search query
   const filteredCategories = searchQuery
@@ -218,7 +288,12 @@ export default function FAQPage() {
       <section className="py-16">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
-            {filteredCategories.length > 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">Đang tải câu hỏi...</p>
+              </div>
+            ) : filteredCategories.length > 0 ? (
               <div className="space-y-8">
                 {filteredCategories.map((category, categoryIndex) => (
                   <Card key={categoryIndex}>

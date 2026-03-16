@@ -164,7 +164,7 @@ export default function HoaHongPage() {
 
   return (
     <div>
-      <PageHeader title="Hoa hồng" description="Quản lý hoa hồng nhân viên">
+      <PageHeader title="Hoa hồng" description="Quản lý hoa hồng nhân viên" infoKey="hoa-hong">
         <Button
           disabled={calculateCommission.isPending}
           onClick={() => calculateCommission.mutate(period)}

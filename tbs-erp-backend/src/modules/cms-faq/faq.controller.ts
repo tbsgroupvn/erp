@@ -8,14 +8,12 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { FaqService } from './faq.service';
 import { JwtAuthGuard } from '@/core/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/core/rbac/guards/roles.guard';
 import { Roles } from '@/core/rbac/decorators/roles.decorator';
 import { GetFaqDto, CreateFaqDto, UpdateFaqDto } from './dto';
-import { AuthenticatedRequest } from '@common/interfaces/authenticated-request.interface';
 
 @Controller('cms/faq')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -45,18 +43,14 @@ export class FaqController {
 
   @Post()
   @Roles('CEO', 'COO', 'MARKETING_STAFF')
-  async create(@Body() dto: CreateFaqDto, @Request() req: AuthenticatedRequest) {
+  async create(@Body() dto: CreateFaqDto) {
     const data = await this.faqService.create(dto);
     return { success: true, data };
   }
 
   @Patch(':id')
   @Roles('CEO', 'COO', 'MARKETING_STAFF')
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateFaqDto,
-    @Request() req: AuthenticatedRequest,
-  ) {
+  async update(@Param('id') id: string, @Body() dto: UpdateFaqDto) {
     const data = await this.faqService.update(id, dto);
     return { success: true, data };
   }

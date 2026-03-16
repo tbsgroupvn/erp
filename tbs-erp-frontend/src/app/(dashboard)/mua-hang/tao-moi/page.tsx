@@ -90,7 +90,7 @@ export default function TaoMoiMuaHangPage() {
           <h3 className="text-lg font-semibold">Thông tin chung</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Nhà cung cấp *</label>
+              <p className="text-sm font-medium">Nhà cung cấp *</p>
               <input
                 {...register('vendorId')}
                 placeholder="ID nhà cung cấp"
@@ -101,7 +101,7 @@ export default function TaoMoiMuaHangPage() {
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Đơn hàng liên quan</label>
+              <p className="text-sm font-medium">Đơn hàng liên quan</p>
               <input
                 {...register('orderId')}
                 placeholder="ID đơn hàng (tùy chọn)"
@@ -109,7 +109,7 @@ export default function TaoMoiMuaHangPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tiền tệ *</label>
+              <p className="text-sm font-medium">Tiền tệ *</p>
               <select
                 {...register('currency')}
                 className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -121,7 +121,7 @@ export default function TaoMoiMuaHangPage() {
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Ghi chú</label>
+            <p className="text-sm font-medium">Ghi chú</p>
             <textarea
               {...register('notes')}
               rows={3}
@@ -136,7 +136,7 @@ export default function TaoMoiMuaHangPage() {
           {fields.map((field, index) => (
             <div key={field.id} className="grid grid-cols-1 gap-3 sm:grid-cols-6 items-end border-b pb-4">
               <div className="sm:col-span-2 space-y-1">
-                <label className="text-xs font-medium">Mô tả *</label>
+                <p className="text-xs font-medium">Mô tả *</p>
                 <input
                   {...register(`items.${index}.description`)}
                   placeholder="Mô tả sản phẩm"
@@ -144,7 +144,7 @@ export default function TaoMoiMuaHangPage() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium">Số lượng</label>
+                <p className="text-xs font-medium">Số lượng</p>
                 <input
                   type="number"
                   {...register(`items.${index}.quantity`)}
@@ -152,7 +152,7 @@ export default function TaoMoiMuaHangPage() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium">Đơn vị</label>
+                <p className="text-xs font-medium">Đơn vị</p>
                 <input
                   {...register(`items.${index}.unit`)}
                   placeholder="cai, kg, ..."
@@ -160,7 +160,7 @@ export default function TaoMoiMuaHangPage() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium">Đơn giá</label>
+                <p className="text-xs font-medium">Đơn giá</p>
                 <input
                   type="number"
                   {...register(`items.${index}.unitPrice`)}

@@ -76,8 +76,8 @@ model Order {
   // Relations
   masterOrder     MasterOrder? @relation(fields: [masterOrderId], references: [id], onDelete: Cascade)
   customer        Customer     @relation(fields: [customerId], references: [id])
-  container       Container?   @relation(fields: [containerId], references: [id])
-  contract        Contract?    @relation(fields: [contractId], references: [id])
+  container       Container?   @relation(fields: [containerId], references: [id], onDelete: SetNull)
+  contract        Contract?    @relation(fields: [contractId], references: [id], onDelete: SetNull)
   items           OrderItem[]
   statusHistory   OrderStatusHistory[]
   packages        Package[]
@@ -92,6 +92,10 @@ model Order {
   qcInspections   QCInspection[]
   mhhIssues       MHHIssue[]
   extraCharges    OrderExtraCharge[]
+  returnRequests  ReturnRequest[]
+  costAdjustments CostAdjustment[]
+  assignments     OrderAssignment[]
+  handoffs        OrderHandoff[]
 
   @@index([customerId])
   @@index([saleId])
@@ -100,6 +104,11 @@ model Order {
   @@index([containerId])
   @@index([masterOrderId])
   @@index([contractId])
+  @@index([status, branch])
+  @@index([saleId, status])
+  @@index([completedAt])
+  @@index([status, createdAt])
+  @@index([status, createdAt, saleId])
   @@map("orders")
 }
 
@@ -137,6 +146,7 @@ model OrderItem {
   supplierOrders  SupplierOrder[]
 
   @@index([orderId])
+  @@index([deletedAt])
   @@map("order_items")
 }
 
@@ -152,9 +162,10 @@ model OrderExtraCharge {
   currency    Currency @default(CNY)
   description String?
   imageUrls   String[] @default([]) @map("image_urls")
-  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
-  approvedBy  String?  @map("approved_by")
-  createdBy   String   @map("created_by")
+  status              String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  previousOrderStatus String?  @map("previous_order_status") // Luu trang thai truoc ON_HOLD de khoi phuc dung
+  approvedBy          String?  @map("approved_by")
+  createdBy           String   @map("created_by")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -162,6 +173,7 @@ model OrderExtraCharge {
 
   @@index([orderId])
   @@index([status])
+  @@index([createdBy])
   @@map("order_extra_charges")
 }
 
@@ -177,6 +189,8 @@ model OrderStatusHistory {
   order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, createdAt])
+  @@index([toStatus, createdAt])
+  @@index([changedBy])
   @@map("order_status_history")
 }
 
@@ -195,6 +209,8 @@ model PreAlert {
 
   @@index([trackingNumber])
   @@index([customerId])
+  @@index([orderId])
+  @@index([status])
   @@map("pre_alerts")
 }
 
@@ -238,9 +254,9 @@ model Contract {
 
   customer        Customer        @relation(fields: [customerId], references: [id])
   sale            User            @relation("ContractSale", fields: [saleId], references: [id])
-  parent          Contract?       @relation("ContractAppendixes", fields: [parentId], references: [id])
+  parent          Contract?       @relation("ContractAppendixes", fields: [parentId], references: [id], onDelete: SetNull)
   appendixes      Contract[]      @relation("ContractAppendixes")
-  quotation       Quotation?      @relation(fields: [quotationId], references: [id])
+  quotation       Quotation?      @relation(fields: [quotationId], references: [id], onDelete: SetNull)
   orders          Order[]
   allocations     PaymentAllocation[]
   paymentVouchers PaymentVoucher[]
@@ -250,6 +266,8 @@ model Contract {
   @@index([status])
   @@index([parentId])
   @@index([quotationId])
+  @@index([createdBy])
+  @@index([deletedAt])
   @@map("contracts")
 }
 
@@ -270,7 +288,26 @@ model Quotation {
   status            QuotationStatus @default(DRAFT)
   version           Int             @default(1)
 
-  // Tài chính
+  // Quick Quote mode
+  quoteMode         QuoteMode?      @map("quote_mode")          // null = FULL (truyền thống)
+  rateCardId        String?         @map("rate_card_id")
+  rateCard          RateCard?       @relation(fields: [rateCardId], references: [id])
+
+  // Tài chính - Quick Quote breakdown
+  totalProductAmount  Decimal?      @map("total_product_amount") @db.Decimal(18, 2) // Tổng giá hàng (MHH)
+  serviceFeePercent   Decimal?      @map("service_fee_percent") @db.Decimal(5, 2)   // % phí MHH
+  serviceFeeAmount    Decimal?      @map("service_fee_amount") @db.Decimal(18, 2)   // Phí dịch vụ MHH
+  shippingAmount      Decimal?      @map("shipping_amount") @db.Decimal(18, 2)      // Cước VC (từ Rate Card)
+  surchargeAmount     Decimal?      @map("surcharge_amount") @db.Decimal(18, 2)     // Tổng phụ phí
+  cbm                 Decimal?      @db.Decimal(10, 3)                              // CBM đã nhập
+  kg                  Decimal?      @db.Decimal(10, 2)                              // KG đã nhập
+  chargeableWeight    Decimal?      @map("chargeable_weight") @db.Decimal(10, 3)    // CBM quy đổi
+
+  // Exchange rate snapshot (quan trọng với MHH)
+  exchangeRateSnapshot Decimal?     @map("exchange_rate_snapshot") @db.Decimal(18, 4) // 1 CNY = X VND
+  pricingSnapshot     Json?         @map("pricing_snapshot")                         // Audit toàn bộ tính toán
+
+  // Tài chính cũ (giữ nguyên)
   subtotal          Decimal         @default(0) @db.Decimal(18, 2)
   discountPercent   Decimal         @default(0) @map("discount_percent") @db.Decimal(5, 2)
   discountAmount    Decimal         @default(0) @map("discount_amount") @db.Decimal(18, 2)
@@ -305,24 +342,51 @@ model Quotation {
   @@index([status])
   @@index([createdBy])
   @@index([parentQuotationId])
+  @@index([quoteMode])
   @@map("quotations")
 }
 
 model QuotationItem {
-  id            String    @id @default(cuid())
-  quotationId   String    @map("quotation_id")
-  quotation     Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  productName   String    @map("product_name")
-  productUrl    String?   @map("product_url")
-  quantity      Int       @default(1)
-  unitPrice     Decimal   @default(0) @map("unit_price") @db.Decimal(18, 2)
-  currency      Currency  @default(CNY)
-  totalPrice    Decimal   @default(0) @map("total_price") @db.Decimal(18, 2)
-  note          String?
-  deletedAt     DateTime? @map("deleted_at") // Soft delete
-  createdAt     DateTime  @default(now()) @map("created_at")
+  id                  String    @id @default(cuid())
+  quotationId         String    @map("quotation_id")
+  quotation           Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  sortOrder           Int       @default(0) @map("sort_order")
+
+  // Thông tin sản phẩm
+  productName         String    @map("product_name")
+  productDescription  String?   @map("product_description")
+  productImageUrl     String?   @map("product_image_url")     // URL ảnh SP
+  sourceUrl           String?   @map("source_url")            // Link 1688/Taobao/PDD
+  productUrl          String?   @map("product_url")           // Legacy field
+
+  // NCC (dành cho MHH)
+  vendorId            String?   @map("vendor_id")             // FK -> Vendor (nếu chọn từ DS)
+  vendorName          String?   @map("vendor_name")           // Tên NCC nhập tay
+
+  // Số lượng & đơn vị
+  quantity            Int       @default(1)
+  unit                String    @default("cái")               // cái, bộ, kg, thùng, mét...
+
+  // Giá (VND - dùng cho VCT và giá hiển thị)
+  unitPrice           Decimal   @default(0) @map("unit_price") @db.Decimal(18, 2)
+  currency            Currency  @default(CNY)
+  totalPrice          Decimal   @default(0) @map("total_price") @db.Decimal(18, 2)
+
+  // Giá CNY (MHH - sourcing)
+  unitPriceCNY        Decimal?  @map("unit_price_cny") @db.Decimal(18, 4)     // Giá NCC (CNY)
+  totalPriceCNY       Decimal?  @map("total_price_cny") @db.Decimal(18, 4)    // = unitPriceCNY * qty
+  domesticShippingCNY Decimal?  @map("domestic_shipping_cny") @db.Decimal(18, 4) // Phí ship nội địa TQ
+  exchangeRateSnapshot Decimal? @map("exchange_rate_snapshot") @db.Decimal(18, 4) // Tỷ giá tại thời điểm báo giá
+  unitPriceVND        Decimal?  @map("unit_price_vnd") @db.Decimal(18, 2)     // = unitPriceCNY * rate
+  totalPriceVND       Decimal?  @map("total_price_vnd") @db.Decimal(18, 2)    // = totalPriceCNY * rate
+
+  note                String?
+  deletedAt           DateTime? @map("deleted_at") // Soft delete
+  createdAt           DateTime  @default(now()) @map("created_at")
 
   @@index([quotationId])
+  @@index([deletedAt])
+  @@index([vendorId])
   @@map("quotation_items")
 }
 
@@ -375,21 +439,29 @@ model SupplierOrder {
   receivedAt          DateTime?           @map("received_at")
   cancelledAt         DateTime?           @map("cancelled_at")
 
+  // Shortfall — đóng thiếu hàng
+  shortfallReason     String?             @map("shortfall_reason")
+  supplierRefundCNY   Decimal?            @map("supplier_refund_cny") @db.Decimal(18, 2)
+  shortfallClosedAt   DateTime?           @map("shortfall_closed_at")
+  shortfallClosedBy   String?             @map("shortfall_closed_by")
+
   createdBy           String              @map("created_by")
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
 
   // Relations
   order               Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderItem           OrderItem?          @relation(fields: [orderItemId], references: [id])
-  vendor              Vendor?             @relation("SupplierOrderVendor", fields: [vendorId], references: [id])
+  orderItem           OrderItem?          @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  vendor              Vendor?             @relation("SupplierOrderVendor", fields: [vendorId], references: [id], onDelete: SetNull)
   paymentVouchers     PaymentVoucher[]
 
   @@index([orderId])
   @@index([orderItemId])
+  @@index([vendorId])
   @@index([status])
   @@index([orderId, status])
   @@index([trackingNumberCN])
+  @@index([createdBy])
   @@index([createdAt])
   @@map("supplier_orders")
 }
@@ -437,12 +509,14 @@ model MHHIssue {
   updatedAt           DateTime            @updatedAt @map("updated_at")
 
   // Relations
-  order               Order               @relation(fields: [orderId], references: [id])
+  order               Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+  @@index([supplierOrderId])
   @@index([issueType])
   @@index([status])
   @@index([handlerId])
+  @@index([createdBy])
   @@index([createdAt])
   @@map("mhh_issues")
 }
@@ -514,4 +588,73 @@ model QuotationTemplate {
   @@index([createdBy])
   @@index([serviceType])
   @@map("quotation_templates")
+}
+
+// ============================================
+// RETURN REQUEST — Yêu cầu trả hàng (hủy muộn)
+// ============================================
+
+model ReturnRequest {
+  id                     String              @id @default(cuid())
+  code                   String              @unique       // RR-YYYYMM-XXXX
+  orderId                String              @map("order_id")
+  customerId             String              @map("customer_id")
+  orderStatus            OrderStatus         @map("order_status")
+  orderTotalAmount       Decimal             @map("order_total_amount") @db.Decimal(18, 2)
+  depositPaid            Decimal             @map("deposit_paid") @db.Decimal(18, 2)
+  penaltyPercent         Decimal             @map("penalty_percent") @db.Decimal(5, 2)
+  penaltyAmount          Decimal             @map("penalty_amount") @db.Decimal(18, 2)
+  reverseShippingPercent Decimal             @map("reverse_shipping_percent") @db.Decimal(5, 2)
+  reverseShippingAmount  Decimal             @map("reverse_shipping_amount") @db.Decimal(18, 2)
+  totalPenalty           Decimal             @map("total_penalty") @db.Decimal(18, 2)
+  deductedFromDeposit    Decimal             @default(0) @map("deducted_from_deposit") @db.Decimal(18, 2)
+  deductedFromWallet     Decimal             @default(0) @map("deducted_from_wallet") @db.Decimal(18, 2)
+  writtenToAR            Decimal             @default(0) @map("written_to_ar") @db.Decimal(18, 2)
+  refundToCustomer       Decimal             @default(0) @map("refund_to_customer") @db.Decimal(18, 2)
+  reason                 String
+  attachments            String[]            @default([])
+  status                 ReturnRequestStatus @default(PENDING)
+  approvalId             String?             @map("approval_id")
+  resolvedBy             String?             @map("resolved_by")
+  resolvedAt             DateTime?           @map("resolved_at")
+  rejectionNote          String?             @map("rejection_note")
+  requestedBy            String              @map("requested_by")
+  createdAt              DateTime            @default(now()) @map("created_at")
+  updatedAt              DateTime            @updatedAt @map("updated_at")
+
+  order                  Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customer               Customer            @relation(fields: [customerId], references: [id])
+
+  @@index([orderId])
+  @@index([customerId])
+  @@index([status])
+  @@map("return_requests")
+}
+
+enum ReturnRequestStatus {
+  PENDING
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+// ============================================
+// CANCEL PENALTY CONFIG — Cấu hình phí phạt hủy muộn
+// ============================================
+
+model CancelPenaltyConfig {
+  id                     String      @id @default(cuid())
+  stage                  OrderStatus
+  label                  String
+  penaltyPercent         Decimal     @map("penalty_percent") @db.Decimal(5, 2)
+  reverseShippingPercent Decimal     @map("reverse_shipping_percent") @db.Decimal(5, 2)
+  isActive               Boolean     @default(true) @map("is_active")
+  note                   String?
+  updatedBy              String?     @map("updated_by")
+  createdAt              DateTime    @default(now()) @map("created_at")
+  updatedAt              DateTime    @updatedAt @map("updated_at")
+
+  @@unique([stage])
+  @@map("cancel_penalty_configs")
 }

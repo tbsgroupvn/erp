@@ -1,10 +1,6 @@
-import {
-  Injectable,
-  Logger,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
-import { DebtNettingItemType, Prisma } from '@prisma/client';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { DebtNettingItemType } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { CreateNettingRequestDto } from './dto/create-netting-request.dto';
@@ -13,11 +9,18 @@ import { NettingQueryDto } from './dto/netting-query.dto';
 @Injectable()
 export class DebtNettingService {
   private readonly logger = new Logger(DebtNettingService.name);
+  private readonly DEBT_NETTING_MIN: number;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+    private readonly configService: ConfigService,
+  ) {
+    this.DEBT_NETTING_MIN = this.configService.get<number>(
+      'business.debtNetting.minAmount',
+      100000,
+    );
+  }
 
   /**
    * Finds counterparties with both AR and AP balances (netting opportunities).
@@ -41,9 +44,11 @@ export class DebtNettingService {
 
     for (const ar of arByPartner) {
       const arBalance = parseFloat(
-        (Number(ar._sum.amount ?? 0) -
+        (
+          Number(ar._sum.amount ?? 0) -
           Number(ar._sum.paidAmount ?? 0) -
-          Number(ar._sum.nettedAmount ?? 0)).toFixed(2),
+          Number(ar._sum.nettedAmount ?? 0)
+        ).toFixed(2),
       );
 
       if (arBalance <= 0) continue;
@@ -53,9 +58,11 @@ export class DebtNettingService {
         if (!ap.vendorId) continue;
 
         const apBalance = parseFloat(
-          (Number(ap._sum.amount ?? 0) -
+          (
+            Number(ap._sum.amount ?? 0) -
             Number(ap._sum.paidAmount ?? 0) -
-            Number(ap._sum.nettedAmount ?? 0)).toFixed(2),
+            Number(ap._sum.nettedAmount ?? 0)
+          ).toFixed(2),
         );
 
         if (apBalance <= 0) continue;
@@ -88,10 +95,12 @@ export class DebtNettingService {
     }
 
     const totalAR = parseFloat(
-      arRecords.reduce(
-        (sum, ar) => sum + Number(ar.amount) - Number(ar.paidAmount) - Number(ar.nettedAmount),
-        0,
-      ).toFixed(2),
+      arRecords
+        .reduce(
+          (sum, ar) => sum + Number(ar.amount) - Number(ar.paidAmount) - Number(ar.nettedAmount),
+          0,
+        )
+        .toFixed(2),
     );
 
     // Validate AP records exist and sum up
@@ -104,10 +113,12 @@ export class DebtNettingService {
     }
 
     const totalAP = parseFloat(
-      apRecords.reduce(
-        (sum, ap) => sum + Number(ap.amount) - Number(ap.paidAmount) - Number(ap.nettedAmount),
-        0,
-      ).toFixed(2),
+      apRecords
+        .reduce(
+          (sum, ap) => sum + Number(ap.amount) - Number(ap.paidAmount) - Number(ap.nettedAmount),
+          0,
+        )
+        .toFixed(2),
     );
 
     // Validate netting amount
@@ -115,6 +126,13 @@ export class DebtNettingService {
     if (dto.nettingAmount > maxNetting) {
       throw new BadRequestException(
         `Netting amount (${dto.nettingAmount}) exceeds maximum nettable amount (${maxNetting}). AR balance: ${totalAR}, AP balance: ${totalAP}`,
+      );
+    }
+
+    // KT-2: Enforce configurable minimum threshold for debt netting
+    if (dto.nettingAmount < this.DEBT_NETTING_MIN) {
+      throw new BadRequestException(
+        `Số tiền bù trừ (${dto.nettingAmount}) thấp hơn ngưỡng tối thiểu (${this.DEBT_NETTING_MIN}). Vui lòng điều chỉnh số tiền.`,
       );
     }
 
@@ -233,11 +251,17 @@ export class DebtNettingService {
 
         if (!ar) continue;
 
-        const arBalanceCents = Math.round(Number(ar.amount) * 100) - Math.round(Number(ar.paidAmount) * 100) - Math.round(Number(ar.nettedAmount) * 100);
+        const arBalanceCents =
+          Math.round(Number(ar.amount) * 100) -
+          Math.round(Number(ar.paidAmount) * 100) -
+          Math.round(Number(ar.nettedAmount) * 100);
         const nettedHereCents = Math.min(remainingCents, arBalanceCents);
         const nettedHere = nettedHereCents / 100;
 
-        const totalSettledCents = Math.round(Number(ar.paidAmount) * 100) + Math.round(Number(ar.nettedAmount) * 100) + nettedHereCents;
+        const totalSettledCents =
+          Math.round(Number(ar.paidAmount) * 100) +
+          Math.round(Number(ar.nettedAmount) * 100) +
+          nettedHereCents;
         const amountCents = Math.round(Number(ar.amount) * 100);
 
         await tx.accountReceivable.update({
@@ -268,11 +292,17 @@ export class DebtNettingService {
 
         if (!ap) continue;
 
-        const apBalanceCents = Math.round(Number(ap.amount) * 100) - Math.round(Number(ap.paidAmount) * 100) - Math.round(Number(ap.nettedAmount) * 100);
+        const apBalanceCents =
+          Math.round(Number(ap.amount) * 100) -
+          Math.round(Number(ap.paidAmount) * 100) -
+          Math.round(Number(ap.nettedAmount) * 100);
         const nettedHereCents = Math.min(remainingCents, apBalanceCents);
         const nettedHere = nettedHereCents / 100;
 
-        const totalSettledCents = Math.round(Number(ap.paidAmount) * 100) + Math.round(Number(ap.nettedAmount) * 100) + nettedHereCents;
+        const totalSettledCents =
+          Math.round(Number(ap.paidAmount) * 100) +
+          Math.round(Number(ap.nettedAmount) * 100) +
+          nettedHereCents;
         const amountCents = Math.round(Number(ap.amount) * 100);
 
         await tx.accountPayable.update({

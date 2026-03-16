@@ -1,0 +1,111 @@
+{
+    "meta": {
+        "schema_version": "1.1.0",
+        "awf_version": "4.0.0"
+    },
+    "project": {
+        "name": "TBS ERP → Workplace Platform — Frontend UI",
+        "type": "Next.js 14 App Router Framework",
+        "status": "Development & Workplace UI Expansion"
+    },
+    "tech_stack": {
+        "frontend": {
+            "framework": "Next.js 14 (App Router)",
+            "language": "TypeScript",
+            "styling": "TailwindCSS + shadcn/ui + Radix UI"
+        },
+        "state_management": {
+            "api": "TanStack Query",
+            "forms": "React Hook Form + Zod"
+        },
+        "ui_components": "Radix UI & shadcn/ui",
+        "realtime": "Socket.IO client (/ws namespace)",
+        "planned_additions": [
+            "emoji-mart (emoji picker)",
+            "FullCalendar or @schedule-x/react (calendar)",
+            "@dnd-kit (drag-and-drop for Kanban)",
+            "next-pwa or @serwist/next (PWA)"
+        ]
+    },
+    "database_schema": {
+        "summary": "Frontend client — no database. All state from NestJS Backend via REST + WebSocket.",
+        "tables": [
+            "None (Client-side app)"
+        ],
+        "relationships_explained": "Server state via TanStack Query in src/lib/hooks/. WebSocket via Socket.IO for real-time chat, presence, notifications."
+    },
+    "api_endpoints": [
+        {
+            "path": "lib/api/approvals.api.ts",
+            "explained": "Approval CRUD with pagination"
+        },
+        {
+            "path": "lib/api/orders.api.ts",
+            "explained": "Order lifecycle management"
+        },
+        {
+            "path": "lib/api/auth.api.ts",
+            "explained": "JWT authentication flow"
+        },
+        {
+            "path": "lib/api/chat.ts (PLANNED)",
+            "explained": "Chat API: conversations, messages, channels, reactions, search"
+        },
+        {
+            "path": "lib/api/calendar.ts (PLANNED)",
+            "explained": "Calendar events, RSVP, free/busy"
+        },
+        {
+            "path": "lib/api/drive.ts (PLANNED)",
+            "explained": "File/folder management, upload, share"
+        },
+        {
+            "path": "lib/api/bulletin.ts (PLANNED)",
+            "explained": "Company news feed, reactions, comments"
+        }
+    ],
+    "business_rules": [
+        "Component phải bám theo Design Spec (HSL colors, shadcn typography)",
+        "Spinner khi useQuery isLoading === true, Skeleton cho complex views",
+        "Response thường gói trong PaginatedResponse — extract data.data",
+        "Vietnamese route slugs: /tro-chuyen, /lich, /tai-lieu, /bang-tin",
+        "Mobile-first cho Workplace features (PWA)"
+    ],
+    "features": [
+        "Dashboard Báo Cáo Tổng Hợp",
+        "Phê Duyệt (Graph Flow Builder UI)",
+        "Nhập Hàng Quốc Tế & Hải Quan",
+        "Kế toán & Công nợ",
+        "Chat / Messenger (EXPANDING — channels, threads, reactions, files)",
+        "Calendar (NEW — day/week/month views, events, RSVP)",
+        "Drive / Tài liệu (NEW — file browser, upload, preview, share)",
+        "Bảng tin Công ty (NEW — news feed, reactions, comments)",
+        "Mobile PWA (NEW — bottom nav, push, offline)"
+    ],
+    "knowledge_items": {
+        "patterns": [
+            "CSR/SSR Server Actions Pattern in Next.js",
+            "Tailwind Arbitrary Variants (cn module)",
+            "Socket.IO room-based subscriptions for chat",
+            "TanStack Query invalidation on WebSocket events"
+        ],
+        "gotchas": [
+            "Luôn kiểm tra Map Array Type khi sử dụng API Phân trang",
+            "Next.js App router: 'use client' ở đầu file hooks/components",
+            "Socket.IO client must reconnect after JWT refresh",
+            "PWA service worker caching conflicts with tanstack-query — use runtime caching only for API"
+        ],
+        "conventions": [
+            "File naming: PascalCase components, kebab-case routes",
+            "useMutation + invalidation for optimistic updates",
+            "New pages in src/app/(dashboard)/[slug]/page.tsx",
+            "Components in _components/ subfolder per page"
+        ]
+    },
+    "upcoming_pages": {
+        "/tro-chuyen": "Chat — ChatSidebar, MessageList, ComposeBar, ThreadPanel, EmojiPicker, MentionAutocomplete",
+        "/lich": "Calendar — CalendarView, EventFormModal, EventDetailPanel, UpcomingSidebar",
+        "/tai-lieu": "Drive — FileGrid, FileList, UploadDropzone, FilePreview, ShareDialog, DriveSidebar",
+        "/bang-tin": "Bulletin — PostFeed, PostCard, ComposePost, ReactionBar, CommentSection"
+    }
+}

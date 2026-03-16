@@ -1,13 +1,27 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class CreateLostItemDto {
-  @ApiPropertyOptional({ description: 'Tracking number from Chinese courier', example: 'YT2025060112345' })
+  @ApiPropertyOptional({
+    description: 'Tracking number from Chinese courier',
+    example: 'YT2025060112345',
+  })
   @IsOptional()
   @IsString()
   trackingNumber?: string;
 
-  @ApiPropertyOptional({ description: 'Package description', example: 'Brown cardboard box, electronics' })
+  @ApiPropertyOptional({
+    description: 'Package description',
+    example: 'Brown cardboard box, electronics',
+  })
   @IsOptional()
   @IsString()
   description?: string;

@@ -45,9 +45,7 @@ export const DETERMINISTIC_ENCRYPTED_FIELDS: Record<string, string[]> = {
  * BACKWARDS COMPATIBILITY: If a field value does not appear to be encrypted
  * (e.g. legacy data), the decrypt method returns it as-is.
  */
-export function createPrismaEncryptionExtension(
-  encryptionService: EncryptionService,
-) {
+export function createPrismaEncryptionExtension(encryptionService: EncryptionService) {
   return Prisma.defineExtension({
     name: 'field-level-encryption',
 
@@ -108,9 +106,7 @@ export function createPrismaEncryptionExtension(
         async findMany({ model, args, query }) {
           const results = await query(args);
           if (Array.isArray(results)) {
-            return results.map((r: any) =>
-              decryptResult(encryptionService, model, r),
-            );
+            return results.map((r: any) => decryptResult(encryptionService, model, r));
           }
           return results;
         },
@@ -124,11 +120,7 @@ export function createPrismaEncryptionExtension(
 /**
  * Encrypt PII fields in a data object before writing to the database.
  */
-function encryptFields(
-  encryptionService: EncryptionService,
-  model: string,
-  data: any,
-): void {
+function encryptFields(encryptionService: EncryptionService, model: string, data: any): void {
   if (!data || !encryptionService.isEnabled()) return;
 
   const fields = ENCRYPTED_FIELDS[model];
@@ -150,11 +142,7 @@ function encryptFields(
 /**
  * Decrypt PII fields in a result object after reading from the database.
  */
-function decryptResult(
-  encryptionService: EncryptionService,
-  model: string,
-  result: any,
-): any {
+function decryptResult(encryptionService: EncryptionService, model: string, result: any): any {
   if (!result || !encryptionService.isEnabled()) return result;
 
   const fields = ENCRYPTED_FIELDS[model];

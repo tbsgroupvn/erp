@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from '@common/dto/pagination.dto';
 
 export enum ArStatus {
@@ -28,5 +29,7 @@ export class ArQueryDto extends PaginationDto {
 
   @ApiPropertyOptional({ description: 'Filter overdue only' })
   @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
   isOverdue?: boolean;
 }

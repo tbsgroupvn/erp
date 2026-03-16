@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { OrderService } from '../order.service';
+import { OrderStatusService } from '../order-status.service';
 
 export interface PaymentReceivedEvent {
   orderId: string;
@@ -21,7 +21,7 @@ export interface PaymentReceivedEvent {
 export class PaymentReceivedListener {
   private readonly logger = new Logger(PaymentReceivedListener.name);
 
-  constructor(private readonly orderService: OrderService) {}
+  constructor(private readonly orderStatusService: OrderStatusService) {}
 
   @OnEvent('payment.received')
   async handlePaymentReceived(event: PaymentReceivedEvent): Promise<void> {
@@ -30,10 +30,7 @@ export class PaymentReceivedListener {
     );
 
     try {
-      const result = await this.orderService.updateDepositPayment(
-        event.orderId,
-        event.amount,
-      );
+      const result = await this.orderStatusService.updateDepositPayment(event.orderId, event.amount);
 
       if (result.isDepositPaid) {
         this.logger.log(

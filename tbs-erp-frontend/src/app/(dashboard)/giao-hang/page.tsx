@@ -185,18 +185,18 @@ export default function GiaoHangPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['driver-deliveries'] });
       queryClient.invalidateQueries({ queryKey: ['vn-packages'] });
-      toast.success('Da bao giao that bai');
+      toast.success('Đã báo giao thất bại');
       setFailingDeliveryId(null);
       setFailReason('');
     },
     onError: () => {
-      toast.error('Khong the bao giao that bai');
+      toast.error('Không thể báo giao thất bại');
     },
   });
 
   const handleFailDelivery = () => {
     if (!failingDeliveryId || !failReason) {
-      toast.error('Vui long chon ly do that bai');
+      toast.error('Vui lòng chọn lý do thất bại');
       return;
     }
     failDeliveryMutation.mutate({ deliveryId: failingDeliveryId, reason: failReason });
@@ -212,6 +212,7 @@ export default function GiaoHangPage() {
         <PageHeader
           title="Chuyến giao của tôi"
           description="Danh sách chuyến giao được phân công"
+          infoKey="giao-hang"
         />
 
         {/* Driver delivery list */}
@@ -265,13 +266,13 @@ export default function GiaoHangPage() {
                     {delivery.status === 'RETURN_TO_ORIGIN' && (
                       <div className="flex items-center gap-2 rounded-md bg-orange-50 p-2 text-sm">
                         <RotateCcw className="h-4 w-4 text-orange-600" />
-                        <span className="font-medium text-orange-700">Dang tra ve kho</span>
+                        <span className="font-medium text-orange-700">Đang trả về kho</span>
                       </div>
                     )}
                     {delivery.status === 'RTO_RECEIVED' && (
                       <div className="flex items-center gap-2 rounded-md bg-blue-50 p-2 text-sm">
                         <RotateCcw className="h-4 w-4 text-blue-600" />
-                        <span className="font-medium text-blue-700">Kho da nhan lai hang</span>
+                        <span className="font-medium text-blue-700">Kho đã nhận lại hàng</span>
                       </div>
                     )}
 
@@ -283,16 +284,16 @@ export default function GiaoHangPage() {
                           <div className="flex-1 min-w-[200px] space-y-2 rounded-md border p-3 bg-red-50">
                             <p className="text-sm font-medium text-red-700 flex items-center gap-1">
                               <AlertTriangle className="h-4 w-4" />
-                              Bao giao that bai
+                              Báo giao thất bại
                             </p>
                             <div>
-                              <Label className="text-xs">Ly do *</Label>
+                              <Label className="text-xs">Lý do *</Label>
                               <select
                                 value={failReason}
                                 onChange={(e) => setFailReason(e.target.value)}
                                 className="flex h-8 w-full rounded-md border bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                               >
-                                <option value="">-- Chon ly do --</option>
+                                <option value="">-- Chọn lý do --</option>
                                 {DELIVERY_FAIL_REASONS.map((r) => (
                                   <option key={r.value} value={r.value}>
                                     {r.label}
@@ -307,7 +308,7 @@ export default function GiaoHangPage() {
                                 onClick={handleFailDelivery}
                                 disabled={failDeliveryMutation.isPending || !failReason}
                               >
-                                {failDeliveryMutation.isPending ? '...' : 'Xac nhan'}
+                                {failDeliveryMutation.isPending ? '...' : 'Xác nhận'}
                               </Button>
                               <Button
                                 size="sm"
@@ -317,7 +318,7 @@ export default function GiaoHangPage() {
                                   setFailReason('');
                                 }}
                               >
-                                Huy
+                                Hủy
                               </Button>
                             </div>
                           </div>
@@ -333,7 +334,7 @@ export default function GiaoHangPage() {
                             }}
                           >
                             <AlertTriangle className="mr-1 h-3.5 w-3.5" />
-                            Giao that bai
+                            Giao thất bại
                           </Button>
                         )}
 
@@ -483,6 +484,7 @@ export default function GiaoHangPage() {
       <PageHeader
         title="Kế hoạch giao hàng"
         description="Quản lý phân công giao hàng theo chi nhánh"
+        infoKey="giao-hang"
       >
         <Button
           onClick={() => setShowDispatchForm((v) => !v)}
@@ -502,7 +504,7 @@ export default function GiaoHangPage() {
 
       {/* Branch selector */}
       <div className="flex items-center gap-3">
-        <Label>Chi nhánh:</Label>
+        <p className="text-sm font-medium leading-none">Chi nhánh:</p>
         <select
           value={selectedBranch}
           onChange={(e) => setSelectedBranch(e.target.value as Branch)}
@@ -526,7 +528,7 @@ export default function GiaoHangPage() {
             <form onSubmit={dispatchForm.handleSubmit(onDispatch)} className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <div>
-                  <Label>Mã đơn hàng *</Label>
+                  <p className="text-sm font-medium leading-none">Mã đơn hàng *</p>
                   <Input {...dispatchForm.register('orderId')} placeholder="Nhập mã đơn hàng" />
                   {dispatchForm.formState.errors.orderId && (
                     <p className="text-xs text-red-500 mt-1">
@@ -535,7 +537,7 @@ export default function GiaoHangPage() {
                   )}
                 </div>
                 <div>
-                  <Label>Tài xế *</Label>
+                  <p className="text-sm font-medium leading-none">Tài xế *</p>
                   <select
                     {...dispatchForm.register('driverId')}
                     className="flex h-9 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -554,7 +556,7 @@ export default function GiaoHangPage() {
                   )}
                 </div>
                 <div>
-                  <Label>Mã xe *</Label>
+                  <p className="text-sm font-medium leading-none">Mã xe *</p>
                   <Input {...dispatchForm.register('vehicleId')} placeholder="Nhập mã xe" />
                   {dispatchForm.formState.errors.vehicleId && (
                     <p className="text-xs text-red-500 mt-1">
@@ -563,7 +565,7 @@ export default function GiaoHangPage() {
                   )}
                 </div>
                 <div>
-                  <Label>Người nhận *</Label>
+                  <p className="text-sm font-medium leading-none">Người nhận *</p>
                   <Input {...dispatchForm.register('recipientName')} placeholder="Họ tên người nhận" />
                   {dispatchForm.formState.errors.recipientName && (
                     <p className="text-xs text-red-500 mt-1">
@@ -572,7 +574,7 @@ export default function GiaoHangPage() {
                   )}
                 </div>
                 <div>
-                  <Label>SĐT người nhận *</Label>
+                  <p className="text-sm font-medium leading-none">SĐT người nhận *</p>
                   <Input {...dispatchForm.register('recipientPhone')} placeholder="Số điện thoại" />
                   {dispatchForm.formState.errors.recipientPhone && (
                     <p className="text-xs text-red-500 mt-1">
@@ -581,7 +583,7 @@ export default function GiaoHangPage() {
                   )}
                 </div>
                 <div>
-                  <Label>Địa chỉ giao *</Label>
+                  <p className="text-sm font-medium leading-none">Địa chỉ giao *</p>
                   <Input
                     {...dispatchForm.register('deliveryAddress')}
                     placeholder="Địa chỉ giao hàng"
@@ -593,15 +595,15 @@ export default function GiaoHangPage() {
                   )}
                 </div>
                 <div>
-                  <Label>Ngày giao dự kiến</Label>
+                  <p className="text-sm font-medium leading-none">Ngày giao dự kiến</p>
                   <Input type="date" {...dispatchForm.register('scheduledAt')} />
                 </div>
                 <div>
-                  <Label>Số tiền COD</Label>
+                  <p className="text-sm font-medium leading-none">Số tiền COD</p>
                   <Input type="number" {...dispatchForm.register('codAmount')} placeholder="0" />
                 </div>
                 <div>
-                  <Label>Ghi chú</Label>
+                  <p className="text-sm font-medium leading-none">Ghi chú</p>
                   <Input {...dispatchForm.register('note')} placeholder="Ghi chú" />
                 </div>
               </div>
@@ -643,7 +645,7 @@ export default function GiaoHangPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-3xl font-bold">{plan?.totalWeight?.toFixed(1) ?? 0} kg</p>
+              <p className="text-3xl font-bold">{plan?.totalWeight != null ? Number(plan.totalWeight).toFixed(1) : '0'} kg</p>
               <p className="text-sm text-muted-foreground mt-1">Tổng trọng lượng</p>
             </div>
           </CardContent>
@@ -692,9 +694,9 @@ export default function GiaoHangPage() {
                       </td>
                       <td className="py-2 pr-3 font-medium">{pkg.code}</td>
                       <td className="py-2 pr-3">{pkg.orderId}</td>
-                      <td className="py-2 pr-3">{pkg.actualWeight?.toFixed(2) ?? '---'} kg</td>
+                      <td className="py-2 pr-3">{pkg.actualWeight != null ? Number(pkg.actualWeight).toFixed(2) : '---'} kg</td>
                       <td className="py-2 pr-3">
-                        {pkg.chargeableWeight?.toFixed(2) ?? '---'} kg
+                        {pkg.chargeableWeight != null ? Number(pkg.chargeableWeight).toFixed(2) : '---'} kg
                       </td>
                       <td className="py-2 pr-3">
                         <StatusBadge

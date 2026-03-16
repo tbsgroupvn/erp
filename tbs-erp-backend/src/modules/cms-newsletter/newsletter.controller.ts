@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Patch,
-  Delete,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Param, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { NewsletterService } from './newsletter.service';
@@ -55,7 +47,7 @@ export class NewsletterController {
   @Get('export/excel')
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 exports per minute
   @Roles('CEO', 'COO', 'MARKETING_STAFF')
-  async exportToExcel(@Query() query: GetNewsletterDto) {
+  async exportToExcel() {
     // TODO: Implement Excel export
     return { success: true, message: 'Export feature coming soon' };
   }

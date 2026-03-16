@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, type KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -17,6 +17,7 @@ import {
 import { useSortPackagesVN } from '@/lib/hooks/use-warehouse';
 import { apiClient } from '@/lib/api/client';
 import { formatDate } from '@/lib/utils/format';
+import { InfoTooltip } from '@/components/shared/info-tooltip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -87,13 +88,13 @@ function BarcodeScanInput() {
       );
       const pkg = response.data.data;
       setScanResult(pkg);
-      toast.success(`Tim thay kien hang: ${pkg.code}`, {
-        description: `Don hang: ${pkg.orderId} | Trong luong: ${pkg.actualWeight?.toFixed(2) ?? '---'} kg | Trang thai VN: ${VN_STATUS_LABELS[pkg.warehouseVNStatus ?? ''] || pkg.warehouseVNStatus || '---'}`,
+      toast.success(`Tìm thấy kiện hàng: ${pkg.code}`, {
+        description: `Đơn hàng: ${pkg.orderId} | Trọng lượng: ${pkg.actualWeight != null ? Number(pkg.actualWeight).toFixed(2) : '---'} kg | Trạng thái VN: ${VN_STATUS_LABELS[pkg.warehouseVNStatus ?? ''] || pkg.warehouseVNStatus || '---'}`,
         duration: 6000,
       });
     } catch {
-      toast.error('Khong tim thay kien hang', {
-        description: `Ma van don: ${trimmed}`,
+      toast.error('Không tìm thấy kiện hàng', {
+        description: `Mã vận đơn: ${trimmed}`,
       });
     } finally {
       setIsScanning(false);
@@ -103,7 +104,7 @@ function BarcodeScanInput() {
   }, []);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
+    (e: KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') {
         e.preventDefault();
         handleScan(scanValue);
@@ -123,7 +124,7 @@ function BarcodeScanInput() {
               value={scanValue}
               onChange={(e) => setScanValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Quet ma van don (Enter de tra cuu)"
+              placeholder="Quét mã vận đơn (Enter để tra cứu)"
               className="pr-10"
               disabled={isScanning}
               // eslint-disable-next-line jsx-a11y/no-autofocus
@@ -139,26 +140,26 @@ function BarcodeScanInput() {
             onClick={() => handleScan(scanValue)}
             disabled={isScanning || !scanValue.trim()}
           >
-            Tra cuu
+            Tra cứu
           </Button>
         </div>
         {scanResult && (
           <div className="mt-3 rounded-md border bg-muted/30 p-3">
             <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
               <div>
-                <span className="text-muted-foreground">Ma kien:</span>{' '}
+                <span className="text-muted-foreground">Mã kiện:</span>{' '}
                 <span className="font-medium">{scanResult.code}</span>
               </div>
               <div>
-                <span className="text-muted-foreground">Don hang:</span>{' '}
+                <span className="text-muted-foreground">Đơn hàng:</span>{' '}
                 <span className="font-medium">{scanResult.orderId}</span>
               </div>
               <div>
-                <span className="text-muted-foreground">Trong luong:</span>{' '}
-                <span className="font-medium">{scanResult.actualWeight?.toFixed(2) ?? '---'} kg</span>
+                <span className="text-muted-foreground">Trọng lượng:</span>{' '}
+                <span className="font-medium">{scanResult.actualWeight != null ? Number(scanResult.actualWeight).toFixed(2) : '---'} kg</span>
               </div>
               <div>
-                <span className="text-muted-foreground">Trang thai:</span>{' '}
+                <span className="text-muted-foreground">Trạng thái:</span>{' '}
                 <StatusBadge
                   label={VN_STATUS_LABELS[scanResult.warehouseVNStatus ?? ''] || scanResult.warehouseVNStatus || '---'}
                   colorClass={VN_STATUS_COLORS[scanResult.warehouseVNStatus ?? ''] || 'bg-gray-100 text-gray-700'}
@@ -367,16 +368,20 @@ export default function KhoVietNamPage() {
       },
       {
         accessorKey: 'actualWeight',
-        header: 'Cân nặng (kg)',
+        header: () => (
+          <span className="flex items-center gap-1">
+            Cân nặng (kg) <InfoTooltip tipKey="vn-weight" />
+          </span>
+        ),
         cell: ({ row }) => (
-          <span>{row.original.actualWeight?.toFixed(2) ?? '---'}</span>
+          <span>{row.original.actualWeight != null ? Number(row.original.actualWeight).toFixed(2) : '---'}</span>
         ),
       },
       {
         accessorKey: 'chargeableWeight',
         header: 'TL tính phí (kg)',
         cell: ({ row }) => (
-          <span>{row.original.chargeableWeight?.toFixed(2) ?? '---'}</span>
+          <span>{row.original.chargeableWeight != null ? Number(row.original.chargeableWeight).toFixed(2) : '---'}</span>
         ),
       },
       {
@@ -451,6 +456,7 @@ export default function KhoVietNamPage() {
       <PageHeader
         title="Kho Việt Nam"
         description="Quản lý kiện hàng tại kho VN và giao hàng"
+        infoKey="kho-viet-nam"
       >
         <Button
           variant={showReceiveForm ? 'secondary' : 'default'}

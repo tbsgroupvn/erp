@@ -84,8 +84,9 @@ export function useUpdateContractStatus() {
       qc.invalidateQueries({ queryKey: contractKeys.lists() });
       toast.success('Cập nhật trạng thái hợp đồng thành công');
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Không thể cập nhật trạng thái');
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Không thể cập nhật trạng thái');
     },
   });
 }
@@ -98,8 +99,9 @@ export function useDeleteContract() {
       qc.invalidateQueries({ queryKey: contractKeys.lists() });
       toast.success('Đã xóa hợp đồng');
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Không thể xóa hợp đồng');
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Không thể xóa hợp đồng');
     },
   });
 }

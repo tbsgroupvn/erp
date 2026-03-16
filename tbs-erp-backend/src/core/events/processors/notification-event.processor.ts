@@ -31,7 +31,7 @@ export class NotificationEventProcessor extends WorkerHost {
     const event = job.data;
     this.logger.log(
       `Processing ${event.type} (jobId: ${job.id}, ` +
-      `correlationId: ${event.metadata.correlationId})`,
+        `correlationId: ${event.metadata.correlationId})`,
     );
 
     switch (event.type) {
@@ -68,11 +68,8 @@ export class NotificationEventProcessor extends WorkerHost {
   /**
    * Send a notification to a specific user via the in-process notification service.
    */
-  private async handleSendNotification(
-    event: DomainEvent<NotificationSendPayload>,
-  ): Promise<void> {
-    const { userId, title, body, type, channel, referenceId, isUrgent, data } =
-      event.payload;
+  private async handleSendNotification(event: DomainEvent<NotificationSendPayload>): Promise<void> {
+    const { userId, title, body, type, channel, referenceId, isUrgent, data } = event.payload;
 
     this.logger.log(`Sending notification to user ${userId}: "${title}"`);
 
@@ -99,14 +96,12 @@ export class NotificationEventProcessor extends WorkerHost {
   /**
    * Broadcast a notification to a role, branch, or all users.
    */
-  private async handleBroadcast(
-    event: DomainEvent<NotificationBroadcastPayload>,
-  ): Promise<void> {
+  private async handleBroadcast(event: DomainEvent<NotificationBroadcastPayload>): Promise<void> {
     const { targetRole, targetBranch, title, body, type, data } = event.payload;
 
     this.logger.log(
       `Broadcasting notification: "${title}" ` +
-      `(role: ${targetRole ?? 'all'}, branch: ${targetBranch ?? 'all'})`,
+        `(role: ${targetRole ?? 'all'}, branch: ${targetBranch ?? 'all'})`,
     );
 
     if (targetRole) {
@@ -130,7 +125,9 @@ export class NotificationEventProcessor extends WorkerHost {
   }
 
   private async handleEmailNotification(event: DomainEvent): Promise<void> {
-    this.logger.log(`Processing email notification (correlationId: ${event.metadata.correlationId})`);
+    this.logger.log(
+      `Processing email notification (correlationId: ${event.metadata.correlationId})`,
+    );
     this.eventEmitter.emit('email.send', event.payload);
   }
 

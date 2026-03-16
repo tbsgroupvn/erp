@@ -143,7 +143,7 @@ export function MHHIssueSection({ orderId }: MHHIssueSectionProps) {
           <p className="text-sm font-medium">Tạo vấn đề MHH mới</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Loại vấn đề *</label>
+              <p className="text-xs font-medium text-muted-foreground">Loại vấn đề *</p>
               <select
                 value={createForm.issueType}
                 onChange={(e) => setCreateForm((p) => ({ ...p, issueType: e.target.value as MHHIssueType }))}
@@ -157,7 +157,7 @@ export function MHHIssueSection({ orderId }: MHHIssueSectionProps) {
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Mức độ</label>
+              <p className="text-xs font-medium text-muted-foreground">Mức độ</p>
               <select
                 value={createForm.severity}
                 onChange={(e) => setCreateForm((p) => ({ ...p, severity: e.target.value as ComplaintSeverity }))}
@@ -172,7 +172,7 @@ export function MHHIssueSection({ orderId }: MHHIssueSectionProps) {
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Mô tả * (tối thiểu 10 ký tự)</label>
+            <p className="text-xs font-medium text-muted-foreground">Mô tả * (tối thiểu 10 ký tự)</p>
             <textarea
               value={createForm.description}
               onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
@@ -315,7 +315,7 @@ export function MHHIssueSection({ orderId }: MHHIssueSectionProps) {
                     <p className="text-xs font-medium text-green-800">Giải quyết vấn đề</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs text-muted-foreground">Hình thức giải quyết *</label>
+                        <p className="text-xs text-muted-foreground">Hình thức giải quyết *</p>
                         <select
                           value={resolveForm.resolution}
                           onChange={(e) => setResolveForm((p) => ({ ...p, resolution: e.target.value as MHHIssueResolution }))}
@@ -329,7 +329,7 @@ export function MHHIssueSection({ orderId }: MHHIssueSectionProps) {
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Bồi thường (VND)</label>
+                        <p className="text-xs text-muted-foreground">Bồi thường (VND)</p>
                         <input
                           type="number"
                           value={resolveForm.compensationAmount ?? ''}
@@ -344,7 +344,7 @@ export function MHHIssueSection({ orderId }: MHHIssueSectionProps) {
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground">Ghi chú giải quyết</label>
+                      <p className="text-xs text-muted-foreground">Ghi chú giải quyết</p>
                       <textarea
                         value={resolveForm.resolutionNote ?? ''}
                         onChange={(e) => setResolveForm((p) => ({ ...p, resolutionNote: e.target.value }))}

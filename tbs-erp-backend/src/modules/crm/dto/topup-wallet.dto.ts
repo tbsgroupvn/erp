@@ -8,6 +8,12 @@ export class TopupWalletDto {
   @Min(1)
   amount: number;
 
+  @ApiProperty({ description: 'Nhap lai so tien de xac nhan (phai trung voi amount)', example: 10000000 })
+  @IsNotEmpty({ message: 'Xac nhan so tien la bat buoc' })
+  @IsNumber()
+  @Min(1)
+  confirmAmount: number;
+
   @ApiProperty({ description: 'Ma giao dich ngan hang (Bank Trace ID) - bat buoc', example: 'FT24060012345678' })
   @IsNotEmpty({ message: 'Ma giao dich ngan hang (Bank Trace ID) la bat buoc' })
   @IsString()

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, type ChangeEvent } from 'react';
 import {
   FileText,
   Upload,
@@ -56,7 +56,7 @@ export function OrderDocumentHub({ orderId, documents = [] }: OrderDocumentHubPr
     grouped[cat].push(doc);
   }
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -74,11 +74,11 @@ export function OrderDocumentHub({ orderId, documents = [] }: OrderDocumentHubPr
           headers: { 'Content-Type': 'multipart/form-data' },
         });
       }
-      toast.success(`Da tai len ${files.length} tai lieu`);
+      toast.success(`Đã tải lên ${files.length} tài liệu`);
       // Trigger refetch by reloading
       window.location.reload();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Loi tai tai lieu');
+      toast.error(err.response?.data?.message || 'Lỗi tải tài liệu');
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -111,11 +111,11 @@ export function OrderDocumentHub({ orderId, documents = [] }: OrderDocumentHubPr
       <div className="rounded-lg border bg-card p-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Upload className="h-5 w-5" />
-          Tai tai lieu
+          Tải tài liệu
         </h3>
         <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
           <div className="space-y-1.5 flex-1">
-            <label htmlFor="doc-category-select" className="text-sm font-medium">Danh muc</label>
+            <label htmlFor="doc-category-select" className="text-sm font-medium">Danh mục</label>
             <select
               id="doc-category-select"
               value={selectedCategory}
@@ -147,7 +147,7 @@ export function OrderDocumentHub({ orderId, documents = [] }: OrderDocumentHubPr
               ) : (
                 <Upload className="h-4 w-4" />
               )}
-              {uploading ? 'Dang tai...' : 'Chon file'}
+              {uploading ? 'Đang tải...' : 'Chọn file'}
             </button>
           </div>
         </div>
@@ -196,7 +196,7 @@ export function OrderDocumentHub({ orderId, documents = [] }: OrderDocumentHubPr
                       type="button"
                       onClick={() => handleDownload(doc)}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-background/50"
-                      title="Tai xuong"
+                      title="Tải xuống"
                     >
                       <Download className="h-4 w-4" />
                     </button>
@@ -212,9 +212,9 @@ export function OrderDocumentHub({ orderId, documents = [] }: OrderDocumentHubPr
       {documents.length === 0 && (
         <div className="rounded-lg border bg-card p-8 text-center">
           <FolderOpen className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm font-medium">Chua co tai lieu</p>
+          <p className="text-sm font-medium">Chưa có tài liệu</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Su dung nut &quot;Chon file&quot; o tren de tai len tai lieu cho don hang nay.
+            Sử dụng nút &quot;Chọn file&quot; ở trên để tải lên tài liệu cho đơn hàng này.
           </p>
         </div>
       )}

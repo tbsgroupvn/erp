@@ -35,9 +35,7 @@ export class AccountsReceivableRepository {
     return `TBS-AR-${String(nextNumber).padStart(6, '0')}`;
   }
 
-  async create(
-    data: Prisma.AccountReceivableUncheckedCreateInput,
-  ): Promise<AccountReceivable> {
+  async create(data: Prisma.AccountReceivableUncheckedCreateInput): Promise<AccountReceivable> {
     return this.prisma.accountReceivable.create({ data });
   }
 
@@ -48,9 +46,7 @@ export class AccountsReceivableRepository {
     });
   }
 
-  async findMany(
-    query: ArQueryDto,
-  ): Promise<{ data: AccountReceivable[]; total: number }> {
+  async findMany(query: ArQueryDto): Promise<{ data: AccountReceivable[]; total: number }> {
     const where: Prisma.AccountReceivableWhereInput = {};
 
     if (query.status) {
@@ -119,10 +115,7 @@ export class AccountsReceivableRepository {
   /**
    * Update an AR record (payment, status change, etc.).
    */
-  async update(
-    id: string,
-    data: Prisma.AccountReceivableUpdateInput,
-  ): Promise<AccountReceivable> {
+  async update(id: string, data: Prisma.AccountReceivableUpdateInput): Promise<AccountReceivable> {
     return this.prisma.accountReceivable.update({
       where: { id },
       data,
@@ -146,10 +139,7 @@ export class AccountsReceivableRepository {
       },
     });
 
-    const buckets: Record<
-      string,
-      { count: number; totalAmount: number }
-    > = {
+    const buckets: Record<string, { count: number; totalAmount: number }> = {
       'Current (not due)': { count: 0, totalAmount: 0 },
       '1-30 days': { count: 0, totalAmount: 0 },
       '31-60 days': { count: 0, totalAmount: 0 },
@@ -158,8 +148,7 @@ export class AccountsReceivableRepository {
     };
 
     for (const ar of openReceivables) {
-      const outstanding =
-        ar.amount.toNumber() - ar.paidAmount.toNumber();
+      const outstanding = ar.amount.toNumber() - ar.paidAmount.toNumber();
       const daysOverdue = Math.floor(
         (now.getTime() - ar.dueDate.getTime()) / (1000 * 60 * 60 * 24),
       );
@@ -210,8 +199,7 @@ export class AccountsReceivableRepository {
     let overdueDebt = 0;
 
     for (const ar of receivables) {
-      const outstanding =
-        ar.amount.toNumber() - ar.paidAmount.toNumber();
+      const outstanding = ar.amount.toNumber() - ar.paidAmount.toNumber();
       totalDebt += outstanding;
       if (ar.dueDate < now) {
         overdueDebt += outstanding;

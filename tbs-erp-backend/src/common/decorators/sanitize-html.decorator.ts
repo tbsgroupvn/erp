@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import DOMPurify from 'isomorphic-dompurify';
+const DOMPurify = require('isomorphic-dompurify');
 
 // Type definition for DOMPurify config
 type DOMPurifyConfig = {

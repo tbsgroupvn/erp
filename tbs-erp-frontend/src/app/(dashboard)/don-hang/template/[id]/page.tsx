@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
+import type { Control, UseFormRegister, FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Trash2, Loader2, ArrowLeft } from 'lucide-react';
@@ -123,9 +124,10 @@ export default function EditTemplatePage() {
       await updateTemplate.mutateAsync({ id: templateId, data });
       toast.success('Cập nhật template thành công');
       router.push('/don-hang/template');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Update template error:', error);
-      toast.error(error?.message || 'Không thể cập nhật template');
+      const message = error instanceof Error ? error.message : 'Không thể cập nhật template';
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -170,9 +172,9 @@ export default function EditTemplatePage() {
           <h2 className="text-lg font-semibold">Thông tin cơ bản</h2>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
+            <p className="block text-sm font-medium mb-1">
               Tên template <span className="text-red-500">*</span>
-            </label>
+            </p>
             <input
               {...register('name')}
               type="text"
@@ -185,7 +187,7 @@ export default function EditTemplatePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Mô tả</label>
+            <p className="block text-sm font-medium mb-1">Mô tả</p>
             <textarea
               {...register('description')}
               rows={2}
@@ -195,7 +197,7 @@ export default function EditTemplatePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Chi nhánh mặc định</label>
+            <p className="block text-sm font-medium mb-1">Chi nhánh mặc định</p>
             <select
               {...register('branch')}
               className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -250,9 +252,9 @@ export default function EditTemplatePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <p className="block text-sm font-medium mb-1">
                     Loại dịch vụ <span className="text-red-500">*</span>
-                  </label>
+                  </p>
                   <select
                     {...register(`subOrders.${subOrderIndex}.serviceType`)}
                     className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -266,9 +268,9 @@ export default function EditTemplatePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <p className="block text-sm font-medium mb-1">
                     Loại thông quan <span className="text-red-500">*</span>
-                  </label>
+                  </p>
                   <select
                     {...register(`subOrders.${subOrderIndex}.clearanceType`)}
                     className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -282,7 +284,7 @@ export default function EditTemplatePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Tuyến vận chuyển</label>
+                  <p className="block text-sm font-medium mb-1">Tuyến vận chuyển</p>
                   <select
                     {...register(`subOrders.${subOrderIndex}.shippingRoute`)}
                     className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -298,7 +300,7 @@ export default function EditTemplatePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Ghi chú</label>
+                <p className="block text-sm font-medium mb-1">Ghi chú</p>
                 <input
                   {...register(`subOrders.${subOrderIndex}.note`)}
                   type="text"
@@ -347,10 +349,10 @@ function SubOrderItems({
   subOrderIndex,
   errors,
 }: {
-  control: any;
-  register: any;
+  control: Control<UpdateTemplateForm>;
+  register: UseFormRegister<UpdateTemplateForm>;
   subOrderIndex: number;
-  errors: any;
+  errors: FieldErrors<UpdateTemplateForm>;
 }) {
   const {
     fields: itemFields,
@@ -364,9 +366,9 @@ function SubOrderItems({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium">
+        <p className="text-sm font-medium">
           Sản phẩm <span className="text-red-500">*</span>
-        </label>
+        </p>
         <button
           type="button"
           onClick={() =>

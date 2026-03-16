@@ -13,6 +13,7 @@ export interface Task {
   assignee?: { id: string; fullName: string };
   priority: TaskPriority;
   status: TaskStatus;
+  startDate?: string;
   dueDate?: string;
   entityType?: string;
   entityId?: string;
@@ -39,13 +40,16 @@ export interface CreateTaskDto {
   description?: string;
   assigneeId: string;
   priority?: TaskPriority;
+  startDate?: string;
   dueDate?: string;
   entityType?: string;
   entityId?: string;
   tags?: string[];
 }
 
-export interface UpdateTaskDto extends Partial<CreateTaskDto> {}
+export interface UpdateTaskDto extends Partial<CreateTaskDto> {
+  status?: TaskStatus;
+}
 
 export interface TaskQueryParams {
   page?: number;
@@ -54,4 +58,8 @@ export interface TaskQueryParams {
   assigneeId?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
+  dueDateFrom?: string;
+  dueDateTo?: string;
+  sortBy?: 'dueDate' | 'priority' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
 }

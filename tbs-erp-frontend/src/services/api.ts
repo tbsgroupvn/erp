@@ -240,7 +240,7 @@ export const paymentVouchersApi = {
   /**
    * Get payment voucher by ID
    */
-  getById: async (id: string): Promise<any> => {
+  getById: async (id: string): Promise<CreatePaymentVoucherPayload & { id: string; status: string; createdAt: string }> => {
     const { data } = await api.get(`/payment-vouchers/${id}`);
     return data;
   },
@@ -252,7 +252,7 @@ export const paymentVouchersApi = {
     page?: number;
     limit?: number;
     status?: string;
-  }): Promise<{ data: any[]; total: number }> => {
+  }): Promise<{ data: (CreatePaymentVoucherPayload & { id: string; status: string; createdAt: string })[]; total: number }> => {
     const { data } = await api.get('/payment-vouchers', { params });
     return data;
   },
@@ -274,7 +274,7 @@ export const customersApi = {
   /**
    * Search customers
    */
-  search: async (query: string = ''): Promise<any[]> => {
+  search: async (query: string = ''): Promise<{ id: string; code: string; fullName: string; email?: string }[]> => {
     const { data } = await api.get('/customers', {
       params: {
         q: query,
@@ -293,7 +293,7 @@ export const authApi = {
   /**
    * Login
    */
-  login: async (email: string, password: string): Promise<{ token: string; user: any }> => {
+  login: async (email: string, password: string): Promise<{ token: string; user: { id: string; email: string; fullName: string; role: string } }> => {
     const { data } = await api.post('/auth/login', { email, password });
     return data;
   },
@@ -308,7 +308,7 @@ export const authApi = {
   /**
    * Get current user
    */
-  getCurrentUser: async (): Promise<any> => {
+  getCurrentUser: async (): Promise<{ id: string; email: string; fullName: string; role: string }> => {
     const { data } = await api.get('/auth/me');
     return data;
   },
@@ -321,12 +321,13 @@ export const authApi = {
 /**
  * Format API error message for display
  */
-export const formatApiError = (error: any): string => {
-  if (error.response?.data?.message) {
-    return error.response.data.message;
+export const formatApiError = (error: unknown): string => {
+  const e = error as { response?: { data?: { message?: string } }; message?: string };
+  if (e.response?.data?.message) {
+    return e.response.data.message;
   }
-  if (error.message) {
-    return error.message;
+  if (e.message) {
+    return e.message;
   }
   return 'Có lỗi xảy ra. Vui lòng thử lại.';
 };
@@ -334,15 +335,15 @@ export const formatApiError = (error: any): string => {
 /**
  * Check if error is auth error
  */
-export const isAuthError = (error: any): boolean => {
-  return error.response?.status === 401;
+export const isAuthError = (error: unknown): boolean => {
+  return (error as { response?: { status?: number } })?.response?.status === 401;
 };
 
 /**
  * Check if error is validation error
  */
-export const isValidationError = (error: any): boolean => {
-  return error.response?.status === 400;
+export const isValidationError = (error: unknown): boolean => {
+  return (error as { response?: { status?: number } })?.response?.status === 400;
 };
 
 // Export default axios instance for custom requests

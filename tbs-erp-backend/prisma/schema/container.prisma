@@ -8,13 +8,14 @@ enum ContainerStatus {
   IN_TRANSIT
   ARRIVED
   CUSTOMS
+  CUSTOMS_HOLD
   COMPLETED
   ON_HOLD_BORDER
 }
 
 model Container {
   id              String        @id @default(cuid())
-  code            String        @unique            // Mã cont: TBS-CNT-240101-01
+  code            String        @unique            // Mã cont: TBS20260301
   shippingRoute   ShippingRoute @map("shipping_route")
   status          ContainerStatus @default(PLANNING)
   origin          String?                           // Kho TQ
@@ -26,11 +27,25 @@ model Container {
   sealNumber      String?       @map("seal_number")
   vesselName      String?       @map("vessel_name")
 
+  // === THÔNG TIN CONTAINER & VẬN ĐƠN ===
+  containerNumber  String?      @map("container_number") // ISO số cont: MSKU1234567
+  containerSize    String?      @map("container_size")   // 20DC | 40DC | 40HC | LCL
+  blNumber         String?      @map("bl_number")        // Số vận đơn (B/L)
+  voyageNumber     String?      @map("voyage_number")    // Số chuyến tàu
+  portOfLoading    String?      @map("port_of_loading")  // Cảng xếp hàng (TQ)
+  portOfDischarge  String?      @map("port_of_discharge") // Cảng dỡ hàng (VN)
+  customsOfficeCode String?     @map("customs_office_code") // Cửa khẩu khai báo HQ
+  declaredVgm      Decimal?     @map("declared_vgm") @db.Decimal(10, 2) // VGM (kg)
+
   // Trọng lượng & số kiện
   totalPackages   Int           @default(0) @map("total_packages")
   totalWeight     Decimal       @default(0) @map("total_weight") @db.Decimal(10, 2)
   maxCapacity     Decimal?      @map("max_capacity") @db.Decimal(10, 2) // Tấn
   fillRate        Decimal?      @map("fill_rate") @db.Decimal(5, 2)     // %
+
+  // Booking
+  bookingConfirmedAt      DateTime? @map("booking_confirmed_at")
+  bookingConfirmationUrl  String?   @map("booking_confirmation_url")
 
   // Timeline
   estimatedDepartureAt DateTime? @map("estimated_departure_at")
@@ -38,6 +53,24 @@ model Container {
   estimatedArrivalAt   DateTime? @map("estimated_arrival_at")
   actualArrivalAt      DateTime? @map("actual_arrival_at")
   customsClearedAt     DateTime? @map("customs_cleared_at")
+
+  // Customs split tracking
+  clearedPackageCount   Int       @default(0) @map("cleared_package_count")
+  heldPackageCount      Int       @default(0) @map("held_package_count")
+  customsHoldReason     String?   @map("customs_hold_reason")
+  customsHoldAt         DateTime? @map("customs_hold_at")
+  customsHoldResolvedAt DateTime? @map("customs_hold_resolved_at")
+
+  // === LỆNH GIAO HÀNG (D/O — Delivery Order) ===
+  doNumber        String?       @map("do_number")        // Số lệnh giao hàng
+  doReceivedAt    DateTime?     @map("do_received_at")   // Ngày nhận D/O từ đại lý
+  doExpiryAt      DateTime?     @map("do_expiry_at")     // Ngày hết hạn D/O (thường 7-14 ngày)
+  doIssuedBy      String?       @map("do_issued_by")     // Đại lý tàu phát hành
+
+  // === LƯU CONT / LƯU BÃI (Demurrage & Detention) ===
+  freeTimeExpiry   DateTime?    @map("free_time_expiry")   // Ngày hết miễn phí lưu cont
+  demurrageStartAt DateTime?    @map("demurrage_start_at") // Ngày bắt đầu tính phí lưu
+  demurrageNote    String?      @map("demurrage_note")     // Ghi chú về lưu bãi/lưu cont
 
   allocationMethod String       @default("WEIGHT") @map("allocation_method") // WEIGHT | VOLUME | EVEN
 
@@ -50,10 +83,14 @@ model Container {
   packages             Package[]
   trackingEvents       TrackingEvent[]
   operationCosts       OperationCost[]
+  costAllocations      CostAllocation[]
   customsDeclarations  CustomsDeclaration[]
 
   @@index([status])
+  @@index([createdBy])
   @@index([createdAt])
   @@index([estimatedArrivalAt])
+  @@index([containerNumber])
+  @@index([blNumber])
   @@map("containers")
 }

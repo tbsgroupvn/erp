@@ -1,9 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  CustomerTier,
-  ServiceType,
-  OrderStatus,
-} from '@prisma/client';
+import { CustomerTier, ServiceType, OrderStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { DEPOSIT_RATE } from '@common/constants';
 import { PrismaService } from '@core/database/prisma.service';
@@ -66,7 +62,7 @@ export class DepositGateService {
 
   /**
    * Hard rule: checks if procurement (creating supplier orders) is allowed.
-   * Requires at least 70% of total order amount paid as deposit.
+   * Requires deposit paid >= depositRequired (set per customer tier at order creation).
    * If 100% is paid, the order gets priority treatment.
    */
   async canProcure(orderId: string): Promise<ProcurementGateResult> {
@@ -76,6 +72,7 @@ export class DepositGateService {
         id: true,
         totalAmount: true,
         depositPaid: true,
+        depositRequired: true,
         isDepositPaid: true,
       },
     });
@@ -87,17 +84,17 @@ export class DepositGateService {
         isPriority: false,
         depositPaid: 0,
         totalAmount: 0,
-        requiredPercent: 70,
+        requiredPercent: 100,
       };
     }
 
     const totalAmount = Number(order.totalAmount);
     const depositPaid = Number(order.depositPaid);
-    const depositPaidPercent = totalAmount > 0
-      ? (depositPaid / totalAmount) * 100
-      : 0;
+    const depositRequired = Number(order.depositRequired);
+    const depositPaidPercent = totalAmount > 0 ? (depositPaid / totalAmount) * 100 : 0;
+    const requiredPercent = totalAmount > 0 ? (depositRequired / totalAmount) * 100 : 100;
 
-    const allowed = depositPaidPercent >= 70;
+    const allowed = depositPaid >= depositRequired;
     const isPriority = depositPaidPercent >= 100;
 
     return {
@@ -106,7 +103,7 @@ export class DepositGateService {
       isPriority,
       depositPaid,
       totalAmount,
-      requiredPercent: 70,
+      requiredPercent: Math.round(requiredPercent * 100) / 100,
     };
   }
 
@@ -119,7 +116,7 @@ export class DepositGateService {
     return {
       ...gate,
       message: !gate.allowed
-        ? `Cần cọc tối thiểu 70% để mua hàng. Hiện tại: ${gate.depositPaidPercent.toFixed(1)}%`
+        ? `Cần cọc tối thiểu ${gate.requiredPercent}% để mua hàng. Hiện tại: ${gate.depositPaidPercent.toFixed(1)}%`
         : gate.isPriority
           ? 'Đã cọc 100% - Đơn hàng ưu tiên'
           : `Đủ điều kiện mua hàng (${gate.depositPaidPercent.toFixed(1)}%)`,
@@ -143,10 +140,7 @@ export class DepositGateService {
   ): DepositRequirement {
     // VCT (pure shipping) typically doesn't require upfront deposit
     // unless the customer is NEW tier
-    if (
-      serviceType === ServiceType.VCT &&
-      customerTier !== CustomerTier.NEW
-    ) {
+    if (serviceType === ServiceType.VCT && customerTier !== CustomerTier.NEW) {
       return {
         required: false,
         depositRate: 0,

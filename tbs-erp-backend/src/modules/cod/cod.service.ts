@@ -1,13 +1,10 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '@core/database/prisma.service';
 import { CODStatus } from '@prisma/client';
+import { calculateBusinessHoursDeadline } from '@common/utils/business-hours';
 import { RecordCODCollectionDto } from './dto/record-cod-collection.dto';
 import { CodQueryDto } from './dto/cod-query.dto';
 
@@ -18,6 +15,7 @@ export class CodService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -49,7 +47,9 @@ export class CodService {
         },
       });
 
-      this.logger.log(`COD collection updated for delivery ${dto.deliveryId} by driver ${driverId}`);
+      this.logger.log(
+        `COD collection updated for delivery ${dto.deliveryId} by driver ${driverId}`,
+      );
       return updated;
     }
 
@@ -168,9 +168,7 @@ export class CodService {
       confirmedBy: userId,
     });
 
-    this.logger.log(
-      `COD remittance confirmed for driver ${driverId} on ${date}: ${amount}`,
-    );
+    this.logger.log(`COD remittance confirmed for driver ${driverId} on ${date}: ${amount}`);
 
     return {
       driverId,
@@ -304,15 +302,19 @@ export class CodService {
   async enforceCODReconciliation() {
     this.logger.log('Running COD enforcement reconciliation cronjob...');
 
-    const cutoffTime = new Date();
-    cutoffTime.setHours(cutoffTime.getHours() - 24);
+    const enforcementHours = this.configService.get<number>('business.cod.enforcementHours', 24);
+    const businessHoursConfig = this.configService.get('business.businessHours');
 
-    // Find all COLLECTED records older than 24 hours (not yet remitted)
-    const overdueRecords = await this.prisma.cODRecord.findMany({
+    // Pre-filter: use calendar-based cutoff (business hours deadline is always >= calendar hours)
+    const calendarCutoff = new Date();
+    calendarCutoff.setHours(calendarCutoff.getHours() - enforcementHours);
+
+    // Find all COLLECTED records older than enforcementHours (not yet remitted)
+    const candidateRecords = await this.prisma.cODRecord.findMany({
       where: {
         status: CODStatus.COLLECTED,
         collectedAt: {
-          lt: cutoffTime,
+          lt: calendarCutoff,
         },
       },
       select: {
@@ -324,20 +326,31 @@ export class CodService {
       },
     });
 
+    // TX-3: Always use business hours to calculate COD remittance deadline
+    const now = new Date();
+    const overdueRecords = candidateRecords.filter((record) => {
+      if (!record.collectedAt) return true; // No collectedAt means treat as overdue
+      const deadline = calculateBusinessHoursDeadline(
+        record.collectedAt,
+        enforcementHours,
+        businessHoursConfig,
+      );
+      return now >= deadline;
+    });
+
     if (overdueRecords.length === 0) {
       this.logger.log('COD enforcement: No overdue records found.');
       return;
     }
 
     // Get unique driver IDs from overdue records
-    const driverIds = [...new Set(overdueRecords.map((r) => r.driverId))];
+    const driverIds = [...new Set(overdueRecords.map((r) => r.driverId).filter((id): id is string => id !== null))];
 
     this.logger.warn(
       `COD enforcement: Found ${overdueRecords.length} overdue records for ${driverIds.length} driver(s)`,
     );
 
     // Block each driver
-    const now = new Date();
     await this.prisma.driver.updateMany({
       where: {
         id: { in: driverIds },
@@ -353,7 +366,7 @@ export class CodService {
     this.eventEmitter.emit('cod.enforcement.blocked', {
       driverIds,
       overdueRecordCount: overdueRecords.length,
-      cutoffTime,
+      calendarCutoff,
       enforcedAt: now,
     });
 

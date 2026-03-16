@@ -25,6 +25,8 @@ export interface UserProfile {
   role: UserRole;
   branch: Branch | null;
   leaderId: string | null;
+  saleCode?: string | null;
+  hasSaleCode?: boolean;
   isActive: boolean;
   lastLoginAt: string | null;
 }

@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -56,4 +57,12 @@ export class ReceivePackageDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @ApiPropertyOptional({
+    description: 'KhoTQ-2: Force receive even if tracking number is duplicate',
+    example: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  forceReceive?: boolean;
 }

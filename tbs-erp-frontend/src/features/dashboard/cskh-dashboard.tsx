@@ -63,18 +63,24 @@ export function CSKHDashboard() {
           value={typedStats?.open ?? 0}
           icon={AlertCircle}
           description="Chưa được xử lý"
+          variant="blue"
           className={typedStats?.open ? 'border-red-200' : ''}
+          href="/khieu-nai"
         />
         <StatCard
           title="Đang xử lý"
           value={typedStats?.investigating ?? 0}
           icon={Clock}
           description="Đang điều tra"
+          variant="emerald"
+          href="/khieu-nai"
         />
         <StatCard
           title="Đã giải quyết"
           value={typedStats?.resolved ?? 0}
           icon={CheckCircle}
+          variant="amber"
+          href="/khieu-nai"
         />
         <StatCard
           title="Tỉ lệ hài lòng"
@@ -84,18 +90,20 @@ export function CSKHDashboard() {
               : '---'
           }
           icon={ThumbsUp}
+          variant="rose"
+          href="/khieu-nai"
         />
       </div>
 
       {/* Recent Complaints Table */}
-      <div className="rounded-lg border bg-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Khiếu nại gần đây</h3>
+      <div className="section-card">
+        <div className="section-card-header">
+          <span className="text-sm font-semibold text-foreground/80">Khiếu nại gần đây</span>
           <Link href="/khieu-nai" className="text-sm text-primary hover:underline">
             Xem tất cả
           </Link>
         </div>
-        <div className="overflow-x-auto">
+        <div className="px-6 pb-4 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -122,7 +130,7 @@ export function CSKHDashboard() {
                 </tr>
               ) : (
                 complaints.map((c) => (
-                  <tr key={c.id} className="border-b last:border-0">
+                  <tr key={c.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                     <td className="py-3 pr-4">
                       <Link href={`/khieu-nai/${c.id}`} className="text-primary hover:underline">
                         {c.code || c.id.slice(0, 8)}

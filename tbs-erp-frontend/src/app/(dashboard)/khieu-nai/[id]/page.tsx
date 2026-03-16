@@ -265,7 +265,7 @@ export default function ComplaintDetailPage() {
           <div className="flex flex-wrap gap-2">
             {c.attachments.map((url: string, i: number) => (
               <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
-                File {i + 1}
+                Tệp {i + 1}
               </a>
             ))}
           </div>
@@ -302,7 +302,7 @@ export default function ComplaintDetailPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Hình thức giải quyết</label>
+                <p className="text-sm font-medium">Hình thức giải quyết</p>
                 <select
                   value={resolutionType}
                   onChange={(e) => setResolutionType(e.target.value as ResolutionType)}
@@ -314,7 +314,7 @@ export default function ComplaintDetailPage() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Số tiền bồi thường</label>
+                <p className="text-sm font-medium">Số tiền bồi thường</p>
                 <input
                   type="number"
                   value={resolutionAmount}
@@ -324,7 +324,7 @@ export default function ComplaintDetailPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Ghi chú giải quyết</label>
+              <p className="text-sm font-medium">Ghi chú giải quyết</p>
               <textarea
                 value={resolutionNotes}
                 onChange={(e) => setResolutionNotes(e.target.value)}

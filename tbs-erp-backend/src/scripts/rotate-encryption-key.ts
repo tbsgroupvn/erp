@@ -28,12 +28,8 @@ async function main() {
   const keyRotationService = app.get(KeyRotationService);
 
   // Parse batch size from command line args
-  const batchSizeArg = process.argv.find((arg) =>
-    arg.startsWith('--batch-size='),
-  );
-  const batchSize = batchSizeArg
-    ? parseInt(batchSizeArg.split('=')[1], 10)
-    : 100;
+  const batchSizeArg = process.argv.find((arg) => arg.startsWith('--batch-size='));
+  const batchSize = batchSizeArg ? parseInt(batchSizeArg.split('=')[1], 10) : 100;
 
   logger.log(`Starting key rotation with batch size: ${batchSize}`);
 

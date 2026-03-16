@@ -20,6 +20,7 @@ import {
 } from '@/lib/hooks/use-warehouse';
 import { formatDate } from '@/lib/utils/format';
 import type { WarehouseCNStatus, WarehouseVNStatus } from '@/lib/types';
+import { InfoTooltip } from '@/components/shared/info-tooltip';
 
 // ---------------------------------------------------------------------------
 // Status maps
@@ -332,10 +333,10 @@ export default function PackageDetailPage({
             )}
             {hasMeasurements && !showMeasureForm ? (
               <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                <dt className="text-muted-foreground">Cân nặng thực</dt>
+                <dt className="text-muted-foreground flex items-center gap-1">Cân nặng thực <InfoTooltip tipKey="cn-weight" /></dt>
                 <dd className="font-medium">
                   <Scale className="mr-1 inline h-4 w-4" />
-                  {pkg.actualWeight?.toFixed(2)} kg
+                  {pkg.actualWeight != null ? Number(pkg.actualWeight).toFixed(2) : '---'} kg
                 </dd>
 
                 <dt className="text-muted-foreground">Kích thước (D×R×C)</dt>
@@ -345,12 +346,12 @@ export default function PackageDetailPage({
 
                 <dt className="text-muted-foreground">TL thể tích</dt>
                 <dd className="font-medium">
-                  {pkg.volumetricWeight?.toFixed(2) ?? '---'} kg
+                  {pkg.volumetricWeight != null ? Number(pkg.volumetricWeight).toFixed(2) : '---'} kg
                 </dd>
 
-                <dt className="text-muted-foreground">TL tính phí</dt>
+                <dt className="text-muted-foreground flex items-center gap-1">TL tính phí <InfoTooltip tipKey="chargeable-weight" /></dt>
                 <dd className="font-medium">
-                  {pkg.chargeableWeight?.toFixed(2) ?? '---'} kg
+                  {pkg.chargeableWeight != null ? Number(pkg.chargeableWeight).toFixed(2) : '---'} kg
                 </dd>
 
                 {!isWeightLocked && (

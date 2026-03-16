@@ -60,10 +60,7 @@ export class CircuitBreaker {
       }
     }
 
-    if (
-      this.state === CircuitState.HALF_OPEN &&
-      this.halfOpenCalls >= this.halfOpenMaxCalls
-    ) {
+    if (this.state === CircuitState.HALF_OPEN && this.halfOpenCalls >= this.halfOpenMaxCalls) {
       throw new ServiceUnavailableException(
         `Circuit breaker "${this.name}" is HALF_OPEN. Max test calls reached.`,
       );
@@ -117,5 +114,94 @@ export class CircuitBreaker {
   /** Returns the current consecutive failure count. */
   getFailureCount(): number {
     return this.failureCount;
+  }
+}
+
+/**
+ * Redis-backed Circuit Breaker that persists state across process restarts.
+ *
+ * Stores circuit state and failure count in Redis keys:
+ *   - circuit:{name}:state  -> 'CLOSED' | 'OPEN' | 'HALF_OPEN'
+ *   - circuit:{name}:failures -> number
+ *   - circuit:{name}:lastFailure -> timestamp ms
+ *
+ * Falls back to in-memory behavior if Redis is unavailable.
+ */
+export class RedisCircuitBreaker extends CircuitBreaker {
+  private readonly redisPrefix: string;
+  private redis: any; // IoRedis instance
+
+  constructor(options?: CircuitBreakerOptions & { redis?: any }) {
+    super(options);
+    this.redisPrefix = `circuit:${options?.name ?? 'default'}`;
+    this.redis = options?.redis ?? null;
+  }
+
+  /**
+   * Set the Redis client (allows lazy injection).
+   */
+  setRedis(redis: any): void {
+    this.redis = redis;
+  }
+
+  /**
+   * Execute with Redis state sync.
+   */
+  async execute<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.redis) {
+      await this.loadStateFromRedis();
+    }
+
+    try {
+      const result = await super.execute(fn);
+      if (this.redis) {
+        await this.saveStateToRedis();
+      }
+      return result;
+    } catch (error) {
+      if (this.redis) {
+        await this.saveStateToRedis();
+      }
+      throw error;
+    }
+  }
+
+  private async loadStateFromRedis(): Promise<void> {
+    try {
+      const [state, failures, lastFailure] = await this.redis.mget(
+        `${this.redisPrefix}:state`,
+        `${this.redisPrefix}:failures`,
+        `${this.redisPrefix}:lastFailure`,
+      );
+
+      if (state && Object.values(CircuitState).includes(state as CircuitState)) {
+        (this as any).state = state as CircuitState;
+      }
+      if (failures !== null) {
+        (this as any).failureCount = parseInt(failures, 10) || 0;
+      }
+      if (lastFailure !== null) {
+        (this as any).lastFailureTime = parseInt(lastFailure, 10) || 0;
+      }
+    } catch {
+      // Redis unavailable — fall back to in-memory state
+    }
+  }
+
+  private async saveStateToRedis(): Promise<void> {
+    try {
+      const pipeline = this.redis.pipeline();
+      pipeline.set(`${this.redisPrefix}:state`, this.getState(), 'EX', 86400);
+      pipeline.set(`${this.redisPrefix}:failures`, String(this.getFailureCount()), 'EX', 86400);
+      pipeline.set(
+        `${this.redisPrefix}:lastFailure`,
+        String((this as any).lastFailureTime || 0),
+        'EX',
+        86400,
+      );
+      await pipeline.exec();
+    } catch {
+      // Redis unavailable — state only in memory
+    }
   }
 }

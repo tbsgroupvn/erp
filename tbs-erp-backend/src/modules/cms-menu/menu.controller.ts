@@ -10,12 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { MenuService } from './menu.service';
-import {
-  CreateMenuDto,
-  UpdateMenuDto,
-  CreateMenuItemDto,
-  UpdateMenuItemDto,
-} from './dto';
+import { CreateMenuDto, UpdateMenuDto, CreateMenuItemDto, UpdateMenuItemDto } from './dto';
 import { JwtAuthGuard } from '@core/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@core/rbac/guards/roles.guard';
 import { Roles } from '@core/rbac/decorators/roles.decorator';
@@ -48,10 +43,7 @@ export class MenuController {
     @Param('location') location: MenuLocation,
     @Query('activeOnly') activeOnly?: string,
   ) {
-    return this.menuService.findMenuByLocation(
-      location,
-      activeOnly !== 'false',
-    );
+    return this.menuService.findMenuByLocation(location, activeOnly !== 'false');
   }
 
   @Get(':id')
@@ -80,10 +72,7 @@ export class MenuController {
   @Post(':menuId/items')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CEO', 'COO', 'MARKETING_STAFF')
-  createMenuItem(
-    @Param('menuId') menuId: string,
-    @Body() createMenuItemDto: CreateMenuItemDto,
-  ) {
+  createMenuItem(@Param('menuId') menuId: string, @Body() createMenuItemDto: CreateMenuItemDto) {
     return this.menuService.createMenuItem(menuId, createMenuItemDto);
   }
 
@@ -97,10 +86,7 @@ export class MenuController {
   @Patch('items/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CEO', 'COO', 'MARKETING_STAFF')
-  updateMenuItem(
-    @Param('id') id: string,
-    @Body() updateMenuItemDto: UpdateMenuItemDto,
-  ) {
+  updateMenuItem(@Param('id') id: string, @Body() updateMenuItemDto: UpdateMenuItemDto) {
     return this.menuService.updateMenuItem(id, updateMenuItemDto);
   }
 
@@ -114,9 +100,7 @@ export class MenuController {
   @Post('items/reorder')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CEO', 'COO', 'MARKETING_STAFF')
-  reorderMenuItems(
-    @Body() body: { items: { id: string; order: number; parentId?: string }[] },
-  ) {
+  reorderMenuItems(@Body() body: { items: { id: string; order: number; parentId?: string }[] }) {
     return this.menuService.reorderMenuItems(body.items);
   }
 }

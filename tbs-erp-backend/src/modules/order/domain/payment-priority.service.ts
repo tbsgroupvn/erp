@@ -64,22 +64,22 @@ export class PaymentPriorityService {
     );
 
     return this.prisma.executeInTransaction(async (tx) => {
-      // Fetch the customer's wallet and credit info
+      // Fetch the customer's credit info (no lock needed, credit is checked but not decremented atomically here)
       const customer = await tx.customer.findUniqueOrThrow({
         where: { id: customerId },
         select: {
           id: true,
           creditLimit: true,
           currentDebt: true,
-          wallet: {
-            select: { id: true, balance: true },
-          },
         },
       });
 
-      const walletBalance = customer.wallet
-        ? Number(customer.wallet.balance)
-        : 0;
+      // Lock wallet row with FOR UPDATE to prevent concurrent balance reads
+      const walletRows = await tx.$queryRaw<Array<{ id: string; balance: any }>>`
+        SELECT id, balance FROM wallets WHERE customer_id = ${customerId} FOR UPDATE`;
+
+      const walletRow = walletRows.length > 0 ? walletRows[0] : null;
+      const walletBalance = walletRow ? Number(walletRow.balance) : 0;
       const creditLimit = Number(customer.creditLimit);
       const currentDebt = Number(customer.currentDebt);
       const creditRemaining = Math.max(0, creditLimit - currentDebt);
@@ -89,32 +89,30 @@ export class PaymentPriorityService {
       let creditUsed = 0;
 
       // Step 1: Deduct from wallet
-      if (walletBalance > 0 && remainingAmount > 0) {
+      if (walletBalance > 0 && remainingAmount > 0 && walletRow) {
         walletDeducted = Math.min(walletBalance, remainingAmount);
         remainingAmount -= walletDeducted;
 
-        if (customer.wallet) {
-          // Deduct wallet balance
-          await tx.wallet.update({
-            where: { id: customer.wallet.id },
-            data: {
-              balance: {
-                decrement: new Decimal(walletDeducted),
-              },
+        // Deduct wallet balance
+        await tx.wallet.update({
+          where: { id: walletRow.id },
+          data: {
+            balance: {
+              decrement: new Decimal(walletDeducted),
             },
-          });
+          },
+        });
 
-          // Record wallet transaction
-          await tx.walletTransaction.create({
-            data: {
-              walletId: customer.wallet.id,
-              amount: new Decimal(-walletDeducted),
-              type: 'DEDUCT',
-              reference: orderId,
-              note: `Payment for order ${orderId}`,
-            },
-          });
-        }
+        // Record wallet transaction
+        await tx.walletTransaction.create({
+          data: {
+            walletId: walletRow.id,
+            amount: new Decimal(-walletDeducted),
+            type: 'DEDUCT',
+            reference: orderId,
+            note: `Payment for order ${orderId}`,
+          },
+        });
 
         this.logger.log(
           `Step 1: Deducted ${walletDeducted} from wallet (balance was ${walletBalance})`,
@@ -145,9 +143,7 @@ export class PaymentPriorityService {
 
       // Step 4: If still not enough, emit event for notification
       if (!canDeliver) {
-        this.logger.warn(
-          `Payment insufficient for order ${orderId}: remaining=${remainingAmount}`,
-        );
+        this.logger.warn(`Payment insufficient for order ${orderId}: remaining=${remainingAmount}`);
 
         this.eventEmitter.emit('payment.insufficient', {
           orderId,

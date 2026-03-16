@@ -25,8 +25,7 @@ export class PrismaService
   private readonly logger = new Logger(PrismaService.name);
 
   constructor(private readonly configService: ConfigService) {
-    const isDev =
-      configService.get<string>('app.env', 'development') === 'development';
+    const isDev = configService.get<string>('app.env', 'development') === 'development';
 
     super({
       datasources: {
@@ -64,9 +63,7 @@ export class PrismaService
             `CRITICAL slow query (${event.duration}ms): ${event.query.substring(0, 200)}`,
           );
         } else if (event.duration > 200) {
-          this.logger.warn(
-            `Slow query (${event.duration}ms): ${event.query.substring(0, 200)}`,
-          );
+          this.logger.warn(`Slow query (${event.duration}ms): ${event.query.substring(0, 200)}`);
         }
       });
     }
@@ -78,6 +75,31 @@ export class PrismaService
     this.$on('warn', (event: Prisma.LogEvent) => {
       this.logger.warn(`Prisma warning: ${event.message}`);
     });
+  }
+
+  private _isHealthy = true;
+
+  get isHealthy(): boolean {
+    return this._isHealthy;
+  }
+
+  /**
+   * Quick health check - runs a simple query to verify DB connectivity.
+   * Called by health indicators and monitoring.
+   */
+  async healthCheck(): Promise<boolean> {
+    try {
+      await this.$queryRaw`SELECT 1`;
+      if (!this._isHealthy) {
+        this.logger.log('Database connection restored.');
+      }
+      this._isHealthy = true;
+      return true;
+    } catch (error) {
+      this._isHealthy = false;
+      this.logger.error(`Database health check failed: ${error.message}`);
+      return false;
+    }
   }
 
   private static readonly MAX_CONNECTION_RETRIES = 5;
@@ -114,9 +136,7 @@ export class PrismaService
           );
         }
 
-        this.logger.log(
-          `Retrying database connection in ${PrismaService.RETRY_DELAY_MS}ms...`,
-        );
+        this.logger.log(`Retrying database connection in ${PrismaService.RETRY_DELAY_MS}ms...`);
         await new Promise((resolve) => setTimeout(resolve, PrismaService.RETRY_DELAY_MS));
       }
     }
@@ -140,6 +160,16 @@ export class PrismaService
       try {
         return await this.$transaction(fn);
       } catch (error) {
+        // Detect connection-level errors and mark DB as unhealthy
+        if (
+          error instanceof Prisma.PrismaClientInitializationError ||
+          error instanceof Prisma.PrismaClientRustPanicError
+        ) {
+          this._isHealthy = false;
+          this.logger.error(`Database connection lost during transaction: ${error.message}`);
+          throw new InternalServerErrorException('Database temporarily unavailable');
+        }
+
         attempt++;
         if (
           error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -173,8 +203,6 @@ export class PrismaService
         typeof (this as any)[key]?.deleteMany === 'function',
     ) as string[];
 
-    await this.$transaction(
-      tablenames.map((table) => (this as any)[table].deleteMany()),
-    );
+    await this.$transaction(tablenames.map((table) => (this as any)[table].deleteMany()));
   }
 }

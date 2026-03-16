@@ -1,0 +1,106 @@
+// ============================================
+// OKR — Objectives & Key Results
+// ============================================
+
+enum OKRPeriod {
+  Q1
+  Q2
+  Q3
+  Q4
+  ANNUAL
+}
+
+enum OKRLevel {
+  COMPANY    // Cap cong ty
+  DEPARTMENT // Cap phong ban
+  INDIVIDUAL // Cap ca nhan
+}
+
+enum OKRStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum KeyResultStatus {
+  NOT_STARTED
+  ON_TRACK
+  AT_RISK
+  BEHIND
+  COMPLETED
+}
+
+model Objective {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  period      OKRPeriod
+  year        Int         // 2025, 2026...
+  level       OKRLevel
+  status      OKRStatus   @default(DRAFT)
+  ownerId     String      @map("owner_id")   // userId
+  department  String?                        // team/dept name
+  parentId    String?     @map("parent_id")  // link to parent OKR (company -> dept -> individual)
+  parent      Objective?  @relation("OKRTree", fields: [parentId], references: [id])
+  children    Objective[] @relation("OKRTree")
+
+  keyResults  KeyResult[]
+
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  @@index([ownerId])
+  @@index([period, year])
+  @@index([level])
+  @@map("objectives")
+}
+
+model KeyResult {
+  id           String          @id @default(cuid())
+  objectiveId  String          @map("objective_id")
+  objective    Objective       @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  metricType   String          @default("PERCENTAGE") @map("metric_type") // PERCENTAGE, NUMBER, BOOLEAN, CURRENCY
+  targetValue  Float           @map("target_value")
+  currentValue Float           @default(0) @map("current_value")
+  unit         String?         // "%", "VND", "orders", etc.
+  status       KeyResultStatus @default(NOT_STARTED)
+  ownerId      String          @map("owner_id")
+  dueDate      DateTime?       @map("due_date")
+
+  checkIns    OKRCheckIn[]
+  linkedTasks OKRTaskLink[]
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([objectiveId])
+  @@map("key_results")
+}
+
+model OKRCheckIn {
+  id          String    @id @default(cuid())
+  keyResultId String    @map("key_result_id")
+  keyResult   KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  value       Float
+  note        String?
+  createdBy   String    @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([keyResultId])
+  @@map("okr_check_ins")
+}
+
+model OKRTaskLink {
+  id          String    @id @default(cuid())
+  keyResultId String    @map("key_result_id")
+  keyResult   KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  taskId      String    @map("task_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([keyResultId, taskId])
+  @@map("okr_task_links")
+}

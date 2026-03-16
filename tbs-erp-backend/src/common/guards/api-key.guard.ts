@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { createHash } from 'crypto';
@@ -40,7 +41,7 @@ export class ApiKeyGuard implements CanActivate {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
-  ) { }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -83,24 +84,65 @@ export class ApiKeyGuard implements CanActivate {
       throw new UnauthorizedException('API key has expired');
     }
 
-    // Check rate limit using Redis sliding window
-    const rateLimitKey = `api_key_rate:${prefix}`;
-    const currentCount = await this.cacheService.get<number>(rateLimitKey);
-    const limit = apiKeyRecord.rateLimit || 1000;
-
-    const currentCountVal = currentCount ?? 0;
-    if (currentCountVal >= limit) {
-      this.logger.warn(`Rate limit exceeded for API key: ${prefix} (${currentCountVal}/${limit})`);
-      throw new UnauthorizedException(
-        `Rate limit exceeded. Maximum ${limit} requests per hour.`,
-      );
+    // Enforce API key expiry in production
+    const maskedKey = `${prefix}...`;
+    if (!apiKeyRecord.expiresAt) {
+      const appEnv = process.env.APP_ENV || 'development';
+      if (appEnv === 'production') {
+        this.logger.warn(`API key ${maskedKey} has no expiration date — rejected in production`);
+        throw new UnauthorizedException('API key must have an expiration date set');
+      }
+      this.logger.warn(`API key ${maskedKey} has no expiration date. Consider setting one.`);
     }
 
-    // Increment rate counter
-    if (currentCount === null) {
-      await this.cacheService.set(rateLimitKey, 1, 3600); // 1 hour TTL
-    } else {
-      await this.cacheService.set(rateLimitKey, currentCountVal + 1, 3600);
+    // Check rate limit using Redis sliding window (fail CLOSED if Redis is down)
+    const rateLimitKey = `api_key_rate:${prefix}`;
+    const limit = apiKeyRecord.rateLimit || 1000;
+
+    try {
+      const currentCount = await this.cacheService.get<number>(rateLimitKey);
+      const currentCountVal = currentCount ?? 0;
+
+      if (currentCountVal >= limit) {
+        this.logger.warn(
+          `Rate limit exceeded for API key: ${maskedKey} (${currentCountVal}/${limit})`,
+        );
+        throw new UnauthorizedException(
+          `Rate limit exceeded. Maximum ${limit} requests per hour.`,
+        );
+      }
+
+      // Try to increment rate counter. If Redis is down, set() returns false.
+      const setSuccess = await this.cacheService.set(
+        rateLimitKey,
+        currentCountVal + 1,
+        3600, // 1 hour TTL
+      );
+
+      if (!setSuccess) {
+        // Redis write failed — cannot enforce rate limits, so fail closed
+        this.logger.error(
+          `Redis unavailable for rate limiting. Failing closed for API key ${maskedKey}.`,
+        );
+        throw new ServiceUnavailableException(
+          'Rate limiting service temporarily unavailable. Please retry later.',
+        );
+      }
+    } catch (error) {
+      // Re-throw known HTTP exceptions
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof ServiceUnavailableException
+      ) {
+        throw error;
+      }
+      // Any unexpected error → fail closed
+      this.logger.error(
+        `Rate limit check failed for API key ${maskedKey}: ${error.message}`,
+      );
+      throw new ServiceUnavailableException(
+        'Rate limiting service temporarily unavailable. Please retry later.',
+      );
     }
 
     // Check endpoint permissions
@@ -109,12 +151,8 @@ export class ApiKeyGuard implements CanActivate {
     if (apiKeyRecord.permissions && apiKeyRecord.permissions.length > 0) {
       const hasPermission = this.checkPermission(apiKeyRecord.permissions, route, method);
       if (!hasPermission) {
-        this.logger.warn(
-          `API key ${prefix} lacks permission for ${method} ${route}`,
-        );
-        throw new UnauthorizedException(
-          'API key does not have permission for this endpoint',
-        );
+        this.logger.warn(`API key ${prefix} lacks permission for ${method} ${route}`);
+        throw new UnauthorizedException('API key does not have permission for this endpoint');
       }
     }
 
@@ -147,11 +185,7 @@ export class ApiKeyGuard implements CanActivate {
    * Route matching is simplified — it checks if any permission pattern
    * matches the route path.
    */
-  private checkPermission(
-    permissions: string[],
-    route: string,
-    method: string,
-  ): boolean {
+  private checkPermission(permissions: string[], route: string, method: string): boolean {
     // Wildcard permission
     if (permissions.includes('*:*') || permissions.includes('*')) {
       return true;

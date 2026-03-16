@@ -7,20 +7,12 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
-import {
-  OrderStatus,
-  ServiceType,
-  ClearanceType,
-  Prisma,
-  CustomerTier,
-  UserRole,
-  Currency,
-} from '@prisma/client';
+import { OrderStatus, ServiceType, Prisma, Currency } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
+import { buildDateFilter } from '@common/utils/date.util';
 import { DataScopeFilter } from '@common/guards/data-scope.guard';
 import { OrderRepository, OrderWithRelations } from './order.repository';
-import { OrderStatusMachine } from './domain/order-status.machine';
 import { DepositGateService } from './domain/deposit-gate.service';
 import { ExchangeRateService } from '@modules/exchange-rate/exchange-rate.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -34,7 +26,6 @@ export class OrderService {
   constructor(
     private readonly orderRepo: OrderRepository,
     private readonly prisma: PrismaService,
-    private readonly statusMachine: OrderStatusMachine,
     private readonly depositGate: DepositGateService,
     private readonly eventEmitter: EventEmitter2,
     private readonly exchangeRateService: ExchangeRateService,
@@ -63,9 +54,7 @@ export class OrderService {
     });
 
     if (!customer) {
-      throw new NotFoundException(
-        `Customer with ID ${dto.customerId} not found`,
-      );
+      throw new NotFoundException(`Customer with ID ${dto.customerId} not found`);
     }
 
     if (!customer.isActive) {
@@ -91,17 +80,15 @@ export class OrderService {
     const code = await this.orderRepo.generateOrderCode();
 
     // Prepare order items
-    const items: Prisma.OrderItemCreateWithoutOrderInput[] = dto.items.map(
-      (item) => ({
-        productName: item.productName,
-        productUrl: item.productUrl,
-        quantity: item.quantity,
-        unitPrice: new Decimal(item.unitPrice),
-        currency: item.currency ?? 'CNY',
-        totalPrice: new Decimal(item.quantity * item.unitPrice),
-        note: item.note,
-      }),
-    );
+    const items: Prisma.OrderItemCreateWithoutOrderInput[] = dto.items.map((item) => ({
+      productName: item.productName,
+      productUrl: item.productUrl,
+      quantity: item.quantity,
+      unitPrice: new Decimal(item.unitPrice),
+      currency: item.currency ?? 'CNY',
+      totalPrice: new Decimal(item.quantity * item.unitPrice),
+      note: item.note,
+    }));
 
     // Resolve exchange rate mode from customer settings
     let baseExchangeRate: Decimal | null = null;
@@ -125,33 +112,87 @@ export class OrderService {
       }
     }
 
-    // Create the order
-    const order = await this.orderRepo.create(
-      {
-        code,
-        customer: { connect: { id: dto.customerId } },
-        saleId: currentUser.id,
-        serviceType: dto.serviceType,
-        branch: dto.branch,
-        shippingRoute: dto.shippingRoute,
-        status: OrderStatus.CONSULTING,
-        totalAmount: new Decimal(totalAmount),
-        depositRequired: new Decimal(depositReq.depositAmount),
-        note: dto.note,
-        exchangeRateMode,
-        ...(baseExchangeRate !== null && { baseExchangeRate }),
-      },
-      items,
-    );
+    // Wrap order creation and initial status history in a single transaction
+    // so that a failure during status history insertion rolls back the order row.
+    // Event emission is intentionally placed AFTER the transaction commits.
+    const orderData: Prisma.OrderCreateInput = {
+      code,
+      customer: { connect: { id: dto.customerId } },
+      saleId: currentUser.id,
+      serviceType: dto.serviceType,
+      branch: dto.branch,
+      shippingRoute: dto.shippingRoute,
+      status: OrderStatus.CONSULTING,
+      totalAmount: new Decimal(totalAmount),
+      depositRequired: new Decimal(depositReq.depositAmount),
+      note: dto.note,
+      exchangeRateMode,
+      ...(baseExchangeRate !== null && { baseExchangeRate }),
+    };
 
-    // Create initial status history
-    await this.orderRepo.createStatusHistory({
-      orderId: order.id,
-      fromStatus: null,
-      toStatus: OrderStatus.CONSULTING,
-      changedBy: currentUser.id,
-      note: 'Order created',
-    });
+    let order: Awaited<ReturnType<typeof this.orderRepo.create>> =
+      undefined as unknown as Awaited<ReturnType<typeof this.orderRepo.create>>;
+
+    // Retry loop mirrors orderRepo.create() to handle P2002 code collisions.
+    let created = false;
+    let attempt = 0;
+    while (!created && attempt < 3) {
+      const dataForAttempt: Prisma.OrderCreateInput =
+        attempt > 0
+          ? { ...orderData, code: await this.orderRepo.generateOrderCode() }
+          : orderData;
+
+      try {
+        order = await this.prisma.$transaction(async (tx) => {
+          // 1. Create order + items atomically
+          const newOrder = await tx.order.create({
+            data: {
+              ...dataForAttempt,
+              items: { create: items },
+            },
+            include: {
+              items: { where: { deletedAt: null } },
+              customer: {
+                select: {
+                  id: true,
+                  code: true,
+                  fullName: true,
+                  companyName: true,
+                  tier: true,
+                  phone: true,
+                },
+              },
+            },
+          });
+
+          // 2. Create initial status history in the same transaction
+          await tx.orderStatusHistory.create({
+            data: {
+              orderId: newOrder.id,
+              fromStatus: null,
+              toStatus: OrderStatus.CONSULTING,
+              changedBy: currentUser.id,
+              note: 'Order created',
+            },
+          });
+
+          return newOrder;
+        });
+
+        created = true;
+      } catch (error) {
+        if (error.code === 'P2002' && attempt < 2) {
+          this.logger.warn(`Order code conflict on attempt ${attempt + 1}, retrying...`);
+          attempt++;
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    if (!created) {
+      throw new Error('Failed to create order after 3 attempts');
+    }
 
     // Emit order created event
     this.eventEmitter.emit('order.created', {
@@ -218,16 +259,8 @@ export class OrderService {
     }
 
     // Date range filter
-    if (query.startDate || query.endDate) {
-      const dateFilter: { gte?: Date; lte?: Date } = {};
-      if (query.startDate) {
-        dateFilter.gte = new Date(query.startDate);
-      }
-      if (query.endDate) {
-        const endOfDay = new Date(query.endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        dateFilter.lte = endOfDay;
-      }
+    const dateFilter = buildDateFilter(query.startDate, query.endDate);
+    if (dateFilter) {
       where.createdAt = dateFilter;
     }
 
@@ -278,10 +311,7 @@ export class OrderService {
     }
 
     // Only allow edits in early stages
-    const editableStatuses: OrderStatus[] = [
-      OrderStatus.CONSULTING,
-      OrderStatus.QUOTATION,
-    ];
+    const editableStatuses: OrderStatus[] = [OrderStatus.CONSULTING, OrderStatus.QUOTATION];
 
     if (!editableStatuses.includes(order.status)) {
       throw new BadRequestException(
@@ -315,7 +345,7 @@ export class OrderService {
         productUrl: item.productUrl,
         quantity: item.quantity,
         unitPrice: new Decimal(item.unitPrice),
-        currency: item.currency ?? 'CNY' as any,
+        currency: item.currency ?? ('CNY' as any),
         totalPrice: new Decimal(item.quantity * item.unitPrice),
         note: item.note,
       }));
@@ -323,10 +353,7 @@ export class OrderService {
       await this.orderRepo.replaceItems(id, newItems);
 
       // Recalculate total amount
-      const totalAmount = dto.items.reduce(
-        (sum, item) => sum + item.quantity * item.unitPrice,
-        0,
-      );
+      const totalAmount = dto.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
       updateData.totalAmount = new Decimal(totalAmount);
 
       // Recalculate deposit if needed
@@ -336,8 +363,7 @@ export class OrderService {
       });
 
       if (customer) {
-        const serviceType =
-          (dto.serviceType as ServiceType) ?? order.serviceType;
+        const serviceType = (dto.serviceType as ServiceType) ?? order.serviceType;
         const depositReq = this.depositGate.checkDepositRequirement(
           totalAmount,
           customer.tier,
@@ -357,479 +383,5 @@ export class OrderService {
     });
 
     return updated;
-  }
-
-  /**
-   * Changes the status of an order with FSM validation.
-   *
-   * Validates the transition using the state machine, checks deposit gate
-   * for MHH orders, creates history record, and emits status change event.
-   */
-  async changeStatus(
-    id: string,
-    newStatus: OrderStatus,
-    userId: string,
-    note?: string,
-  ) {
-    const order = await this.orderRepo.findById(id);
-
-    if (!order) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
-    }
-
-    // Validate FSM transition
-    this.statusMachine.assertTransition(
-      order.status,
-      newStatus,
-      order.serviceType,
-    );
-
-    // Check deposit gate for SOURCING transition
-    const depositBlock = this.depositGate.shouldBlockTransition(
-      order,
-      newStatus,
-    );
-
-    if (depositBlock.blocked) {
-      throw new BadRequestException(depositBlock.reason);
-    }
-
-    // Prepare additional data for specific transitions
-    const additionalData: Prisma.OrderUpdateInput = {};
-
-    if (newStatus === OrderStatus.COMPLETED) {
-      additionalData.completedAt = new Date();
-    }
-
-    // Perform the status update
-    const updated = await this.orderRepo.updateStatus(
-      id,
-      order.status,
-      newStatus,
-      userId,
-      note,
-      additionalData,
-    );
-
-    // Emit status change event
-    this.eventEmitter.emit('order.status.changed', {
-      orderId: id,
-      code: order.code,
-      customerId: order.customerId,
-      fromStatus: order.status,
-      toStatus: newStatus,
-      changedBy: userId,
-      serviceType: order.serviceType,
-    });
-
-    // When order moves to SOURCING, it means deposit is satisfied and order is confirmed.
-    // Emit order.confirmed so AR module creates a receivable for the remaining balance.
-    if (newStatus === OrderStatus.SOURCING) {
-      const remainingAmount =
-        Number(order.totalAmount) - Number(order.depositPaid);
-
-      if (remainingAmount > 0) {
-        this.eventEmitter.emit('order.confirmed', {
-          orderId: id,
-          customerId: order.customerId,
-          totalAmount: remainingAmount,
-          createdBy: userId,
-        });
-
-        this.logger.log(
-          `Order ${order.code} confirmed: AR created for remaining ${remainingAmount} VND`,
-        );
-      }
-    }
-
-    this.logger.log(
-      `Order ${order.code} status changed: ${order.status} -> ${newStatus} by ${userId}`,
-    );
-
-    return updated;
-  }
-
-  /**
-   * Cancels an order with a reason.
-   *
-   * Cancellation stages determine refund calculation and approval flow:
-   * - Stage 1-2 (CONSULTING, QUOTATION — before deposit): No refund needed, Leader approves
-   * - Stage 3 (PENDING_DEPOSIT — deposited, not purchased): Refund deposit minus admin fee (2%), Leader + GD KD approve
-   * - Stage 4-6 (SOURCING, WAREHOUSE_CN, PACKING — purchased): Refund = deposit - costs incurred, GD KD + BGD approve
-   * - Stage 7+ (CONSOLIDATION and beyond — shipped): Case-by-case, BGD approval only
-   */
-  async cancelOrder(id: string, reason: string, userId: string) {
-    const order = await this.orderRepo.findById(id);
-
-    if (!order) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
-    }
-
-    // Check if cancellation is allowed
-    if (!this.statusMachine.canCancel(order.status)) {
-      throw new BadRequestException(
-        `Order in status ${order.status} cannot be cancelled. ` +
-          `Orders that are IN_TRANSIT or beyond cannot be cancelled.`,
-      );
-    }
-
-    if (!reason || reason.trim().length < 10) {
-      throw new BadRequestException(
-        'Cancel reason must be at least 10 characters',
-      );
-    }
-
-    // Calculate refund based on cancellation stage
-    const cancellation = this.calculateCancellationRefund(order);
-
-    // Determine approval steps based on stage
-    const approvalSteps = this.getCancelApprovalSteps(cancellation.stage);
-
-    // Stage 1-2 with no deposit: direct cancellation with Leader approval if high value
-    const needsApproval =
-      cancellation.stage !== 'BEFORE_DEPOSIT' ||
-      Number(order.totalAmount) > 50_000_000;
-
-    if (needsApproval) {
-      // Create approval request with refund details
-      const approval = await this.prisma.approval.create({
-        data: {
-          type: 'ORDER_CANCEL',
-          referenceId: id,
-          referenceCode: order.code,
-          requestedBy: userId,
-          requestData: {
-            orderId: id,
-            orderCode: order.code,
-            currentStatus: order.status,
-            totalAmount: Number(order.totalAmount),
-            cancelReason: reason,
-            cancellationStage: cancellation.stage,
-            depositPaid: cancellation.depositPaid,
-            adminFee: cancellation.adminFee,
-            costsIncurred: cancellation.costsIncurred,
-            refundAmount: cancellation.refundAmount,
-            refundDetails: cancellation.details,
-          },
-          totalSteps: approvalSteps.length,
-          steps: {
-            create: approvalSteps.map((step, index) => ({
-              stepNumber: index + 1,
-              approverRole: step as UserRole,
-            })),
-          },
-        },
-      });
-
-      // Update order with cancel reason (but don't change status yet)
-      await this.orderRepo.update(id, { cancelReason: reason });
-
-      this.eventEmitter.emit('order.cancel.requested', {
-        orderId: id,
-        code: order.code,
-        approvalId: approval.id,
-        requestedBy: userId,
-        reason,
-        cancellation,
-      });
-
-      this.logger.log(
-        `Cancel approval requested for order ${order.code} by ${userId} ` +
-          `(stage=${cancellation.stage}, refund=${cancellation.refundAmount})`,
-      );
-
-      return {
-        status: 'PENDING_APPROVAL',
-        approvalId: approval.id,
-        message: 'Cancellation requires approval. An approval request has been created.',
-        cancellation,
-      };
-    }
-
-    // Direct cancellation (no approval needed — early stage, low value)
-    const updated = await this.orderRepo.updateStatus(
-      id,
-      order.status,
-      OrderStatus.CANCELLED,
-      userId,
-      `Cancelled: ${reason}`,
-      { cancelReason: reason },
-    );
-
-    this.eventEmitter.emit('order.cancelled', {
-      orderId: id,
-      code: order.code,
-      customerId: order.customerId,
-      cancelledBy: userId,
-      reason,
-      previousStatus: order.status,
-      cancellation,
-    });
-
-    this.logger.log(
-      `Order ${order.code} cancelled by ${userId}: ${reason}`,
-    );
-
-    return { status: 'CANCELLED', order: updated, cancellation };
-  }
-
-  /**
-   * Calculate the refund amount based on the order's current stage.
-   */
-  private calculateCancellationRefund(order: OrderWithRelations) {
-    const depositPaid = Number(order.depositPaid);
-    const totalAmount = Number(order.totalAmount);
-    const ADMIN_FEE_RATE = 0.02; // 2% admin fee
-
-    // Stage 1-2: CONSULTING, QUOTATION — before deposit
-    if (
-      order.status === OrderStatus.CONSULTING ||
-      order.status === OrderStatus.QUOTATION
-    ) {
-      return {
-        stage: 'BEFORE_DEPOSIT' as const,
-        depositPaid: 0,
-        adminFee: 0,
-        costsIncurred: 0,
-        refundAmount: 0,
-        details: 'No deposit has been paid. No refund needed.',
-      };
-    }
-
-    // Stage 3: PENDING_DEPOSIT — deposited but not yet purchased
-    if (order.status === OrderStatus.PENDING_DEPOSIT) {
-      const adminFee = Math.ceil(depositPaid * ADMIN_FEE_RATE);
-      const refundAmount = Math.max(0, depositPaid - adminFee);
-
-      return {
-        stage: 'DEPOSITED_NOT_PURCHASED' as const,
-        depositPaid,
-        adminFee,
-        costsIncurred: 0,
-        refundAmount,
-        details:
-          `Deposit paid: ${depositPaid.toLocaleString()} VND. ` +
-          `Admin fee (2%): ${adminFee.toLocaleString()} VND. ` +
-          `Refund amount: ${refundAmount.toLocaleString()} VND.`,
-      };
-    }
-
-    // Stage 4-6: SOURCING, WAREHOUSE_CN, PACKING — goods purchased
-    if (
-      order.status === OrderStatus.SOURCING ||
-      order.status === OrderStatus.WAREHOUSE_CN ||
-      order.status === OrderStatus.PACKING
-    ) {
-      // Estimate costs incurred from payment vouchers
-      const costsIncurred = this.estimateCostsIncurred(order);
-      const adminFee = Math.ceil(depositPaid * ADMIN_FEE_RATE);
-      const refundAmount = Math.max(
-        0,
-        depositPaid - costsIncurred - adminFee,
-      );
-
-      return {
-        stage: 'GOODS_PURCHASED' as const,
-        depositPaid,
-        adminFee,
-        costsIncurred,
-        refundAmount,
-        details:
-          `Deposit paid: ${depositPaid.toLocaleString()} VND. ` +
-          `Costs incurred: ${costsIncurred.toLocaleString()} VND. ` +
-          `Admin fee (2%): ${adminFee.toLocaleString()} VND. ` +
-          `Refund amount: ${refundAmount.toLocaleString()} VND.`,
-      };
-    }
-
-    // Stage 7+: CONSOLIDATION and beyond — shipped, case-by-case
-    const costsIncurred = this.estimateCostsIncurred(order);
-    return {
-      stage: 'SHIPPED' as const,
-      depositPaid,
-      adminFee: 0,
-      costsIncurred,
-      refundAmount: 0,
-      details:
-        `Order is in ${order.status} stage. Case-by-case review required. ` +
-        `Deposit paid: ${depositPaid.toLocaleString()} VND. ` +
-        `Estimated costs incurred: ${costsIncurred.toLocaleString()} VND. ` +
-        `Refund to be determined by BGD.`,
-    };
-  }
-
-  /**
-   * Estimate costs incurred for an order based on approved payment vouchers.
-   */
-  private estimateCostsIncurred(order: OrderWithRelations): number {
-    if (!order.paymentVouchers || order.paymentVouchers.length === 0) {
-      return 0;
-    }
-
-    return order.paymentVouchers
-      .filter((v) => v.status === 'APPROVED' && v.type === 'PAYMENT')
-      .reduce((sum, v) => sum + Number(v.amount), 0);
-  }
-
-  /**
-   * Determine the approval steps required for a cancellation stage.
-   */
-  private getCancelApprovalSteps(
-    stage: 'BEFORE_DEPOSIT' | 'DEPOSITED_NOT_PURCHASED' | 'GOODS_PURCHASED' | 'SHIPPED',
-  ): string[] {
-    switch (stage) {
-      case 'BEFORE_DEPOSIT':
-        // Leader approves
-        return ['SALES_LEADER'];
-
-      case 'DEPOSITED_NOT_PURCHASED':
-        // Leader + GD KD approve
-        return ['SALES_LEADER', 'SALES_DIRECTOR'];
-
-      case 'GOODS_PURCHASED':
-        // GD KD + BGD approve
-        return ['SALES_DIRECTOR', 'COO'];
-
-      case 'SHIPPED':
-        // BGD approval only
-        return ['COO'];
-
-      default:
-        return ['SALES_LEADER'];
-    }
-  }
-
-  /**
-   * Update deposit payment information for an order.
-   * Called when a payment is received against the order's deposit.
-   */
-  async updateDepositPayment(orderId: string, amount: number) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      select: {
-        id: true,
-        depositRequired: true,
-        depositPaid: true,
-      },
-    });
-
-    if (!order) {
-      throw new NotFoundException(`Order ${orderId} not found`);
-    }
-
-    const newDepositPaid = Number(order.depositPaid) + amount;
-    const isDepositPaid = newDepositPaid >= Number(order.depositRequired);
-
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: {
-        depositPaid: new Decimal(newDepositPaid),
-        isDepositPaid,
-      },
-    });
-
-    this.logger.log(
-      `Order ${orderId}: deposit updated +${amount}, total paid=${newDepositPaid}, satisfied=${isDepositPaid}`,
-    );
-
-    return { orderId, depositPaid: newDepositPaid, isDepositPaid };
-  }
-
-  /**
-   * B6: Updates the fulfillment status of an order based on delivered packages.
-   *
-   * - FULL: all packages have deliveredAt set
-   * - PARTIAL: some packages delivered, but not all
-   * - NONE: no packages delivered
-   *
-   * Falls back to item-based fulfillment if no packages exist.
-   */
-  async updateFulfillmentStatus(orderId: string) {
-    // B6: Package-based fulfillment
-    const totalPackages = await this.prisma.package.count({
-      where: { orderId },
-    });
-
-    const deliveredPackages = await this.prisma.package.count({
-      where: { orderId, deliveredAt: { not: null } },
-    });
-
-    let fulfillmentStatus: string;
-
-    if (totalPackages === 0) {
-      // Fall back to item-based fulfillment if no packages exist
-      const items = await this.prisma.orderItem.findMany({
-        where: { orderId },
-        select: { quantity: true, fulfilledQuantity: true },
-      });
-
-      if (items.length === 0) return;
-
-      const totalOrdered = items.reduce((sum, i) => sum + i.quantity, 0);
-      const totalFulfilled = items.reduce(
-        (sum, i) => sum + i.fulfilledQuantity,
-        0,
-      );
-
-      if (totalFulfilled === 0) {
-        fulfillmentStatus = 'NONE';
-      } else if (totalFulfilled >= totalOrdered) {
-        fulfillmentStatus = 'FULL';
-      } else {
-        fulfillmentStatus = 'PARTIAL';
-      }
-    } else {
-      if (deliveredPackages === 0) {
-        fulfillmentStatus = 'NONE';
-      } else if (deliveredPackages >= totalPackages) {
-        fulfillmentStatus = 'FULL';
-      } else {
-        fulfillmentStatus = 'PARTIAL';
-      }
-    }
-
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: { fulfillmentStatus },
-    });
-
-    this.logger.log(
-      `Order ${orderId}: fulfillment status updated to ${fulfillmentStatus} ` +
-        `(${deliveredPackages}/${totalPackages} packages delivered)`,
-    );
-
-    return { orderId, fulfillmentStatus, totalPackages, deliveredPackages };
-  }
-
-  /**
-   * Update total weight fields for an order based on its packages.
-   */
-  async recalculateOrderWeights(orderId: string) {
-    const packages = await this.prisma.package.findMany({
-      where: { orderId },
-      select: { actualWeight: true, chargeableWeight: true },
-    });
-
-    const totalActualWeight = packages.reduce(
-      (sum, p) => sum + (p.actualWeight ? Number(p.actualWeight) : 0),
-      0,
-    );
-
-    const totalChargeableWeight = packages.reduce(
-      (sum, p) => sum + (p.chargeableWeight ? Number(p.chargeableWeight) : 0),
-      0,
-    );
-
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: {
-        totalActualWeight: new Decimal(totalActualWeight),
-        totalChargeableWeight: new Decimal(totalChargeableWeight),
-      },
-    });
-
-    this.logger.log(
-      `Order ${orderId}: weights recalculated — actual=${totalActualWeight}kg, chargeable=${totalChargeableWeight}kg`,
-    );
   }
 }

@@ -3,7 +3,10 @@ import { IsDateString, IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from '@common/dto/pagination.dto';
 
 export class LostAndFoundQueryDto extends PaginationDto {
-  @ApiPropertyOptional({ description: 'Filter by status (UNIDENTIFIED, CLAIMED, DISPOSED)', example: 'UNIDENTIFIED' })
+  @ApiPropertyOptional({
+    description: 'Filter by status (UNIDENTIFIED, CLAIMED, DISPOSED)',
+    example: 'UNIDENTIFIED',
+  })
   @IsOptional()
   @IsString()
   status?: string;

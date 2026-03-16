@@ -50,10 +50,7 @@ export function getDepositRate(tier: CustomerTier): number {
 /**
  * Calculates the deposit amount based on the total order amount and customer tier.
  */
-export function calculateDepositAmount(
-  totalAmount: number,
-  tier: CustomerTier,
-): number {
+export function calculateDepositAmount(totalAmount: number, tier: CustomerTier): number {
   const rate = DEPOSIT_RATE[tier];
   return Math.ceil((totalAmount * rate) / 100);
 }
@@ -61,10 +58,7 @@ export function calculateDepositAmount(
 /**
  * Determines the appropriate tier based on completed orders and annual revenue.
  */
-export function determineTier(
-  completedOrders: number,
-  annualRevenue: number,
-): CustomerTier {
+export function determineTier(completedOrders: number, annualRevenue: number): CustomerTier {
   if (
     completedOrders >= TIER_ORDER_THRESHOLDS[CustomerTier.STRATEGIC] &&
     annualRevenue >= TIER_REVENUE_THRESHOLDS[CustomerTier.STRATEGIC]

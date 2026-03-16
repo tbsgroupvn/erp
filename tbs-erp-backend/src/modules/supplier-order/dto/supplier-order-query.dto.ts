@@ -17,7 +17,9 @@ export class SupplierOrderQueryDto extends PaginationDto {
   @IsString()
   orderId?: string;
 
-  @ApiPropertyOptional({ description: 'Search by supplier order code, supplier name, or supplier order number' })
+  @ApiPropertyOptional({
+    description: 'Search by supplier order code, supplier name, or supplier order number',
+  })
   @IsOptional()
   @IsString()
   search?: string;

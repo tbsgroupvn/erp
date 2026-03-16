@@ -18,8 +18,10 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
-import { Branch, DriverStatus } from '@prisma/client';
+import { Branch, DriverStatus, UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
 import { DriverService } from './driver.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
@@ -28,12 +30,13 @@ import { DriverQueryDto } from './dto/driver-query.dto';
 
 @ApiTags('Drivers')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('drivers')
 export class DriverController {
   constructor(private readonly driverService: DriverService) {}
 
   @Post()
+  @Roles(UserRole.LOGISTICS_MANAGER, UserRole.WAREHOUSE_VN_MANAGER, UserRole.CEO, UserRole.COO)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new driver' })
   @ApiResponse({ status: 201, description: 'Driver created successfully' })
@@ -43,19 +46,16 @@ export class DriverController {
   }
 
   @Get()
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.LOGISTICS_MANAGER, UserRole.WAREHOUSE_VN_MANAGER, UserRole.DIRECTOR_OPERATIONS)
   @ApiOperation({ summary: 'List drivers with filters' })
   @ApiResponse({ status: 200, description: 'Drivers retrieved successfully' })
   async findAll(@Query() query: DriverQueryDto) {
     const result = await this.driverService.findAll(query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get('available')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.LOGISTICS_MANAGER, UserRole.WAREHOUSE_VN_MANAGER, UserRole.DIRECTOR_OPERATIONS)
   @ApiOperation({ summary: 'Get available drivers for a branch' })
   @ApiQuery({ name: 'branch', required: true, enum: Branch })
   async getAvailableDrivers(@Query('branch') branch: Branch) {
@@ -64,6 +64,7 @@ export class DriverController {
   }
 
   @Get(':id')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.LOGISTICS_MANAGER, UserRole.WAREHOUSE_VN_MANAGER, UserRole.DIRECTOR_OPERATIONS)
   @ApiOperation({ summary: 'Get driver detail' })
   @ApiParam({ name: 'id', description: 'Driver ID' })
   async findById(@Param('id') id: string) {
@@ -72,6 +73,7 @@ export class DriverController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.LOGISTICS_MANAGER, UserRole.WAREHOUSE_VN_MANAGER, UserRole.CEO, UserRole.COO)
   @ApiOperation({ summary: 'Update driver info' })
   @ApiParam({ name: 'id', description: 'Driver ID' })
   async update(@Param('id') id: string, @Body() dto: UpdateDriverDto) {
@@ -80,29 +82,26 @@ export class DriverController {
   }
 
   @Post(':id/assign-vehicle')
+  @Roles(UserRole.LOGISTICS_MANAGER, UserRole.WAREHOUSE_VN_MANAGER, UserRole.CEO, UserRole.COO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Assign a vehicle to a driver' })
   @ApiParam({ name: 'id', description: 'Driver ID' })
-  async assignVehicle(
-    @Param('id') id: string,
-    @Body('vehicleId') vehicleId: string,
-  ) {
+  async assignVehicle(@Param('id') id: string, @Body('vehicleId') vehicleId: string) {
     const result = await this.driverService.assignVehicle(id, vehicleId);
     return BaseResponse.ok(result, 'Vehicle assigned successfully');
   }
 
   @Patch(':id/status')
+  @Roles(UserRole.LOGISTICS_MANAGER, UserRole.WAREHOUSE_VN_MANAGER, UserRole.CEO, UserRole.COO)
   @ApiOperation({ summary: 'Update driver status' })
   @ApiParam({ name: 'id', description: 'Driver ID' })
-  async updateStatus(
-    @Param('id') id: string,
-    @Body('status') status: DriverStatus,
-  ) {
+  async updateStatus(@Param('id') id: string, @Body('status') status: DriverStatus) {
     const result = await this.driverService.updateStatus(id, status);
     return BaseResponse.ok(result, 'Status updated');
   }
 
   @Get(':id/deliveries')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.LOGISTICS_MANAGER, UserRole.WAREHOUSE_VN_MANAGER, UserRole.DIRECTOR_OPERATIONS)
   @ApiOperation({ summary: 'Get driver delivery history' })
   @ApiParam({ name: 'id', description: 'Driver ID' })
   @ApiQuery({ name: 'startDate', required: true })
@@ -117,6 +116,7 @@ export class DriverController {
   }
 
   @Get(':id/performance')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.LOGISTICS_MANAGER, UserRole.WAREHOUSE_VN_MANAGER, UserRole.DIRECTOR_OPERATIONS)
   @ApiOperation({ summary: 'Get driver performance stats' })
   @ApiParam({ name: 'id', description: 'Driver ID' })
   @ApiQuery({ name: 'startDate', required: true })

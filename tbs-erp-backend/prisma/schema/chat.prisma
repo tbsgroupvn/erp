@@ -1,0 +1,85 @@
+// ============================================
+// CHAT — Direct Message + Group Chat
+// ============================================
+
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+enum MessageStatus {
+  SENT
+  EDITED
+  DELETED
+}
+
+model ChatConversation {
+  id              String           @id @default(cuid())
+  type            ConversationType
+  name            String?                              // GROUP only
+  createdBy       String           @map("created_by")
+  referenceType   String?          @map("reference_type") // "ORDER"|"APPROVAL"|null
+  referenceId     String?          @map("reference_id")
+  pinnedMessageId String?          @map("pinned_message_id")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  participants  ChatParticipant[]
+  messages      ChatMessage[]
+
+  @@index([createdBy])
+  @@index([type])
+  @@index([referenceType, referenceId])
+  @@map("chat_conversations")
+}
+
+model ChatParticipant {
+  id             String           @id @default(cuid())
+  conversationId String           @map("conversation_id")
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String           @map("user_id")
+  role           String           @default("MEMBER") // "OWNER"|"MEMBER"
+  lastReadAt     DateTime?        @map("last_read_at")
+  joinedAt       DateTime         @default(now()) @map("joined_at")
+  leftAt         DateTime?        @map("left_at")    // soft remove
+  isMuted        Boolean          @default(false) @map("is_muted")
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId, userId])
+  @@map("chat_participants")
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String           @map("conversation_id")
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String           @map("sender_id")
+  content        String
+  status         MessageStatus    @default(SENT)
+  replyToId      String?          @map("reply_to_id")
+  replyTo        ChatMessage?     @relation("Replies", fields: [replyToId], references: [id])
+  replies        ChatMessage[]    @relation("Replies")
+  reactions      ChatReaction[]
+  editedAt       DateTime?        @map("edited_at")
+  deletedAt      DateTime?        @map("deleted_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("chat_messages")
+}
+
+model ChatReaction {
+  id        String      @id @default(cuid())
+  messageId String      @map("message_id")
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String      @map("user_id")
+  emoji     String      // e.g. "👍" "❤️" "😂" "😮" "😢" "🎉"
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@map("chat_reactions")
+}

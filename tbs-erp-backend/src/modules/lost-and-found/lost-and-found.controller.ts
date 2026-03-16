@@ -35,32 +35,33 @@ export class LostAndFoundController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create lost item', description: 'Registers an unmatched/unidentified package.' })
+  @ApiOperation({
+    summary: 'Create lost item',
+    description: 'Registers an unmatched/unidentified package.',
+  })
   @ApiResponse({ status: 201, description: 'Lost item created' })
-  async createLostItem(
-    @Body() dto: CreateLostItemDto,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async createLostItem(@Body() dto: CreateLostItemDto, @CurrentUser() user: ICurrentUser) {
     const item = await this.lnfService.createLostItem(dto, user.id);
     return BaseResponse.ok(item, 'Lost item registered');
   }
 
   @Get()
-  @ApiOperation({ summary: 'List lost and found items', description: 'Returns paginated lost and found items with filters.' })
+  @ApiOperation({
+    summary: 'List lost and found items',
+    description: 'Returns paginated lost and found items with filters.',
+  })
   @ApiResponse({ status: 200, description: 'Items retrieved' })
   async findAll(@Query() query: LostAndFoundQueryDto) {
     const result = await this.lnfService.findAll(query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Post(':id/match')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Attempt match', description: 'Re-attempts matching against pre-alerts and orders.' })
+  @ApiOperation({
+    summary: 'Attempt match',
+    description: 'Re-attempts matching against pre-alerts and orders.',
+  })
   @ApiParam({ name: 'id', description: 'Lost item ID' })
   @ApiResponse({ status: 200, description: 'Match results' })
   async attemptMatch(@Param('id') id: string) {
@@ -84,27 +85,27 @@ export class LostAndFoundController {
 
   @Post(':id/dispose')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Mark for disposal', description: 'Marks item for disposal after retention period (30 days).' })
+  @ApiOperation({
+    summary: 'Mark for disposal',
+    description: 'Marks item for disposal after retention period (30 days).',
+  })
   @ApiParam({ name: 'id', description: 'Lost item ID' })
   @ApiResponse({ status: 200, description: 'Item marked for disposal' })
   @ApiResponse({ status: 400, description: 'Retention period not met' })
-  async markForDisposal(
-    @Param('id') id: string,
-    @Body('reason') reason: string,
-  ) {
+  async markForDisposal(@Param('id') id: string, @Body('reason') reason: string) {
     const result = await this.lnfService.markForDisposal(id, reason);
     return BaseResponse.ok(result, 'Item marked for disposal');
   }
 
   @Get('statistics')
-  @ApiOperation({ summary: 'Get LNF statistics', description: 'Returns stats (received, claimed, disposed, pending).' })
+  @ApiOperation({
+    summary: 'Get LNF statistics',
+    description: 'Returns stats (received, claimed, disposed, pending).',
+  })
   @ApiQuery({ name: 'startDate', required: false })
   @ApiQuery({ name: 'endDate', required: false })
   @ApiResponse({ status: 200, description: 'Statistics retrieved' })
-  async getStatistics(
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-  ) {
+  async getStatistics(@Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
     const stats = await this.lnfService.getStatistics(startDate, endDate);
     return BaseResponse.ok(stats);
   }

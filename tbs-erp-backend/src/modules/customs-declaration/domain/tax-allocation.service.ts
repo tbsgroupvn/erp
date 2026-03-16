@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -63,9 +58,7 @@ export class TaxAllocationService {
     );
 
     if (totalContributedValue === 0) {
-      throw new BadRequestException(
-        'Total contributed value is 0. Cannot allocate by value.',
-      );
+      throw new BadRequestException('Total contributed value is 0. Cannot allocate by value.');
     }
 
     let sumImportDuty = 0;
@@ -73,46 +66,44 @@ export class TaxAllocationService {
     let sumSpecialTax = 0;
     let sumOtherTax = 0;
 
-    const allocations: TaxAllocationResult[] = orderContributions.map(
-      (order, index) => {
-        const proportion = order.contributedValue / totalContributedValue;
-        let importDuty: number;
-        let vat: number;
-        let specialTax: number;
-        let otherTax: number;
+    const allocations: TaxAllocationResult[] = orderContributions.map((order, index) => {
+      const proportion = order.contributedValue / totalContributedValue;
+      let importDuty: number;
+      let vat: number;
+      let specialTax: number;
+      let otherTax: number;
 
-        if (index === orderContributions.length - 1) {
-          // Give remainder to the last order to avoid rounding differences
-          importDuty = totals.importDuty - sumImportDuty;
-          vat = totals.vat - sumVat;
-          specialTax = totals.specialTax - sumSpecialTax;
-          otherTax = totals.otherTax - sumOtherTax;
-        } else {
-          importDuty = Math.round(totals.importDuty * proportion);
-          vat = Math.round(totals.vat * proportion);
-          specialTax = Math.round(totals.specialTax * proportion);
-          otherTax = Math.round(totals.otherTax * proportion);
+      if (index === orderContributions.length - 1) {
+        // Give remainder to the last order to avoid rounding differences
+        importDuty = totals.importDuty - sumImportDuty;
+        vat = totals.vat - sumVat;
+        specialTax = totals.specialTax - sumSpecialTax;
+        otherTax = totals.otherTax - sumOtherTax;
+      } else {
+        importDuty = Math.round(totals.importDuty * proportion);
+        vat = Math.round(totals.vat * proportion);
+        specialTax = Math.round(totals.specialTax * proportion);
+        otherTax = Math.round(totals.otherTax * proportion);
 
-          sumImportDuty += importDuty;
-          sumVat += vat;
-          sumSpecialTax += specialTax;
-          sumOtherTax += otherTax;
-        }
+        sumImportDuty += importDuty;
+        sumVat += vat;
+        sumSpecialTax += specialTax;
+        sumOtherTax += otherTax;
+      }
 
-        const totalAllocated = importDuty + vat + specialTax + otherTax;
+      const totalAllocated = importDuty + vat + specialTax + otherTax;
 
-        return {
-          orderId: order.orderId,
-          orderCode: order.orderCode,
-          proportion: Math.round(proportion * 1000000) / 1000000,
-          importDuty,
-          vat,
-          specialTax,
-          otherTax,
-          totalAllocated,
-        };
-      },
-    );
+      return {
+        orderId: order.orderId,
+        orderCode: order.orderCode,
+        proportion: Math.round(proportion * 1000000) / 1000000,
+        importDuty,
+        vat,
+        specialTax,
+        otherTax,
+        totalAllocated,
+      };
+    });
 
     await this.saveAllocations(declarationId, declaration.code, allocations, 'VALUE');
 
@@ -128,8 +119,7 @@ export class TaxAllocationService {
    * @returns Array of tax allocation results
    */
   async allocateByWeight(declarationId: string): Promise<TaxAllocationResult[]> {
-    const { declaration, totals } =
-      await this.getDeclarationData(declarationId);
+    const { declaration, totals } = await this.getDeclarationData(declarationId);
 
     // Get package weights grouped by order
     const sourceItems = await this.prisma.customsLineSourceItem.findMany({
@@ -159,17 +149,12 @@ export class TaxAllocationService {
       };
 
       // Use contributed quantity as weight proxy when net weight is per-line
-      const lineNetWeight = item.line.declaredNetWeight
-        ? Number(item.line.declaredNetWeight)
-        : 0;
+      const lineNetWeight = item.line.declaredNetWeight ? Number(item.line.declaredNetWeight) : 0;
       const lineQuantity = Number(item.line.declaredQuantity);
       const itemQuantity = Number(item.contributedQuantity);
 
       // Proportional weight for this source item
-      const itemWeight =
-        lineQuantity > 0
-          ? (itemQuantity / lineQuantity) * lineNetWeight
-          : 0;
+      const itemWeight = lineQuantity > 0 ? (itemQuantity / lineQuantity) * lineNetWeight : 0;
 
       existing.weight += Math.round(itemWeight * 10000) / 10000;
       orderWeightMap.set(item.orderId, existing);
@@ -199,46 +184,44 @@ export class TaxAllocationService {
     let sumSpecialTax = 0;
     let sumOtherTax = 0;
 
-    const allocations: TaxAllocationResult[] = orderWeights.map(
-      (order, index) => {
-        const proportion = order.weight / totalWeight;
-        let importDuty: number;
-        let vat: number;
-        let specialTax: number;
-        let otherTax: number;
+    const allocations: TaxAllocationResult[] = orderWeights.map((order, index) => {
+      const proportion = order.weight / totalWeight;
+      let importDuty: number;
+      let vat: number;
+      let specialTax: number;
+      let otherTax: number;
 
-        if (index === orderWeights.length - 1) {
-          // Give remainder to the last order to avoid rounding differences
-          importDuty = totals.importDuty - sumImportDuty;
-          vat = totals.vat - sumVat;
-          specialTax = totals.specialTax - sumSpecialTax;
-          otherTax = totals.otherTax - sumOtherTax;
-        } else {
-          importDuty = Math.round(totals.importDuty * proportion);
-          vat = Math.round(totals.vat * proportion);
-          specialTax = Math.round(totals.specialTax * proportion);
-          otherTax = Math.round(totals.otherTax * proportion);
+      if (index === orderWeights.length - 1) {
+        // Give remainder to the last order to avoid rounding differences
+        importDuty = totals.importDuty - sumImportDuty;
+        vat = totals.vat - sumVat;
+        specialTax = totals.specialTax - sumSpecialTax;
+        otherTax = totals.otherTax - sumOtherTax;
+      } else {
+        importDuty = Math.round(totals.importDuty * proportion);
+        vat = Math.round(totals.vat * proportion);
+        specialTax = Math.round(totals.specialTax * proportion);
+        otherTax = Math.round(totals.otherTax * proportion);
 
-          sumImportDuty += importDuty;
-          sumVat += vat;
-          sumSpecialTax += specialTax;
-          sumOtherTax += otherTax;
-        }
+        sumImportDuty += importDuty;
+        sumVat += vat;
+        sumSpecialTax += specialTax;
+        sumOtherTax += otherTax;
+      }
 
-        const totalAllocated = importDuty + vat + specialTax + otherTax;
+      const totalAllocated = importDuty + vat + specialTax + otherTax;
 
-        return {
-          orderId: order.orderId,
-          orderCode: orderCodeMap.get(order.orderId) ?? 'UNKNOWN',
-          proportion: Math.round(proportion * 1000000) / 1000000,
-          importDuty,
-          vat,
-          specialTax,
-          otherTax,
-          totalAllocated,
-        };
-      },
-    );
+      return {
+        orderId: order.orderId,
+        orderCode: orderCodeMap.get(order.orderId) ?? 'UNKNOWN',
+        proportion: Math.round(proportion * 1000000) / 1000000,
+        importDuty,
+        vat,
+        specialTax,
+        otherTax,
+        totalAllocated,
+      };
+    });
 
     await this.saveAllocations(declarationId, declaration.code, allocations, 'WEIGHT');
 
@@ -259,9 +242,7 @@ export class TaxAllocationService {
     });
 
     if (!declaration) {
-      throw new NotFoundException(
-        `Customs declaration with ID ${declarationId} not found`,
-      );
+      throw new NotFoundException(`Customs declaration with ID ${declarationId} not found`);
     }
 
     // Calculate total taxes
@@ -270,16 +251,14 @@ export class TaxAllocationService {
       vat: Number(declaration.totalVat),
       specialTax: Number(declaration.totalSpecialTax),
       otherTax:
-        Number(declaration.totalEnvironmentalTax) +
-        Number(declaration.totalAntiDumpingDuty),
+        Number(declaration.totalEnvironmentalTax) + Number(declaration.totalAntiDumpingDuty),
     };
 
     const totalPayable = totals.importDuty + totals.vat + totals.specialTax + totals.otherTax;
 
     if (totalPayable === 0) {
       throw new BadRequestException(
-        `No taxes calculated for declaration ${declaration.code}. ` +
-          'Run duty calculation first.',
+        `No taxes calculated for declaration ${declaration.code}. ` + 'Run duty calculation first.',
       );
     }
 

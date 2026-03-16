@@ -13,7 +13,8 @@ export class CrmRepository {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {
-    this.customerCodePrefix = this.configService.get<string>('branding.customerCodePrefix') || 'ERP-KH-';
+    this.customerCodePrefix =
+      this.configService.get<string>('branding.customerCodePrefix') || 'ERP-KH-';
   }
 
   /**
@@ -53,10 +54,7 @@ export class CrmRepository {
   /**
    * Update an existing customer.
    */
-  async update(
-    id: string,
-    data: Prisma.CustomerUpdateInput,
-  ): Promise<Customer> {
+  async update(id: string, data: Prisma.CustomerUpdateInput): Promise<Customer> {
     return this.prisma.customer.update({
       where: { id },
       data,
@@ -81,6 +79,23 @@ export class CrmRepository {
   }
 
   /**
+   * Find a single customer by ID with data-scope filter applied.
+   * Returns null if the customer doesn't match the scope.
+   */
+  async findByIdWithScope(
+    id: string,
+    scopeFilter: Record<string, any>,
+  ): Promise<Customer | null> {
+    return this.prisma.customer.findFirst({
+      where: { id, ...scopeFilter },
+      include: {
+        contacts: true,
+        wallet: true,
+      },
+    });
+  }
+
+  /**
    * Find a single customer by code.
    */
   async findByCode(code: string): Promise<Customer | null> {
@@ -94,12 +109,27 @@ export class CrmRepository {
   }
 
   /**
+   * Find a single customer by phone.
+   */
+  async findByPhone(phone: string): Promise<Customer | null> {
+    return this.prisma.customer.findFirst({
+      where: { phone },
+      include: {
+        contacts: true,
+        wallet: true,
+      },
+    });
+  }
+
+  /**
    * Find customers with pagination, search, and filters.
+   * @param scopeFilter - Data-scope WHERE clause from DataScopeService
    */
   async findMany(
     query: CustomerQueryDto,
+    scopeFilter: Record<string, any> = {},
   ): Promise<{ data: Customer[]; total: number }> {
-    const where: Prisma.CustomerWhereInput = {};
+    const where: Prisma.CustomerWhereInput = { ...scopeFilter };
 
     if (query.search) {
       where.OR = [
@@ -147,10 +177,7 @@ export class CrmRepository {
   /**
    * Increment the customer's totalOrders and totalRevenue.
    */
-  async incrementOrderStats(
-    customerId: string,
-    revenue: number,
-  ): Promise<Customer> {
+  async incrementOrderStats(customerId: string, revenue: number): Promise<Customer> {
     return this.prisma.customer.update({
       where: { id: customerId },
       data: {

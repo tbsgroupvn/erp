@@ -27,13 +27,16 @@ async function verifyCommissionRulesExist() {
     where: { isActive: true },
   });
 
-  const rulesByType = rules.reduce((acc, rule) => {
-    if (!acc[rule.serviceType]) {
-      acc[rule.serviceType] = [];
-    }
-    acc[rule.serviceType].push(rule);
-    return acc;
-  }, {} as Record<string, any[]>);
+  const rulesByType = rules.reduce(
+    (acc, rule) => {
+      if (!acc[rule.serviceType]) {
+        acc[rule.serviceType] = [];
+      }
+      acc[rule.serviceType].push(rule);
+      return acc;
+    },
+    {} as Record<string, any[]>,
+  );
 
   const serviceTypes = ['VCT', 'MHH', 'UTXNK', 'LCLCN'];
   let allPassed = true;
@@ -46,9 +49,7 @@ async function verifyCommissionRulesExist() {
     results.push({
       name: `Commission Rules: ${type}`,
       passed,
-      message: passed
-        ? `${typeRules.length} rule(s) found`
-        : 'No rules found - run seed script',
+      message: passed ? `${typeRules.length} rule(s) found` : 'No rules found - run seed script',
       details: typeRules.map((r) => ({
         range: `${r.minProfit / 1_000_000}M - ${r.maxProfit / 1_000_000}M`,
         rate: `${r.rate * 100}%`,
@@ -207,9 +208,7 @@ async function verifyRuleCoverage() {
 
       // Check gap
       if (current.maxProfit < next.minProfit) {
-        errors.push(
-          `Gap: No rule covers [${current.maxProfit}-${next.minProfit}]`,
-        );
+        errors.push(`Gap: No rule covers [${current.maxProfit}-${next.minProfit}]`);
       }
     }
 
@@ -247,22 +246,16 @@ async function printResults() {
   console.log();
 
   if (failed === 0) {
-    console.log(
-      chalk.green.bold('🎉 All checks passed! Commission flow is ready.'),
-    );
+    console.log(chalk.green.bold('🎉 All checks passed! Commission flow is ready.'));
   } else {
     console.log(
-      chalk.yellow.bold(
-        '⚠️  Some checks failed. Please review and fix before deployment.',
-      ),
+      chalk.yellow.bold('⚠️  Some checks failed. Please review and fix before deployment.'),
     );
   }
 }
 
 async function main() {
-  console.log(
-    chalk.bold.blue('🔧 Commission Flow Verification Script\n'),
-  );
+  console.log(chalk.bold.blue('🔧 Commission Flow Verification Script\n'));
 
   try {
     await verifyDatabaseSchema();

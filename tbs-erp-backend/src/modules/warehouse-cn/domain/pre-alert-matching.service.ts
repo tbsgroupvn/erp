@@ -15,6 +15,8 @@ export interface PreAlertMatchResult {
   isLostAndFound: boolean;
   /** The LostAndFound ID (if created) */
   lostAndFoundId?: string;
+  /** True when this is an additional piece of a multi-piece shipment */
+  isAdditionalPiece?: boolean;
 }
 
 /**
@@ -100,6 +102,40 @@ export class PreAlertMatchingService {
         customerId: preAlert.customerId,
         orderId: preAlert.orderId ?? undefined,
         isLostAndFound: false,
+      };
+    }
+
+    // No WAITING pre-alert -- check for RECEIVED pre-alert (multi-piece scenario)
+    const receivedPreAlert = await this.prisma.preAlert.findFirst({
+      where: {
+        trackingNumber: { equals: trackingNumber, mode: 'insensitive' },
+        status: 'RECEIVED',
+      },
+      select: { id: true, customerId: true, orderId: true, expectedPieces: true },
+    });
+
+    if (receivedPreAlert) {
+      this.logger.log(
+        `Additional piece for tracking=${trackingNumber}, ` +
+          `matched via received pre-alert=${receivedPreAlert.id}`,
+      );
+
+      this.eventEmitter.emit('prealert.matched', {
+        preAlertId: receivedPreAlert.id,
+        packageId,
+        customerId: receivedPreAlert.customerId,
+        orderId: receivedPreAlert.orderId,
+        trackingNumber,
+        isAdditionalPiece: true,
+      });
+
+      return {
+        matched: true,
+        preAlertId: receivedPreAlert.id,
+        customerId: receivedPreAlert.customerId,
+        orderId: receivedPreAlert.orderId ?? undefined,
+        isLostAndFound: false,
+        isAdditionalPiece: true,
       };
     }
 

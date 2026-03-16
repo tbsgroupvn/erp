@@ -54,37 +54,48 @@ echo "Step 2: Rebuilding Docker images..."
 docker compose -f "$COMPOSE_FILE" build
 print_step "Images rebuilt"
 
-# Step 3: Restart services
+# Step 3: Backup database before migration
 echo ""
-echo "Step 3: Restarting services..."
+echo "Step 3: Backing up database before migration..."
+BACKUP_DIR="backups"
+mkdir -p "$BACKUP_DIR"
+BACKUP_FILE="${BACKUP_DIR}/backup_$(date +%Y%m%d_%H%M%S).sql"
+
+POSTGRES_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q postgres)
+if [ -z "$POSTGRES_CONTAINER" ]; then
+  print_error "PostgreSQL container is not running. Cannot create backup."
+  exit 1
+fi
+
+docker compose -f "$COMPOSE_FILE" exec -T postgres pg_dump \
+  -U "${POSTGRES_USER:-erp_user}" \
+  -d "${POSTGRES_DB:-erp_db}" \
+  --no-owner --clean --if-exists \
+  > "$BACKUP_FILE" 2>/dev/null
+
+if [ $? -ne 0 ] || [ ! -s "$BACKUP_FILE" ]; then
+  rm -f "$BACKUP_FILE"
+  print_error "Database backup failed. Aborting update."
+  exit 1
+fi
+
+print_step "Database backed up to: $BACKUP_FILE"
+
+# Step 4: Run migrations before restarting (uses build stage with devDeps)
+echo ""
+echo "Step 4: Running database migrations..."
+docker compose -f "$COMPOSE_FILE" --profile migrate run --rm migrate sh -c "npx prisma migrate deploy"
+print_step "Migrations applied"
+
+# Step 5: Restart services
+echo ""
+echo "Step 5: Restarting services..."
 docker compose -f "$COMPOSE_FILE" up -d
 print_step "Services restarted"
 
-# Step 4: Run migrations
+# Step 6: Health check
 echo ""
-echo "Step 4: Running database migrations..."
-
-echo "Waiting for backend to be ready..."
-retries=30
-while [ $retries -gt 0 ]; do
-  if docker compose -f "$COMPOSE_FILE" exec -T backend wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health 2>/dev/null; then
-    break
-  fi
-  retries=$((retries - 1))
-  sleep 5
-done
-
-if [ $retries -eq 0 ]; then
-  print_warning "Backend health check timed out. Run migrations manually:"
-  echo "  docker compose -f $COMPOSE_FILE exec backend npx prisma migrate deploy"
-else
-  docker compose -f "$COMPOSE_FILE" exec -T backend npx prisma migrate deploy
-  print_step "Migrations applied"
-fi
-
-# Step 5: Health check
-echo ""
-echo "Step 5: Running health check..."
+echo "Step 6: Running health check..."
 
 sleep 10
 

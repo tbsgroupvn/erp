@@ -9,6 +9,7 @@ import {
   BlogPostFiltersDto,
   BlogCommentFiltersDto,
 } from './dto';
+import { sanitizeHtml, sanitizeHtmlOptional } from '@common/utils/html-sanitizer.util';
 
 @Injectable()
 export class CmsBlogService {
@@ -140,8 +141,8 @@ export class CmsBlogService {
       data: {
         title: dto.title,
         slug: dto.slug,
-        content: dto.content,
-        excerpt: dto.excerpt,
+        content: sanitizeHtml(dto.content),
+        excerpt: sanitizeHtmlOptional(dto.excerpt) ?? undefined,
         coverImage: dto.featuredImage,
         metaTitle: dto.metaTitle,
         metaDescription: dto.metaDescription,
@@ -160,6 +161,14 @@ export class CmsBlogService {
     await this.getPostById(id);
 
     const updateData: any = { ...dto };
+
+    // Sanitize HTML fields to prevent XSS
+    if (updateData.content != null) {
+      updateData.content = sanitizeHtml(updateData.content);
+    }
+    if (updateData.excerpt != null) {
+      updateData.excerpt = sanitizeHtmlOptional(updateData.excerpt);
+    }
 
     // If changing to PUBLISHED and no publishedAt, set it
     if (dto.status === 'PUBLISHED') {
@@ -246,15 +255,15 @@ export class CmsBlogService {
     ]);
 
     // Fetch post titles for each comment
-    const postIds = [...new Set(comments.map(c => c.postId))];
+    const postIds = [...new Set(comments.map((c) => c.postId))];
     const posts = await this.prisma.blogPost.findMany({
       where: { id: { in: postIds } },
       select: { id: true, title: true, slug: true },
     });
-    const postMap = new Map(posts.map(p => [p.id, p]));
+    const postMap = new Map(posts.map((p) => [p.id, p]));
 
     // Map comments with post data and computed status
-    const data = comments.map(comment => ({
+    const data = comments.map((comment) => ({
       ...comment,
       status: comment.isApproved ? 'APPROVED' : 'PENDING',
       post: postMap.get(comment.postId),

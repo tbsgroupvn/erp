@@ -9,13 +9,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { DataScopeGuard, DataScopeFilter } from '@common/guards/data-scope.guard';
@@ -47,10 +41,7 @@ export class MasterOrderController {
   @ApiResponse({ status: 201, description: 'Master order created successfully' })
   @ApiResponse({ status: 400, description: 'Validation error or missing saleCode' })
   @ApiResponse({ status: 404, description: 'Customer not found' })
-  async create(
-    @Body() dto: CreateMasterOrderDto,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async create(@Body() dto: CreateMasterOrderDto, @CurrentUser() user: ICurrentUser) {
     const masterOrder = await this.masterOrderService.createMasterOrder(dto, user);
     return BaseResponse.ok(masterOrder, 'Master order created successfully');
   }
@@ -68,12 +59,7 @@ export class MasterOrderController {
     @DataScope() dataScope: DataScopeFilter | undefined,
   ) {
     const result = await this.masterOrderService.findAll(query, dataScope);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get(':id')
@@ -85,10 +71,7 @@ export class MasterOrderController {
   @ApiParam({ name: 'id', description: 'Master Order ID' })
   @ApiResponse({ status: 200, description: 'Master order retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Master order not found' })
-  async findById(
-    @Param('id') id: string,
-    @DataScope() dataScope: DataScopeFilter | undefined,
-  ) {
+  async findById(@Param('id') id: string, @DataScope() dataScope: DataScopeFilter | undefined) {
     const masterOrder = await this.masterOrderService.findById(id, dataScope);
     return BaseResponse.ok(masterOrder);
   }

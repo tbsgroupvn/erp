@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { WarehouseVNStatus } from '@prisma/client';
 
 export interface ContainerArrivedEvent {
   containerId: string;
@@ -39,9 +40,7 @@ export class ContainerArrivalListener {
    * When a container arrives at VN, prepare the receiving worksheet.
    */
   @OnEvent('container.arrived')
-  async handleContainerArrived(
-    event: ContainerArrivedEvent,
-  ): Promise<void> {
+  async handleContainerArrived(event: ContainerArrivedEvent): Promise<void> {
     this.logger.log(
       `Container ${event.containerCode} arrived at VN warehouse. ` +
         `Expected: ${event.totalPackages} packages, ${event.totalWeight}kg ` +
@@ -70,12 +69,8 @@ export class ContainerArrivalListener {
       // Group by customer for efficient sorting
       const customerGroups = new Map<string, number>();
       for (const pkg of packages) {
-        const customerName =
-          pkg.order.customer.fullName ?? 'Unknown';
-        customerGroups.set(
-          customerName,
-          (customerGroups.get(customerName) ?? 0) + 1,
-        );
+        const customerName = pkg.order?.customer?.fullName ?? 'Unknown';
+        customerGroups.set(customerName, (customerGroups.get(customerName) ?? 0) + 1);
       }
 
       this.logger.log(
@@ -108,9 +103,7 @@ export class ContainerArrivalListener {
    * have been delivered. If so, advance the order to SETTLEMENT status.
    */
   @OnEvent('delivery.completed')
-  async handleDeliveryCompleted(
-    event: DeliveryCompletedEvent,
-  ): Promise<void> {
+  async handleDeliveryCompleted(event: DeliveryCompletedEvent): Promise<void> {
     this.logger.log(
       `Delivery ${event.deliveryId} completed for order ${event.orderId}. ` +
         `COD: ${event.codAmount}, collected: ${event.codCollected}`,
@@ -121,7 +114,7 @@ export class ContainerArrivalListener {
       const undelivered = await this.prisma.package.count({
         where: {
           orderId: event.orderId,
-          warehouseVNStatus: { not: 'DELIVERED' },
+          warehouseVNStatus: { not: WarehouseVNStatus.DELIVERED },
           receivedVNAt: { not: null }, // Only count packages that arrived at VN
         },
       });

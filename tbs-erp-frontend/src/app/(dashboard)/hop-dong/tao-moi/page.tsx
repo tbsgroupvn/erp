@@ -125,7 +125,7 @@ export default function TaoHopDongPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="max-w-2xl space-y-6">
         {/* Contract Type */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Loại hợp đồng *</label>
+          <p className="text-sm font-medium">Loại hợp đồng *</p>
           <select
             {...register('type')}
             className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -139,7 +139,7 @@ export default function TaoHopDongPage() {
 
         {/* Customer Search */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Khách hàng *</label>
+          <p className="text-sm font-medium">Khách hàng *</p>
           {selectedCustomer ? (
             <div className="flex items-center gap-2 rounded-md border p-2">
               <span className="text-sm font-medium">{selectedCustomer.code}</span>
@@ -191,7 +191,7 @@ export default function TaoHopDongPage() {
 
         {/* Title */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Tiêu đề hợp đồng *</label>
+          <p className="text-sm font-medium">Tiêu đề hợp đồng *</p>
           <input
             type="text"
             {...register('title')}
@@ -204,7 +204,7 @@ export default function TaoHopDongPage() {
         {/* Dates */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Ngày hiệu lực *</label>
+            <p className="text-sm font-medium">Ngày hiệu lực *</p>
             <input
               type="date"
               {...register('effectiveDate')}
@@ -213,7 +213,7 @@ export default function TaoHopDongPage() {
             {errors.effectiveDate && <p className="text-xs text-destructive">{errors.effectiveDate.message}</p>}
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Ngày hết hạn</label>
+            <p className="text-sm font-medium">Ngày hết hạn</p>
             <input
               type="date"
               {...register('expiryDate')}
@@ -225,7 +225,7 @@ export default function TaoHopDongPage() {
         {/* Financial */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Giá trị hợp đồng (VND)</label>
+            <p className="text-sm font-medium">Giá trị hợp đồng (VND)</p>
             <input
               type="number"
               {...register('totalValue')}
@@ -234,7 +234,7 @@ export default function TaoHopDongPage() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Đặt cọc yêu cầu (VND)</label>
+            <p className="text-sm font-medium">Đặt cọc yêu cầu (VND)</p>
             <input
               type="number"
               {...register('depositRequired')}
@@ -246,7 +246,7 @@ export default function TaoHopDongPage() {
 
         {/* Terms */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Điều khoản</label>
+          <p className="text-sm font-medium">Điều khoản</p>
           <textarea
             {...register('terms')}
             rows={4}
@@ -257,7 +257,7 @@ export default function TaoHopDongPage() {
 
         {/* Note */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Ghi chú</label>
+          <p className="text-sm font-medium">Ghi chú</p>
           <textarea
             {...register('note')}
             rows={2}

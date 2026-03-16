@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 import { Branch, CustomerTier } from '@prisma/client';
 import { PaginationDto } from '@common/dto/pagination.dto';
 
@@ -26,5 +27,7 @@ export class CustomerQueryDto extends PaginationDto {
 
   @ApiPropertyOptional({ description: 'Filter by active status' })
   @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
   isActive?: boolean;
 }

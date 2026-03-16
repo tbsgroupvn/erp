@@ -25,20 +25,14 @@ export class ArPaymentListener {
   ) {}
 
   @OnEvent('ar.payment.recorded')
-  async handleArPaymentRecorded(
-    event: ArPaymentRecordedEvent,
-  ): Promise<void> {
+  async handleArPaymentRecorded(event: ArPaymentRecordedEvent): Promise<void> {
     // Only process fully paid ARs
     if (!event.isFullyPaid) {
-      this.logger.log(
-        `AR ${event.arId} partially paid, commission approval pending full payment`,
-      );
+      this.logger.log(`AR ${event.arId} partially paid, commission approval pending full payment`);
       return;
     }
 
-    this.logger.log(
-      `AR ${event.arId} fully paid — processing commission auto-approval`,
-    );
+    this.logger.log(`AR ${event.arId} fully paid — processing commission auto-approval`);
 
     try {
       // Find the AR record to get the orderId
@@ -58,9 +52,7 @@ export class ArPaymentListener {
       });
 
       if (!ar?.orderId) {
-        this.logger.warn(
-          `AR ${event.arId} has no linked order, skipping commission approval`,
-        );
+        this.logger.warn(`AR ${event.arId} has no linked order, skipping commission approval`);
         return;
       }
 
@@ -73,9 +65,7 @@ export class ArPaymentListener {
       });
 
       if (!commission) {
-        this.logger.log(
-          `No PENDING commission found for order ${ar.order?.code}`,
-        );
+        this.logger.log(`No PENDING commission found for order ${ar.order?.code}`);
         return;
       }
 

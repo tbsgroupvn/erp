@@ -2,24 +2,27 @@ import { BadRequestException } from '@nestjs/common';
 import { ShippingRoute } from '@prisma/client';
 
 /**
- * Volumetric weight divisors by shipping route.
- * These divisors convert dimensional measurements (cm) to a weight equivalent (kg).
+ * CBM-to-kg conversion factors by shipping route.
+ * Factor = how many kg per 1 cubic meter (CBM).
+ *
+ * Formula: volumetric (kg) = CBM × factor
+ * where CBM = L(cm) × W(cm) × H(cm) / 1,000,000
  */
-const VOLUMETRIC_DIVISORS: Record<ShippingRoute, number> = {
-  [ShippingRoute.SEA]: 6000,
-  [ShippingRoute.ROAD]: 5000,
-  [ShippingRoute.AIR]: 5000,
+const CBM_FACTORS: Record<ShippingRoute, number> = {
+  [ShippingRoute.SEA]: 1000,  // 1 CBM = 1000 kg (sea freight standard)
+  [ShippingRoute.ROAD]: 333,  // 1 CBM = 333 kg (road freight standard)
+  [ShippingRoute.AIR]: 167,   // 1 CBM = 167 kg (air freight standard)
 };
 
 export interface ChargeableWeightResult {
-  /** Volumetric weight (kg) = (L * W * H) / divisor */
+  /** Volumetric weight (kg) = CBM × cbmFactor */
   volumetricWeight: number;
 
   /** Chargeable weight (kg) = MAX(actualWeight, volumetricWeight) */
   chargeableWeight: number;
 
-  /** The divisor used for volumetric calculation */
-  divisor: number;
+  /** The CBM-to-kg factor used for volumetric calculation */
+  cbmFactor: number;
 
   /** The shipping route used */
   route: ShippingRoute;
@@ -32,11 +35,13 @@ export interface ChargeableWeightResult {
  * - The actual (gross) weight of the goods
  * - The volumetric weight calculated from the package dimensions
  *
- * Volumetric weight formula: (Length x Width x Height) / Divisor
- * Divisors:
- * - SEA (ocean freight): 6000
- * - ROAD (ground transport): 5000
- * - AIR (air freight): 5000
+ * Volumetric weight formula: CBM × factor
+ * where CBM = L(cm) × W(cm) × H(cm) / 1,000,000
+ *
+ * CBM factors:
+ * - SEA (ocean freight): 1 CBM = 1000 kg
+ * - ROAD (ground transport): 1 CBM = 333 kg
+ * - AIR (air freight): 1 CBM = 167 kg
  *
  * All dimensions should be in centimeters (cm).
  * All weights are in kilograms (kg).
@@ -49,9 +54,10 @@ export interface ChargeableWeightResult {
  * @returns ChargeableWeightResult with volumetric and chargeable weights
  *
  * @example
- * const result = calculateChargeableWeight(15, 60, 40, 50, ShippingRoute.SEA);
- * // result.volumetricWeight = (60 * 40 * 50) / 6000 = 20
- * // result.chargeableWeight = MAX(15, 20) = 20
+ * const result = calculateChargeableWeight(20, 100, 80, 60, ShippingRoute.SEA);
+ * // CBM = 100*80*60 / 1,000,000 = 0.48
+ * // result.volumetricWeight = 0.48 * 1000 = 480
+ * // result.chargeableWeight = MAX(20, 480) = 480
  */
 export function calculateChargeableWeight(
   actualWeight: number,
@@ -61,13 +67,12 @@ export function calculateChargeableWeight(
   route: ShippingRoute,
 ): ChargeableWeightResult {
   if (actualWeight < 0 || length < 0 || width < 0 || height < 0) {
-    throw new BadRequestException(
-      'All weight and dimension values must be non-negative numbers.',
-    );
+    throw new BadRequestException('All weight and dimension values must be non-negative numbers.');
   }
 
-  const divisor = VOLUMETRIC_DIVISORS[route];
-  const volumetricWeight = (length * width * height) / divisor;
+  const cbmFactor = CBM_FACTORS[route];
+  const cbm = (length * width * height) / 1_000_000;
+  const volumetricWeight = cbm * cbmFactor;
 
   // Round to 2 decimal places
   const roundedVolumetric = Math.round(volumetricWeight * 100) / 100;
@@ -76,7 +81,7 @@ export function calculateChargeableWeight(
   return {
     volumetricWeight: roundedVolumetric,
     chargeableWeight: Math.round(chargeableWeight * 100) / 100,
-    divisor,
+    cbmFactor,
     route,
   };
 }
@@ -103,27 +108,12 @@ export function calculateTotalChargeableWeight(
   packageResults: ChargeableWeightResult[];
 } {
   const packageResults = packages.map((pkg) =>
-    calculateChargeableWeight(
-      pkg.actualWeight,
-      pkg.length,
-      pkg.width,
-      pkg.height,
-      route,
-    ),
+    calculateChargeableWeight(pkg.actualWeight, pkg.length, pkg.width, pkg.height, route),
   );
 
-  const totalActualWeight = packages.reduce(
-    (sum, pkg) => sum + pkg.actualWeight,
-    0,
-  );
-  const totalVolumetricWeight = packageResults.reduce(
-    (sum, r) => sum + r.volumetricWeight,
-    0,
-  );
-  const totalChargeableWeight = Math.max(
-    totalActualWeight,
-    totalVolumetricWeight,
-  );
+  const totalActualWeight = packages.reduce((sum, pkg) => sum + pkg.actualWeight, 0);
+  const totalVolumetricWeight = packageResults.reduce((sum, r) => sum + r.volumetricWeight, 0);
+  const totalChargeableWeight = Math.max(totalActualWeight, totalVolumetricWeight);
 
   return {
     totalActualWeight: Math.round(totalActualWeight * 100) / 100,

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
@@ -56,9 +51,7 @@ export class GroupingService {
     });
 
     if (!declaration) {
-      throw new NotFoundException(
-        `Customs declaration with ID ${declarationId} not found`,
-      );
+      throw new NotFoundException(`Customs declaration with ID ${declarationId} not found`);
     }
 
     if (declaration.lines.length === 0) {
@@ -75,9 +68,7 @@ export class GroupingService {
     }
 
     // Only process groups with more than one line
-    const groupsToMerge = Array.from(groups.entries()).filter(
-      ([, lines]) => lines.length > 1,
-    );
+    const groupsToMerge = Array.from(groups.entries()).filter(([, lines]) => lines.length > 1);
 
     if (groupsToMerge.length === 0) {
       this.logger.log(
@@ -185,15 +176,11 @@ export class GroupingService {
     });
 
     if (!declaration) {
-      throw new NotFoundException(
-        `Customs declaration with ID ${declarationId} not found`,
-      );
+      throw new NotFoundException(`Customs declaration with ID ${declarationId} not found`);
     }
 
     if (dto.lineIds.length < 2) {
-      throw new BadRequestException(
-        'At least 2 lines must be selected for grouping',
-      );
+      throw new BadRequestException('At least 2 lines must be selected for grouping');
     }
 
     // Load the selected lines with source items
@@ -211,9 +198,7 @@ export class GroupingService {
     // Validate all lines belong to this declaration
     const foreignLines = lines.filter((l) => l.declarationId !== declarationId);
     if (foreignLines.length > 0) {
-      throw new BadRequestException(
-        'All lines must belong to the specified declaration',
-      );
+      throw new BadRequestException('All lines must belong to the specified declaration');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -295,15 +280,11 @@ export class GroupingService {
     });
 
     if (!line) {
-      throw new NotFoundException(
-        `Customs declaration line with ID ${lineId} not found`,
-      );
+      throw new NotFoundException(`Customs declaration line with ID ${lineId} not found`);
     }
 
     if (line.sourceItems.length <= 1) {
-      throw new BadRequestException(
-        'This line has only one source item and cannot be ungrouped',
-      );
+      throw new BadRequestException('This line has only one source item and cannot be ungrouped');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -356,9 +337,7 @@ export class GroupingService {
         data: { deletedAt: new Date() },
       });
 
-      this.logger.log(
-        `Ungrouped line ${lineId} into ${newLines.length} individual lines`,
-      );
+      this.logger.log(`Ungrouped line ${lineId} into ${newLines.length} individual lines`);
 
       return newLines;
     });
@@ -382,9 +361,7 @@ export class GroupingService {
     });
 
     if (!declaration) {
-      throw new NotFoundException(
-        `Customs declaration with ID ${declarationId} not found`,
-      );
+      throw new NotFoundException(`Customs declaration with ID ${declarationId} not found`);
     }
 
     // Group by first 6 digits of HS code (heading level)
@@ -440,39 +417,29 @@ export class GroupingService {
    * Merges multiple line data into a single set of values.
    * Sums quantities, values, and weights; combines descriptions.
    */
-  private mergeLineData(lines: Array<{
-    declaredDescription: string;
-    declaredQuantity: any;
-    declaredUnit: string;
-    declaredUnitPrice: any;
-    declaredTotalValue: any;
-    declaredCountryOrigin: string;
-    declaredNetWeight: any;
-    declaredGrossWeight: any;
-    internalDescription: string;
-    internalQuantity: any;
-    internalUnitPrice: any;
-    internalTotalValue: any;
-    importDutyRate: any;
-    vatRate: any;
-    specialTaxRate: any;
-  }>) {
-    const declaredQuantity = lines.reduce(
-      (sum, l) => sum + Number(l.declaredQuantity),
-      0,
-    );
-    const declaredTotalValue = lines.reduce(
-      (sum, l) => sum + Number(l.declaredTotalValue),
-      0,
-    );
-    const internalQuantity = lines.reduce(
-      (sum, l) => sum + Number(l.internalQuantity),
-      0,
-    );
-    const internalTotalValue = lines.reduce(
-      (sum, l) => sum + Number(l.internalTotalValue),
-      0,
-    );
+  private mergeLineData(
+    lines: Array<{
+      declaredDescription: string;
+      declaredQuantity: any;
+      declaredUnit: string;
+      declaredUnitPrice: any;
+      declaredTotalValue: any;
+      declaredCountryOrigin: string;
+      declaredNetWeight: any;
+      declaredGrossWeight: any;
+      internalDescription: string;
+      internalQuantity: any;
+      internalUnitPrice: any;
+      internalTotalValue: any;
+      importDutyRate: any;
+      vatRate: any;
+      specialTaxRate: any;
+    }>,
+  ) {
+    const declaredQuantity = lines.reduce((sum, l) => sum + Number(l.declaredQuantity), 0);
+    const declaredTotalValue = lines.reduce((sum, l) => sum + Number(l.declaredTotalValue), 0);
+    const internalQuantity = lines.reduce((sum, l) => sum + Number(l.internalQuantity), 0);
+    const internalTotalValue = lines.reduce((sum, l) => sum + Number(l.internalTotalValue), 0);
     const declaredNetWeight = lines.reduce(
       (sum, l) => sum + (l.declaredNetWeight ? Number(l.declaredNetWeight) : 0),
       0,
@@ -487,12 +454,14 @@ export class GroupingService {
     const uniqueInternalDesc = [...new Set(lines.map((l) => l.internalDescription))];
 
     // Use weighted average unit price
-    const declaredUnitPrice = declaredQuantity > 0
-      ? Math.round((declaredTotalValue / declaredQuantity) * 10000) / 10000
-      : 0;
-    const internalUnitPrice = internalQuantity > 0
-      ? Math.round((internalTotalValue / internalQuantity) * 10000) / 10000
-      : 0;
+    const declaredUnitPrice =
+      declaredQuantity > 0
+        ? Math.round((declaredTotalValue / declaredQuantity) * 10000) / 10000
+        : 0;
+    const internalUnitPrice =
+      internalQuantity > 0
+        ? Math.round((internalTotalValue / internalQuantity) * 10000) / 10000
+        : 0;
 
     // Use the first line's rates (they should be identical within an HS code group)
     const firstLine = lines[0];

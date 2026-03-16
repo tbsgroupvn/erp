@@ -1,0 +1,85 @@
+// ============================================
+// COMPANY FEED — Bảng tin nội bộ
+// ============================================
+
+enum PostCategory {
+  NEWS      // Tin tức công ty
+  PROCESS   // Quy trình, nội quy
+  EVENT     // Sự kiện
+  AWARD     // Khen thưởng
+  GENERAL   // Chung
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ReactionType {
+  LIKE
+  CLAP
+  CELEBRATE
+  HEART
+  INSIGHTFUL
+}
+
+model CompanyPost {
+  id           String       @id @default(cuid())
+  title        String
+  content      String       // HTML rich text
+  excerpt      String?      // Short summary for list view
+  category     PostCategory @default(GENERAL)
+  status       PostStatus   @default(DRAFT)
+  isPinned     Boolean      @default(false) @map("is_pinned")
+  coverImage   String?      @map("cover_image") // URL
+  authorId     String       @map("author_id")
+  viewCount    Int          @default(0) @map("view_count")
+  publishedAt  DateTime?    @map("published_at")
+  scheduledAt  DateTime?    @map("scheduled_at")
+
+  reactions    PostReaction[]
+  comments     PostComment[]
+
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  deletedAt    DateTime?    @map("deleted_at")
+
+  @@index([authorId])
+  @@index([status, publishedAt])
+  @@index([category])
+  @@index([isPinned])
+  @@map("company_posts")
+}
+
+model PostReaction {
+  id        String       @id @default(cuid())
+  postId    String       @map("post_id")
+  post      CompanyPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String       @map("user_id")
+  type      ReactionType @default(LIKE)
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@unique([postId, userId, type])
+  @@index([postId])
+  @@map("post_reactions")
+}
+
+model PostComment {
+  id        String       @id @default(cuid())
+  postId    String       @map("post_id")
+  post      CompanyPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String       @map("author_id")
+  content   String
+  parentId  String?      @map("parent_id")
+  parent    PostComment? @relation("Replies", fields: [parentId], references: [id])
+  replies   PostComment[] @relation("Replies")
+
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  deletedAt DateTime?    @map("deleted_at")
+
+  @@index([postId])
+  @@index([authorId])
+  @@map("post_comments")
+}

@@ -9,13 +9,7 @@ import { CmsMenuModule } from '@modules/cms-menu/cms-menu.module';
 import { CmsSettingsModule } from '@modules/cms-settings/cms-settings.module';
 
 @Module({
-  imports: [
-    DatabaseModule,
-    CrmModule,
-    CmsPagesModule,
-    CmsMenuModule,
-    CmsSettingsModule,
-  ],
+  imports: [DatabaseModule, CrmModule, CmsPagesModule, CmsMenuModule, CmsSettingsModule],
   controllers: [PublicController, PublicCmsController],
   providers: [PublicService],
   exports: [PublicService],

@@ -1,19 +1,5 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
@@ -37,7 +23,7 @@ export class LarkSuiteController {
     description:
       'Pulls employee data from the LarkSuite directory and updates ERP employee records.',
   })
-  async syncEmployees(@CurrentUser('id') userId: string) {
+  async syncEmployees(@CurrentUser('id') _userId: string) {
     const result = await this.larkSuiteService.syncEmployees();
     return BaseResponse.ok(result, 'Employee sync completed');
   }
@@ -49,10 +35,7 @@ export class LarkSuiteController {
     description:
       'Sends a text, rich text, or card message to a LarkSuite user, group, or department.',
   })
-  async sendNotification(
-    @Body() dto: LarkNotificationDto,
-    @CurrentUser('id') userId: string,
-  ) {
+  async sendNotification(@Body() dto: LarkNotificationDto, @CurrentUser('id') _userId: string) {
     await this.larkSuiteService.sendNotification(dto);
     return BaseResponse.ok(null, 'Notification sent successfully');
   }
@@ -77,10 +60,7 @@ export class LarkSuiteController {
       'Creates an approval workflow instance in LarkSuite, ' +
       'linked to an ERP record for bidirectional status tracking.',
   })
-  async createApproval(
-    @Body() dto: LarkApprovalDto,
-    @CurrentUser('id') userId: string,
-  ) {
+  async createApproval(@Body() dto: LarkApprovalDto, @CurrentUser('id') _userId: string) {
     const result = await this.larkSuiteService.createApproval(dto);
     return BaseResponse.ok(result, 'Approval created in LarkSuite');
   }

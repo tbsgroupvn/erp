@@ -1,13 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
+import { CacheService } from '@core/cache/cache.service';
 import { Prisma, Container } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { generateCode } from '@common/utils/code-generator.util';
 
 @Injectable()
 export class ContainerRepository {
   private readonly logger = new Logger(ContainerRepository.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   /**
    * Create a new container.
@@ -128,11 +133,8 @@ export class ContainerRepository {
         select: { maxCapacity: true },
       });
 
-      const maxCapacity = container.maxCapacity
-        ? Number(container.maxCapacity)
-        : 0;
-      const fillRate =
-        maxCapacity > 0 ? (totalWeight / maxCapacity) * 100 : 0;
+      const maxCapacity = container.maxCapacity ? Number(container.maxCapacity) : 0;
+      const fillRate = maxCapacity > 0 ? (totalWeight / maxCapacity) * 100 : 0;
 
       return tx.container.update({
         where: { id: containerId },
@@ -156,30 +158,14 @@ export class ContainerRepository {
   }
 
   /**
-   * Generate the next container code: TBS-CNT-YYMMDD-NN.
+   * Generate the next container code: TBS{YYYY}{MM}{seq}, e.g. TBS20260301.
    */
   async generateContainerCode(): Promise<string> {
-    const now = new Date();
-    const datePrefix = [
-      String(now.getFullYear()).slice(-2),
-      String(now.getMonth() + 1).padStart(2, '0'),
-      String(now.getDate()).padStart(2, '0'),
-    ].join('');
-
-    const prefix = `TBS-CNT-${datePrefix}`;
-
-    const latest = await this.prisma.container.findFirst({
-      where: { code: { startsWith: prefix } },
-      orderBy: { code: 'desc' },
-      select: { code: true },
-    });
-
-    let sequence = 1;
-    if (latest) {
-      const lastSequence = parseInt(latest.code.split('-').pop() || '0', 10);
-      sequence = lastSequence + 1;
-    }
-
-    return `${prefix}-${String(sequence).padStart(2, '0')}`;
+    return generateCode(this.prisma.container, {
+      prefix: 'TBS',
+      datePrefixFormat: 'YYYYMM',
+      sequenceLength: 2,
+      separator: '',
+    }, this.cacheService);
   }
 }

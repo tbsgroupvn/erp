@@ -16,21 +16,21 @@ export function BackupCodesDisplay({ codes }: BackupCodesDisplayProps) {
     try {
       await navigator.clipboard.writeText(codes.join('\n'));
       setCopied(true);
-      toast.success('Da sao chep tat ca ma backup');
+      toast.success('Đã sao chép tất cả mã backup');
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Khong the sao chep');
+      toast.error('Không thể sao chép');
     }
   };
 
   const handleDownload = () => {
     const content = [
-      'TBS ERP - Ma backup xac thuc 2 yeu to',
+      'TBS ERP - Mã backup xác thực 2 yếu tố',
       '========================================',
-      `Ngay tao: ${new Date().toLocaleDateString('vi-VN')}`,
+      `Ngày tạo: ${new Date().toLocaleDateString('vi-VN')}`,
       '',
-      'Moi ma chi su dung duoc mot lan.',
-      'Luu tru o noi an toan.',
+      'Mỗi mã chỉ sử dụng được một lần.',
+      'Lưu trữ ở nơi an toàn.',
       '',
       ...codes.map((code, i) => `${(i + 1).toString().padStart(2, '0')}. ${code}`),
       '',
@@ -46,7 +46,7 @@ export function BackupCodesDisplay({ codes }: BackupCodesDisplayProps) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success('Da tai xuong file ma backup');
+    toast.success('Đã tải xuống file mã backup');
   };
 
   return (
@@ -68,7 +68,7 @@ export function BackupCodesDisplay({ codes }: BackupCodesDisplayProps) {
         role="alert"
         className="rounded-md border border-yellow-500/50 bg-yellow-50 p-3 text-sm text-yellow-800 dark:bg-yellow-950/20 dark:text-yellow-200"
       >
-        Luu ma backup o noi an toan. Moi ma chi dung duoc mot lan.
+        Lưu mã backup ở nơi an toàn. Mỗi mã chỉ dùng được một lần.
       </div>
 
       <div className="flex gap-2">
@@ -78,11 +78,11 @@ export function BackupCodesDisplay({ codes }: BackupCodesDisplayProps) {
           ) : (
             <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
           )}
-          Sao chep tat ca
+          Sao chép tất cả
         </Button>
         <Button variant="outline" size="sm" onClick={handleDownload}>
           <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-          Tai xuong
+          Tải xuống
         </Button>
       </div>
     </div>

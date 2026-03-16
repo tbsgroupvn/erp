@@ -28,6 +28,17 @@ import type { Quotation, QuotationStatus, ServiceType, ShippingRoute } from '@/l
 import { toast } from 'sonner';
 import { saveAs } from 'file-saver';
 
+/** Extract error message from an unknown error (handles Axios response errors) */
+function getErrMsg(err: unknown, fallback: string): string {
+  if (typeof err === 'object' && err !== null) {
+    const e = err as Record<string, unknown>;
+    const responseData = (e.response as Record<string, unknown> | undefined)?.data as Record<string, unknown> | undefined;
+    if (typeof responseData?.message === 'string') return responseData.message;
+  }
+  if (err instanceof Error) return err.message;
+  return fallback;
+}
+
 const BRANCH_LABELS: Record<string, string> = {
   HN: 'Hà Nội',
   HCM: 'TP. Hồ Chí Minh',
@@ -68,14 +79,14 @@ export default function QuotationDetailPage() {
 
   const handleApprove = () => {
     approveQuotation.mutate(id, {
-      onSuccess: (data: any) => {
+      onSuccess: (data) => {
         toast.success('Đã duyệt báo giá');
         if (data?.contractAppendixId) {
           toast.success('Đã tạo phụ lục hợp đồng tự động');
           router.push(`/hop-dong/${data.contractAppendixId}`);
         }
       },
-      onError: (err: any) => toast.error(err.response?.data?.message || 'Lỗi duyệt báo giá'),
+      onError: (err: unknown) => toast.error(getErrMsg(err, 'Lỗi duyệt báo giá')),
     });
   };
 
@@ -89,17 +100,17 @@ export default function QuotationDetailPage() {
         toast.success('Đã từ chối báo giá');
         setShowRejectForm(false);
       },
-      onError: (err: any) => toast.error(err.response?.data?.message || 'Lỗi từ chối báo giá'),
+      onError: (err: unknown) => toast.error(getErrMsg(err, 'Lỗi từ chối báo giá')),
     });
   };
 
   const handleConvert = () => {
     convertToOrder.mutate(id, {
-      onSuccess: (data: any) => {
-        const orderId = data?.order?.id;
-        toast.success('Da chuyen thanh don hang', {
+      onSuccess: (data) => {
+        const orderId = (data as { id?: string } | null)?.id;
+        toast.success('Đã chuyển thành đơn hàng', {
           action: orderId
-            ? { label: 'Xem don hang', onClick: () => router.push(`/don-hang/${orderId}`) }
+            ? { label: 'Xem đơn hàng', onClick: () => router.push(`/don-hang/${orderId}`) }
             : undefined,
         });
         if (orderId) {
@@ -108,14 +119,14 @@ export default function QuotationDetailPage() {
           router.push('/don-hang');
         }
       },
-      onError: (err: any) => toast.error(err.response?.data?.message || 'Lỗi chuyển đổi'),
+      onError: (err: unknown) => toast.error(getErrMsg(err, 'Lỗi chuyển đổi')),
     });
   };
 
   const handleDuplicate = () => {
     duplicateQuotation.mutate(id, {
       onSuccess: () => toast.success('Đã sao chép báo giá'),
-      onError: (err: any) => toast.error(err.response?.data?.message || 'Lỗi sao chép'),
+      onError: (err: unknown) => toast.error(getErrMsg(err, 'Lỗi sao chép')),
     });
   };
 
@@ -247,7 +258,7 @@ export default function QuotationDetailPage() {
       {/* Reject Form */}
       {showRejectForm && (
         <div className="rounded-lg border bg-card p-4 space-y-3">
-          <label className="text-sm font-medium">Lý do từ chối *</label>
+          <p className="text-sm font-medium">Lý do từ chối *</p>
           <textarea
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
@@ -418,7 +429,7 @@ export default function QuotationDetailPage() {
             <h3 className="text-lg font-semibold mb-4">Lưu làm mẫu báo giá</h3>
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Tên mẫu *</label>
+                <p className="text-sm font-medium">Tên mẫu *</p>
                 <input
                   type="text"
                   value={templateName}
@@ -427,7 +438,7 @@ export default function QuotationDetailPage() {
                   className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <p className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={templatePublic}
@@ -435,7 +446,7 @@ export default function QuotationDetailPage() {
                   className="h-4 w-4 rounded border"
                 />
                 <span className="text-sm">Chia sẻ cho team</span>
-              </label>
+              </p>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"

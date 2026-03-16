@@ -1,11 +1,12 @@
+import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import Script from 'next/script';
 import Navbar from './components/navbar';
 import Footer from './components/footer';
 import { ChatWidget } from './components/chat-widget';
 import { WhatsAppButton } from './components/whatsapp-button';
 import { ServiceWorkerRegistration } from '@/components/shared/sw-registration';
+
 
 const inter = Inter({ subsets: ['latin', 'vietnamese'] });
 
@@ -77,7 +78,7 @@ export const metadata: Metadata = {
 export default function PublicLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const supportPhone = process.env.NEXT_PUBLIC_COMPANY_PHONE || '';
   const supportEmail = process.env.NEXT_PUBLIC_COMPANY_EMAIL || '';
@@ -174,17 +175,6 @@ export default function PublicLayout({
         }}
       />
 
-      {/* Google Maps Script */}
-      <Script
-        src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ''}`}
-        strategy="lazyOnload"
-      />
-
-      {/* Zalo Chat Plugin Script */}
-      <Script
-        src="https://sp.zalo.me/plugins/sdk.js"
-        strategy="lazyOnload"
-      />
 
       <ServiceWorkerRegistration />
       <Navbar />

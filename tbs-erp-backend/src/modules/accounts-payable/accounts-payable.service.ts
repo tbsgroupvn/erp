@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { AccountsPayableRepository } from './accounts-payable.repository';
@@ -26,16 +21,21 @@ export class AccountsPayableService {
   async createPayable(dto: CreateApDto, createdBy: string) {
     const code = await this.apRepository.generateCode();
 
-    const ap = await this.apRepository.create({
+    const createData: any = {
       code,
-      vendorId: dto.vendorId,
-      vendorName: dto.vendorName,
       amount: new Prisma.Decimal(dto.amount),
       currency: dto.currency ?? 'VND',
       dueDate: new Date(dto.dueDate),
       note: dto.note,
       createdBy,
-    });
+    };
+
+    // Use vendor relation if vendorId is provided
+    if (dto.vendorId) {
+      createData.vendor = { connect: { id: dto.vendorId } };
+    }
+
+    const ap = await this.apRepository.create(createData);
 
     this.eventEmitter.emit('ap.created', {
       apId: ap.id,
@@ -43,21 +43,15 @@ export class AccountsPayableService {
       amount: dto.amount,
     });
 
-    this.logger.log(
-      `AP created: ${code}, vendor=${dto.vendorName}, amount=${dto.amount}`,
-    );
+    const vendorLabel = dto.vendorName ?? dto.vendorId ?? 'unknown';
+    this.logger.log(`AP created: ${code}, vendor=${vendorLabel}, amount=${dto.amount}`);
     return ap;
   }
 
   /**
    * Record a payment against an accounts payable.
    */
-  async recordPayment(
-    apId: string,
-    amount: number,
-    reference?: string,
-    note?: string,
-  ) {
+  async recordPayment(apId: string, amount: number, reference?: string, note?: string) {
     const ap = await this.apRepository.findById(apId);
     if (!ap) {
       throw new NotFoundException(`AP record ${apId} not found`);
@@ -83,9 +77,7 @@ export class AccountsPayableService {
     const updated = await this.apRepository.update(apId, {
       paidAmount: new Prisma.Decimal(newPaidAmount),
       status: isFullyPaid ? 'PAID' : 'PARTIAL',
-      note: note
-        ? `${ap.note ?? ''}\n[Payment] ${amount} - ${note}`
-        : ap.note,
+      note: note ? `${ap.note ?? ''}\n[Payment] ${amount} - ${note}` : ap.note,
     });
 
     this.eventEmitter.emit('ap.payment.recorded', {
@@ -96,9 +88,7 @@ export class AccountsPayableService {
       reference,
     });
 
-    this.logger.log(
-      `AP payment recorded: ${ap.code}, amount=${amount}, status=${updated.status}`,
-    );
+    this.logger.log(`AP payment recorded: ${ap.code}, amount=${amount}, status=${updated.status}`);
 
     return updated;
   }

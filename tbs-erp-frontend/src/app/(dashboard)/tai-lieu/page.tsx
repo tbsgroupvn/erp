@@ -1,243 +1,276 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Upload, Search, Plus, X } from 'lucide-react';
-import { PageHeader } from '@/components/shared/page-header';
-import { DataTable } from '@/components/shared/data-table';
-import { documentColumns } from '@/features/documents/document-table-columns';
-import { useDocuments, useUploadDocument, useDeleteDocument } from '@/lib/hooks/use-documents';
-import { DocumentCategory } from '@/lib/types/enums';
-import { DOCUMENT_CATEGORY_LABELS } from '@/lib/utils/constants';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, Suspense } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { Upload, FolderPlus, Grid, List, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import type { DocumentQueryParams } from '@/lib/types/document.types';
+import { FolderTree } from '@/features/drive/folder-tree';
+import { FileGrid } from '@/features/drive/file-grid';
+import { FileUploadZone } from '@/features/drive/file-upload-zone';
+import { useFolders, useFiles, useCreateFolder, useStorageUsage } from '@/lib/hooks/use-drive';
+import { cn } from '@/lib/utils/cn';
 
-export default function TaiLieuPage() {
-  const [filters, setFilters] = useState<DocumentQueryParams>({});
-  const [page, setPage] = useState(1);
-  const [showUpload, setShowUpload] = useState(false);
-  const { data, isLoading } = useDocuments({ ...filters, page, limit: 20 });
+// Wiki imports
+import { BookOpen } from 'lucide-react';
+import { SpaceList } from '@/features/wiki/space-list';
+import { WikiSearch } from '@/features/wiki/wiki-search';
 
-  const [entityType, setEntityType] = useState('');
-  const [category, setCategory] = useState('');
+// ---------------------------------------------------------------------------
+// Tab definitions
+// ---------------------------------------------------------------------------
+
+const TABS = [
+  { key: 'default', label: 'Tai lieu' },
+  { key: 'wiki', label: 'Wiki' },
+] as const;
+
+type TabKey = (typeof TABS)[number]['key'];
+
+// ---------------------------------------------------------------------------
+// Drive (Tai lieu) content
+// ---------------------------------------------------------------------------
+
+function DriveContent() {
+  const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
+  const [showUpload, setShowUpload] = useState(false);
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
 
-  // Upload form
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadData, setUploadData] = useState({
-    name: '',
-    category: '' as string,
-    entityType: '',
-    entityId: '',
+  const { data: folders = [] } = useFolders(undefined);
+  const { data: filesData } = useFiles({
+    folderId: selectedFolderId,
+    search: search || undefined,
   });
-  const uploadDocument = useUploadDocument();
+  const { data: storageUsage } = useStorageUsage();
+  const createFolder = useCreateFolder();
 
-  const applyFilters = (overrides: Partial<{ entityType: string; category: string; search: string }> = {}) => {
-    const newFilters: DocumentQueryParams = {
-      entityType: (overrides.entityType !== undefined ? overrides.entityType : entityType) || undefined,
-      category: ((overrides.category !== undefined ? overrides.category : category) || undefined) as DocumentCategory | undefined,
-      search: (overrides.search !== undefined ? overrides.search : search) || undefined,
-    };
-    setFilters(newFilters);
-    setPage(1);
+  const handleCreateFolder = () => {
+    if (!newFolderName.trim()) return;
+    createFolder.mutate(
+      { name: newFolderName.trim(), parentId: selectedFolderId },
+      {
+        onSuccess: () => {
+          setNewFolderOpen(false);
+          setNewFolderName('');
+        },
+      },
+    );
   };
 
-  const handleUpload = () => {
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) return;
+  const fileItems = filesData?.data ?? [];
+  const fileCount = filesData?.meta?.total ?? 0;
 
-    const formData = new FormData();
-    formData.append('file', file);
-    if (uploadData.name) formData.append('name', uploadData.name);
-    if (uploadData.category) formData.append('category', uploadData.category);
-    if (uploadData.entityType) formData.append('entityType', uploadData.entityType);
-    if (uploadData.entityId) formData.append('entityId', uploadData.entityId);
+  return (
+    <div className="flex h-[calc(100vh-64px-48px)] overflow-hidden border-t -mx-6">
+      {/* Sidebar — Folder tree */}
+      <div className="w-60 shrink-0 border-r bg-background overflow-y-auto p-2 flex flex-col gap-2">
+        <FolderTree
+          folders={folders}
+          selectedId={selectedFolderId}
+          onSelect={setSelectedFolderId}
+        />
 
-    uploadDocument.mutate(formData, {
-      onSuccess: () => {
-        setShowUpload(false);
-        setUploadData({ name: '', category: '', entityType: '', entityId: '' });
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      },
-    });
+        {/* Storage usage */}
+        {storageUsage && (
+          <div className="mt-auto pt-2 border-t px-2 pb-1">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <HardDrive className="h-3.5 w-3.5" />
+              <span>{storageUsage.totalGB} GB đã dùng</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b gap-3">
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setShowUpload((v) => !v)}>
+              <Upload className="h-4 w-4 mr-1.5" />
+              {showUpload ? 'Đóng upload' : 'Tải lên'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setNewFolderOpen(true)}
+            >
+              <FolderPlus className="h-4 w-4 mr-1.5" />
+              Thư mục mới
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {fileCount > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {fileCount} file
+              </Badge>
+            )}
+            <Input
+              className="h-8 w-48 text-sm"
+              placeholder="Tìm kiếm file..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0"
+              onClick={() => setViewMode((v) => (v === 'grid' ? 'list' : 'grid'))}
+              title={viewMode === 'grid' ? 'Chuyển sang danh sách' : 'Chuyển sang lưới'}
+            >
+              {viewMode === 'grid' ? (
+                <List className="h-4 w-4" />
+              ) : (
+                <Grid className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* File area */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {showUpload ? (
+            <FileUploadZone
+              folderId={selectedFolderId}
+              onDone={() => setShowUpload(false)}
+            />
+          ) : (
+            <FileGrid files={fileItems} viewMode={viewMode} />
+          )}
+        </div>
+      </div>
+
+      {/* Create folder dialog */}
+      <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tạo thư mục mới</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Tên thư mục</Label>
+            <Input
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+              placeholder="Nhập tên thư mục..."
+              autoFocus
+            />
+            {selectedFolderId && (
+              <p className="text-xs text-muted-foreground">
+                Sẽ tạo trong thư mục hiện tại
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewFolderOpen(false)}>
+              Hủy
+            </Button>
+            <Button
+              onClick={handleCreateFolder}
+              disabled={createFolder.isPending || !newFolderName.trim()}
+            >
+              Tạo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Wiki content
+// ---------------------------------------------------------------------------
+
+function WikiContent() {
+  return (
+    <div className="flex flex-col gap-6 max-w-screen-xl mx-auto">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <BookOpen className="w-6 h-6 text-blue-600" />
+          <h2 className="text-xl font-bold text-gray-900">Wiki</h2>
+        </div>
+        <p className="text-sm text-gray-500">
+          Knowledge base noi bo — tai lieu quy trinh, huong dan va kien thuc chia se
+        </p>
+      </div>
+
+      <WikiSearch
+        placeholder="Tìm kiếm tài liệu, quy trình, hướng dẫn..."
+        className="max-w-xl"
+      />
+
+      <SpaceList />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Inner component that reads search params (must be inside Suspense)
+// ---------------------------------------------------------------------------
+
+function TaiLieuInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const activeTab = (searchParams.get('tab') as TabKey) || 'default';
+
+  const setTab = (tab: TabKey) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === 'default') params.delete('tab');
+    else params.set('tab', tab);
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   return (
-    <div>
-      <PageHeader title="Tài liệu" description="Quản lý tài liệu và tệp đính kèm">
-        <Button onClick={() => setShowUpload((prev) => !prev)}>
-          {showUpload ? (
-            <>
-              <X className="mr-2 h-4 w-4" />
-              Đóng
-            </>
-          ) : (
-            <>
-              <Upload className="mr-2 h-4 w-4" />
-              Tải lên
-            </>
-          )}
-        </Button>
-      </PageHeader>
-
-      {/* Upload form */}
-      {showUpload && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Tải tài liệu lên</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-2 sm:col-span-2 lg:col-span-3">
-                <Label htmlFor="file">Chọn tệp *</Label>
-                <Input
-                  id="file"
-                  type="file"
-                  ref={fileInputRef}
-                  className="cursor-pointer"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="docName">Tên tài liệu</Label>
-                <Input
-                  id="docName"
-                  placeholder="Mặc định dùng tên file"
-                  value={uploadData.name}
-                  onChange={(e) =>
-                    setUploadData((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="docCategory">Danh mục</Label>
-                <select
-                  id="docCategory"
-                  value={uploadData.category}
-                  onChange={(e) =>
-                    setUploadData((prev) => ({ ...prev, category: e.target.value }))
-                  }
-                  className="h-9 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Chọn danh mục</option>
-                  {Object.entries(DOCUMENT_CATEGORY_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="docEntityType">Loại đối tượng</Label>
-                <select
-                  id="docEntityType"
-                  value={uploadData.entityType}
-                  onChange={(e) =>
-                    setUploadData((prev) => ({ ...prev, entityType: e.target.value }))
-                  }
-                  className="h-9 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Chọn loại</option>
-                  <option value="ORDER">Đơn hàng</option>
-                  <option value="CUSTOMER">Khách hàng</option>
-                  <option value="VENDOR">Nhà cung cấp</option>
-                  <option value="CONTAINER">Container</option>
-                  <option value="PACKAGE">Kiện hàng</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="docEntityId">Mã đối tượng</Label>
-                <Input
-                  id="docEntityId"
-                  placeholder="Không bắt buộc"
-                  value={uploadData.entityId}
-                  onChange={(e) =>
-                    setUploadData((prev) => ({ ...prev, entityId: e.target.value }))
-                  }
-                />
-              </div>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <Button
-                onClick={handleUpload}
-                disabled={uploadDocument.isPending || !fileInputRef.current?.files?.length}
-              >
-                {uploadDocument.isPending ? 'Đang tải...' : 'Tải lên'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowUpload(false);
-                  setUploadData({ name: '', category: '', entityType: '', entityId: '' });
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }}
-              >
-                Hủy
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="space-y-4">
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Tìm theo tên tài liệu..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                applyFilters({ search: e.target.value });
-              }}
-              className="pl-9"
-            />
-          </div>
-
-          <select
-            value={entityType}
-            onChange={(e) => {
-              setEntityType(e.target.value);
-              applyFilters({ entityType: e.target.value });
-            }}
-            className="h-9 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+    <div className="flex flex-col h-[calc(100vh-64px)] -m-6 overflow-hidden">
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b px-6 bg-background shrink-0">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={cn(
+              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+              activeTab === t.key
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
           >
-            <option value="">Loại đối tượng</option>
-            <option value="ORDER">Đơn hàng</option>
-            <option value="CUSTOMER">Khách hàng</option>
-            <option value="VENDOR">Nhà cung cấp</option>
-            <option value="CONTAINER">Container</option>
-            <option value="PACKAGE">Kiện hàng</option>
-          </select>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-          <select
-            value={category}
-            onChange={(e) => {
-              setCategory(e.target.value);
-              applyFilters({ category: e.target.value });
-            }}
-            className="h-9 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">Danh mục</option>
-            {Object.entries(DOCUMENT_CATEGORY_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <DataTable
-          columns={documentColumns}
-          data={data?.data ?? []}
-          pageCount={data?.meta?.totalPages}
-          page={page}
-          onPageChange={setPage}
-          isLoading={isLoading}
-        />
+      {/* Tab content */}
+      <div className="flex-1 overflow-hidden px-6 py-6">
+        {activeTab === 'default' ? <DriveContent /> : <WikiContent />}
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page export
+// ---------------------------------------------------------------------------
+
+export default function TaiLieuPage() {
+  return (
+    <Suspense>
+      <TaiLieuInner />
+    </Suspense>
   );
 }

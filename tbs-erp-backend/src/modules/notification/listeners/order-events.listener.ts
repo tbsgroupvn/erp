@@ -29,21 +29,28 @@ export class OrderEventsListener {
   }) {
     this.logger.log(`Order cancel requested: ${event.code}`);
 
-    // Notify sales leaders about the cancellation request
-    const salesLeaders = await this.prisma.user.findMany({
-      where: { role: 'SALES_LEADER', isActive: true },
-      select: { id: true },
-    });
-
-    for (const leader of salesLeaders) {
-      await this.notificationService.send({
-        userId: leader.id,
-        title: 'Order Cancellation Request',
-        body: `Order ${event.code} has a cancellation request pending approval. Reason: ${event.reason}`,
-        type: 'ORDER',
-        referenceId: event.approvalId,
-        isUrgent: true,
+    try {
+      // Notify sales leaders about the cancellation request
+      const salesLeaders = await this.prisma.user.findMany({
+        where: { role: 'SALES_LEADER', isActive: true },
+        select: { id: true },
       });
+
+      for (const leader of salesLeaders) {
+        await this.notificationService.send({
+          userId: leader.id,
+          title: 'Order Cancellation Request',
+          body: `Order ${event.code} has a cancellation request pending approval. Reason: ${event.reason}`,
+          type: 'ORDER',
+          referenceId: event.approvalId,
+          isUrgent: true,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to process order.cancel.requested for order ${event.orderId}: ${error.message}`,
+        error.stack,
+      );
     }
   }
 }

@@ -1,11 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNotEmpty,
-  IsEnum,
-  IsOptional,
-  IsDateString,
-} from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsDateString } from 'class-validator';
 
 export enum StatementType {
   BALANCE_SHEET = 'BALANCE_SHEET',

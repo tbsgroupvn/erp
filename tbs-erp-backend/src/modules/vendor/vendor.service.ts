@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
@@ -144,6 +139,17 @@ export class VendorService {
       throw new BadRequestException('Score must be between 1 and 5.');
     }
 
+    // ORDER-CENTRIC: Validate order exists when orderId is provided
+    if (dto.orderId) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: dto.orderId },
+        select: { id: true },
+      });
+      if (!order) {
+        throw new NotFoundException(`Order ${dto.orderId} not found`);
+      }
+    }
+
     const rating = await this.prisma.vendorRating.create({
       data: {
         vendorId: id,
@@ -186,8 +192,7 @@ export class VendorService {
       };
     }
 
-    const averageScore =
-      ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length;
+    const averageScore = ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length;
 
     // Breakdown by category
     const byCategory = new Map<string, { total: number; count: number }>();
@@ -242,9 +247,7 @@ export class VendorService {
       data: { isApproved: !vendor.isApproved },
     });
 
-    this.logger.log(
-      `Vendor ${vendor.code} approval status toggled to ${updated.isApproved}`,
-    );
+    this.logger.log(`Vendor ${vendor.code} approval status toggled to ${updated.isApproved}`);
 
     return updated;
   }

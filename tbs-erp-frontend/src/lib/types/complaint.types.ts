@@ -14,6 +14,7 @@ export interface Complaint {
   type: ComplaintType;
   severity: ComplaintSeverity;
   status: ComplaintStatus;
+  subject?: string;
   description: string;
   attachments: string[];
   handlerId?: string;

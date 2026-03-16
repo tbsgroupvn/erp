@@ -32,9 +32,7 @@ export class DateRangeDto {
       const end = new Date(this.endDate);
 
       if (start > end) {
-        throw new BadRequestException(
-          'startDate must be before or equal to endDate',
-        );
+        throw new BadRequestException('startDate must be before or equal to endDate');
       }
 
       const diffMs = end.getTime() - start.getTime();
@@ -56,9 +54,7 @@ export class DateRangeDto {
    * const filter = dateRange.toPrismaFilter('createdAt');
    * // { createdAt: { gte: '2025-01-01T00:00:00.000Z', lte: '2025-12-31T23:59:59.999Z' } }
    */
-  toPrismaFilter(
-    fieldName: string,
-  ): Record<string, { gte?: Date; lte?: Date }> | undefined {
+  toPrismaFilter(fieldName: string): Record<string, { gte?: Date; lte?: Date }> | undefined {
     if (!this.startDate && !this.endDate) {
       return undefined;
     }

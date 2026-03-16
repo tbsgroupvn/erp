@@ -65,6 +65,7 @@ export default function TongQuanPage() {
       <PageHeader
         title="Tổng quan"
         description={`Xin chào, ${user?.fullName || 'Người dùng'}`}
+        infoKey="tong-quan"
       />
       <ErrorBoundary>
         {renderDashboard()}

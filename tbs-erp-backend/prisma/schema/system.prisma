@@ -35,6 +35,29 @@ enum ApprovalCategory {
 }
 
 // ============================================
+// APPROVAL FLOW TEMPLATE — Pre-built templates for rapid setup
+// ============================================
+
+model ApprovalFlowTemplate {
+  id            String           @id @default(cuid())
+  slug          String           @unique
+  name          String
+  nameVi        String           @map("name_vi")
+  description   String?
+  descriptionVi String?          @map("description_vi")
+  category      ApprovalCategory
+  triggerType   String           @map("trigger_type")
+  nodesJson     Json             @map("nodes_json")
+  edgesJson     Json             @map("edges_json")
+  isDefault     Boolean          @default(false) @map("is_default")
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  @@index([category])
+  @@index([triggerType])
+  @@map("approval_flow_templates")
+}
+
+// ============================================
 // APPROVAL FLOW DEFINITION — Template quy trình
 // ============================================
 
@@ -79,8 +102,13 @@ model ApprovalFlowNode {
   conditionValue    String?         @map("condition_value")
 
   // SLA
-  deadlineHours    Int?             @map("deadline_hours")
-  autoAction       String?          @map("auto_action")  // AUTO_APPROVE, AUTO_ESCALATE
+  deadlineHours         Int?    @map("deadline_hours")
+  autoAction            String? @map("auto_action")  // AUTO_APPROVE, AUTO_ESCALATE
+  autoActionDelayHours  Int?    @map("auto_action_delay_hours")
+
+  // Condition grouping
+  conditionGroupId    String? @map("condition_group_id")
+  conditionGroupLogic String? @map("condition_group_logic")  // AND, OR
 
   // Field permissions: { "amount": "read", "note": "edit", "internal": "hidden" }
   fieldPermissions Json?            @map("field_permissions")
@@ -92,6 +120,9 @@ model ApprovalFlowNode {
   flowDefinition   ApprovalFlowDefinition @relation(fields: [flowDefinitionId], references: [id], onDelete: Cascade)
   outgoingEdges    ApprovalFlowEdge[] @relation("EdgeSource")
   incomingEdges    ApprovalFlowEdge[] @relation("EdgeTarget")
+
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@unique([flowDefinitionId, nodeKey])
   @@map("approval_flow_nodes")
@@ -105,10 +136,13 @@ model ApprovalFlowEdge {
   label               String?
   conditionExpression String?  @map("condition_expression")  // "amount > 50000000"
   sortOrder           Int      @default(0) @map("sort_order")
+  isDefault           Boolean  @default(false) @map("is_default")
 
   flowDefinition      ApprovalFlowDefinition @relation(fields: [flowDefinitionId], references: [id], onDelete: Cascade)
   sourceNode          ApprovalFlowNode @relation("EdgeSource", fields: [sourceNodeId], references: [id], onDelete: Cascade)
   targetNode          ApprovalFlowNode @relation("EdgeTarget", fields: [targetNodeId], references: [id], onDelete: Cascade)
+
+  createdAt           DateTime @default(now()) @map("created_at")
 
   @@index([sourceNodeId])
   @@index([targetNodeId])
@@ -136,18 +170,22 @@ model Approval {
   currentNodeKey   String?        @map("current_node_key")
   isUrgent         Boolean        @default(false) @map("is_urgent")
   deadline         DateTime?
+  batchId          String?        @map("batch_id")
 
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
 
-  flowDefinition   ApprovalFlowDefinition? @relation(fields: [flowDefinitionId], references: [id])
+  flowDefinition   ApprovalFlowDefinition? @relation(fields: [flowDefinitionId], references: [id], onDelete: SetNull)
   steps            ApprovalStep[]
   ccUsers          ApprovalCC[]
   comments         ApprovalComment[]
   actionLogs       ApprovalActionLog[]
+  analytics        ApprovalAnalytics?
 
   @@index([type, status])
   @@index([requestedBy])
+  @@index([requestedBy, status])
+  @@index([status, createdAt])
   @@index([referenceId])
   @@index([flowDefinitionId])
   @@map("approvals")
@@ -173,6 +211,9 @@ model ApprovalStep {
   isOverdue           Boolean         @default(false) @map("is_overdue")
 
   approval            Approval        @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
 
   @@unique([approvalId, stepNumber])
   @@index([assignedUserId, status])
@@ -239,6 +280,31 @@ model ApprovalActionLog {
 }
 
 // ============================================
+// APPROVAL ANALYTICS — Phân tích hiệu suất phê duyệt
+// ============================================
+
+model ApprovalAnalytics {
+  id               String         @id @default(cuid())
+  approvalId       String         @unique @map("approval_id")
+  approval         Approval       @relation(fields: [approvalId], references: [id])
+  type             ApprovalType
+  flowDefinitionId String?        @map("flow_definition_id")
+  totalDurationMs  BigInt?        @map("total_duration_ms")
+  stepDurations    Json?          @map("step_durations")
+  bottleneckStep   Int?           @map("bottleneck_step")
+  bottleneckRole   String?        @map("bottleneck_role")
+  wasEscalated     Boolean        @default(false) @map("was_escalated")
+  wasOverdue       Boolean        @default(false) @map("was_overdue")
+  finalStatus      ApprovalStatus @map("final_status")
+  completedAt      DateTime?      @map("completed_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  @@index([type, completedAt])
+  @@index([flowDefinitionId])
+  @@map("approval_analytics")
+}
+
+// ============================================
 // APPROVAL DELEGATION — Ủy quyền khi vắng mặt
 // ============================================
 
@@ -269,6 +335,8 @@ model Notification {
   referenceId String?             @map("reference_id")
   isRead      Boolean             @default(false) @map("is_read")
   isUrgent    Boolean             @default(false) @map("is_urgent")
+  priority    NotificationPriority @default(NORMAL)
+  data        Json?
   sentAt      DateTime?           @map("sent_at")
   readAt      DateTime?           @map("read_at")
   createdAt   DateTime            @default(now()) @map("created_at")
@@ -278,27 +346,6 @@ model Notification {
   @@index([type])
   @@index([createdAt])
   @@map("notifications")
-}
-
-model NotificationRecord {
-  id          String              @id @default(cuid())
-  userId      String
-  user        User                @relation(fields: [userId], references: [id])
-  title       String
-  body        String
-  type        NotificationType
-  channel     NotificationChannel @default(APP_PUSH)
-  priority    NotificationPriority @default(NORMAL)
-  data        Json?
-  referenceId String?
-  isUrgent    Boolean             @default(false)
-  isRead      Boolean             @default(false)
-  readAt      DateTime?
-  createdAt   DateTime            @default(now())
-
-  @@index([userId, isRead])
-  @@index([createdAt])
-  @@map("notification_records")
 }
 
 model Document {
@@ -323,39 +370,50 @@ model Document {
 
   @@index([entityType, entityId])
   @@index([category])
+  @@index([uploadedBy])
   @@map("documents")
 }
 
 model Task {
-  id          String       @id @default(cuid())
-  code        String       @unique
-  title       String
-  description String?
-  assigneeId  String
-  assignee    User         @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  priority    TaskPriority @default(MEDIUM)
-  status      TaskStatus   @default(OPEN)
-  dueDate     DateTime?
-  entityType  String?      // ORDER, CUSTOMER, APPROVAL
-  entityId    String?
-  tags        String[]
-  comments    TaskComment[]
-  createdBy   String
-  createdByUser User       @relation("TaskCreator", fields: [createdBy], references: [id])
-  completedAt DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id             String       @id @default(cuid())
+  code           String       @unique
+  title          String
+  description    String?
+  assigneeId     String
+  assignee       User         @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  priority       TaskPriority @default(MEDIUM)
+  status         TaskStatus   @default(OPEN)
+  dueDate        DateTime?
+  entityType     String?      // ORDER, CUSTOMER, APPROVAL
+  entityId       String?
+  tags           String[]
+  comments       TaskComment[]
+  createdBy      String
+  createdByUser  User         @relation("TaskCreator", fields: [createdBy], references: [id])
+  completedAt    DateTime?
+
+  // Order-as-Project fields
+  sourceType     String?      @map("source_type")      // MANUAL, AUTO_STAGE, AUTO_SLA_ESCALATION
+  orderStage     String?      @map("order_stage")      // OrderStatus that triggered this task
+  departmentCode String?      @map("department_code")   // Department related to this task
+  isAutoCreated  Boolean      @default(false) @map("is_auto_created")
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@index([assigneeId])
   @@index([status])
   @@index([dueDate])
+  @@index([createdBy])
+  @@index([entityType, entityId, orderStage])
+  @@index([departmentCode, status])
   @@map("tasks")
 }
 
 model TaskComment {
   id        String   @id @default(cuid())
   taskId    String
-  task      Task     @relation(fields: [taskId], references: [id])
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   content   String
@@ -384,6 +442,7 @@ model Vendor {
   supplierOrders   SupplierOrder[]   @relation("SupplierOrderVendor")
   purchaseRequests PurchaseRequest[] @relation("PurchaseRequestVendor")
   purchaseOrders   PurchaseOrder[]   @relation("PurchaseOrderVendor")
+  accountPayables  AccountPayable[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -393,7 +452,7 @@ model Vendor {
 model VendorRating {
   id        String   @id @default(cuid())
   vendorId  String
-  vendor    Vendor   @relation(fields: [vendorId], references: [id])
+  vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   score     Int      // 1-5
   category  String?  // QUALITY, DELIVERY, PRICE, COMMUNICATION
   comment   String?
@@ -402,6 +461,8 @@ model VendorRating {
   createdAt DateTime @default(now())
 
   @@index([vendorId])
+  @@index([orderId])
+  @@index([createdBy])
   @@map("vendor_ratings")
 }
 
@@ -498,4 +559,85 @@ model ApiKey {
   @@index([prefix])
   @@index([isActive])
   @@map("api_keys")
+}
+
+// ============================================
+// NOTIFICATION RULE — Dynamic notification configuration (Phase 0B)
+// ============================================
+
+model NotificationRule {
+  id              String   @id @default(cuid())
+  name            String
+  eventType       String   @map("event_type") // ORDER_STATUS_CHANGE, APPROVAL_NEEDED, etc.
+  conditions      Json     // { "newStatus": ["ARRIVED_VN","DELIVERED"], "roles": ["SALE"] }
+  channels        String[] // ["APP_PUSH","EMAIL","WEBHOOK"]
+  recipientType   String   @map("recipient_type") // ASSIGNED_SALE, CUSTOMER, ROLE, SPECIFIC_USER
+  recipientRole   String?  @map("recipient_role") // UserRole when recipientType=ROLE
+  recipientUserId String?  @map("recipient_user_id") // when recipientType=SPECIFIC_USER
+  templateTitle   String   @map("template_title")
+  templateBody    String   @map("template_body") // Supports {{order.code}}, {{customer.name}}
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([eventType, isActive])
+  @@map("notification_rules")
+}
+
+// ============================================
+// ESCALATION RULE — Alert escalation matrix (BGD-4)
+// ============================================
+
+model EscalationRule {
+  id              String   @id @default(cuid())
+  name            String?
+  eventType       String   @map("event_type") // OVERDUE_AR, COMPLAINT_UNRESOLVED, ORDER_STUCK
+  thresholdValue  Int      @map("threshold_value") // days, amount, etc.
+  thresholdUnit   String   @map("threshold_unit") // DAYS, VND, COUNT
+  recipientRole   UserRole @map("recipient_role")
+  notifyChannels  String[] @map("notify_channels") // APP_PUSH, EMAIL
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([eventType, isActive])
+  @@map("escalation_rules")
+}
+
+// ============================================
+// REVENUE TARGET — Monthly revenue targets (BGD-1)
+// ============================================
+
+model RevenueTarget {
+  id        String   @id @default(cuid())
+  year      Int
+  month     Int
+  branch    Branch
+  target    Decimal  @db.Decimal(18, 2)
+  setBy     String?  @map("set_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([year, month, branch])
+  @@map("revenue_targets")
+}
+
+// ============================================
+// RESPONSE TEMPLATE — Pre-built response library (CSKH-3)
+// ============================================
+
+model ResponseTemplate {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  category    String   // SHIPPING, PRICING, TRACKING, PAYMENT, GENERAL
+  tags        String[]
+  usageCount  Int      @default(0) @map("usage_count")
+  isApproved  Boolean  @default(false) @map("is_approved")
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@map("response_templates")
 }

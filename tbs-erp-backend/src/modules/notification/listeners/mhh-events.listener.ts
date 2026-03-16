@@ -31,21 +31,28 @@ export class MHHEventsListener {
   }) {
     this.logger.log(`Supplier order created: ${event.code}`);
 
-    // Notify XNK managers about new supplier order
-    const xnkManagers = await this.prisma.user.findMany({
-      where: { role: 'XNK_MANAGER', isActive: true },
-      select: { id: true },
-    });
-
-    for (const manager of xnkManagers) {
-      if (manager.id === event.createdBy) continue;
-      await this.notificationService.send({
-        userId: manager.id,
-        title: 'Đơn NCC mới',
-        body: `Đơn NCC ${event.code} cho NCC "${event.supplierName}" đã được tạo.`,
-        type: 'SUPPLIER_ORDER',
-        referenceId: event.supplierOrderId,
+    try {
+      // Notify XNK managers about new supplier order
+      const xnkManagers = await this.prisma.user.findMany({
+        where: { role: 'XNK_MANAGER', isActive: true },
+        select: { id: true },
       });
+
+      for (const manager of xnkManagers) {
+        if (manager.id === event.createdBy) continue;
+        await this.notificationService.send({
+          userId: manager.id,
+          title: 'Don NCC moi',
+          body: `Don NCC ${event.code} cho NCC "${event.supplierName}" da duoc tao.`,
+          type: 'SUPPLIER_ORDER',
+          referenceId: event.supplierOrderId,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to process supplier-order.created for ${event.supplierOrderId}: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -59,26 +66,33 @@ export class MHHEventsListener {
     changedBy: string;
   }) {
     this.logger.log(
-      `Supplier order ${event.code} status: ${event.previousStatus} → ${event.newStatus}`,
+      `Supplier order ${event.code} status: ${event.previousStatus} -> ${event.newStatus}`,
     );
 
-    // If status is ISSUE, notify XNK managers urgently
-    if (event.newStatus === 'ISSUE') {
-      const xnkManagers = await this.prisma.user.findMany({
-        where: { role: 'XNK_MANAGER', isActive: true },
-        select: { id: true },
-      });
-
-      for (const manager of xnkManagers) {
-        await this.notificationService.send({
-          userId: manager.id,
-          title: 'Đơn NCC có vấn đề',
-          body: `Đơn NCC ${event.code} gặp sự cố. Trước đó: ${event.previousStatus}.`,
-          type: 'SUPPLIER_ORDER',
-          referenceId: event.supplierOrderId,
-          isUrgent: true,
+    try {
+      // If status is ISSUE, notify XNK managers urgently
+      if (event.newStatus === 'ISSUE') {
+        const xnkManagers = await this.prisma.user.findMany({
+          where: { role: 'XNK_MANAGER', isActive: true },
+          select: { id: true },
         });
+
+        for (const manager of xnkManagers) {
+          await this.notificationService.send({
+            userId: manager.id,
+            title: 'Don NCC co van de',
+            body: `Don NCC ${event.code} gap su co. Truoc do: ${event.previousStatus}.`,
+            type: 'SUPPLIER_ORDER',
+            referenceId: event.supplierOrderId,
+            isUrgent: true,
+          });
+        }
       }
+    } catch (error) {
+      this.logger.error(
+        `Failed to process supplier-order.status.changed for ${event.supplierOrderId}: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -92,20 +106,27 @@ export class MHHEventsListener {
   }) {
     this.logger.log(`Supplier order ${event.code} received at CN warehouse`);
 
-    // Notify the order's sale person
-    const order = await this.prisma.order.findUnique({
-      where: { id: event.orderId },
-      select: { saleId: true, code: true },
-    });
-
-    if (order) {
-      await this.notificationService.send({
-        userId: order.saleId,
-        title: 'Hàng NCC đã nhận',
-        body: `Đơn NCC ${event.code} (đơn hàng ${order.code}) đã được kho TQ nhận hàng.${event.quantityReceived ? ` SL: ${event.quantityReceived}` : ''}`,
-        type: 'SUPPLIER_ORDER',
-        referenceId: event.supplierOrderId,
+    try {
+      // Notify the order's sale person
+      const order = await this.prisma.order.findUnique({
+        where: { id: event.orderId },
+        select: { saleId: true, code: true },
       });
+
+      if (order?.saleId) {
+        await this.notificationService.send({
+          userId: order.saleId,
+          title: 'Hang NCC da nhan',
+          body: `Don NCC ${event.code} (don hang ${order.code}) da duoc kho TQ nhan hang.${event.quantityReceived ? ` SL: ${event.quantityReceived}` : ''}`,
+          type: 'SUPPLIER_ORDER',
+          referenceId: event.supplierOrderId,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to process supplier-order.received for ${event.supplierOrderId}: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -120,24 +141,31 @@ export class MHHEventsListener {
   }) {
     this.logger.log(`MHH issue created: ${event.code}`);
 
-    // Notify XNK staff about the new issue
-    const xnkStaff = await this.prisma.user.findMany({
-      where: { role: { in: ['XNK_MANAGER', 'XNK_STAFF'] }, isActive: true },
-      select: { id: true },
-    });
-
-    const isUrgent = event.severity === 'HIGH' || event.severity === 'CRITICAL';
-
-    for (const staff of xnkStaff) {
-      if (staff.id === event.createdBy) continue;
-      await this.notificationService.send({
-        userId: staff.id,
-        title: isUrgent ? 'Vấn đề MHH khẩn cấp' : 'Vấn đề MHH mới',
-        body: `Vấn đề ${event.code} (${event.issueType}) được tạo. Mức độ: ${event.severity}.`,
-        type: 'MHH_ISSUE',
-        referenceId: event.issueId,
-        isUrgent,
+    try {
+      // Notify XNK staff about the new issue
+      const xnkStaff = await this.prisma.user.findMany({
+        where: { role: { in: ['XNK_MANAGER', 'XNK_STAFF'] }, isActive: true },
+        select: { id: true },
       });
+
+      const isUrgent = event.severity === 'HIGH' || event.severity === 'CRITICAL';
+
+      for (const staff of xnkStaff) {
+        if (staff.id === event.createdBy) continue;
+        await this.notificationService.send({
+          userId: staff.id,
+          title: isUrgent ? 'Van de MHH khan cap' : 'Van de MHH moi',
+          body: `Van de ${event.code} (${event.issueType}) duoc tao. Muc do: ${event.severity}.`,
+          type: 'MHH_ISSUE',
+          referenceId: event.issueId,
+          isUrgent,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to process mhh-issue.created for ${event.issueId}: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -152,14 +180,21 @@ export class MHHEventsListener {
   }) {
     this.logger.log(`MHH issue ${event.code} assigned to ${event.newHandlerId}`);
 
-    await this.notificationService.send({
-      userId: event.newHandlerId,
-      title: 'Phân công xử lý vấn đề MHH',
-      body: `Bạn được phân công xử lý vấn đề ${event.code}. Vui lòng kiểm tra và xử lý.`,
-      type: 'MHH_ISSUE',
-      referenceId: event.issueId,
-      isUrgent: true,
-    });
+    try {
+      await this.notificationService.send({
+        userId: event.newHandlerId,
+        title: 'Phan cong xu ly van de MHH',
+        body: `Ban duoc phan cong xu ly van de ${event.code}. Vui long kiem tra va xu ly.`,
+        type: 'MHH_ISSUE',
+        referenceId: event.issueId,
+        isUrgent: true,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to process mhh-issue.assigned for ${event.issueId}: ${error.message}`,
+        error.stack,
+      );
+    }
   }
 
   @OnEvent('mhh-issue.resolved')
@@ -172,20 +207,27 @@ export class MHHEventsListener {
   }) {
     this.logger.log(`MHH issue ${event.code} resolved: ${event.resolution}`);
 
-    // Notify the order's sale person
-    const order = await this.prisma.order.findUnique({
-      where: { id: event.orderId },
-      select: { saleId: true, code: true },
-    });
-
-    if (order) {
-      await this.notificationService.send({
-        userId: order.saleId,
-        title: 'Vấn đề MHH đã giải quyết',
-        body: `Vấn đề ${event.code} (đơn ${order.code}) đã được giải quyết: ${event.resolution}.`,
-        type: 'MHH_ISSUE',
-        referenceId: event.issueId,
+    try {
+      // Notify the order's sale person
+      const order = await this.prisma.order.findUnique({
+        where: { id: event.orderId },
+        select: { saleId: true, code: true },
       });
+
+      if (order?.saleId) {
+        await this.notificationService.send({
+          userId: order.saleId,
+          title: 'Van de MHH da giai quyet',
+          body: `Van de ${event.code} (don ${order.code}) da duoc giai quyet: ${event.resolution}.`,
+          type: 'MHH_ISSUE',
+          referenceId: event.issueId,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to process mhh-issue.resolved for ${event.issueId}: ${error.message}`,
+        error.stack,
+      );
     }
   }
 }

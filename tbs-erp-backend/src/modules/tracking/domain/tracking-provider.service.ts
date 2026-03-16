@@ -48,10 +48,7 @@ export class TrackingProviderService {
    * @param carrier - Carrier code (e.g., 'shunfeng', 'yuantong', 'zhongtong')
    * @returns Array of tracking events from the carrier
    */
-  async fetchFromKuaidi100(
-    trackingNumber: string,
-    carrier: string,
-  ): Promise<ITrackingEvent[]> {
+  async fetchFromKuaidi100(trackingNumber: string, carrier: string): Promise<ITrackingEvent[]> {
     return this.kuaidi100Circuit.execute(() =>
       withRetry(
         () => this.callKuaidi100API(trackingNumber, carrier),
@@ -68,9 +65,7 @@ export class TrackingProviderService {
     trackingNumber: string,
     carrier: string,
   ): Promise<ITrackingEvent[]> {
-    this.logger.log(
-      `[STUB] Fetching from Kuaidi100: ${trackingNumber} (carrier: ${carrier})`,
-    );
+    this.logger.log(`[STUB] Fetching from Kuaidi100: ${trackingNumber} (carrier: ${carrier})`);
 
     // TODO: Implement actual Kuaidi100 API integration
     // API endpoint: https://poll.kuaidi100.com/poll/query.do
@@ -111,12 +106,8 @@ export class TrackingProviderService {
   /**
    * Internal method performing the actual 17Track API call.
    */
-  private async call17TrackAPI(
-    trackingNumber: string,
-  ): Promise<ITrackingEvent[]> {
-    this.logger.log(
-      `[STUB] Fetching from 17Track: ${trackingNumber}`,
-    );
+  private async call17TrackAPI(trackingNumber: string): Promise<ITrackingEvent[]> {
+    this.logger.log(`[STUB] Fetching from 17Track: ${trackingNumber}`);
 
     // TODO: Implement actual 17Track API integration
     // API endpoint: https://api.17track.net/track/v2/gettrackinfo
@@ -154,9 +145,7 @@ export class TrackingProviderService {
           return { provider: 'kuaidi100', events };
         }
       } catch (error) {
-        this.logger.warn(
-          `Kuaidi100 fetch failed for ${trackingNumber}: ${error.message}`,
-        );
+        this.logger.warn(`Kuaidi100 fetch failed for ${trackingNumber}: ${error.message}`);
       }
     }
 
@@ -167,9 +156,7 @@ export class TrackingProviderService {
         return { provider: '17track', events };
       }
     } catch (error) {
-      this.logger.warn(
-        `17Track fetch failed for ${trackingNumber}: ${error.message}`,
-      );
+      this.logger.warn(`17Track fetch failed for ${trackingNumber}: ${error.message}`);
     }
 
     return { provider: 'none', events: [] };

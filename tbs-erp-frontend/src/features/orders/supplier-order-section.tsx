@@ -22,6 +22,7 @@ import {
   SUPPLIER_ORDER_STATUS_COLORS,
 } from '@/lib/utils/constants';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils/format';
+import { InfoTooltip } from '@/components/shared/info-tooltip';
 import { apiClient } from '@/lib/api/client';
 import { SupplierOrderStatus } from '@/lib/types/enums';
 import type {
@@ -116,6 +117,7 @@ export function SupplierOrderSection({ orderId, orderCode }: SupplierOrderSectio
         <h4 className="text-sm font-semibold flex items-center gap-2">
           <Package className="h-4 w-4" />
           Đơn đặt NCC ({supplierOrders?.length ?? 0})
+          <InfoTooltip tipKey="supplier-order" />
         </h4>
         <div className="flex items-center gap-2">
           {isPriority && (
@@ -123,6 +125,7 @@ export function SupplierOrderSection({ orderId, orderCode }: SupplierOrderSectio
               Priority
             </span>
           )}
+          {!canProcure && <InfoTooltip tipKey="deposit" />}
           <button
             type="button"
             onClick={() => setShowCreateForm(!showCreateForm)}
@@ -142,7 +145,7 @@ export function SupplierOrderSection({ orderId, orderCode }: SupplierOrderSectio
           <p className="text-sm font-medium">Tạo đơn đặt NCC mới</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Tên NCC *</label>
+              <p className="text-xs font-medium text-muted-foreground">Tên NCC *</p>
               <input
                 type="text"
                 value={createForm.supplierName ?? ''}
@@ -152,7 +155,7 @@ export function SupplierOrderSection({ orderId, orderCode }: SupplierOrderSectio
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Platform</label>
+              <p className="text-xs font-medium text-muted-foreground">Platform</p>
               <input
                 type="text"
                 value={createForm.supplierPlatform ?? ''}
@@ -162,7 +165,7 @@ export function SupplierOrderSection({ orderId, orderCode }: SupplierOrderSectio
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">URL sản phẩm</label>
+              <p className="text-xs font-medium text-muted-foreground">URL sản phẩm</p>
               <input
                 type="text"
                 value={createForm.supplierUrl ?? ''}
@@ -172,7 +175,7 @@ export function SupplierOrderSection({ orderId, orderCode }: SupplierOrderSectio
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Giá báo (CNY)</label>
+              <p className="text-xs font-medium text-muted-foreground">Giá báo (CNY)</p>
               <input
                 type="number"
                 value={createForm.quotedPriceCNY ?? ''}
@@ -182,7 +185,7 @@ export function SupplierOrderSection({ orderId, orderCode }: SupplierOrderSectio
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Số lượng</label>
+              <p className="text-xs font-medium text-muted-foreground">Số lượng</p>
               <input
                 type="number"
                 value={createForm.quantityOrdered ?? ''}
@@ -192,7 +195,7 @@ export function SupplierOrderSection({ orderId, orderCode }: SupplierOrderSectio
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Phí ship nội TQ (CNY)</label>
+              <p className="text-xs font-medium text-muted-foreground">Phí ship nội TQ (CNY)</p>
               <input
                 type="number"
                 value={createForm.shippingFeeCNY ?? ''}
@@ -203,7 +206,7 @@ export function SupplierOrderSection({ orderId, orderCode }: SupplierOrderSectio
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Ghi chú</label>
+            <p className="text-xs font-medium text-muted-foreground">Ghi chú</p>
             <textarea
               value={createForm.note ?? ''}
               onChange={(e) => setCreateForm((p) => ({ ...p, note: e.target.value }))}
@@ -350,7 +353,7 @@ export function SupplierOrderSection({ orderId, orderCode }: SupplierOrderSectio
                     <p className="text-xs font-medium text-green-800">Ghi nhận hàng nhập kho TQ</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs text-muted-foreground">SL nhận</label>
+                        <p className="text-xs text-muted-foreground">SL nhận</p>
                         <input
                           type="number"
                           value={receiveForm.quantityReceived ?? ''}
@@ -360,7 +363,7 @@ export function SupplierOrderSection({ orderId, orderCode }: SupplierOrderSectio
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Giá thực (CNY)</label>
+                        <p className="text-xs text-muted-foreground">Giá thực (CNY)</p>
                         <input
                           type="number"
                           value={receiveForm.actualPriceCNY ?? ''}

@@ -1,6 +1,7 @@
 'use client';
 
 import { Truck, Package, AlertTriangle, MapPin } from 'lucide-react';
+import { InfoTooltip } from '@/components/shared/info-tooltip';
 import { StatusBadge } from '@/components/shared/status-badge';
 import {
   COMPLAINT_STATUS_LABELS,
@@ -10,10 +11,58 @@ import {
   COMPLAINT_TYPE_LABELS,
 } from '@/lib/utils/constants';
 import { formatDateTime } from '@/lib/utils/format';
-import type { ComplaintStatus, ComplaintSeverity, ComplaintType } from '@/lib/types';
+import type { ComplaintStatus, ComplaintSeverity, ComplaintType, MasterOrder } from '@/lib/types';
+
+interface ContainerSummary {
+  id: string;
+  code?: string;
+  containerNumber?: string;
+  status?: string;
+  sealNumber?: string;
+  route?: string;
+  departureDate?: string;
+  arrivalDate?: string;
+  packageCount?: number;
+  totalWeight?: number | null;
+}
+
+interface DeliveryDriver {
+  fullName?: string;
+  name?: string;
+  phone?: string;
+}
+
+interface DeliverySummary {
+  id: string;
+  code?: string;
+  status?: string;
+  driver?: DeliveryDriver;
+  vehiclePlate?: string;
+  scheduledDate?: string;
+  deliveredAt?: string;
+  recipientName?: string;
+  address?: string;
+}
+
+interface ComplaintSummary {
+  id: string;
+  code?: string;
+  type: string;
+  severity: string;
+  status: string;
+  description?: string;
+  title?: string;
+  createdAt: string;
+}
+
+interface MasterOrderWithOperations extends MasterOrder {
+  containers?: ContainerSummary[];
+  deliveries?: DeliverySummary[];
+  complaints?: ComplaintSummary[];
+}
 
 interface OrderOperationsBlockProps {
-  order: any;
+  order: MasterOrderWithOperations;
 }
 
 export function OrderOperationsBlock({ order }: OrderOperationsBlockProps) {
@@ -31,7 +80,7 @@ export function OrderOperationsBlock({ order }: OrderOperationsBlockProps) {
         </h3>
         {containers.length > 0 ? (
           <div className="space-y-3">
-            {containers.map((container: any) => (
+            {containers.map((container: ContainerSummary) => (
               <div key={container.id} className="rounded-md border p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold">{container.code || container.containerNumber}</span>
@@ -46,26 +95,30 @@ export function OrderOperationsBlock({ order }: OrderOperationsBlockProps) {
                     <div>Seal: <span className="text-foreground">{container.sealNumber}</span></div>
                   )}
                   {container.route && (
-                    <div>Tuyen: <span className="text-foreground">{container.route}</span></div>
+                    <div>Tuyến: <span className="text-foreground">{container.route}</span></div>
                   )}
                   {container.departureDate && (
-                    <div>Ngay di: <span className="text-foreground">{formatDateTime(container.departureDate)}</span></div>
+                    <div>Ngày đi: <span className="text-foreground">{formatDateTime(container.departureDate)}</span></div>
                   )}
                   {container.arrivalDate && (
-                    <div>Ngay den: <span className="text-foreground">{formatDateTime(container.arrivalDate)}</span></div>
+                    <div>Ngày đến: <span className="text-foreground">{formatDateTime(container.arrivalDate)}</span></div>
                   )}
                   {container.packageCount != null && (
-                    <div>So kien: <span className="text-foreground">{container.packageCount}</span></div>
+                    <div>Số kiện: <span className="text-foreground">{container.packageCount}</span></div>
                   )}
                   {container.totalWeight != null && (
-                    <div>Tong KL: <span className="text-foreground">{container.totalWeight} kg</span></div>
+                    <div className="flex items-center gap-1">
+                      <span>Tổng KL:</span>
+                      <span className="text-foreground">{container.totalWeight} kg</span>
+                      <InfoTooltip tipKey="chargeable-weight" />
+                    </div>
                   )}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Chua co thong tin container</p>
+          <p className="text-sm text-muted-foreground">Chưa có thông tin container</p>
         )}
       </div>
 
@@ -73,11 +126,11 @@ export function OrderOperationsBlock({ order }: OrderOperationsBlockProps) {
       <div className="rounded-lg border bg-card p-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Truck className="h-5 w-5" />
-          Giao hang ({deliveries.length})
+          Giao hàng ({deliveries.length})
         </h3>
         {deliveries.length > 0 ? (
           <div className="space-y-3">
-            {deliveries.map((delivery: any) => (
+            {deliveries.map((delivery: DeliverySummary) => (
               <div key={delivery.id} className="rounded-md border p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold">{delivery.code || '---'}</span>
@@ -92,7 +145,7 @@ export function OrderOperationsBlock({ order }: OrderOperationsBlockProps) {
                   {delivery.driver && (
                     <div className="col-span-2 flex items-center gap-2">
                       <MapPin className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-muted-foreground">Tai xe:</span>
+                      <span className="text-muted-foreground">Tài xế:</span>
                       <span className="font-medium">{delivery.driver.fullName || delivery.driver.name}</span>
                       {delivery.driver.phone && (
                         <span className="text-muted-foreground">({delivery.driver.phone})</span>
@@ -101,31 +154,31 @@ export function OrderOperationsBlock({ order }: OrderOperationsBlockProps) {
                   )}
                   {delivery.vehiclePlate && (
                     <div>
-                      <span className="text-muted-foreground">Bien so:</span>{' '}
+                      <span className="text-muted-foreground">Biển số:</span>{' '}
                       <span className="font-medium">{delivery.vehiclePlate}</span>
                     </div>
                   )}
                   {delivery.scheduledDate && (
                     <div>
-                      <span className="text-muted-foreground">Lich giao:</span>{' '}
+                      <span className="text-muted-foreground">Lịch giao:</span>{' '}
                       <span>{formatDateTime(delivery.scheduledDate)}</span>
                     </div>
                   )}
                   {delivery.deliveredAt && (
                     <div>
-                      <span className="text-muted-foreground">Da giao:</span>{' '}
+                      <span className="text-muted-foreground">Đã giao:</span>{' '}
                       <span>{formatDateTime(delivery.deliveredAt)}</span>
                     </div>
                   )}
                   {delivery.recipientName && (
                     <div>
-                      <span className="text-muted-foreground">Nguoi nhan:</span>{' '}
+                      <span className="text-muted-foreground">Người nhận:</span>{' '}
                       <span className="font-medium">{delivery.recipientName}</span>
                     </div>
                   )}
                   {delivery.address && (
                     <div className="col-span-2">
-                      <span className="text-muted-foreground">Dia chi:</span>{' '}
+                      <span className="text-muted-foreground">Địa chỉ:</span>{' '}
                       <span>{delivery.address}</span>
                     </div>
                   )}
@@ -134,7 +187,7 @@ export function OrderOperationsBlock({ order }: OrderOperationsBlockProps) {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Chua co thong tin giao hang</p>
+          <p className="text-sm text-muted-foreground">Chưa có thông tin giao hàng</p>
         )}
       </div>
 
@@ -142,11 +195,11 @@ export function OrderOperationsBlock({ order }: OrderOperationsBlockProps) {
       <div className="rounded-lg border bg-card p-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <AlertTriangle className="h-5 w-5" />
-          Khieu nai ({complaints.length})
+          Khiếu nại ({complaints.length})
         </h3>
         {complaints.length > 0 ? (
           <div className="space-y-3">
-            {complaints.map((complaint: any) => (
+            {complaints.map((complaint: ComplaintSummary) => (
               <div key={complaint.id} className="rounded-md border p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -171,7 +224,7 @@ export function OrderOperationsBlock({ order }: OrderOperationsBlockProps) {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Khong co khieu nai</p>
+          <p className="text-sm text-muted-foreground">Không có khiếu nại</p>
         )}
       </div>
     </div>

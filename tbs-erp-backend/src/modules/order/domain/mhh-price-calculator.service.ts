@@ -99,20 +99,16 @@ export class MHHPriceCalculatorService {
 
     // 1. Resolve service fee percentage based on customer tier and order value
     const orderValueCNY = input.productPriceCNY * input.quantity;
-    const feePercent = await this.getServiceFeePercent(
-      input.customerTier,
-      orderValueCNY,
-    );
+    const feePercent = await this.getServiceFeePercent(input.customerTier, orderValueCNY);
 
     // 2. Fetch the latest CNY -> VND exchange rate
     const exchangeRate = await this.getLatestExchangeRate();
 
     // 3. Per-item calculation
-    const rawServiceFeeCNY = input.productPriceCNY * feePercent / 100;
+    const rawServiceFeeCNY = (input.productPriceCNY * feePercent) / 100;
     const serviceFeeCNY = Math.ceil(rawServiceFeeCNY);
     const domesticShippingCNY = input.domesticShippingCNY ?? 0;
-    const totalPerItemCNY =
-      input.productPriceCNY + serviceFeeCNY + domesticShippingCNY;
+    const totalPerItemCNY = input.productPriceCNY + serviceFeeCNY + domesticShippingCNY;
 
     // 4. Totals in CNY and convert to VND
     const subtotalCNY = totalPerItemCNY * input.quantity;
@@ -121,12 +117,8 @@ export class MHHPriceCalculatorService {
     // 5. Estimate Vietnam domestic shipping cost
     const perUnitWeightKg = input.estimatedWeightKg ?? 0;
     const estimatedWeightKg = perUnitWeightKg * input.quantity;
-    const shippingRatePerKg = this.getShippingRate(
-      input.shippingRoute ?? 'SEA',
-    );
-    const estimatedShippingVND = Math.ceil(
-      estimatedWeightKg * shippingRatePerKg,
-    );
+    const shippingRatePerKg = this.getShippingRate(input.shippingRoute ?? 'SEA');
+    const estimatedShippingVND = Math.ceil(estimatedWeightKg * shippingRatePerKg);
 
     // 6. Grand total
     const grandTotalVND = subtotalVND + estimatedShippingVND;
@@ -178,9 +170,7 @@ export class MHHPriceCalculatorService {
       where: {
         serviceType: ServiceType.MHH,
         isActive: true,
-        ...(customerTier
-          ? { OR: [{ customerTier }, { customerTier: null }] }
-          : {}),
+        ...(customerTier ? { OR: [{ customerTier }, { customerTier: null }] } : {}),
       },
       orderBy: { priority: 'desc' },
     });
@@ -211,9 +201,7 @@ export class MHHPriceCalculatorService {
 
       const feePercent = Number(config.feePercent);
 
-      this.logger.debug(
-        `Matched fee config "${config.name}" (id=${config.id}): ${feePercent}%`,
-      );
+      this.logger.debug(`Matched fee config "${config.name}" (id=${config.id}): ${feePercent}%`);
 
       return feePercent;
     }
@@ -246,9 +234,7 @@ export class MHHPriceCalculatorService {
       return { rate: Number(rate.rate), date: rate.date };
     }
 
-    this.logger.warn(
-      'No CNY->VND exchange rate found in database. Using fallback rate of 3500.',
-    );
+    this.logger.warn('No CNY->VND exchange rate found in database. Using fallback rate of 3500.');
 
     return { rate: 3500, date: new Date() };
   }

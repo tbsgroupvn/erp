@@ -23,6 +23,9 @@ export interface OrderWithCosts {
   costAllocations: Array<{
     allocatedAmount: number | { toNumber: () => number };
   }>;
+  costAdjustments?: Array<{
+    amount: number | { toNumber: () => number };
+  }>;
 }
 
 /**
@@ -36,7 +39,7 @@ export class CommissionCalculatorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
-  ) { }
+  ) {}
 
   /**
    * Calculate commission for an order based on profit margin.
@@ -44,24 +47,29 @@ export class CommissionCalculatorService {
    * @param order - Order with cost allocations
    * @returns Commission calculation result or null if no applicable rule
    */
-  async calculateCommission(
-    order: OrderWithCosts,
-  ): Promise<CommissionCalculationResult | null> {
+  async calculateCommission(order: OrderWithCosts): Promise<CommissionCalculationResult | null> {
     // Calculate revenue from order total amount
     const revenue =
-      typeof order.totalAmount === 'number'
-        ? order.totalAmount
-        : order.totalAmount.toNumber();
+      typeof order.totalAmount === 'number' ? order.totalAmount : order.totalAmount.toNumber();
 
     // Calculate total costs from cost allocations using integer arithmetic (VND)
     // to avoid floating-point precision issues with financial calculations
-    const totalCost = order.costAllocations.reduce((sum, alloc) => {
+    const allocationCost = order.costAllocations.reduce((sum, alloc) => {
       const amount =
         typeof alloc.allocatedAmount === 'number'
           ? alloc.allocatedAmount
           : alloc.allocatedAmount.toNumber();
       return sum + amount;
     }, 0);
+
+    // Include approved cost adjustments (late-arriving costs)
+    const adjustmentCost = (order.costAdjustments ?? []).reduce((sum, adj) => {
+      const amount =
+        typeof adj.amount === 'number' ? adj.amount : adj.amount.toNumber();
+      return sum + amount;
+    }, 0);
+
+    const totalCost = allocationCost + adjustmentCost;
 
     // Calculate net profit (revenue - cost), rounded to avoid floating-point drift
     const netProfit = Math.round((revenue - totalCost) * 100) / 100;
@@ -71,15 +79,10 @@ export class CommissionCalculatorService {
     );
 
     // Query CommissionRule to get applicable rate
-    const rule = await this.getApplicableCommissionRule(
-      order.serviceType,
-      netProfit,
-    );
+    const rule = await this.getApplicableCommissionRule(order.serviceType, netProfit);
 
     if (!rule) {
-      this.logger.log(
-        `No commission rule found for ${order.serviceType} with profit ${netProfit}`,
-      );
+      this.logger.log(`No commission rule found for ${order.serviceType} with profit ${netProfit}`);
       return null;
     }
 
@@ -108,10 +111,7 @@ export class CommissionCalculatorService {
    * @param profit - Net profit amount
    * @returns Commission rule or null if no matching rule
    */
-  private async getApplicableCommissionRule(
-    serviceType: ServiceType,
-    profit: number,
-  ) {
+  private async getApplicableCommissionRule(serviceType: ServiceType, profit: number) {
     // Fetch all active rules from cache (or DB on miss)
     const allRules = await this.cacheService.getOrSet(
       'commission-rules:active',
@@ -205,14 +205,14 @@ export class CommissionCalculatorService {
       const next = rules[i + 1];
 
       // Check for overlap
-      if (current.maxProfit > next.minProfit) {
+      if (Number(current.maxProfit) > Number(next.minProfit)) {
         errors.push(
           `Overlap detected: Rule ${i + 1} [${current.minProfit}-${current.maxProfit}] overlaps with Rule ${i + 2} [${next.minProfit}-${next.maxProfit}]`,
         );
       }
 
       // Check for gap
-      if (current.maxProfit < next.minProfit) {
+      if (Number(current.maxProfit) < Number(next.minProfit)) {
         errors.push(
           `Gap detected: No rule covers profit range [${current.maxProfit}-${next.minProfit}]`,
         );

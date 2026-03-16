@@ -5,6 +5,8 @@ import {
   UnauthorizedException,
   ForbiddenException,
   BadRequestException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -13,14 +15,15 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-// @ts-ignore
+// @ts-expect-error otplib has no type declarations
 import { authenticator } from 'otplib';
 import * as QRCode from 'qrcode';
 import { PrismaService } from '@core/database/prisma.service';
+import { CacheService } from '@core/cache/cache.service';
 import { SmsService } from '@core/sms/sms.service';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { TwoFactorMethodDto } from './dto/two-factor.dto';
-import { JwtPayload } from './strategies/jwt.strategy';
+import { JwtPayload, jwtSessionCacheKey, jwtSessionCachePrefix } from './strategies/jwt.strategy';
 import { RefreshTokenPayload } from './strategies/refresh-token.strategy';
 import { User, UserRole, Branch, TwoFactorMethod } from '@prisma/client';
 
@@ -75,6 +78,9 @@ interface SmsOtpEntry {
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
+  /** Bcrypt cost factor for password and token hashing. */
+  private static readonly BCRYPT_ROUNDS = 12;
+
   /** AES-256 encryption key for TOTP secrets (32 bytes). */
   private readonly encryptionKey: Buffer;
 
@@ -85,22 +91,30 @@ export class AuthService {
     private readonly eventEmitter: EventEmitter2,
     private readonly smsService: SmsService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly cacheService: CacheService,
   ) {
     // Derive a 32-byte key from the configured secret using PBKDF2
     const rawKey = this.configService.get<string>('TWO_FA_ENCRYPTION_KEY');
     if (!rawKey) {
-      const env = this.configService.get<string>('app.env', 'development');
-      if (env === 'production') {
-        throw new Error(
-          'TWO_FA_ENCRYPTION_KEY must be set in production. Cannot start without a 2FA encryption key.',
-        );
-      }
-      this.logger.warn(
-        'TWO_FA_ENCRYPTION_KEY is not set. Using a fallback key for development only.',
+      throw new Error(
+        'TWO_FA_ENCRYPTION_KEY environment variable is required. ' +
+        'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
       );
     }
-    const keyMaterial = rawKey || 'dev-only-2fa-encryption-key';
-    this.encryptionKey = crypto.pbkdf2Sync(keyMaterial, 'tbs-erp-2fa-encryption-salt', 100000, 32, 'sha256');
+    // Read salt from env (recommended), fallback for backward compat with existing installs
+    const salt = this.configService.get<string>('TWO_FA_ENCRYPTION_SALT') || 'tbs-erp-2fa-encryption-salt';
+    if (!this.configService.get<string>('TWO_FA_ENCRYPTION_SALT')) {
+      this.logger.warn(
+        '[Security] TWO_FA_ENCRYPTION_SALT is not set. Using default salt — add TWO_FA_ENCRYPTION_SALT to .env for better security.',
+      );
+    }
+    this.encryptionKey = crypto.pbkdf2Sync(
+      rawKey,
+      salt,
+      100000,
+      32,
+      'sha256',
+    );
   }
 
   // =========================================================================
@@ -111,10 +125,7 @@ export class AuthService {
    * Validate user credentials (email + password).
    * Returns the user record if valid, or null.
    */
-  async validateUser(
-    email: string,
-    password: string,
-  ): Promise<Omit<User, 'passwordHash'> | null> {
+  async validateUser(email: string, password: string): Promise<Omit<User, 'passwordHash'> | null> {
     const user = await this.prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
     });
@@ -133,8 +144,86 @@ export class AuthService {
       return null;
     }
 
-    const { passwordHash: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    // Strip passwordHash and other sensitive fields not needed downstream
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const {
+      passwordHash: _pw,
+      resetToken: _rt,
+      resetTokenExpiry: _rte,
+      twoFactorBackupCodes: _bc,
+      ...userWithoutSensitive
+    } = user;
+    return userWithoutSensitive as Omit<User, 'passwordHash'>;
+  }
+
+  // =========================================================================
+  // Login brute-force protection — Redis-backed failed-attempt counter
+  // =========================================================================
+
+  /** Maximum failed login attempts per IP before the account is locked. */
+  private static readonly MAX_FAILED_ATTEMPTS = 5;
+
+  /** Lock window in seconds (15 minutes). */
+  private static readonly LOCK_WINDOW_SECONDS = 900;
+
+  /** TTL in milliseconds passed to CacheManager (15 minutes). */
+  private static readonly LOCK_WINDOW_MS = 900 * 1000;
+
+  /**
+   * Build the Redis key that tracks failed login attempts for a given IP.
+   * Key format: `login:fail:<ip>`
+   */
+  private loginFailKey(ip: string): string {
+    return `login:fail:${ip}`;
+  }
+
+  /**
+   * Increment failed-attempt counter for the given IP.
+   * Sets a 15-minute sliding window TTL on first increment.
+   */
+  private async recordFailedAttempt(ip: string): Promise<void> {
+    const key = this.loginFailKey(ip);
+    try {
+      const store = (this.cacheManager as any).store;
+      const client = store?.getClient?.() ?? store?.client;
+      if (client && typeof client.incr === 'function') {
+        const count: number = await client.incr(key);
+        if (count === 1) {
+          // Set expiry only on the first increment so the window slides from
+          // the first failure, not each subsequent one.
+          await client.expire(key, AuthService.LOCK_WINDOW_SECONDS);
+        }
+        return;
+      }
+      // Fallback for non-Redis stores (e.g. in-memory cache during tests)
+      const current = (await this.cacheManager.get<number>(key)) ?? 0;
+      await this.cacheManager.set(key, current + 1, AuthService.LOCK_WINDOW_MS);
+    } catch (err) {
+      this.logger.warn(`Failed to record login failure for IP ${ip}: ${err?.message}`);
+    }
+  }
+
+  /**
+   * Return the current failed-attempt count for the given IP.
+   */
+  private async getFailedAttempts(ip: string): Promise<number> {
+    try {
+      const count = await this.cacheManager.get<number>(this.loginFailKey(ip));
+      return count ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Reset the failed-attempt counter after a successful login.
+   */
+  private async clearFailedAttempts(ip: string): Promise<void> {
+    try {
+      await this.cacheManager.del(this.loginFailKey(ip));
+    } catch (err) {
+      this.logger.warn(`Failed to clear login failure counter for IP ${ip}: ${err?.message}`);
+    }
   }
 
   /**
@@ -143,6 +232,9 @@ export class AuthService {
    * If the user has 2FA enabled, returns a temporary token and the available
    * methods instead of full session tokens. The frontend must then call
    * POST /auth/2fa/verify to complete login.
+   *
+   * Failed password attempts are tracked per IP in Redis with a 15-minute TTL.
+   * After 5 consecutive failures the IP is blocked for the remainder of the window.
    */
   async login(
     email: string,
@@ -150,11 +242,33 @@ export class AuthService {
     userAgent?: string,
     ipAddress?: string,
   ): Promise<LoginResponse> {
+    const ip = ipAddress ?? 'unknown';
+
+    // ── Brute-force check ─────────────────────────────────────────────────
+    const failCount = await this.getFailedAttempts(ip);
+    if (failCount >= AuthService.MAX_FAILED_ATTEMPTS) {
+      this.logger.warn(`Login blocked for IP ${ip} — too many failed attempts (${failCount})`);
+      throw new HttpException(
+        'Qua nhieu lan dang nhap that bai. Vui long thu lai sau 15 phut.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const user = await this.validateUser(email, password);
 
     if (!user) {
+      await this.recordFailedAttempt(ip);
+      const newCount = failCount + 1;
+      const remaining = AuthService.MAX_FAILED_ATTEMPTS - newCount;
+      this.logger.warn(
+        `Failed login attempt for email "${email}" from IP ${ip} ` +
+        `(${newCount}/${AuthService.MAX_FAILED_ATTEMPTS}, ${remaining} remaining)`,
+      );
       throw new UnauthorizedException('Invalid email or password');
     }
+
+    // Successful credential validation — reset the failure counter
+    await this.clearFailedAttempts(ip);
 
     // ── 2FA check ──────────────────────────────────────────────────────────
     if (user.is2FAEnabled) {
@@ -163,27 +277,19 @@ export class AuthService {
         { sub: user.id, type: '2fa-pending' },
         {
           secret: this.configService.get<string>('jwt.secret'),
-          expiresIn: '5m',
+          expiresIn: '5m' as any,
         },
       );
 
       // Determine available methods
       const methods: TwoFactorMethod[] = [user.preferredTwoFactorMethod];
-      if (
-        user.preferredTwoFactorMethod === TwoFactorMethod.TOTP &&
-        user.phoneNumber
-      ) {
+      if (user.preferredTwoFactorMethod === TwoFactorMethod.TOTP && user.phoneNumber) {
         methods.push(TwoFactorMethod.SMS);
-      } else if (
-        user.preferredTwoFactorMethod === TwoFactorMethod.SMS &&
-        user.twoFactorSecret
-      ) {
+      } else if (user.preferredTwoFactorMethod === TwoFactorMethod.SMS && user.twoFactorSecret) {
         methods.push(TwoFactorMethod.TOTP);
       }
 
-      this.logger.log(
-        `2FA required for user ${user.id} — methods: ${methods.join(', ')}`,
-      );
+      this.logger.log(`2FA required for user ${user.id} — methods: ${methods.join(', ')}`);
 
       return {
         requires2FA: true,
@@ -255,9 +361,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid verification code');
     }
 
-    // Complete login
-    const { passwordHash: _, ...userWithoutPassword } = user;
-    return this.completeLogin(userWithoutPassword, userAgent, ipAddress);
+    // Strip all sensitive fields before completing login
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const {
+      passwordHash: _pw,
+      resetToken: _rt,
+      resetTokenExpiry: _rte,
+      twoFactorSecret: _ts,
+      twoFactorBackupCodes: _bc,
+      ...userWithoutSensitive
+    } = user;
+    return this.completeLogin(userWithoutSensitive as Omit<User, 'passwordHash'>, userAgent, ipAddress);
   }
 
   // =========================================================================
@@ -331,9 +445,7 @@ export class AuthService {
     }
 
     if (!user.twoFactorSecret) {
-      throw new BadRequestException(
-        'No 2FA secret found. Please call /auth/2fa/setup first.',
-      );
+      throw new BadRequestException('No 2FA secret found. Please call /auth/2fa/setup first.');
     }
 
     // Verify the code against the stored (encrypted) secret
@@ -370,11 +482,7 @@ export class AuthService {
   /**
    * Disable 2FA for a user. Requires a valid code and password confirmation.
    */
-  async disable2FA(
-    userId: string,
-    code: string,
-    password: string,
-  ): Promise<{ message: string }> {
+  async disable2FA(userId: string, code: string, password: string): Promise<{ message: string }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -494,10 +602,7 @@ export class AuthService {
   /**
    * Set up SMS-based 2FA by registering a phone number.
    */
-  async setupSms2FA(
-    userId: string,
-    phoneNumber: string,
-  ): Promise<{ message: string }> {
+  async setupSms2FA(userId: string, phoneNumber: string): Promise<{ message: string }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, is2FAEnabled: true, phoneNumber: true },
@@ -507,15 +612,25 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
+    // Validate phone number format before storing/sending
+    const phoneRegex = /^\+?[1-9]\d{6,14}$/;
+    if (!phoneRegex.test(phoneNumber.replace(/[\s\-()]/g, ''))) {
+      throw new BadRequestException('Invalid phone number format. Use international format: +84xxxxxxxxx');
+    }
+
     // Store the phone number in Redis pending verification instead of directly in user record
     await this.cacheManager.set(`pending-phone:${userId}`, phoneNumber, 10 * 60 * 1000); // 10 min TTL
 
     // Generate a 6-digit code and send it to the pending phone number
     const code = crypto.randomInt(100000, 999999).toString();
-    await this.cacheManager.set(`sms-otp:${userId}`, {
-      code,
-      attempts: 0,
-    } as SmsOtpEntry, 5 * 60 * 1000);
+    await this.cacheManager.set(
+      `sms-otp:${userId}`,
+      {
+        code,
+        attempts: 0,
+      } as SmsOtpEntry,
+      5 * 60 * 1000,
+    );
 
     const brandName = this.configService.get<string>('branding.companyName') || 'ERP';
     const message = `[${brandName}] Your verification code is: ${code}. Valid for 5 minutes.`;
@@ -523,15 +638,14 @@ export class AuthService {
 
     if (!sent) {
       this.logger.error(`Failed to send SMS OTP to user ${userId}`);
-      throw new BadRequestException(
-        'Failed to send SMS. Please try again or use TOTP instead.',
-      );
+      throw new BadRequestException('Failed to send SMS. Please try again or use TOTP instead.');
     }
 
     this.logger.log(`SMS 2FA verification code sent for user ${userId}`);
 
     return {
-      message: 'A verification code has been sent. Please verify to complete phone number registration.',
+      message:
+        'A verification code has been sent. Please verify to complete phone number registration.',
     };
   }
 
@@ -549,19 +663,21 @@ export class AuthService {
     }
 
     if (!user.phoneNumber) {
-      throw new BadRequestException(
-        'No phone number configured. Please set up SMS 2FA first.',
-      );
+      throw new BadRequestException('No phone number configured. Please set up SMS 2FA first.');
     }
 
     // Generate a 6-digit code
     const code = crypto.randomInt(100000, 999999).toString();
 
     // Store in Redis cache with 5-minute TTL
-    await this.cacheManager.set(`sms-otp:${userId}`, {
-      code,
-      attempts: 0,
-    } as SmsOtpEntry, 5 * 60 * 1000);
+    await this.cacheManager.set(
+      `sms-otp:${userId}`,
+      {
+        code,
+        attempts: 0,
+      } as SmsOtpEntry,
+      5 * 60 * 1000,
+    );
 
     // Send via SMS gateway
     const brandName = this.configService.get<string>('branding.companyName') || 'ERP';
@@ -570,9 +686,7 @@ export class AuthService {
 
     if (!sent) {
       this.logger.error(`Failed to send SMS OTP to user ${userId}`);
-      throw new BadRequestException(
-        'Failed to send SMS. Please try again or use TOTP instead.',
-      );
+      throw new BadRequestException('Failed to send SMS. Please try again or use TOTP instead.');
     }
 
     this.logger.log(`SMS OTP sent to user ${userId}`);
@@ -588,9 +702,7 @@ export class AuthService {
    * Regenerate backup codes for a user. Requires 2FA to be enabled.
    * Returns the new plaintext codes (only shown once).
    */
-  async regenerateBackupCodes(
-    userId: string,
-  ): Promise<{ backupCodes: string[] }> {
+  async regenerateBackupCodes(userId: string): Promise<{ backupCodes: string[] }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, is2FAEnabled: true },
@@ -644,16 +756,11 @@ export class AuthService {
     }
 
     // Verify the stored refresh token matches (compare hashed tokens)
-    const isTokenValid = await bcrypt.compare(
-      refreshToken,
-      session.refreshToken,
-    );
+    const isTokenValid = await bcrypt.compare(refreshToken, session.refreshToken);
 
     if (!isTokenValid) {
       // Potential token theft: revoke the entire session
-      this.logger.warn(
-        `Refresh token mismatch for session ${sessionId} — possible token theft`,
-      );
+      this.logger.warn(`Refresh token mismatch for session ${sessionId} — possible token theft`);
       await this.prisma.session.delete({ where: { id: sessionId } });
       throw new UnauthorizedException(
         'Refresh token is invalid. Session has been revoked for security.',
@@ -668,20 +775,11 @@ export class AuthService {
     }
 
     // Rotate the refresh token for security
-    const tokens = this.generateTokens(
-      user.id,
-      user.email,
-      user.role,
-      user.branch,
-      sessionId,
-    );
+    const tokens = this.generateTokens(user.id, user.email, user.role, user.branch, !!user.saleCode, sessionId);
 
-    const hashedRefreshToken = await bcrypt.hash(tokens.rawRefreshToken, 10);
+    const hashedRefreshToken = await bcrypt.hash(tokens.rawRefreshToken, AuthService.BCRYPT_ROUNDS);
 
-    const refreshExpiresIn = this.configService.get<string>(
-      'jwt.refreshExpiresIn',
-      '7d',
-    );
+    const refreshExpiresIn = this.configService.get<string>('jwt.refreshExpiresIn', '7d');
 
     await this.prisma.session.update({
       where: { id: sessionId },
@@ -700,22 +798,35 @@ export class AuthService {
 
   /**
    * Revoke a session (logout).
+   *
+   * Deletes the DB session record and immediately invalidates the Redis cache
+   * entry so the next request cannot hit a stale cache hit for this session.
    */
-  async logout(sessionId: string): Promise<void> {
+  async logout(userId: string, sessionId: string): Promise<void> {
     await this.prisma.session.deleteMany({
       where: { id: sessionId },
     });
+
+    // Invalidate the specific session cache entry so no further requests can
+    // use a cached token for this session within the 2-minute TTL window.
+    await this.cacheService.del(jwtSessionCacheKey(userId, sessionId));
 
     this.logger.log(`Session ${sessionId} has been revoked`);
   }
 
   /**
    * Revoke all sessions for a user (force logout everywhere).
+   *
+   * Deletes all DB session records and wipes every Redis cache entry whose
+   * key starts with `jwt-session:{userId}:` using a single prefix scan.
    */
   async logoutAll(userId: string): Promise<void> {
     const { count } = await this.prisma.session.deleteMany({
       where: { userId },
     });
+
+    // Wipe all cached sessions for this user in one prefix-scan operation.
+    await this.cacheService.delByPrefix(jwtSessionCachePrefix(userId));
 
     this.logger.log(`Revoked ${count} sessions for user ${userId}`);
   }
@@ -768,8 +879,12 @@ export class AuthService {
 
     if (!user || !user.isActive) {
       // Return success even if user not found to prevent email enumeration
-      this.logger.log(`Password reset requested for email: ${email.substring(0, 3)}***@*** (user not found or inactive)`);
-      return { message: 'If an account with that email exists, a password reset link has been sent.' };
+      this.logger.log(
+        `Password reset requested for email: ${email.substring(0, 3)}***@*** (user not found or inactive)`,
+      );
+      return {
+        message: 'If an account with that email exists, a password reset link has been sent.',
+      };
     }
 
     // Generate a secure random token (256 bits of entropy)
@@ -802,7 +917,9 @@ export class AuthService {
 
     this.logger.log(`Password reset token generated for user ${user.id}`);
 
-    return { message: 'If an account with that email exists, a password reset link has been sent.' };
+    return {
+      message: 'If an account with that email exists, a password reset link has been sent.',
+    };
   }
 
   /**
@@ -832,7 +949,7 @@ export class AuthService {
     }
 
     // Hash the new password
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, AuthService.BCRYPT_ROUNDS);
 
     // Update user: set new password, clear reset token
     await this.prisma.user.update({
@@ -849,6 +966,9 @@ export class AuthService {
       where: { userId: matchedUser.id },
     });
 
+    // Wipe all Redis-cached session entries so no stale tokens survive.
+    await this.cacheService.delByPrefix(jwtSessionCachePrefix(matchedUser.id));
+
     this.logger.log(
       `Password reset completed for user ${matchedUser.id}, ${count} session(s) invalidated`,
     );
@@ -858,7 +978,9 @@ export class AuthService {
       email: matchedUser.email,
     });
 
-    return { message: 'Password has been reset successfully. Please log in with your new password.' };
+    return {
+      message: 'Password has been reset successfully. Please log in with your new password.',
+    };
   }
 
   /**
@@ -884,7 +1006,7 @@ export class AuthService {
       throw new BadRequestException('Current password is incorrect');
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, AuthService.BCRYPT_ROUNDS);
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -899,6 +1021,11 @@ export class AuthService {
     const { count } = await this.prisma.session.deleteMany({
       where: deleteWhere,
     });
+
+    // Wipe all cached session entries for this user. The current session will
+    // be re-cached on the next request via the normal cache-miss path; other
+    // (now-deleted) sessions will simply get a DB miss and throw Unauthorized.
+    await this.cacheService.delByPrefix(jwtSessionCachePrefix(userId));
 
     this.logger.log(`Password changed for user ${userId}, ${count} other session(s) invalidated`);
 
@@ -961,13 +1088,14 @@ export class AuthService {
         email: adminUser.email,
         role: adminUser.role,
         branch: adminUser.branch,
+        hasSaleCode: false, // Impersonated user role validation
         impersonatedBy: adminUserId,
         isImpersonation: true,
         impersonationLogId: log.id,
       },
       {
         secret: this.configService.get<string>('jwt.secret'),
-        expiresIn: '1h', // Impersonation sessions are limited to 1 hour
+        expiresIn: '1h' as any, // Impersonation sessions are limited to 1 hour
       },
     );
 
@@ -986,8 +1114,9 @@ export class AuthService {
 
   /**
    * End an impersonation session by updating the ImpersonationLog record.
+   * Verifies that the calling user is the same admin who started the impersonation.
    */
-  async endImpersonation(logId: string): Promise<{ message: string }> {
+  async endImpersonation(logId: string, callingUserId: string): Promise<{ message: string }> {
     const log = await this.prisma.impersonationLog.findUnique({
       where: { id: logId },
     });
@@ -998,6 +1127,13 @@ export class AuthService {
 
     if (log.endedAt) {
       throw new BadRequestException('Impersonation session already ended');
+    }
+
+    // Verify the calling user is the admin who started the impersonation
+    if (log.adminUserId !== callingUserId) {
+      throw new ForbiddenException(
+        'Only the admin who started the impersonation session can end it',
+      );
     }
 
     await this.prisma.impersonationLog.update({
@@ -1035,7 +1171,7 @@ export class AuthService {
       data: { lastLoginAt: now },
     });
 
-    const tokens = await this.createSession(user.id, user.email, user.role, user.branch, {
+    const tokens = await this.createSession(user.id, user.email, user.role, user.branch, !!(user as any).saleCode, {
       userAgent,
       ipAddress,
     });
@@ -1055,8 +1191,11 @@ export class AuthService {
    */
   private sanitizeUser(user: Omit<User, 'passwordHash'>): Record<string, any> {
     const sensitiveFields = new Set([
-      'resetToken', 'resetTokenExpiry', 'twoFactorSecret',
-      'twoFactorBackupCodes', 'passwordHash',
+      'resetToken',
+      'resetTokenExpiry',
+      'twoFactorSecret',
+      'twoFactorBackupCodes',
+      'passwordHash',
     ]);
     const safe: Record<string, any> = {};
     for (const [key, value] of Object.entries(user)) {
@@ -1072,12 +1211,10 @@ export class AuthService {
     email: string,
     role: UserRole,
     branch: Branch | null,
+    hasSaleCode: boolean,
     meta: { userAgent?: string; ipAddress?: string },
   ): Promise<TokenResponseDto> {
-    const refreshExpiresIn = this.configService.get<string>(
-      'jwt.refreshExpiresIn',
-      '7d',
-    );
+    const refreshExpiresIn = this.configService.get<string>('jwt.refreshExpiresIn', '7d');
 
     // Create session record first to get the session ID
     const session = await this.prisma.session.create({
@@ -1090,16 +1227,10 @@ export class AuthService {
       },
     });
 
-    const tokens = this.generateTokens(
-      userId,
-      email,
-      role,
-      branch,
-      session.id,
-    );
+    const tokens = this.generateTokens(userId, email, role, branch, hasSaleCode, session.id);
 
     // Hash the refresh token before storing
-    const hashedRefreshToken = await bcrypt.hash(tokens.rawRefreshToken, 10);
+    const hashedRefreshToken = await bcrypt.hash(tokens.rawRefreshToken, AuthService.BCRYPT_ROUNDS);
 
     await this.prisma.session.update({
       where: { id: session.id },
@@ -1120,6 +1251,7 @@ export class AuthService {
     email: string,
     role: UserRole,
     branch: Branch | null,
+    hasSaleCode: boolean,
     sessionId: string,
   ): { accessToken: string; rawRefreshToken: string; expiresIn: number } {
     const expiresIn = this.configService.get<string>('jwt.expiresIn', '15m');
@@ -1129,6 +1261,7 @@ export class AuthService {
       email,
       role,
       branch,
+      hasSaleCode,
       sessionId,
     };
 
@@ -1140,12 +1273,12 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(accessTokenPayload, {
       secret: this.configService.get<string>('jwt.secret'),
-      expiresIn,
+      expiresIn: expiresIn as any,
     });
 
     const rawRefreshToken = this.jwtService.sign(refreshTokenPayload, {
       secret: this.configService.get<string>('jwt.refreshSecret'),
-      expiresIn: this.configService.get<string>('jwt.refreshExpiresIn', '7d'),
+      expiresIn: this.configService.get<string>('jwt.refreshExpiresIn', '7d') as any,
     });
 
     return {
@@ -1240,10 +1373,7 @@ export class AuthService {
   /**
    * Verify a TOTP code against an encrypted secret.
    */
-  private verifyTotpCode(
-    encryptedSecret: string | null,
-    code: string,
-  ): boolean {
+  private verifyTotpCode(encryptedSecret: string | null, code: string): boolean {
     if (!encryptedSecret) return false;
 
     try {
@@ -1322,17 +1452,14 @@ export class AuthService {
    * Hash an array of backup codes with bcrypt.
    */
   private async hashBackupCodes(codes: string[]): Promise<string[]> {
-    return Promise.all(codes.map((code) => bcrypt.hash(code, 10)));
+    return Promise.all(codes.map((code) => bcrypt.hash(code, AuthService.BCRYPT_ROUNDS)));
   }
 
   /**
    * Verify a backup code and consume it (one-time use).
    * Returns true if the code matched (and was removed from the user's stored codes).
    */
-  private async verifyAndConsumeBackupCode(
-    userId: string,
-    code: string,
-  ): Promise<boolean> {
+  private async verifyAndConsumeBackupCode(userId: string, code: string): Promise<boolean> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { twoFactorBackupCodes: true },

@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import * as ExcelJS from 'exceljs';
 
@@ -44,9 +40,7 @@ export class EcusExportService {
     });
 
     if (!declaration) {
-      throw new NotFoundException(
-        `Customs declaration with ID ${declarationId} not found`,
-      );
+      throw new NotFoundException(`Customs declaration with ID ${declarationId} not found`);
     }
 
     const workbook = new ExcelJS.Workbook();
@@ -67,10 +61,7 @@ export class EcusExportService {
   /**
    * Sheet 1: "Thong tin chung" (General Information)
    */
-  private buildGeneralInfoSheet(
-    workbook: ExcelJS.Workbook,
-    declaration: any,
-  ): void {
+  private buildGeneralInfoSheet(workbook: ExcelJS.Workbook, declaration: any): void {
     const ws = workbook.addWorksheet('Thong tin chung', {
       pageSetup: {
         paperSize: 9, // A4
@@ -181,10 +172,7 @@ export class EcusExportService {
   /**
    * Sheet 2: "Hang hoa" (Goods)
    */
-  private buildGoodsSheet(
-    workbook: ExcelJS.Workbook,
-    declaration: any,
-  ): void {
+  private buildGoodsSheet(workbook: ExcelJS.Workbook, declaration: any): void {
     const ws = workbook.addWorksheet('Hang hoa', {
       pageSetup: {
         paperSize: 9,
@@ -195,20 +183,20 @@ export class EcusExportService {
 
     // Column widths
     ws.columns = [
-      { width: 6 },   // A - STT
-      { width: 15 },  // B - Ma HS
-      { width: 35 },  // C - Mo ta hang hoa
-      { width: 10 },  // D - So luong
-      { width: 10 },  // E - Don vi tinh
-      { width: 12 },  // F - Don gia
-      { width: 15 },  // G - Tri gia
-      { width: 8 },   // H - Xuat xu
-      { width: 10 },  // I - Thue suat NK (%)
-      { width: 15 },  // J - Tien thue NK
-      { width: 10 },  // K - Thue suat VAT (%)
-      { width: 15 },  // L - Tien thue VAT
-      { width: 15 },  // M - Thue TTDB
-      { width: 15 },  // N - Thue BVMT
+      { width: 6 }, // A - STT
+      { width: 15 }, // B - Ma HS
+      { width: 35 }, // C - Mo ta hang hoa
+      { width: 10 }, // D - So luong
+      { width: 10 }, // E - Don vi tinh
+      { width: 12 }, // F - Don gia
+      { width: 15 }, // G - Tri gia
+      { width: 8 }, // H - Xuat xu
+      { width: 10 }, // I - Thue suat NK (%)
+      { width: 15 }, // J - Tien thue NK
+      { width: 10 }, // K - Thue suat VAT (%)
+      { width: 15 }, // L - Tien thue VAT
+      { width: 15 }, // M - Thue TTDB
+      { width: 15 }, // N - Thue BVMT
     ];
 
     let row = 1;
@@ -331,14 +319,14 @@ export class EcusExportService {
     footerRow.getCell(1).alignment = { horizontal: 'right' };
 
     const footerValues: (number | string)[] = [
-      totalValue,     // G - Tri gia
-      '',             // H - Xuat xu
-      '',             // I - Thue suat NK
+      totalValue, // G - Tri gia
+      '', // H - Xuat xu
+      '', // I - Thue suat NK
       totalImportDuty, // J - Tien thue NK
-      '',             // K - Thue suat VAT
+      '', // K - Thue suat VAT
       totalVatAmount, // L - Tien thue VAT
       totalSpecialTax, // M - Thue TTDB
-      totalEnvTax,    // N - Thue BVMT
+      totalEnvTax, // N - Thue BVMT
     ];
 
     footerValues.forEach((v, i) => {
@@ -372,10 +360,7 @@ export class EcusExportService {
   /**
    * Sheet 3: "Container" (Container Information)
    */
-  private buildContainerSheet(
-    workbook: ExcelJS.Workbook,
-    declaration: any,
-  ): void {
+  private buildContainerSheet(workbook: ExcelJS.Workbook, declaration: any): void {
     const ws = workbook.addWorksheet('Container', {
       pageSetup: {
         paperSize: 9,
@@ -406,9 +391,7 @@ export class EcusExportService {
       ['Tong so kien', container?.totalPackages?.toString() ?? '---'],
       [
         'Tong trong luong (kg)',
-        container?.totalWeight
-          ? this.formatNumber(Number(container.totalWeight))
-          : '---',
+        container?.totalWeight ? this.formatNumber(Number(container.totalWeight)) : '---',
       ],
     ];
 
@@ -421,12 +404,7 @@ export class EcusExportService {
   /**
    * Adds a label-value row to a worksheet.
    */
-  private addInfoRow(
-    ws: ExcelJS.Worksheet,
-    row: number,
-    label: string,
-    value: string,
-  ): void {
+  private addInfoRow(ws: ExcelJS.Worksheet, row: number, label: string, value: string): void {
     const labelCell = ws.getCell(`A${row}`);
     labelCell.value = label;
     labelCell.font = { bold: true, size: 10 };

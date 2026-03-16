@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, type KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,10 +20,20 @@ import {
   useMeasurePackageCN,
   useUpdateCNStatus,
 } from '@/lib/hooks/use-warehouse';
+import dynamic from 'next/dynamic';
 import { apiClient } from '@/lib/api/client';
 import { formatDate } from '@/lib/utils/format';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Package, BaseResponse } from '@/lib/types';
+
+const BarcodeScanner = dynamic(
+  () => import('@/features/warehouse/barcode-scanner').then((m) => ({ default: m.BarcodeScanner })),
+  { ssr: false, loading: () => <div className="h-10" /> },
+);
+const PackingListOCR = dynamic(
+  () => import('@/features/warehouse/packing-list-ocr').then((m) => ({ default: m.PackingListOCR })),
+  { ssr: false, loading: () => <div className="h-10" /> },
+);
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -411,13 +421,13 @@ function BarcodeScanInput() {
       );
       const pkg = response.data.data;
       setScanResult(pkg);
-      toast.success(`Tim thay kien hang: ${pkg.code}`, {
-        description: `Don hang: ${pkg.orderId} | Trong luong: ${pkg.actualWeight?.toFixed(2) ?? '---'} kg | Trang thai: ${CN_STATUS_LABELS[pkg.warehouseCNStatus ?? ''] || pkg.warehouseCNStatus || '---'}`,
+      toast.success(`Tìm thấy kiện hàng: ${pkg.code}`, {
+        description: `Đơn hàng: ${pkg.orderId} | Trọng lượng: ${pkg.actualWeight != null ? Number(pkg.actualWeight).toFixed(2) : '---'} kg | Trạng thái: ${CN_STATUS_LABELS[pkg.warehouseCNStatus ?? ''] || pkg.warehouseCNStatus || '---'}`,
         duration: 6000,
       });
     } catch {
-      toast.error('Khong tim thay kien hang', {
-        description: `Ma van don: ${trimmed}`,
+      toast.error('Không tìm thấy kiện hàng', {
+        description: `Mã vận đơn: ${trimmed}`,
       });
     } finally {
       setIsScanning(false);
@@ -427,7 +437,7 @@ function BarcodeScanInput() {
   }, []);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
+    (e: KeyboardEvent<HTMLInputElement>) => {
       const now = Date.now();
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -450,7 +460,7 @@ function BarcodeScanInput() {
                 value={scanValue}
                 onChange={(e) => setScanValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Quet ma van don (Enter de tra cuu)"
+                placeholder="Quét mã vận đơn (Enter để tra cứu)"
                 className="pr-10"
                 disabled={isScanning}
                 // eslint-disable-next-line jsx-a11y/no-autofocus
@@ -466,26 +476,26 @@ function BarcodeScanInput() {
               onClick={() => handleScan(scanValue)}
               disabled={isScanning || !scanValue.trim()}
             >
-              Tra cuu
+              Tra cứu
             </Button>
           </div>
           {scanResult && (
             <div className="mt-3 rounded-md border bg-muted/30 p-3">
               <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
                 <div>
-                  <span className="text-muted-foreground">Ma kien:</span>{' '}
+                  <span className="text-muted-foreground">Mã kiện:</span>{' '}
                   <span className="font-medium">{scanResult.code}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Don hang:</span>{' '}
+                  <span className="text-muted-foreground">Đơn hàng:</span>{' '}
                   <span className="font-medium">{scanResult.orderId}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Trong luong:</span>{' '}
-                  <span className="font-medium">{scanResult.actualWeight?.toFixed(2) ?? '---'} kg</span>
+                  <span className="text-muted-foreground">Trọng lượng:</span>{' '}
+                  <span className="font-medium">{scanResult.actualWeight != null ? Number(scanResult.actualWeight).toFixed(2) : '---'} kg</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Trang thai:</span>{' '}
+                  <span className="text-muted-foreground">Trạng thái:</span>{' '}
                   <StatusBadge
                     label={CN_STATUS_LABELS[scanResult.warehouseCNStatus ?? ''] || scanResult.warehouseCNStatus || '---'}
                     colorClass={CN_STATUS_COLORS[scanResult.warehouseCNStatus ?? ''] || 'bg-gray-100 text-gray-700'}
@@ -559,14 +569,14 @@ export default function KhoTrungQuocPage() {
       accessorKey: 'actualWeight',
       header: 'Cân nặng (kg)',
       cell: ({ row }) => (
-        <span>{row.original.actualWeight?.toFixed(2) ?? '---'}</span>
+        <span>{row.original.actualWeight != null ? Number(row.original.actualWeight).toFixed(2) : '---'}</span>
       ),
     },
     {
       accessorKey: 'chargeableWeight',
       header: 'TL tính phí (kg)',
       cell: ({ row }) => (
-        <span>{row.original.chargeableWeight?.toFixed(2) ?? '---'}</span>
+        <span>{row.original.chargeableWeight != null ? Number(row.original.chargeableWeight).toFixed(2) : '---'}</span>
       ),
     },
     {
@@ -592,6 +602,7 @@ export default function KhoTrungQuocPage() {
       <PageHeader
         title="Kho Trung Quốc"
         description="Quản lý kiện hàng tại kho TQ"
+        infoKey="kho-trung-quoc"
       >
         <Button onClick={() => setShowReceiveForm((prev) => !prev)}>
           <PackagePlus className="mr-2 h-4 w-4" />
@@ -599,7 +610,13 @@ export default function KhoTrungQuocPage() {
         </Button>
       </PageHeader>
 
-      {/* Barcode scan input */}
+      {/* Camera barcode scanner + OCR + text scan */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <BarcodeScanner />
+        <PackingListOCR />
+      </div>
+
+      {/* Barcode scan input (keyboard/scanner gun) */}
       <BarcodeScanInput />
 
       {showReceiveForm && (

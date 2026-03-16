@@ -1,11 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsArray,
-  IsNotEmpty,
-  MinLength,
-} from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, IsNotEmpty, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MHHIssueType, ComplaintSeverity } from '@prisma/client';
 

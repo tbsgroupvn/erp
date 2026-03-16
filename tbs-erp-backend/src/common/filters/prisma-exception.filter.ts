@@ -1,10 +1,4 @@
-import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 
@@ -19,17 +13,12 @@ import { Request, Response } from 'express';
  * - P2021: Table does not exist -> 500 Internal Server Error
  * - P2024: Timed out -> 408 Request Timeout
  */
-@Catch(
-  Prisma.PrismaClientKnownRequestError,
-  Prisma.PrismaClientValidationError,
-)
+@Catch(Prisma.PrismaClientKnownRequestError, Prisma.PrismaClientValidationError)
 export class PrismaExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(PrismaExceptionFilter.name);
 
   catch(
-    exception:
-      | Prisma.PrismaClientKnownRequestError
-      | Prisma.PrismaClientValidationError,
+    exception: Prisma.PrismaClientKnownRequestError | Prisma.PrismaClientValidationError,
     host: ArgumentsHost,
   ): void {
     const ctx = host.switchToHttp();
@@ -77,18 +66,14 @@ export class PrismaExceptionFilter implements ExceptionFilter {
 
       case 'P2014': {
         status = HttpStatus.BAD_REQUEST;
-        message =
-          'The operation would violate a required relation between records.';
+        message = 'The operation would violate a required relation between records.';
         break;
       }
 
       case 'P2021': {
         status = HttpStatus.INTERNAL_SERVER_ERROR;
         message = 'A database table required for this operation was not found.';
-        this.logger.error(
-          `Table not found: ${exception.meta?.table}`,
-          exception.stack,
-        );
+        this.logger.error(`Table not found: ${exception.meta?.table}`, exception.stack);
         break;
       }
 
@@ -109,9 +94,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       }
     }
 
-    this.logger.warn(
-      `Prisma ${exception.code}: ${request.method} ${request.url} - ${message}`,
-    );
+    this.logger.warn(`Prisma ${exception.code}: ${request.method} ${request.url} - ${message}`);
 
     response.status(status).json({
       success: false,
@@ -130,15 +113,12 @@ export class PrismaExceptionFilter implements ExceptionFilter {
   ): void {
     const status = HttpStatus.BAD_REQUEST;
 
-    this.logger.warn(
-      `Prisma Validation: ${request.method} ${request.url} - ${exception.message}`,
-    );
+    this.logger.warn(`Prisma Validation: ${request.method} ${request.url} - ${exception.message}`);
 
     response.status(status).json({
       success: false,
       statusCode: status,
-      message:
-        'Invalid data provided. Please check your request and try again.',
+      message: 'Invalid data provided. Please check your request and try again.',
       error: 'Prisma Validation Error',
       timestamp: new Date().toISOString(),
       path: request.url,

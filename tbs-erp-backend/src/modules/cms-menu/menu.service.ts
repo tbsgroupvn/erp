@@ -1,11 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
-import {
-  CreateMenuDto,
-  UpdateMenuDto,
-  CreateMenuItemDto,
-  UpdateMenuItemDto,
-} from './dto';
+import { CreateMenuDto, UpdateMenuDto, CreateMenuItemDto, UpdateMenuItemDto } from './dto';
 import { MenuLocation, Prisma } from '@prisma/client';
 
 @Injectable()

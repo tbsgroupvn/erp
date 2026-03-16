@@ -9,6 +9,26 @@ enum ServiceType {
   LCLCN // LCL chính ngạch
 }
 
+enum QuoteMode {
+  VCT_QUICK // Báo giá nhanh - vận chuyển thuần
+  MHH_QUICK // Báo giá nhanh - mua hàng hộ (có sourcing)
+  FULL      // Báo giá đầy đủ (truyền thống)
+}
+
+enum RateCardOrigin {
+  YIWU      // Nghĩa Ô
+  PINGXIANG // Bằng Tường
+  GUANGZHOU // Quảng Châu
+  OTHER     // Khác
+}
+
+enum RateCardDestination {
+  HANOI     // Hà Nội
+  HOCHIMINH // Hồ Chí Minh
+  DANANG    // Đà Nẵng
+  OTHER     // Khác
+}
+
 enum OrderStatus {
   CONSULTING       // GĐ 1: Tiếp nhận
   QUOTATION        // GĐ 2: Báo giá
@@ -79,6 +99,7 @@ enum ApprovalType {
   CREDIT_OVERDRAFT   // Thấu chi tạm thời
   PROCUREMENT_PAYMENT // Duyệt chi mua hàng NCC
   CUSTOMS_DECLARATION // Tờ khai hải quan
+  RETURN_REQUEST     // Yêu cầu trả hàng
   CUSTOM             // Admin tự định nghĩa
 }
 
@@ -182,13 +203,17 @@ enum ResolutionType {
 }
 
 enum CostType {
-  FREIGHT
-  CUSTOMS_DUTY
-  HANDLING
-  TRANSPORT_CN
-  TRANSPORT_VN
-  INSURANCE
-  OTHER
+  FREIGHT              // Cước vận chuyển
+  CUSTOMS_DUTY         // Thuế nhập khẩu
+  CUSTOMS_SERVICE_FEE  // Phí dịch vụ khai báo hải quan
+  HANDLING             // Phí bốc xếp
+  TRANSPORT_CN         // Vận chuyển nội địa TQ
+  TRANSPORT_VN         // Vận chuyển nội địa VN
+  INSURANCE            // Phí bảo hiểm
+  PORT_THC             // Terminal Handling Charges (phí THC tại cảng)
+  DO_FEE               // Phí lệnh giao hàng (D/O)
+  STORAGE_FEE          // Phí lưu bãi / lưu cont (demurrage/detention)
+  OTHER                // Chi phí khác
 }
 
 enum StockMovementType {
@@ -292,9 +317,27 @@ enum TrackingEventType {
   IN_TRANSIT
   ARRIVED_PORT
   CUSTOMS_CLEARANCE
+  CUSTOMS_SPLIT
+  CUSTOMS_HOLD_RESOLVED
   CUSTOMS_RELEASED
+  DELIVERY_ORDER_RECEIVED  // Nhận lệnh giao hàng (D/O)
+  FREE_TIME_UPDATED        // Cập nhật hạn miễn phí lưu cont
   IN_WAREHOUSE_VN
   OUT_FOR_DELIVERY
+  DELIVERED
+}
+
+enum WarehouseCNStatus {
+  RECEIVED
+  CHECKED
+  PACKED
+  SHIPPED
+}
+
+enum WarehouseVNStatus {
+  RECEIVED
+  SORTED
+  READY
   DELIVERED
 }
 

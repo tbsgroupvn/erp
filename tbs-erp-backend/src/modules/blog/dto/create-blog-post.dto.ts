@@ -37,7 +37,7 @@ export class CreateBlogPostDto {
 
   @ApiProperty({
     description: 'Full blog post content (HTML/Markdown) - XSS-safe, dangerous tags removed',
-    example: '<h2>Introduction</h2><p>In today\'s fast-paced logistics industry...</p>',
+    example: "<h2>Introduction</h2><p>In today's fast-paced logistics industry...</p>",
   })
   @SanitizeHtml() // Allow safe HTML in content, remove dangerous tags
   @IsString()

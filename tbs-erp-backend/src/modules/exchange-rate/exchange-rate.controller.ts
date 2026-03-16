@@ -8,16 +8,11 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
-import { Currency } from '@prisma/client';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { Currency, UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { BaseResponse } from '@common/dto/base-response.dto';
 import { ExchangeRateService } from './exchange-rate.service';
@@ -32,33 +27,37 @@ export class ExchangeRateController {
   constructor(private readonly exchangeRateService: ExchangeRateService) {}
 
   @Post()
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.CHIEF_ACCOUNTANT)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Set exchange rate', description: 'Manually set an exchange rate for a currency pair and date.' })
+  @ApiOperation({
+    summary: 'Set exchange rate',
+    description: 'Manually set an exchange rate for a currency pair and date.',
+  })
   @ApiResponse({ status: 201, description: 'Rate set successfully' })
-  async setRate(
-    @Body() dto: SetRateDto,
-    @CurrentUser('id') userId: string,
-  ) {
+  async setRate(@Body() dto: SetRateDto, @CurrentUser('id') userId: string) {
     const rate = await this.exchangeRateService.setRate(dto, userId);
     return BaseResponse.ok(rate, 'Exchange rate set successfully');
   }
 
   @Get('current')
-  @ApiOperation({ summary: 'Get current rate', description: 'Returns the latest effective rate for a currency pair.' })
+  @ApiOperation({
+    summary: 'Get current rate',
+    description: 'Returns the latest effective rate for a currency pair.',
+  })
   @ApiQuery({ name: 'from', enum: Currency, required: true })
   @ApiQuery({ name: 'to', enum: Currency, required: true })
   @ApiResponse({ status: 200, description: 'Current rate retrieved' })
   @ApiResponse({ status: 404, description: 'Rate not found' })
-  async getCurrentRate(
-    @Query('from') from: Currency,
-    @Query('to') to: Currency,
-  ) {
+  async getCurrentRate(@Query('from') from: Currency, @Query('to') to: Currency) {
     const rate = await this.exchangeRateService.getCurrentRate(from, to);
     return BaseResponse.ok(rate);
   }
 
   @Get('history')
-  @ApiOperation({ summary: 'Get historical rates', description: 'Returns rate history for a currency pair within a date range.' })
+  @ApiOperation({
+    summary: 'Get historical rates',
+    description: 'Returns rate history for a currency pair within a date range.',
+  })
   @ApiQuery({ name: 'from', enum: Currency, required: true })
   @ApiQuery({ name: 'to', enum: Currency, required: true })
   @ApiQuery({ name: 'startDate', required: false })
@@ -76,7 +75,11 @@ export class ExchangeRateController {
 
   @Post('convert')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Convert amount', description: 'Converts an amount between currencies using the rate on a given date (or latest).' })
+  @ApiOperation({
+    summary: 'Convert amount',
+    description:
+      'Converts an amount between currencies using the rate on a given date (or latest).',
+  })
   @ApiResponse({ status: 200, description: 'Conversion result' })
   @ApiResponse({ status: 404, description: 'Rate not found for conversion' })
   async convert(@Body() dto: ConvertDto) {
@@ -85,8 +88,12 @@ export class ExchangeRateController {
   }
 
   @Post('sync/vietcombank')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.CHIEF_ACCOUNTANT)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Sync from Vietcombank', description: 'Fetches USD/VND rates from Vietcombank API. CNY rates must be set manually.' })
+  @ApiOperation({
+    summary: 'Sync from Vietcombank',
+    description: 'Fetches USD/VND rates from Vietcombank API. CNY rates must be set manually.',
+  })
   @ApiResponse({ status: 200, description: 'Sync result' })
   @ApiResponse({ status: 403, description: 'CNY rate cannot be synced automatically' })
   async syncFromVietcombank() {
@@ -95,7 +102,10 @@ export class ExchangeRateController {
   }
 
   @Get('active')
-  @ApiOperation({ summary: 'Get all active rates', description: 'Returns the latest rate for each currency pair.' })
+  @ApiOperation({
+    summary: 'Get all active rates',
+    description: 'Returns the latest rate for each currency pair.',
+  })
   @ApiResponse({ status: 200, description: 'Active rates retrieved' })
   async getActiveRates() {
     const rates = await this.exchangeRateService.getActiveRates();
@@ -103,14 +113,15 @@ export class ExchangeRateController {
   }
 
   @Get('audit-trail')
-  @ApiOperation({ summary: 'Get exchange rate audit trail', description: 'Returns audit log entries for exchange rate changes within a date range.' })
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.CHIEF_ACCOUNTANT)
+  @ApiOperation({
+    summary: 'Get exchange rate audit trail',
+    description: 'Returns audit log entries for exchange rate changes within a date range.',
+  })
   @ApiQuery({ name: 'from', required: true, description: 'Start date (ISO 8601)' })
   @ApiQuery({ name: 'to', required: true, description: 'End date (ISO 8601)' })
   @ApiResponse({ status: 200, description: 'Audit trail retrieved' })
-  async getAuditTrail(
-    @Query('from') from: string,
-    @Query('to') to: string,
-  ) {
+  async getAuditTrail(@Query('from') from: string, @Query('to') to: string) {
     const trail = await this.exchangeRateService.getAuditTrail(from, to);
     return BaseResponse.ok(trail);
   }

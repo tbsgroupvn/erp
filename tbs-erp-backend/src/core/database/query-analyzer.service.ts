@@ -61,8 +61,7 @@ export class QueryAnalyzerService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {
-    this.isProduction =
-      configService.get<string>('app.env', 'development') === 'production';
+    this.isProduction = configService.get<string>('app.env', 'development') === 'production';
   }
 
   /**
@@ -70,55 +69,100 @@ export class QueryAnalyzerService {
    *
    * Only available in development/staging environments to prevent
    * accidental data exposure through query plan output.
+   *
+   * Security:
+   *   - Blocked in production
+   *   - Only SELECT statements allowed (strict allowlist after trimming)
+   *   - Rejects semicolons, comments (--), multi-line comments, multiple statements
+   *   - Executed inside a READ ONLY transaction to prevent any writes
    */
   async analyzeQuery(query: string): Promise<QueryPlan> {
     if (this.isProduction) {
-      throw new Error('Query analysis is not available in production environments');
+      throw new Error('Query analysis is disabled in production');
+    }
+
+    // --- Strict input sanitization ---
+    const trimmedQuery = query.trim();
+
+    // Must start with SELECT (case-insensitive)
+    if (!/^SELECT\s/i.test(trimmedQuery)) {
+      throw new Error('Only SELECT queries are allowed for analysis');
+    }
+
+    // Reject semicolons — prevents statement chaining
+    if (trimmedQuery.includes(';')) {
+      throw new Error('Semicolons are not allowed in analyzed queries');
+    }
+
+    // Reject SQL comments (-- and /* */)
+    if (/--/.test(trimmedQuery) || /\/\*/.test(trimmedQuery)) {
+      throw new Error('SQL comments are not allowed in analyzed queries');
+    }
+
+    // Block dangerous DML/DDL keywords (case-insensitive, word-boundary match)
+    const dangerousKeywords = [
+      'INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'CREATE',
+      'TRUNCATE', 'EXEC', 'EXECUTE', 'GRANT', 'REVOKE',
+      'COPY', 'IMPORT', 'LOAD',
+    ];
+    const upperQuery = trimmedQuery.toUpperCase();
+    for (const keyword of dangerousKeywords) {
+      // Word-boundary check: keyword must be surrounded by non-alpha chars
+      const regex = new RegExp(`\\b${keyword}\\b`);
+      if (regex.test(upperQuery)) {
+        throw new Error(`Dangerous SQL keyword detected: ${keyword}`);
+      }
     }
 
     try {
-      const result: any[] = await this.prisma.$queryRawUnsafe(
-        `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query}`,
-      );
+      // Execute inside a READ ONLY transaction to prevent any data modifications
+      return await this.prisma.$transaction(async (tx) => {
+        // Set transaction to read-only as a safety net
+        await tx.$queryRawUnsafe('SET TRANSACTION READ ONLY');
 
-      const plan = result[0]?.['QUERY PLAN']?.[0] ?? {};
-      const planLines: any[] = await this.prisma.$queryRawUnsafe(
-        `EXPLAIN (ANALYZE, BUFFERS) ${query}`,
-      );
-
-      const planText = planLines.map((row) => Object.values(row)[0] as string);
-      const suggestions: string[] = [];
-
-      // Detect sequential scans on large tables
-      if (planText.some((line) => line.includes('Seq Scan'))) {
-        suggestions.push(
-          'Sequential scan detected. Consider adding an index on the filtered columns.',
+        const result: any[] = await tx.$queryRawUnsafe(
+          `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${trimmedQuery}`,
         );
-      }
 
-      // Detect nested loops with high row counts
-      if (planText.some((line) => line.includes('Nested Loop') && line.includes('rows='))) {
-        suggestions.push(
-          'Nested loop join detected. For large datasets, consider if a hash or merge join would be more efficient.',
+        const plan = result[0]?.['QUERY PLAN']?.[0] ?? {};
+        const planLines: any[] = await tx.$queryRawUnsafe(
+          `EXPLAIN (ANALYZE, BUFFERS) ${trimmedQuery}`,
         );
-      }
 
-      // Detect sort operations without index
-      if (planText.some((line) => line.includes('Sort Method: external'))) {
-        suggestions.push(
-          'External sort detected (spilling to disk). Consider adding an index that covers the ORDER BY clause.',
-        );
-      }
+        const planText = planLines.map((row) => Object.values(row)[0] as string);
+        const suggestions: string[] = [];
 
-      return {
-        query,
-        planningTime: plan['Planning Time'] ?? 0,
-        executionTime: plan['Execution Time'] ?? 0,
-        totalCost: plan.Plan?.['Total Cost'] ?? 0,
-        rows: plan.Plan?.['Actual Rows'] ?? 0,
-        plan: planText,
-        suggestions,
-      };
+        // Detect sequential scans on large tables
+        if (planText.some((line) => line.includes('Seq Scan'))) {
+          suggestions.push(
+            'Sequential scan detected. Consider adding an index on the filtered columns.',
+          );
+        }
+
+        // Detect nested loops with high row counts
+        if (planText.some((line) => line.includes('Nested Loop') && line.includes('rows='))) {
+          suggestions.push(
+            'Nested loop join detected. For large datasets, consider if a hash or merge join would be more efficient.',
+          );
+        }
+
+        // Detect sort operations without index
+        if (planText.some((line) => line.includes('Sort Method: external'))) {
+          suggestions.push(
+            'External sort detected (spilling to disk). Consider adding an index that covers the ORDER BY clause.',
+          );
+        }
+
+        return {
+          query: trimmedQuery,
+          planningTime: plan['Planning Time'] ?? 0,
+          executionTime: plan['Execution Time'] ?? 0,
+          totalCost: plan.Plan?.['Total Cost'] ?? 0,
+          rows: plan.Plan?.['Actual Rows'] ?? 0,
+          plan: planText,
+          suggestions,
+        };
+      });
     } catch (error) {
       this.logger.error(`Query analysis failed: ${error.message}`);
       throw error;
@@ -214,9 +258,7 @@ export class QueryAnalyzerService {
 
     const suggestions = await this.suggestIndexes();
     if (suggestions.length > 0) {
-      this.logger.warn(
-        `${suggestions.length} tables may benefit from additional indexes:`,
-      );
+      this.logger.warn(`${suggestions.length} tables may benefit from additional indexes:`);
       for (const s of suggestions.slice(0, 5)) {
         this.logger.warn(`  - ${s.suggestion}`);
       }
@@ -226,13 +268,9 @@ export class QueryAnalyzerService {
 
     const unused = await this.findUnusedIndexes();
     if (unused.length > 0) {
-      this.logger.log(
-        `${unused.length} unused indexes found (candidates for review):`,
-      );
+      this.logger.log(`${unused.length} unused indexes found (candidates for review):`);
       for (const u of unused.slice(0, 5)) {
-        this.logger.log(
-          `  - ${u.indexName} on ${u.tableName} (${u.indexSize}, 0 scans)`,
-        );
+        this.logger.log(`  - ${u.indexName} on ${u.tableName} (${u.indexSize}, 0 scans)`);
       }
     }
 

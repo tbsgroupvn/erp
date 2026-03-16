@@ -34,8 +34,7 @@ export class TrackingController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Add a tracking event',
-    description:
-      'Adds a manual tracking event for a package or container.',
+    description: 'Adds a manual tracking event for a package or container.',
   })
   @ApiResponse({ status: 201, description: 'Tracking event added successfully' })
   @ApiResponse({ status: 400, description: 'Validation error' })
@@ -48,8 +47,7 @@ export class TrackingController {
   @Get('packages/:packageId')
   @ApiOperation({
     summary: 'Get package tracking history',
-    description:
-      'Returns all tracking events for a specific package, ordered chronologically.',
+    description: 'Returns all tracking events for a specific package, ordered chronologically.',
   })
   @ApiParam({ name: 'packageId', description: 'Package ID' })
   @ApiResponse({ status: 200, description: 'Tracking history retrieved' })
@@ -62,15 +60,13 @@ export class TrackingController {
   @Get('containers/:containerId')
   @ApiOperation({
     summary: 'Get container tracking',
-    description:
-      'Returns tracking events for a container and all its packages.',
+    description: 'Returns tracking events for a container and all its packages.',
   })
   @ApiParam({ name: 'containerId', description: 'Container ID' })
   @ApiResponse({ status: 200, description: 'Container tracking retrieved' })
   @ApiResponse({ status: 404, description: 'Container not found' })
   async getContainerTracking(@Param('containerId') containerId: string) {
-    const tracking =
-      await this.trackingService.getContainerTracking(containerId);
+    const tracking = await this.trackingService.getContainerTracking(containerId);
     return BaseResponse.ok(tracking);
   }
 
@@ -78,8 +74,7 @@ export class TrackingController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Sync external tracking',
-    description:
-      'Fetches tracking data from external APIs (kuaidi100/17Track) and stores locally.',
+    description: 'Fetches tracking data from external APIs (kuaidi100/17Track) and stores locally.',
   })
   @ApiParam({ name: 'trackingNumber', description: 'Carrier tracking number' })
   @ApiQuery({
@@ -92,25 +87,20 @@ export class TrackingController {
     @Param('trackingNumber') trackingNumber: string,
     @Query('carrier') carrier?: string,
   ) {
-    const result = await this.trackingService.syncExternalTracking(
-      trackingNumber,
-      carrier,
-    );
+    const result = await this.trackingService.syncExternalTracking(trackingNumber, carrier);
     return BaseResponse.ok(result);
   }
 
   @Get('customers/:customerId')
   @ApiOperation({
     summary: 'Get customer tracking',
-    description:
-      'Returns all active shipments for a customer with their latest tracking status.',
+    description: 'Returns all active shipments for a customer with their latest tracking status.',
   })
   @ApiParam({ name: 'customerId', description: 'Customer ID' })
   @ApiResponse({ status: 200, description: 'Customer tracking retrieved' })
   @ApiResponse({ status: 404, description: 'Customer not found' })
   async getCustomerTracking(@Param('customerId') customerId: string) {
-    const tracking =
-      await this.trackingService.getCustomerTracking(customerId);
+    const tracking = await this.trackingService.getCustomerTracking(customerId);
     return BaseResponse.ok(tracking);
   }
 

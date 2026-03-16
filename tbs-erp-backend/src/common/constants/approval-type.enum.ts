@@ -6,78 +6,31 @@ import { ApprovalType, UserRole } from '@prisma/client';
  * Steps are processed sequentially: step 1 must be approved before step 2, etc.
  */
 export const APPROVAL_STEPS: Record<ApprovalType, UserRole[]> = {
-  [ApprovalType.DISCOUNT]: [
-    UserRole.SALES_LEADER,
-    UserRole.SALES_DIRECTOR,
-  ],
-  [ApprovalType.PAYMENT_VOUCHER]: [
-    UserRole.CHIEF_ACCOUNTANT,
-    UserRole.COO,
-  ],
-  [ApprovalType.RECEIPT_VOUCHER]: [
-    UserRole.CHIEF_ACCOUNTANT,
-  ],
-  [ApprovalType.ORDER_CANCEL]: [
-    UserRole.SALES_LEADER,
-    UserRole.SALES_DIRECTOR,
-  ],
-  [ApprovalType.CREDIT_EXTENSION]: [
-    UserRole.CHIEF_ACCOUNTANT,
-    UserRole.COO,
-    UserRole.CEO,
-  ],
-  [ApprovalType.DEPOSIT_EXEMPTION]: [
-    UserRole.SALES_DIRECTOR,
-    UserRole.COO,
-  ],
-  [ApprovalType.CONTAINER_PLAN]: [
-    UserRole.XNK_MANAGER,
-    UserRole.COO,
-  ],
-  [ApprovalType.WAREHOUSE_RELEASE]: [
-    UserRole.WAREHOUSE_VN_MANAGER,
-    UserRole.CHIEF_ACCOUNTANT,
-  ],
+  [ApprovalType.DISCOUNT]: [UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR],
+  [ApprovalType.PAYMENT_VOUCHER]: [UserRole.CHIEF_ACCOUNTANT, UserRole.COO],
+  [ApprovalType.RECEIPT_VOUCHER]: [UserRole.CHIEF_ACCOUNTANT],
+  [ApprovalType.ORDER_CANCEL]: [UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR],
+  [ApprovalType.CREDIT_EXTENSION]: [UserRole.CHIEF_ACCOUNTANT, UserRole.COO, UserRole.CEO],
+  [ApprovalType.DEPOSIT_EXEMPTION]: [UserRole.SALES_DIRECTOR, UserRole.COO],
+  [ApprovalType.CONTAINER_PLAN]: [UserRole.XNK_MANAGER, UserRole.COO],
+  [ApprovalType.WAREHOUSE_RELEASE]: [UserRole.WAREHOUSE_VN_MANAGER, UserRole.CHIEF_ACCOUNTANT],
   [ApprovalType.LEAVE_REQUEST]: [],
   [ApprovalType.OVERTIME_REQUEST]: [],
-  [ApprovalType.PURCHASE_ORDER]: [
-    UserRole.XNK_MANAGER,
-    UserRole.CHIEF_ACCOUNTANT,
-  ],
-  [ApprovalType.QUOTATION_SPECIAL]: [
-    UserRole.SALES_LEADER,
-    UserRole.SALES_DIRECTOR,
-  ],
-  [ApprovalType.EXPENSE_CLAIM]: [
-    UserRole.CHIEF_ACCOUNTANT,
-    UserRole.COO,
-  ],
-  [ApprovalType.SALARY_ADJUSTMENT]: [
-    UserRole.CHIEF_ACCOUNTANT,
-    UserRole.COO,
-  ],
-  [ApprovalType.CUSTOMS_DECLARATION]: [
-    UserRole.XNK_MANAGER,
-    UserRole.CHIEF_ACCOUNTANT,
-  ],
+  [ApprovalType.PURCHASE_ORDER]: [UserRole.XNK_MANAGER, UserRole.CHIEF_ACCOUNTANT],
+  [ApprovalType.QUOTATION_SPECIAL]: [UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR],
+  [ApprovalType.EXPENSE_CLAIM]: [UserRole.CHIEF_ACCOUNTANT, UserRole.COO],
+  [ApprovalType.SALARY_ADJUSTMENT]: [UserRole.CHIEF_ACCOUNTANT, UserRole.COO],
+  [ApprovalType.CUSTOMS_DECLARATION]: [UserRole.XNK_MANAGER, UserRole.CHIEF_ACCOUNTANT],
   [ApprovalType.CUSTOM]: [],
-  [ApprovalType.GRACE_PERIOD_REQUEST]: [
-    UserRole.CFO,
-    UserRole.CEO,
-  ],
-  [ApprovalType.EXTRA_CHARGE_APPROVAL]: [
-    UserRole.WAREHOUSE_VN_MANAGER,
-    UserRole.CHIEF_ACCOUNTANT,
-  ],
-  [ApprovalType.CREDIT_OVERDRAFT]: [
-    UserRole.CHIEF_ACCOUNTANT,
-    UserRole.COO,
-  ],
+  [ApprovalType.GRACE_PERIOD_REQUEST]: [UserRole.CFO, UserRole.CEO],
+  [ApprovalType.EXTRA_CHARGE_APPROVAL]: [UserRole.WAREHOUSE_VN_MANAGER, UserRole.CHIEF_ACCOUNTANT],
+  [ApprovalType.CREDIT_OVERDRAFT]: [UserRole.CHIEF_ACCOUNTANT, UserRole.COO],
   [ApprovalType.PROCUREMENT_PAYMENT]: [
     UserRole.SALES_LEADER,
     UserRole.CHIEF_ACCOUNTANT,
     UserRole.COO,
   ],
+  [ApprovalType.RETURN_REQUEST]: [UserRole.COO],
 };
 
 /**
@@ -104,6 +57,7 @@ export const APPROVAL_TYPE_LABELS: Record<ApprovalType, string> = {
   [ApprovalType.EXTRA_CHARGE_APPROVAL]: 'Phê duyệt phụ phí phát sinh',
   [ApprovalType.CREDIT_OVERDRAFT]: 'Phê duyệt thấu chi tạm thời',
   [ApprovalType.PROCUREMENT_PAYMENT]: 'Duyệt chi mua hàng NCC',
+  [ApprovalType.RETURN_REQUEST]: 'Phê duyệt yêu cầu trả hàng',
 };
 
 /**
@@ -138,11 +92,7 @@ export function getApproverRoleAtStep(
 /**
  * Checks whether a given role can approve a specific step of an approval type.
  */
-export function canApproveStep(
-  type: ApprovalType,
-  stepNumber: number,
-  role: UserRole,
-): boolean {
+export function canApproveStep(type: ApprovalType, stepNumber: number, role: UserRole): boolean {
   const requiredRole = getApproverRoleAtStep(type, stepNumber);
   return requiredRole === role;
 }

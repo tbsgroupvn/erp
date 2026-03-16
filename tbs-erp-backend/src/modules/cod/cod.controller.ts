@@ -35,7 +35,10 @@ export class CodController {
 
   @Post('collect')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Record COD collection', description: 'Driver records a COD payment for a delivery.' })
+  @ApiOperation({
+    summary: 'Record COD collection',
+    description: 'Driver records a COD payment for a delivery.',
+  })
   @ApiResponse({ status: 201, description: 'COD collection recorded' })
   async recordCODCollection(
     @Body() dto: RecordCODCollectionDto,
@@ -46,21 +49,24 @@ export class CodController {
   }
 
   @Get('driver/:driverId')
-  @ApiOperation({ summary: 'Get driver collections', description: 'Returns all COD collections for a driver on a specific date.' })
+  @ApiOperation({
+    summary: 'Get driver collections',
+    description: 'Returns all COD collections for a driver on a specific date.',
+  })
   @ApiParam({ name: 'driverId', description: 'Driver ID' })
   @ApiQuery({ name: 'date', required: true, example: '2025-06-15' })
   @ApiResponse({ status: 200, description: 'Driver collections retrieved' })
-  async getDriverCollections(
-    @Param('driverId') driverId: string,
-    @Query('date') date: string,
-  ) {
+  async getDriverCollections(@Param('driverId') driverId: string, @Query('date') date: string) {
     const result = await this.codService.getDriverCollections(driverId, date);
     return BaseResponse.ok(result);
   }
 
   @Post('remittance')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Confirm COD remittance', description: 'Warehouse confirms driver handed over COD cash.' })
+  @ApiOperation({
+    summary: 'Confirm COD remittance',
+    description: 'Warehouse confirms driver handed over COD cash.',
+  })
   @ApiResponse({ status: 200, description: 'Remittance confirmed' })
   async confirmRemittance(
     @Body('driverId') driverId: string,
@@ -73,20 +79,21 @@ export class CodController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List COD records', description: 'Returns paginated COD records with filters.' })
+  @ApiOperation({
+    summary: 'List COD records',
+    description: 'Returns paginated COD records with filters.',
+  })
   @ApiResponse({ status: 200, description: 'COD records retrieved' })
   async findAll(@Query() query: CodQueryDto) {
     const result = await this.codService.findAll(query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get('reconciliation')
-  @ApiOperation({ summary: 'Get COD reconciliation', description: 'Compares collections vs remittances within a date range.' })
+  @ApiOperation({
+    summary: 'Get COD reconciliation',
+    description: 'Compares collections vs remittances within a date range.',
+  })
   @ApiQuery({ name: 'startDate', required: true, example: '2025-06-01' })
   @ApiQuery({ name: 'endDate', required: true, example: '2025-06-30' })
   @ApiResponse({ status: 200, description: 'Reconciliation report retrieved' })
@@ -100,7 +107,10 @@ export class CodController {
 
   @Post(':id/shortage')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Flag COD shortage', description: 'Flags a COD record for a shortage or discrepancy.' })
+  @ApiOperation({
+    summary: 'Flag COD shortage',
+    description: 'Flags a COD record for a shortage or discrepancy.',
+  })
   @ApiParam({ name: 'id', description: 'COD record ID' })
   @ApiResponse({ status: 200, description: 'Shortage flagged' })
   async flagShortage(

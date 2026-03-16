@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { CacheService } from '@core/cache/cache.service';
 import { Prisma } from '@prisma/client';
@@ -146,9 +141,7 @@ export class CustomerPortalService {
       },
     });
 
-    this.logger.log(
-      `Pre-alert submitted by customer ${customerId}: ${dto.trackingNumber}`,
-    );
+    this.logger.log(`Pre-alert submitted by customer ${customerId}: ${dto.trackingNumber}`);
 
     // Invalidate customer portal caches so fresh data is shown
     await this.cacheService.invalidateByPrefix(`customer-portal:${customerId}:`);
@@ -269,13 +262,13 @@ export class CustomerPortalService {
     const where = { userId: customerId };
 
     const [data, total] = await this.prisma.$transaction([
-      this.prisma.notificationRecord.findMany({
+      this.prisma.notification.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
         take,
       }),
-      this.prisma.notificationRecord.count({ where }),
+      this.prisma.notification.count({ where }),
     ]);
 
     return { data, total, page, limit: take };

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { Prisma, TaskStatus, TaskPriority } from '@prisma/client';
@@ -216,9 +211,7 @@ export class TaskService {
 
     const allowed = validTransitions[task.status] || [];
     if (!allowed.includes(status)) {
-      throw new BadRequestException(
-        `Cannot transition from ${task.status} to ${status}`,
-      );
+      throw new BadRequestException(`Cannot transition from ${task.status} to ${status}`);
     }
 
     const updateData: Prisma.TaskUpdateInput = { status };

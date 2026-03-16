@@ -1,15 +1,6 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
-import {
-  GrantConsentDto,
-  ConsentResponseDto,
-  ConsentAuditEntryDto,
-} from './dto/consent.dto';
+import { GrantConsentDto, ConsentResponseDto, ConsentAuditEntryDto } from './dto/consent.dto';
 
 /**
  * Consent Management Service
@@ -167,9 +158,7 @@ export class ConsentService {
       },
     });
 
-    this.logger.log(
-      `User ${userId} revoked consent for ${consentType}`,
-    );
+    this.logger.log(`User ${userId} revoked consent for ${consentType}`);
   }
 
   /**
@@ -223,14 +212,12 @@ export class ConsentService {
   async getConsentSummary(
     userId: string,
   ): Promise<Record<string, { granted: boolean; version: string | null; updatedAt: Date | null }>> {
-    const consentTypes = [
-      'data_processing',
-      'marketing',
-      'analytics',
-      'third_party_sharing',
-    ];
+    const consentTypes = ['data_processing', 'marketing', 'analytics', 'third_party_sharing'];
 
-    const summary: Record<string, { granted: boolean; version: string | null; updatedAt: Date | null }> = {};
+    const summary: Record<
+      string,
+      { granted: boolean; version: string | null; updatedAt: Date | null }
+    > = {};
 
     for (const type of consentTypes) {
       const consent = await this.prisma.userConsent.findFirst({

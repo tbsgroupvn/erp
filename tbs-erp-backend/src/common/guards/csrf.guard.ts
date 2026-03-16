@@ -35,7 +35,16 @@ export class CsrfGuard implements CanActivate {
   }
 
   canActivate(context: ExecutionContext): boolean {
+    // GraphQL context (if ever re-enabled) uses Bearer auth, so CSRF does not apply.
+    const contextType = context.getType<string>();
+    if (contextType === 'graphql') {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
+    if (!request) {
+      return true;
+    }
     const { method } = request;
 
     // Skip safe methods
@@ -92,7 +101,9 @@ export class CsrfGuard implements CanActivate {
       return true;
     }
 
-    this.logger.warn(`CSRF blocked: missing origin/referer for cookie-based ${method} ${request.url}`);
+    this.logger.warn(
+      `CSRF blocked: missing origin/referer for cookie-based ${method} ${request.url}`,
+    );
     throw new ForbiddenException('Missing request origin');
   }
 
@@ -101,7 +112,9 @@ export class CsrfGuard implements CanActivate {
       try {
         const allowedUrl = new URL(allowed);
         const originUrl = new URL(origin);
-        return originUrl.hostname === allowedUrl.hostname && originUrl.protocol === allowedUrl.protocol;
+        return (
+          originUrl.hostname === allowedUrl.hostname && originUrl.protocol === allowedUrl.protocol
+        );
       } catch {
         return false;
       }

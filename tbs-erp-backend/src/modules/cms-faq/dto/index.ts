@@ -1,11 +1,4 @@
-import {
-  IsOptional,
-  IsString,
-  IsBoolean,
-  IsInt,
-  Min,
-  IsNotEmpty,
-} from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsInt, Min, IsNotEmpty } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { SanitizeHtml, SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 

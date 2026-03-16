@@ -10,13 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
@@ -31,6 +25,8 @@ import { UpdateSupplierOrderDto } from './dto/update-supplier-order.dto';
 import { SupplierOrderQueryDto } from './dto/supplier-order-query.dto';
 import { ChangeSupplierOrderStatusDto } from './dto/change-supplier-order-status.dto';
 import { RecordReceivedDto } from './dto/record-received.dto';
+import { CloseShortfallDto } from './dto/close-shortfall.dto';
+import { RecordSupplierRefundDto } from './dto/record-supplier-refund.dto';
 
 @ApiTags('Supplier Orders')
 @ApiBearerAuth()
@@ -52,14 +48,8 @@ export class SupplierOrderController {
   @ApiResponse({ status: 201, description: 'Supplier order created successfully' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 404, description: 'Referenced order or order item not found' })
-  async create(
-    @Body() dto: CreateSupplierOrderDto,
-    @CurrentUser() user: ICurrentUser,
-  ) {
-    const supplierOrder = await this.supplierOrderService.createSupplierOrder(
-      dto,
-      user.id,
-    );
+  async create(@Body() dto: CreateSupplierOrderDto, @CurrentUser() user: ICurrentUser) {
+    const supplierOrder = await this.supplierOrderService.createSupplierOrder(dto, user.id);
     return BaseResponse.ok(supplierOrder, 'Supplier order created successfully');
   }
 
@@ -74,12 +64,27 @@ export class SupplierOrderController {
   @ApiResponse({ status: 200, description: 'Supplier orders retrieved successfully' })
   async findAll(@Query() query: SupplierOrderQueryDto) {
     const result = await this.supplierOrderService.findAll(query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
+  }
+
+  @Post('refund')
+  @Roles(UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.CFO)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Record a supplier refund',
+    description:
+      'Records a supplier refund in CNY, converts to VND, credits customer wallet, ' +
+      'and triggers auto-clear of outstanding ARs.',
+  })
+  @ApiResponse({ status: 200, description: 'Supplier refund recorded successfully' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  @ApiResponse({ status: 404, description: 'Supplier order or order not found' })
+  async recordSupplierRefund(
+    @Body() dto: RecordSupplierRefundDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const result = await this.supplierOrderService.recordSupplierRefund(dto, user.id);
+    return BaseResponse.ok(result, 'Supplier refund recorded successfully');
   }
 
   /**
@@ -89,8 +94,7 @@ export class SupplierOrderController {
   @Get('order/:orderId')
   @ApiOperation({
     summary: 'Get supplier orders by order ID',
-    description:
-      'Returns all supplier orders linked to a specific parent order.',
+    description: 'Returns all supplier orders linked to a specific parent order.',
   })
   @ApiParam({ name: 'orderId', description: 'Parent order ID' })
   @ApiResponse({ status: 200, description: 'Supplier orders retrieved successfully' })
@@ -102,8 +106,7 @@ export class SupplierOrderController {
   @Get(':id')
   @ApiOperation({
     summary: 'Get supplier order detail',
-    description:
-      'Returns full supplier order details including related order and order item.',
+    description: 'Returns full supplier order details including related order and order item.',
   })
   @ApiParam({ name: 'id', description: 'Supplier order ID' })
   @ApiResponse({ status: 200, description: 'Supplier order retrieved successfully' })
@@ -128,11 +131,7 @@ export class SupplierOrderController {
     @Body() dto: UpdateSupplierOrderDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const supplierOrder = await this.supplierOrderService.updateSupplierOrder(
-      id,
-      dto,
-      user.id,
-    );
+    const supplierOrder = await this.supplierOrderService.updateSupplierOrder(id, dto, user.id);
     return BaseResponse.ok(supplierOrder, 'Supplier order updated successfully');
   }
 
@@ -161,6 +160,28 @@ export class SupplierOrderController {
     return BaseResponse.ok(supplierOrder, `Status changed to ${dto.status}`);
   }
 
+  @Post(':id/close-shortfall')
+  @Roles(UserRole.XNK_MANAGER, UserRole.XNK_STAFF, UserRole.CHIEF_ACCOUNTANT)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Close shortfall on a partially-shipped supplier order',
+    description:
+      'Closes the shortfall when the supplier cannot deliver the remaining quantity. ' +
+      'Transitions status to RECEIVED_CN, records refund amount, and auto-credits customer wallet.',
+  })
+  @ApiParam({ name: 'id', description: 'Supplier order ID' })
+  @ApiResponse({ status: 200, description: 'Shortfall closed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid status or no shortfall' })
+  @ApiResponse({ status: 404, description: 'Supplier order not found' })
+  async closeShortfall(
+    @Param('id') id: string,
+    @Body() dto: CloseShortfallDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const result = await this.supplierOrderService.closeShortfall(id, dto, user.id);
+    return BaseResponse.ok(result, 'Shortfall closed successfully');
+  }
+
   @Post(':id/received')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -178,11 +199,7 @@ export class SupplierOrderController {
     @Body() dto: RecordReceivedDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    const result = await this.supplierOrderService.recordReceived(
-      id,
-      dto,
-      user.id,
-    );
+    const result = await this.supplierOrderService.recordReceived(id, dto, user.id);
     return BaseResponse.ok(result, 'Goods receipt recorded successfully');
   }
 }

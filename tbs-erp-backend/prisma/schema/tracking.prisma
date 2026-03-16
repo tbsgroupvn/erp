@@ -5,9 +5,9 @@
 model TrackingEvent {
   id              String           @id @default(cuid())
   packageId       String?          @map("package_id")
-  package         Package?         @relation(fields: [packageId], references: [id])
+  package         Package?         @relation(fields: [packageId], references: [id], onDelete: SetNull)
   containerId     String?          @map("container_id")
-  container       Container?       @relation(fields: [containerId], references: [id])
+  container       Container?       @relation(fields: [containerId], references: [id], onDelete: SetNull)
   trackingNumber  String?          @map("tracking_number")
   eventType       TrackingEventType @map("event_type")
   location        String?

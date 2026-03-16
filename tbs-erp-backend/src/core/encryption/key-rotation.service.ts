@@ -51,18 +51,11 @@ export class KeyRotationService {
     const results: { model: string; processed: number; reEncrypted: number }[] = [];
 
     for (const [modelName, fields] of Object.entries(ENCRYPTED_FIELDS)) {
-      const result = await this.rotateModelKeys(
-        modelName,
-        fields,
-        currentVersion,
-        batchSize,
-      );
+      const result = await this.rotateModelKeys(modelName, fields, currentVersion, batchSize);
       results.push(result);
     }
 
-    this.logger.log(
-      `Key rotation complete. Results: ${JSON.stringify(results)}`,
-    );
+    this.logger.log(`Key rotation complete. Results: ${JSON.stringify(results)}`);
 
     return results;
   }
@@ -144,9 +137,7 @@ export class KeyRotationService {
 
       cursor = records[records.length - 1].id;
 
-      this.logger.log(
-        `${modelName}: processed ${processed} records, re-encrypted ${reEncrypted}`,
-      );
+      this.logger.log(`${modelName}: processed ${processed} records, re-encrypted ${reEncrypted}`);
     }
 
     return { model: modelName, processed, reEncrypted };

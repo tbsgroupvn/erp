@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { CreateJournalEntryDto } from './dto/create-journal-entry.dto';
 import { GeneralLedgerQueryDto } from './dto/general-ledger-query.dto';
@@ -12,7 +7,7 @@ import { GeneralLedgerQueryDto } from './dto/general-ledger-query.dto';
 export class GeneralLedgerService {
   private readonly logger = new Logger(GeneralLedgerService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Creates a journal entry with double-entry bookkeeping validation.
@@ -30,9 +25,7 @@ export class GeneralLedgerService {
     }
 
     if (dto.entries.length < 2) {
-      throw new BadRequestException(
-        'A journal entry must have at least 2 lines.',
-      );
+      throw new BadRequestException('A journal entry must have at least 2 lines.');
     }
 
     // Validate each line has either debit or credit (not both zero)
@@ -112,9 +105,7 @@ export class GeneralLedgerService {
       },
     });
 
-    this.logger.log(
-      `Journal entry ${code} created by ${userId}: ${dto.description}`,
-    );
+    this.logger.log(`Journal entry ${code} created by ${userId}: ${dto.description}`);
 
     return journalEntry;
   }
@@ -225,11 +216,7 @@ export class GeneralLedgerService {
   /**
    * Gets running balance for a specific account within a date range.
    */
-  async getAccountBalance(
-    accountCode: string,
-    startDate?: string,
-    endDate?: string,
-  ) {
+  async getAccountBalance(accountCode: string, startDate?: string, endDate?: string) {
     const account = await this.prisma.chartOfAccount.findUnique({
       where: { code: accountCode },
     });
@@ -306,9 +293,7 @@ export class GeneralLedgerService {
       },
     });
 
-    this.logger.log(
-      `Period ${year}-${String(month).padStart(2, '0')} closed by ${userId}`,
-    );
+    this.logger.log(`Period ${year}-${String(month).padStart(2, '0')} closed by ${userId}`);
 
     return closedPeriod;
   }

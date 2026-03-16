@@ -81,26 +81,17 @@ export class CacheInvalidationService {
 
   @OnEvent('finance.payment.created')
   async onPaymentCreated(): Promise<void> {
-    await this.invalidate('finance.payment.created', [
-      'dashboard:finance:',
-      'finance:ap:',
-    ]);
+    await this.invalidate('finance.payment.created', ['dashboard:finance:', 'finance:ap:']);
   }
 
   @OnEvent('finance.voucher.approved')
   async onVoucherApproved(): Promise<void> {
-    await this.invalidate('finance.voucher.approved', [
-      'dashboard:finance:',
-      'finance:vouchers:',
-    ]);
+    await this.invalidate('finance.voucher.approved', ['dashboard:finance:', 'finance:vouchers:']);
   }
 
   @OnEvent('finance.invoice.created')
   async onInvoiceCreated(): Promise<void> {
-    await this.invalidate('finance.invoice.created', [
-      'dashboard:finance:',
-      'finance:invoices:',
-    ]);
+    await this.invalidate('finance.invoice.created', ['dashboard:finance:', 'finance:invoices:']);
   }
 
   // ─── Warehouse Events ───
@@ -123,10 +114,7 @@ export class CacheInvalidationService {
 
   @OnEvent('warehouse.shipped')
   async onWarehouseShipped(): Promise<void> {
-    await this.invalidate('warehouse.shipped', [
-      'dashboard:warehouse:',
-      'orders:active-counts',
-    ]);
+    await this.invalidate('warehouse.shipped', ['dashboard:warehouse:', 'orders:active-counts']);
   }
 
   @OnEvent('warehouse.delivered')
@@ -142,54 +130,38 @@ export class CacheInvalidationService {
 
   @OnEvent('customer.created')
   async onCustomerCreated(): Promise<void> {
-    await this.invalidate('customer.created', [
-      'dashboard:overview:',
-      'crm:customers:',
-    ]);
+    await this.invalidate('customer.created', ['dashboard:overview:', 'crm:customers:']);
   }
 
   // ─── Exchange Rate Events ───
 
   @OnEvent('exchange-rate.updated')
   async onExchangeRateUpdated(): Promise<void> {
-    await this.invalidate('exchange-rate.updated', [
-      'exchange-rates:active',
-      'exchange-rates:',
-    ]);
+    await this.invalidate('exchange-rate.updated', ['exchange-rates:active', 'exchange-rates:']);
   }
 
   // ─── Approval Events ───
 
   @OnEvent('approval.submitted')
   async onApprovalSubmitted(): Promise<void> {
-    await this.invalidate('approval.submitted', [
-      'approvals:pending:',
-    ]);
+    await this.invalidate('approval.submitted', ['approvals:pending:']);
   }
 
   @OnEvent('approval.completed')
   async onApprovalCompleted(): Promise<void> {
-    await this.invalidate('approval.completed', [
-      'approvals:pending:',
-    ]);
+    await this.invalidate('approval.completed', ['approvals:pending:']);
   }
 
   // ─── Employee Events ───
 
   @OnEvent('employee.created')
   async onEmployeeCreated(): Promise<void> {
-    await this.invalidate('employee.created', [
-      'dashboard:hr:',
-      'employees:list:',
-    ]);
+    await this.invalidate('employee.created', ['dashboard:hr:', 'employees:list:']);
   }
 
   @OnEvent('employee.updated')
   async onEmployeeUpdated(): Promise<void> {
-    await this.invalidate('employee.updated', [
-      'dashboard:hr:',
-      'employees:list:',
-    ]);
+    await this.invalidate('employee.updated', ['dashboard:hr:', 'employees:list:']);
   }
 
   // ─── Internal Helper ───
@@ -198,16 +170,11 @@ export class CacheInvalidationService {
    * Invalidate cache keys matching the given prefixes.
    * Logs the event and records metrics.
    */
-  private async invalidate(
-    eventName: string,
-    prefixes: string[],
-  ): Promise<void> {
+  private async invalidate(eventName: string, prefixes: string[]): Promise<void> {
     const start = performance.now();
 
     try {
-      await Promise.all(
-        prefixes.map((prefix) => this.cacheService.delByPrefix(prefix)),
-      );
+      await Promise.all(prefixes.map((prefix) => this.cacheService.delByPrefix(prefix)));
 
       const duration = performance.now() - start;
 
@@ -221,9 +188,7 @@ export class CacheInvalidationService {
         event: eventName,
       });
     } catch (error) {
-      this.logger.error(
-        `Cache invalidation failed for event "${eventName}": ${error.message}`,
-      );
+      this.logger.error(`Cache invalidation failed for event "${eventName}": ${error.message}`);
     }
   }
 }

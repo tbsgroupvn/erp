@@ -1,10 +1,4 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  Logger,
-  NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request, Response } from 'express';
@@ -31,10 +25,15 @@ export class PerformanceInterceptor implements NestInterceptor {
   constructor(private readonly metricsService: MetricsService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    // Skip HTTP performance tracking for non-HTTP contexts (e.g. GraphQL)
+    if (context.getType<string>() !== 'http') {
+      return next.handle();
+    }
+
     const httpContext = context.switchToHttp();
     const request = httpContext.getRequest<Request>();
     const response = httpContext.getResponse<Response>();
-    const { method, url, ip } = request;
+    const { url } = request;
 
     // Skip health and metrics endpoints to avoid noise
     const path = url.split('?')[0];
@@ -56,23 +55,16 @@ export class PerformanceInterceptor implements NestInterceptor {
     );
   }
 
-  private recordPerformance(
-    request: Request,
-    response: Response,
-    start: bigint,
-  ): void {
+  private recordPerformance(request: Request, response: Response, start: bigint): void {
     const durationNs = Number(process.hrtime.bigint() - start);
     const durationMs = durationNs / 1e6;
-    const durationSec = durationNs / 1e9;
     const { method, url, ip } = request;
     const path = url.split('?')[0];
 
     // Add Server-Timing header for browser DevTools
     // This appears in the Network tab's Timing section
     if (!response.headersSent) {
-      const timingParts: string[] = [
-        `total;dur=${durationMs.toFixed(1)};desc="Server Total"`,
-      ];
+      const timingParts: string[] = [`total;dur=${durationMs.toFixed(1)};desc="Server Total"`];
 
       response.setHeader('Server-Timing', timingParts.join(', '));
     }
@@ -114,10 +106,7 @@ export class PerformanceInterceptor implements NestInterceptor {
    */
   private normalizeRoute(url: string): string {
     return url
-      .replace(
-        /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
-        ':id',
-      )
+      .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ':id')
       .replace(/\/\d+/g, '/:id');
   }
 }

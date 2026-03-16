@@ -32,13 +32,13 @@ export const approvalsApi = {
   /** GET /approvals/pending */
   getPending: () =>
     apiClient
-      .get<BaseResponse<Approval[]>>('/approvals/pending')
+      .get<BaseResponse<{ data: Approval[]; total: number }>>('/approvals/pending')
       .then((r) => r.data.data),
 
   /** GET /approvals/history */
   getHistory: () =>
     apiClient
-      .get<BaseResponse<Approval[]>>('/approvals/history')
+      .get<BaseResponse<{ data: Approval[]; total: number }>>('/approvals/history')
       .then((r) => r.data.data),
 
   /** GET /approvals/counts */
@@ -134,5 +134,23 @@ export const approvalsApi = {
   getActionLog: (id: string) =>
     apiClient
       .get<BaseResponse<ApprovalActionLog[]>>(`/approvals/${id}/action-log`)
+      .then((r) => r.data.data),
+
+  /** POST /approvals/batch-approve */
+  batchApprove: (approvalIds: string[], comment?: string) =>
+    apiClient
+      .post<BaseResponse<{ processed: number; failed: number }>>('/approvals/batch-approve', {
+        approvalIds,
+        comment,
+      })
+      .then((r) => r.data.data),
+
+  /** POST /approvals/batch-reject */
+  batchReject: (approvalIds: string[], comment?: string) =>
+    apiClient
+      .post<BaseResponse<{ processed: number; failed: number }>>('/approvals/batch-reject', {
+        approvalIds,
+        comment,
+      })
       .then((r) => r.data.data),
 };

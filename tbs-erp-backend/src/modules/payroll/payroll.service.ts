@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { EmployeeStatus, LeaveStatus, PayrollStatus, Prisma } from '@prisma/client';
@@ -21,11 +16,11 @@ import { PayrollQueryDto } from './dto/payroll-query.dto';
  */
 const VIETNAM_PIT_BRACKETS: ReadonlyArray<{ readonly max: number; readonly rate: number }> = [
   { max: 5_000_000, rate: 0.05 },
-  { max: 10_000_000, rate: 0.10 },
+  { max: 10_000_000, rate: 0.1 },
   { max: 18_000_000, rate: 0.15 },
-  { max: 32_000_000, rate: 0.20 },
+  { max: 32_000_000, rate: 0.2 },
   { max: 52_000_000, rate: 0.25 },
-  { max: 80_000_000, rate: 0.30 },
+  { max: 80_000_000, rate: 0.3 },
   { max: Infinity, rate: 0.35 },
 ] as const;
 
@@ -51,7 +46,7 @@ export class PayrollService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   /**
    * Batch calculates payroll for all active employees for a given month/year.
@@ -90,11 +85,7 @@ export class PayrollService {
       const baseSalary = Number(emp.salary || 0);
 
       // Filter overtime for this employee from batch
-      const overtimeRequests = allOvertime.filter(
-        (ot) => ot.employeeId === emp.id,
-      );
-
-      const otHours = overtimeRequests.reduce((sum, ot) => sum + ot.hours, 0);
+      const overtimeRequests = allOvertime.filter((ot) => ot.employeeId === emp.id);
 
       // OT rate: 1.5x weekday, 2x weekend, 3x holiday
       // Simplified: assume average 1.5x for now
@@ -106,17 +97,15 @@ export class PayrollService {
         if (dayOfWeek === 0 || dayOfWeek === 6) {
           multiplier = 2.0; // weekend
         }
-        otPay += ot.hours * hourlyRate * multiplier;
+        otPay += Number(ot.hours) * hourlyRate * multiplier;
       }
 
       // Filter attendance for this employee from batch
-      const attendances = allAttendance.filter(
-        (a) => a.employeeId === emp.id,
-      );
+      const attendances = allAttendance.filter((a) => a.employeeId === emp.id);
       const standardWorkDays = 22;
       const workDays = attendances.length;
       const effectiveWorkDays = Math.min(workDays, standardWorkDays);
-      const proratedSalary = Math.round(baseSalary * effectiveWorkDays / standardWorkDays);
+      const proratedSalary = Math.round((baseSalary * effectiveWorkDays) / standardWorkDays);
 
       const grossSalary = proratedSalary + otPay;
 
@@ -128,12 +117,11 @@ export class PayrollService {
 
       // Taxable income
       const dependents = emp.numberOfDependents || 0;
-      const taxableIncome = grossSalary - totalInsurance - PERSONAL_DEDUCTION - (DEPENDENT_DEDUCTION * dependents);
+      const taxableIncome =
+        grossSalary - totalInsurance - PERSONAL_DEDUCTION - DEPENDENT_DEDUCTION * dependents;
 
       // Personal income tax (progressive)
-      const personalIncomeTax = taxableIncome > 0
-        ? this.calculatePIT(taxableIncome)
-        : 0;
+      const personalIncomeTax = taxableIncome > 0 ? this.calculatePIT(taxableIncome) : 0;
 
       // Commission clawback deductions: sum ON_HOLD clawback amounts for this employee's userId
       let commissionClawback = 0;
@@ -196,9 +184,7 @@ export class PayrollService {
       results.push(payroll);
     }
 
-    this.logger.log(
-      `Payroll calculated for ${results.length} employees: ${month}/${year}`,
-    );
+    this.logger.log(`Payroll calculated for ${results.length} employees: ${month}/${year}`);
 
     return {
       month,
@@ -255,9 +241,7 @@ export class PayrollService {
     });
 
     if (result.count === 0) {
-      throw new BadRequestException(
-        `No draft payroll records found for ${month}/${year}`,
-      );
+      throw new BadRequestException(`No draft payroll records found for ${month}/${year}`);
     }
 
     this.eventEmitter.emit('payroll.approved', {

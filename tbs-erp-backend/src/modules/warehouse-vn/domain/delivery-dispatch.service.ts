@@ -50,7 +50,7 @@ export class DeliveryDispatchService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   /**
    * Creates a delivery plan by grouping orders by their delivery area.
@@ -103,10 +103,7 @@ export class DeliveryDispatchService {
       }
 
       const plan = areaMap.get(area)!;
-      const remainingAmount = Math.max(
-        0,
-        Number(order.totalAmount) - Number(order.depositPaid),
-      );
+      const remainingAmount = Math.max(0, Number(order.totalAmount) - Number(order.depositPaid));
 
       plan.deliveries.push({
         orderId: order.id,
@@ -121,13 +118,11 @@ export class DeliveryDispatchService {
       plan.stops += 1;
     }
 
-    const plans = Array.from(areaMap.values()).sort(
-      (a, b) => b.stops - a.stops,
-    );
+    const plans = Array.from(areaMap.values()).sort((a, b) => b.stops - a.stops);
 
     this.logger.log(
       `Delivery plan created for branch ${branch}: ${plans.length} areas, ` +
-      `${pendingDeliveries.length} total deliveries`,
+        `${pendingDeliveries.length} total deliveries`,
     );
 
     return plans;
@@ -137,18 +132,14 @@ export class DeliveryDispatchService {
    * Assigns a driver and vehicle to delivery records.
    * B1: Validates payment status before dispatch.
    */
-  async assignDriver(
-    deliveryIds: string[],
-    driverId: string,
-    vehicleId?: string,
-  ): Promise<void> {
+  async assignDriver(deliveryIds: string[], driverId: string, vehicleId?: string): Promise<void> {
     // B1: Payment validation before driver assignment (dispatch)
     const deliveries = await this.prisma.delivery.findMany({
       where: { id: { in: deliveryIds } },
       select: { id: true, orderId: true },
     });
 
-    const orderIds = [...new Set(deliveries.map(d => d.orderId))];
+    const orderIds = [...new Set(deliveries.map((d) => d.orderId))];
     const ordersWithCustomer = await this.prisma.order.findMany({
       where: { id: { in: orderIds } },
       select: {
@@ -186,8 +177,7 @@ export class DeliveryDispatchService {
         customer.tempOverdraftExpiry !== null &&
         new Date(customer.tempOverdraftExpiry) > new Date();
       const gracePeriodActive =
-        customer.gracePeriodUntil !== null &&
-        new Date(customer.gracePeriodUntil) > new Date();
+        customer.gracePeriodUntil !== null && new Date(customer.gracePeriodUntil) > new Date();
 
       if (!fullyPaid && !creditApproved && !tempOverdraft && !gracePeriodActive) {
         throw new BadRequestException(
@@ -213,9 +203,7 @@ export class DeliveryDispatchService {
       vehicleId,
     });
 
-    this.logger.log(
-      `Driver ${driverId} assigned to ${deliveryIds.length} deliveries`,
-    );
+    this.logger.log(`Driver ${driverId} assigned to ${deliveryIds.length} deliveries`);
   }
 
   /**
@@ -225,9 +213,7 @@ export class DeliveryDispatchService {
    * current order with estimated values. In production, this would
    * integrate with Google Maps Directions API for actual route optimization.
    */
-  async optimizeRoute(
-    deliveryIds: string[],
-  ): Promise<RouteOptimizationResult> {
+  async optimizeRoute(deliveryIds: string[]): Promise<RouteOptimizationResult> {
     // STUB: In a real implementation, this would:
     // 1. Fetch all delivery addresses
     // 2. Call Google Maps Directions API with waypoints
@@ -245,7 +231,7 @@ export class DeliveryDispatchService {
 
     this.logger.log(
       `Route optimization (STUB): ${deliveries.length} stops, ` +
-      `~${estimatedDistanceKm}km, ~${estimatedTimeMinutes}min`,
+        `~${estimatedDistanceKm}km, ~${estimatedTimeMinutes}min`,
     );
 
     return {
@@ -310,9 +296,7 @@ export class DeliveryDispatchService {
       });
     }
 
-    this.logger.log(
-      `Delivery ${deliveryId} status updated to ${status}`,
-    );
+    this.logger.log(`Delivery ${deliveryId} status updated to ${status}`);
   }
 
   /**
@@ -395,16 +379,15 @@ export class DeliveryDispatchService {
         codAmount: new Decimal(deliveryData.codAmount ?? 0),
         note: deliveryData.note,
         status: deliveryData.driverId ? 'DISPATCHED' : 'PENDING',
-        driver: deliveryData.driverId
-          ? { connect: { id: deliveryData.driverId } }
-          : undefined,
-        vehicle: deliveryData.vehicleId
-          ? { connect: { id: deliveryData.vehicleId } }
-          : undefined,
+        driver: deliveryData.driverId ? { connect: { id: deliveryData.driverId } } : undefined,
+        vehicle: deliveryData.vehicleId ? { connect: { id: deliveryData.vehicleId } } : undefined,
         isPartialDelivery,
-        packageIds,
+        deliveryPackages: {
+          create: packageIds.map((pid) => ({ packageId: pid })),
+        },
         dispatchedBy: deliveryData.dispatchedBy,
       },
+      include: { deliveryPackages: true },
     });
 
     this.eventEmitter.emit('delivery.created', {

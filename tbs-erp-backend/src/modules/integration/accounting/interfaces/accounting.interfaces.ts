@@ -76,12 +76,7 @@ export interface SyncResult {
  */
 export interface FinancialStatementType {
   /** Type of financial statement */
-  type:
-    | 'BALANCE_SHEET'
-    | 'INCOME_STATEMENT'
-    | 'CASH_FLOW'
-    | 'TRIAL_BALANCE'
-    | 'GENERAL_LEDGER';
+  type: 'BALANCE_SHEET' | 'INCOME_STATEMENT' | 'CASH_FLOW' | 'TRIAL_BALANCE' | 'GENERAL_LEDGER';
 }
 
 /**

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { contactsApi } from '@/lib/api/cms';
+import { contactsApi, ContactSubmission, ContactFilters } from '@/lib/api/cms';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,7 +39,7 @@ export default function ContactsPage() {
     queryKey: ['contacts', { search, status }],
     queryFn: () => contactsApi.getAll({
       search: search || undefined,
-      status: status !== 'all' ? (status as any) : undefined,
+      status: status !== 'all' ? (status as ContactFilters['status']) : undefined,
       limit: 100
     }),
   });
@@ -224,7 +224,7 @@ export default function ContactsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {contacts.map((contact: any) => (
+              {contacts.map((contact: ContactSubmission) => (
                 <div
                   key={contact.id}
                   className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors duration-200"

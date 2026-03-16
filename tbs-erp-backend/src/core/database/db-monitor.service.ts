@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from './prisma.service';
 import { MetricsService } from '@core/metrics/metrics.service';
 
@@ -16,6 +17,11 @@ import { MetricsService } from '@core/metrics/metrics.service';
  *   - Query running > 5 seconds: WARN (slow query)
  *   - Query running > 30 seconds: ERROR (critical)
  *   - Database size > 80% of disk: WARN
+ *
+ * Cron intervals (overridable via env vars):
+ *   DB_MONITOR_POOL_CRON    — connection pool check  (default: every 2 minutes)
+ *   DB_MONITOR_SLOW_CRON    — slow query check        (default: every 5 minutes)
+ *   Both accept standard cron expressions or @nestjs/schedule constants.
  */
 @Injectable()
 export class DatabaseMonitorService {
@@ -24,13 +30,14 @@ export class DatabaseMonitorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly metricsService: MetricsService,
+    private readonly config: ConfigService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Connection Pool Monitoring
+  // Connection Pool Monitoring  (default: every 2 minutes)
   // ─────────────────────────────────────────────────────────────────────────
 
-  @Cron(CronExpression.EVERY_30_SECONDS)
+  @Cron(process.env.DB_MONITOR_POOL_CRON ?? '*/2 * * * *')
   async checkConnectionPool(): Promise<void> {
     try {
       const result: any[] = await this.prisma.$queryRaw`
@@ -59,19 +66,19 @@ export class DatabaseMonitorService {
       if (stats.idle_in_transaction > 10) {
         this.logger.error(
           `CRITICAL: ${stats.idle_in_transaction} idle-in-transaction connections detected. ` +
-          `This may indicate uncommitted transactions or application bugs.`,
+            `This may indicate uncommitted transactions or application bugs.`,
         );
       } else if (stats.idle_in_transaction > 5) {
         this.logger.warn(
           `${stats.idle_in_transaction} idle-in-transaction connections detected. ` +
-          `Consider investigating long-running transactions.`,
+            `Consider investigating long-running transactions.`,
         );
       }
 
       if (stats.waiting > 10) {
         this.logger.warn(
           `${stats.waiting} connections are waiting for locks. ` +
-          `This may indicate contention issues.`,
+            `This may indicate contention issues.`,
         );
       }
     } catch (error) {
@@ -80,10 +87,10 @@ export class DatabaseMonitorService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Slow Query Detection
+  // Slow Query Detection  (default: every 5 minutes)
   // ─────────────────────────────────────────────────────────────────────────
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(process.env.DB_MONITOR_SLOW_CRON ?? '*/5 * * * *')
   async checkSlowQueries(): Promise<void> {
     try {
       const slowQueries: any[] = await this.prisma.$queryRaw`
@@ -108,13 +115,15 @@ export class DatabaseMonitorService {
         this.metricsService.dbSlowQueriesTotal.inc(slowQueries.length);
 
         for (const sq of slowQueries) {
+          // Log truncated query preview without parameters to avoid leaking PII
+          const safePreview = (sq.query_preview || '').substring(0, 200);
           if (sq.duration_seconds > 30) {
             this.logger.error(
-              `CRITICAL slow query (${sq.duration_seconds}s) by ${sq.usename}: ${sq.query_preview}`,
+              `CRITICAL slow query (${sq.duration_seconds}s) by ${sq.usename}: ${safePreview}`,
             );
           } else {
             this.logger.warn(
-              `Slow query (${sq.duration_seconds}s) by ${sq.usename}: ${sq.query_preview}`,
+              `Slow query (${sq.duration_seconds}s) by ${sq.usename}: ${safePreview}`,
             );
           }
         }
@@ -125,7 +134,7 @@ export class DatabaseMonitorService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Database Size Monitoring
+  // Database Size Monitoring  (every hour — unchanged)
   // ─────────────────────────────────────────────────────────────────────────
 
   @Cron(CronExpression.EVERY_HOUR)
@@ -168,7 +177,7 @@ export class DatabaseMonitorService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Table Bloat Detection
+  // Table Bloat Detection  (daily at 3:00 AM — unchanged)
   // ─────────────────────────────────────────────────────────────────────────
 
   @Cron('0 3 * * *') // Daily at 3:00 AM
@@ -194,8 +203,8 @@ export class DatabaseMonitorService {
         if (table.dead_ratio_pct > 30) {
           this.logger.warn(
             `Table ${table.table_name} has ${table.dead_ratio_pct}% dead tuples ` +
-            `(${table.dead_tuples} dead / ${table.live_tuples} live). ` +
-            `Last autovacuum: ${table.last_autovacuum ?? 'never'}. Consider manual VACUUM.`,
+              `(${table.dead_tuples} dead / ${table.live_tuples} live). ` +
+              `Last autovacuum: ${table.last_autovacuum ?? 'never'}. Consider manual VACUUM.`,
           );
         }
       }
@@ -216,7 +225,7 @@ export class DatabaseMonitorService {
       if (neverVacuumed.length > 0) {
         this.logger.warn(
           `${neverVacuumed.length} tables have never been vacuumed and have dead tuples: ` +
-          neverVacuumed.map((t) => t.table_name).join(', '),
+            neverVacuumed.map((t) => t.table_name).join(', '),
         );
       }
     } catch (error) {
@@ -225,10 +234,10 @@ export class DatabaseMonitorService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Replication Lag Check (when replica is in use)
+  // Replication Lag Check  (every 5 minutes — reduced from every minute)
   // ─────────────────────────────────────────────────────────────────────────
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron('*/5 * * * *')
   async checkReplicationStatus(): Promise<void> {
     try {
       const replicationInfo: any[] = await this.prisma.$queryRaw`
@@ -247,13 +256,15 @@ export class DatabaseMonitorService {
           Number(rep.lag_bytes ?? 0),
         );
 
-        if (Number(rep.lag_bytes) > 100 * 1024 * 1024) { // > 100MB
+        if (Number(rep.lag_bytes) > 100 * 1024 * 1024) {
+          // > 100MB
           this.logger.warn(
             `Replication lag for ${rep.client_addr}: ${rep.lag_bytes} bytes (${rep.state})`,
           );
         }
       }
-    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_error) {
       // Not an error if replication is not configured
       // pg_stat_replication will be empty on standalone instances
     }

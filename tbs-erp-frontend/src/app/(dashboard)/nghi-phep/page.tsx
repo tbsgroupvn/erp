@@ -34,10 +34,10 @@ interface LeaveRequestsResponse {
 // ---------------------------------------------------------------------------
 
 const LEAVE_STATUS_LABELS: Record<string, string> = {
-  PENDING: 'Cho duyet',
-  APPROVED: 'Da duyet',
-  REJECTED: 'Tu choi',
-  CANCELLED: 'Da huy',
+  PENDING: 'Chờ duyệt',
+  APPROVED: 'Đã duyệt',
+  REJECTED: 'Từ chối',
+  CANCELLED: 'Đã hủy',
 };
 
 const LEAVE_STATUS_COLORS: Record<string, string> = {
@@ -54,11 +54,11 @@ const ALL_LEAVE_STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'] as c
 // ---------------------------------------------------------------------------
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
-  ANNUAL: 'Phep nam',
-  SICK: 'Nghi om',
-  PERSONAL: 'Viec rieng',
-  MATERNITY: 'Thai san',
-  OTHER: 'Khac',
+  ANNUAL: 'Phép năm',
+  SICK: 'Nghỉ ốm',
+  PERSONAL: 'Việc riêng',
+  MATERNITY: 'Thai sản',
+  OTHER: 'Khác',
 };
 
 // ---------------------------------------------------------------------------
@@ -68,21 +68,21 @@ const LEAVE_TYPE_LABELS: Record<string, string> = {
 const columns: ColumnDef<LeaveRequest>[] = [
   {
     accessorKey: 'employeeName',
-    header: 'Nhan vien',
+    header: 'Nhân viên',
     cell: ({ row }) => (
       <span className="font-medium">{row.original.employeeName}</span>
     ),
   },
   {
     accessorKey: 'leaveType',
-    header: 'Loai nghi',
+    header: 'Loại nghỉ',
     cell: ({ row }) => (
       <span>{LEAVE_TYPE_LABELS[row.original.leaveType] || row.original.leaveType}</span>
     ),
   },
   {
     accessorKey: 'fromDate',
-    header: 'Tu ngay',
+    header: 'Từ ngày',
     cell: ({ row }) => (
       <span>
         {row.original.fromDate ? formatDate(row.original.fromDate, 'dd/MM/yyyy') : '---'}
@@ -91,7 +91,7 @@ const columns: ColumnDef<LeaveRequest>[] = [
   },
   {
     accessorKey: 'toDate',
-    header: 'Den ngay',
+    header: 'Đến ngày',
     cell: ({ row }) => (
       <span>
         {row.original.toDate ? formatDate(row.original.toDate, 'dd/MM/yyyy') : '---'}
@@ -100,14 +100,14 @@ const columns: ColumnDef<LeaveRequest>[] = [
   },
   {
     accessorKey: 'days',
-    header: 'So ngay',
+    header: 'Số ngày',
     cell: ({ row }) => (
       <span className="font-medium">{row.original.days}</span>
     ),
   },
   {
     accessorKey: 'status',
-    header: 'Trang thai',
+    header: 'Trạng thái',
     cell: ({ row }) => {
       const status = row.original.status || '';
       return (
@@ -142,14 +142,14 @@ export default function NghiPhepPage() {
   return (
     <div>
       <PageHeader
-        title="Quan ly nghi phep"
-        description="Theo doi yeu cau nghi phep cua nhan vien"
+        title="Quản lý nghỉ phép"
+        description="Theo dõi yêu cầu nghỉ phép của nhân viên"
       />
 
       {/* Status filter */}
       <div className="mb-4 flex items-center gap-2">
         <Label htmlFor="leave-status-filter" className="whitespace-nowrap">
-          Trang thai:
+          Trạng thái:
         </Label>
         <select
           id="leave-status-filter"
@@ -160,7 +160,7 @@ export default function NghiPhepPage() {
           }}
           className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          <option value="">Tat ca</option>
+          <option value="">Tất cả</option>
           {ALL_LEAVE_STATUSES.map((s) => (
             <option key={s} value={s}>
               {LEAVE_STATUS_LABELS[s]}

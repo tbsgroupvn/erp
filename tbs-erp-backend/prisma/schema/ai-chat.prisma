@@ -1,0 +1,28 @@
+// ============================================
+// AI CHAT — TBS Assistant
+// ============================================
+
+model AIChatSession {
+  id        String      @id @default(cuid())
+  userId    String      @map("user_id")
+  title     String?     // Auto-generated from first message
+  messages  AIMessage[]
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("ai_chat_sessions")
+}
+
+model AIMessage {
+  id        String        @id @default(cuid())
+  sessionId String        @map("session_id")
+  session   AIChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String        // "user" | "assistant"
+  content   String        @db.Text
+  tokens    Int?          // tokens used
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@map("ai_messages")
+}

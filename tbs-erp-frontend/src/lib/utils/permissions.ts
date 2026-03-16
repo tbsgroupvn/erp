@@ -84,6 +84,19 @@ const ALL_ROUTES = [
   '/nghi-phep',
   '/hoa-don',
   '/thong-quan',
+  '/tro-chuyen',
+  '/lich',
+  '/bang-tin',
+  '/okr',
+  '/wiki',
+  '/video',
+  '/ai-assistant',
+  '/ai-chat',
+  '/automation',
+  '/bao-cao/tong-hop',
+  '/kho-trung-quoc/slotting',
+  '/tai-chinh/bao-cao-vas',
+  '/tai-chinh/doi-chieu',
 ];
 
 export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
@@ -109,6 +122,16 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/nghi-phep',
     '/thong-bao',
     '/uy-quyen',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
+    '/okr',
+    '/wiki',
+    '/video',
+    '/ai-assistant',
+    '/ai-chat',
+    '/automation',
   ],
   [UserRole.SALES_LEADER]: [
     '/dashboard',
@@ -124,6 +147,16 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/cham-cong',
     '/thong-bao',
     '/uy-quyen',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
+    '/okr',
+    '/wiki',
+    '/video',
+    '/ai-assistant',
+    '/ai-chat',
+    '/automation',
   ],
   [UserRole.SALE]: [
     '/dashboard',
@@ -136,6 +169,12 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/cong-viec',
     '/cham-cong',
     '/thong-bao',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
+    '/ai-assistant',
+    '/ai-chat',
   ],
   [UserRole.MARKETING_STAFF]: [
     '/dashboard',
@@ -145,6 +184,12 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/bao-cao',
     '/cham-cong',
     '/thong-bao',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
+    '/ai-assistant',
+    '/ai-chat',
   ],
   [UserRole.CSKH]: [
     '/dashboard',
@@ -155,6 +200,12 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/cong-viec',
     '/cham-cong',
     '/thong-bao',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
+    '/ai-assistant',
+    '/ai-chat',
   ],
 
   // Accounting / Finance
@@ -163,6 +214,8 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/tong-quan',
     '/don-hang',
     '/tai-chinh',
+    '/tai-chinh/bao-cao-vas',
+    '/tai-chinh/doi-chieu',
     '/so-cai',
     '/tai-san',
     '/ngan-sach',
@@ -180,12 +233,24 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/cham-cong',
     '/thong-bao',
     '/uy-quyen',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
+    '/okr',
+    '/wiki',
+    '/video',
+    '/ai-assistant',
+    '/ai-chat',
+    '/automation',
   ],
   [UserRole.ACCOUNTANT_AR]: [
     '/dashboard',
     '/tong-quan',
     '/don-hang',
     '/tai-chinh',
+    '/tai-chinh/bao-cao-vas',
+    '/tai-chinh/doi-chieu',
     '/so-cai',
     '/hoa-don',
     '/mua-hang',
@@ -193,6 +258,12 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/cong-viec',
     '/cham-cong',
     '/thong-bao',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
+    '/ai-assistant',
+    '/ai-chat',
   ],
   [UserRole.ACCOUNTANT_COST]: [
     '/dashboard',
@@ -207,6 +278,12 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/cong-viec',
     '/cham-cong',
     '/thong-bao',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
+    '/ai-assistant',
+    '/ai-chat',
   ],
 
   // Import / Export
@@ -217,6 +294,7 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/container',
     '/kho',
     '/kho-trung-quoc',
+    '/kho-trung-quoc/slotting',
     '/kho-viet-nam',
     '/thong-quan',
     '/theo-doi',
@@ -229,6 +307,16 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/cham-cong',
     '/thong-bao',
     '/uy-quyen',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
+    '/okr',
+    '/wiki',
+    '/video',
+    '/ai-assistant',
+    '/ai-chat',
+    '/automation',
   ],
   [UserRole.XNK_STAFF]: [
     '/dashboard',
@@ -237,6 +325,7 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/container',
     '/kho',
     '/kho-trung-quoc',
+    '/kho-trung-quoc/slotting',
     '/kho-viet-nam',
     '/thong-quan',
     '/theo-doi',
@@ -245,6 +334,12 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/cong-viec',
     '/cham-cong',
     '/thong-bao',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
+    '/ai-assistant',
+    '/ai-chat',
   ],
 
   // Warehouse
@@ -253,6 +348,7 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/tong-quan',
     '/kho',
     '/kho-trung-quoc',
+    '/kho-trung-quoc/slotting',
     '/container',
     '/theo-doi',
     '/kiem-tra-chat-luong',
@@ -261,6 +357,10 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/cong-viec',
     '/cham-cong',
     '/thong-bao',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
   ],
   [UserRole.WAREHOUSE_VN_MANAGER]: [
     '/dashboard',
@@ -280,20 +380,96 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/nghi-phep',
     '/thong-bao',
     '/uy-quyen',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
+    '/okr',
+    '/wiki',
+    '/video',
+    '/ai-assistant',
+    '/ai-chat',
+    '/automation',
   ],
   [UserRole.WAREHOUSE_VN_STAFF]: [
     '/dashboard',
     '/tong-quan',
     '/kho',
     '/kho-viet-nam',
+    '/container',
     '/giao-hang',
     '/theo-doi',
     '/cong-viec',
     '/cham-cong',
     '/thong-bao',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
+    '/tai-lieu',
   ],
 
-  // Driver
+  // CFO
+  [UserRole.CFO]: [...ALL_ROUTES],
+
+  // Director Operations
+  [UserRole.DIRECTOR_OPERATIONS]: [...ALL_ROUTES],
+
+  // HR Manager
+  [UserRole.HR_MANAGER]: [
+    '/dashboard', '/tong-quan',
+    '/nhan-su', '/cham-cong', '/nghi-phep', '/luong',
+    '/cong-viec', '/phe-duyet', '/duyet', '/thong-bao', '/uy-quyen',
+    '/bao-cao', '/tro-chuyen', '/lich', '/bang-tin', '/tai-lieu',
+    '/okr',
+    '/wiki',
+    '/video',
+    '/ai-assistant',
+    '/ai-chat',
+    '/automation',
+  ],
+
+  // Accountant (general)
+  [UserRole.ACCOUNTANT]: [
+    '/dashboard', '/tong-quan',
+    '/tai-chinh', '/so-cai', '/hoa-don', '/mua-hang', '/nha-cung-cap',
+    '/cong-viec', '/cham-cong', '/thong-bao',
+    '/tro-chuyen', '/lich', '/bang-tin', '/tai-lieu',
+    '/ai-assistant', '/ai-chat',
+  ],
+
+  // Logistics Manager
+  [UserRole.LOGISTICS_MANAGER]: [
+    '/dashboard', '/tong-quan',
+    '/don-hang', '/container', '/kho', '/kho-trung-quoc', '/kho-viet-nam',
+    '/thong-quan', '/theo-doi', '/giao-hang',
+    '/phuong-tien', '/tai-xe', '/chi-phi-van-hanh',
+    '/cong-viec', '/phe-duyet', '/duyet', '/thong-bao', '/uy-quyen',
+    '/bao-cao', '/tro-chuyen', '/lich', '/bang-tin', '/tai-lieu',
+    '/okr',
+    '/wiki',
+    '/video',
+    '/ai-assistant',
+    '/ai-chat',
+    '/automation',
+  ],
+
+  // Warehouse Manager
+  [UserRole.WAREHOUSE_MANAGER]: [
+    '/dashboard', '/tong-quan',
+    '/kho', '/kho-trung-quoc', '/kho-trung-quoc/slotting', '/kho-viet-nam', '/container',
+    '/giao-hang', '/theo-doi', '/kiem-tra-chat-luong',
+    '/phuong-tien', '/tai-xe',
+    '/cong-viec', '/phe-duyet', '/duyet', '/thong-bao', '/uy-quyen',
+    '/tro-chuyen', '/lich', '/bang-tin', '/tai-lieu',
+    '/okr',
+    '/wiki',
+    '/video',
+    '/ai-assistant',
+    '/ai-chat',
+    '/automation',
+  ],
+
+  // Driver — minimal menu
   [UserRole.DRIVER]: [
     '/dashboard',
     '/tong-quan',
@@ -301,6 +477,9 @@ export const ROLE_MENU_ACCESS: Record<UserRole, string[]> = {
     '/cong-viec',
     '/cham-cong',
     '/thong-bao',
+    '/tro-chuyen',
+    '/lich',
+    '/bang-tin',
   ],
 };
 
@@ -312,6 +491,8 @@ export interface NavItem {
   title: string;
   href: string;
   icon: string; // lucide icon name
+  /** If set, this item is rendered as a tab inside the parent page (hidden from sidebar). */
+  tabOf?: string;
 }
 
 export interface NavGroup {
@@ -320,92 +501,111 @@ export interface NavGroup {
 }
 
 export const NAV_GROUPS: NavGroup[] = [
+  // ── 1. Tổng quan ──────────────────────────────
   {
     label: 'Tổng quan',
     items: [
       { title: 'Tổng quan', href: '/tong-quan', icon: 'LayoutDashboard' },
+      { title: 'Báo cáo', href: '/bao-cao', icon: 'BarChart3' },
+      // Sub-reports → tabs inside /bao-cao
+      { title: 'Báo cáo doanh số', href: '/bao-cao/doanh-so', icon: 'BarChart3', tabOf: '/bao-cao' },
+      { title: 'Báo cáo tài chính', href: '/bao-cao/tai-chinh', icon: 'PieChart', tabOf: '/bao-cao' },
+      { title: 'Xuất báo cáo', href: '/bao-cao/tong-hop', icon: 'Download', tabOf: '/bao-cao' },
     ],
   },
+  // ── 2. Kinh doanh ─────────────────────────────
   {
     label: 'Kinh doanh',
     items: [
-      { title: 'Đơn hàng', href: '/don-hang', icon: 'ShoppingCart' },
-      { title: 'Báo giá', href: '/bao-gia', icon: 'FileText' },
-      { title: 'Hợp đồng', href: '/hop-dong', icon: 'FileText' },
       { title: 'Khách hàng', href: '/khach-hang', icon: 'Users' },
+      { title: 'Báo giá', href: '/bao-gia', icon: 'FileText' },
+      { title: 'Đơn hàng', href: '/don-hang', icon: 'ShoppingCart' },
+      { title: 'Hợp đồng', href: '/hop-dong', icon: 'FileText' },
+      { title: 'Khiếu nại', href: '/khieu-nai', icon: 'AlertCircle' },
     ],
   },
+  // ── 3. Vận hành (Kho + XNK + Logistics) ───────
   {
-    label: 'Kho vận',
+    label: 'Vận hành',
     items: [
       { title: 'Kho Trung Quốc', href: '/kho-trung-quoc', icon: 'Warehouse' },
       { title: 'Container', href: '/container', icon: 'Box' },
       { title: 'Thông quan', href: '/thong-quan', icon: 'Shield' },
       { title: 'Kho Việt Nam', href: '/kho-viet-nam', icon: 'Ship' },
-      { title: 'Theo dõi', href: '/theo-doi', icon: 'MapPin' },
-      { title: 'Kiểm tra chất lượng', href: '/kiem-tra-chat-luong', icon: 'ShieldCheck' },
-      { title: 'Chi phí vận hành', href: '/chi-phi-van-hanh', icon: 'Calculator' },
-    ],
-  },
-  {
-    label: 'Vận tải',
-    items: [
       { title: 'Giao hàng', href: '/giao-hang', icon: 'PackageCheck' },
       { title: 'Phương tiện', href: '/phuong-tien', icon: 'Truck' },
-      { title: 'Tài xế', href: '/tai-xe', icon: 'User' },
+      // Absorbed as tabs
+      { title: 'Sơ đồ kho', href: '/kho-trung-quoc/slotting', icon: 'LayoutGrid', tabOf: '/kho-trung-quoc' },
+      { title: 'Kiểm tra CL', href: '/kiem-tra-chat-luong', icon: 'ShieldCheck', tabOf: '/kho-viet-nam' },
+      { title: 'Chi phí vận hành', href: '/chi-phi-van-hanh', icon: 'Calculator', tabOf: '/container' },
+      { title: 'Theo dõi', href: '/theo-doi', icon: 'MapPin', tabOf: '/container' },
+      { title: 'Tài xế', href: '/tai-xe', icon: 'User', tabOf: '/phuong-tien' },
     ],
   },
+  // ── 4. Tài chính (Kế toán + Mua sắm) ─────────
   {
     label: 'Tài chính',
     items: [
-      { title: 'Công nợ phải thu', href: '/tai-chinh/cong-no-phai-thu', icon: 'DollarSign' },
-      { title: 'Công nợ phải trả', href: '/tai-chinh/cong-no-phai-tra', icon: 'Receipt' },
+      { title: 'Công nợ', href: '/tai-chinh/cong-no-phai-thu', icon: 'DollarSign' },
       { title: 'Phiếu thu chi', href: '/tai-chinh/phieu-thu-chi', icon: 'FileText' },
-      { title: 'Hóa đơn', href: '/tai-chinh/hoa-don', icon: 'FileText' },
       { title: 'Sổ cái', href: '/so-cai', icon: 'BookOpen' },
-      { title: 'Tài sản', href: '/tai-san', icon: 'Building2' },
-      { title: 'Ngân sách', href: '/ngan-sach', icon: 'PiggyBank' },
-      { title: 'Tỷ giá', href: '/tai-chinh/ty-gia', icon: 'ArrowLeftRight' },
-      { title: 'Bù trừ công nợ', href: '/tai-chinh/bu-tru-cong-no', icon: 'Scale' },
-      { title: 'Chưa phân bổ', href: '/tai-chinh/chua-phan-bo', icon: 'HelpCircle' },
       { title: 'Mua hàng', href: '/mua-hang', icon: 'ShoppingBag' },
+      // Absorbed as tabs of Công nợ
+      { title: 'Công nợ phải trả', href: '/tai-chinh/cong-no-phai-tra', icon: 'Receipt', tabOf: '/tai-chinh/cong-no-phai-thu' },
+      { title: 'Hóa đơn', href: '/tai-chinh/hoa-don', icon: 'FileText', tabOf: '/tai-chinh/cong-no-phai-thu' },
+      { title: 'Hoa hồng', href: '/hoa-hong', icon: 'Gem', tabOf: '/tai-chinh/cong-no-phai-thu' },
+      { title: 'Đối chiếu NH', href: '/tai-chinh/doi-chieu', icon: 'ArrowLeftRight', tabOf: '/tai-chinh/cong-no-phai-thu' },
+      { title: 'Bù trừ công nợ', href: '/tai-chinh/bu-tru-cong-no', icon: 'Scale', tabOf: '/tai-chinh/cong-no-phai-thu' },
+      { title: 'Chưa phân bổ', href: '/tai-chinh/chua-phan-bo', icon: 'HelpCircle', tabOf: '/tai-chinh/cong-no-phai-thu' },
+      // Absorbed as tabs of Sổ cái
+      { title: 'Báo cáo VAS', href: '/tai-chinh/bao-cao-vas', icon: 'FileText', tabOf: '/so-cai' },
+      { title: 'Tỷ giá', href: '/tai-chinh/ty-gia', icon: 'ArrowLeftRight', tabOf: '/so-cai' },
+      { title: 'Tài sản', href: '/tai-san', icon: 'Building2', tabOf: '/so-cai' },
+      { title: 'Ngân sách', href: '/ngan-sach', icon: 'PiggyBank', tabOf: '/so-cai' },
+      // Absorbed as tabs of Mua hàng
+      { title: 'Nhà cung cấp', href: '/nha-cung-cap', icon: 'Building', tabOf: '/mua-hang' },
+      { title: 'Kho vật tư', href: '/kho-vat-tu', icon: 'Package', tabOf: '/mua-hang' },
     ],
   },
-  {
-    label: 'Mua hàng & Kho',
-    items: [
-      { title: 'Nhà cung cấp', href: '/nha-cung-cap', icon: 'Building' },
-      { title: 'Kho vật tư', href: '/kho-vat-tu', icon: 'Package' },
-    ],
-  },
+  // ── 5. Nhân sự ─────────────────────────────────
   {
     label: 'Nhân sự',
     items: [
       { title: 'Nhân sự', href: '/nhan-su', icon: 'UserCheck' },
       { title: 'Chấm công', href: '/cham-cong', icon: 'Clock' },
-      { title: 'Nghỉ phép', href: '/nghi-phep', icon: 'Calendar' },
       { title: 'Bảng lương', href: '/luong', icon: 'Banknote' },
-      { title: 'Hoa hồng', href: '/hoa-hong', icon: 'Gem' },
+      // Absorbed as tab of Chấm công
+      { title: 'Nghỉ phép', href: '/nghi-phep', icon: 'Calendar', tabOf: '/cham-cong' },
     ],
   },
+  // ── 6. Workplace ───────────────────────────────
   {
-    label: 'Báo cáo',
+    label: 'Workplace',
     items: [
-      { title: 'Báo cáo doanh số', href: '/bao-cao/doanh-so', icon: 'BarChart3' },
-      { title: 'Báo cáo tài chính', href: '/bao-cao/tai-chinh', icon: 'PieChart' },
-    ],
-  },
-  {
-    label: 'Hệ thống',
-    items: [
+      { title: 'Trò chuyện', href: '/tro-chuyen', icon: 'MessageSquare' },
       { title: 'Công việc', href: '/cong-viec', icon: 'ListTodo' },
-      { title: 'Khiếu nại', href: '/khieu-nai', icon: 'AlertCircle' },
       { title: 'Tài liệu', href: '/tai-lieu', icon: 'FolderOpen' },
-      { title: 'Thông báo', href: '/thong-bao', icon: 'Bell' },
+      { title: 'Công cụ AI', href: '/ai-assistant', icon: 'Bot' },
+      // Absorbed as tabs
+      { title: 'Lịch làm việc', href: '/lich', icon: 'Calendar', tabOf: '/cong-viec' },
+      { title: 'OKR / Mục tiêu', href: '/okr', icon: 'Target', tabOf: '/cong-viec' },
+      { title: 'Bảng tin', href: '/bang-tin', icon: 'Newspaper', tabOf: '/tai-lieu' },
+      { title: 'Wiki', href: '/wiki', icon: 'BookOpen', tabOf: '/tai-lieu' },
+      { title: 'AI Chat', href: '/ai-chat', icon: 'MessageSquare', tabOf: '/ai-assistant' },
+      { title: 'Video họp', href: '/video', icon: 'Video', tabOf: '/ai-assistant' },
+      { title: 'Automation', href: '/automation', icon: 'Zap', tabOf: '/ai-assistant' },
+    ],
+  },
+  // ── 7. Quản trị ────────────────────────────────
+  {
+    label: 'Quản trị',
+    items: [
       { title: 'Phê duyệt', href: '/phe-duyet', icon: 'CheckCircle' },
-      { title: 'Ủy quyền', href: '/uy-quyen', icon: 'UserCog' },
-      { title: 'Quản lý user', href: '/quan-ly-user', icon: 'Shield' },
       { title: 'Cài đặt', href: '/cai-dat', icon: 'Settings' },
+      // Absorbed as tabs
+      { title: 'Quản lý user', href: '/quan-ly-user', icon: 'Shield', tabOf: '/cai-dat' },
+      { title: 'Ủy quyền', href: '/uy-quyen', icon: 'UserCog', tabOf: '/phe-duyet' },
+      { title: 'Thông báo', href: '/thong-bao', icon: 'Bell', tabOf: '/phe-duyet' },
     ],
   },
 ];

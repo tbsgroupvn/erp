@@ -3,7 +3,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install --legacy-peer-deps
 
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
@@ -13,7 +13,7 @@ RUN npm run build
 
 FROM base AS prod-deps
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev --legacy-peer-deps
 
 FROM base AS production
 ENV NODE_ENV=production
@@ -33,4 +33,8 @@ RUN mkdir -p /app/logs && chown -R nestjs:nodejs /app
 USER nestjs
 
 EXPOSE 3000
-CMD ["node", "dist/main"]
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget -qO- http://localhost:3000/api/v1/health/live || exit 1
+
+CMD ["node", "dist/src/main"]

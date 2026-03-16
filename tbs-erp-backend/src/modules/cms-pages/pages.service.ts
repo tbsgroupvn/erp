@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { PrismaService } from '@core/database/prisma.service';
 import { CreatePageDto, UpdatePageDto, PageFiltersDto } from './dto';
 import { PageStatus, Prisma } from '@prisma/client';
+import { sanitizeHtml } from '@common/utils/html-sanitizer.util';
 
 @Injectable()
 export class PagesService {
@@ -20,6 +21,7 @@ export class PagesService {
     return this.prisma.page.create({
       data: {
         ...dto,
+        content: sanitizeHtml(dto.content),
         authorId,
         publishedAt: dto.status === PageStatus.PUBLISHED ? new Date() : null,
       },
@@ -133,14 +135,13 @@ export class PagesService {
 
     // Set publishedAt if changing status to PUBLISHED
     const publishedAt =
-      dto.status === PageStatus.PUBLISHED && !page.publishedAt
-        ? new Date()
-        : page.publishedAt;
+      dto.status === PageStatus.PUBLISHED && !page.publishedAt ? new Date() : page.publishedAt;
 
     return this.prisma.page.update({
       where: { id },
       data: {
         ...dto,
+        ...(dto.content != null ? { content: sanitizeHtml(dto.content) } : {}),
         publishedAt,
       },
     });
@@ -178,7 +179,15 @@ export class PagesService {
       counter++;
     }
 
-    const { id: _, createdAt, updatedAt, parent, children, ...pageData } = page;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const {
+      id: _id,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      parent: _parent,
+      children: _children,
+      ...pageData
+    } = page;
 
     return this.prisma.page.create({
       data: {

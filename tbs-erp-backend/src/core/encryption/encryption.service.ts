@@ -35,31 +35,24 @@ export class EncryptionService implements OnModuleInit {
 
   onModuleInit() {
     // Load the primary encryption key
-    const rawKey = this.configService.get<string>(
-      'FIELD_ENCRYPTION_KEY',
-      '',
-    );
+    const rawKey = this.configService.get<string>('FIELD_ENCRYPTION_KEY', '');
 
     if (!rawKey) {
-      this.logger.warn(
-        'FIELD_ENCRYPTION_KEY not set. Field-level encryption is DISABLED. ' +
-        'Set FIELD_ENCRYPTION_KEY env var (min 32 chars) to enable.',
+      throw new Error(
+        'FIELD_ENCRYPTION_KEY environment variable is required. ' +
+          "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
       );
-      // Derive a deterministic "noop" key so the service doesn't crash
-      // but log warnings on every encrypt/decrypt call
-      this.currentKey = crypto.createHash('sha256').update('disabled').digest();
-      this.currentKeyVersion = 'v0';
-      this.hmacKey = crypto.createHash('sha256').update('disabled-hmac').digest();
-      this.keys.set(this.currentKeyVersion, this.currentKey);
-      return;
     }
 
     // Derive a proper 32-byte key using PBKDF2
-    this.currentKey = crypto.pbkdf2Sync(rawKey, 'tbs-erp-field-encryption-salt', 100000, 32, 'sha256');
-    this.currentKeyVersion = this.configService.get<string>(
-      'FIELD_ENCRYPTION_KEY_VERSION',
-      'v1',
+    this.currentKey = crypto.pbkdf2Sync(
+      rawKey,
+      'tbs-erp-field-encryption-salt',
+      100000,
+      32,
+      'sha256',
     );
+    this.currentKeyVersion = this.configService.get<string>('FIELD_ENCRYPTION_KEY_VERSION', 'v1');
     this.keys.set(this.currentKeyVersion, this.currentKey);
 
     // Derive HMAC key using PBKDF2 with a different salt
@@ -67,10 +60,7 @@ export class EncryptionService implements OnModuleInit {
 
     // Load previous keys for rotation support
     // Format: FIELD_ENCRYPTION_PREVIOUS_KEYS=v0:base64key1,v_old:base64key2
-    const previousKeys = this.configService.get<string>(
-      'FIELD_ENCRYPTION_PREVIOUS_KEYS',
-      '',
-    );
+    const previousKeys = this.configService.get<string>('FIELD_ENCRYPTION_PREVIOUS_KEYS', '');
 
     if (previousKeys) {
       for (const entry of previousKeys.split(',')) {
@@ -86,7 +76,7 @@ export class EncryptionService implements OnModuleInit {
 
     this.logger.log(
       `Encryption service initialized. Current key version: ${this.currentKeyVersion}. ` +
-      `Total keys loaded: ${this.keys.size}.`,
+        `Total keys loaded: ${this.keys.size}.`,
     );
   }
 
@@ -149,7 +139,7 @@ export class EncryptionService implements OnModuleInit {
     if (!key) {
       this.logger.error(
         `Cannot decrypt: unknown key version "${keyVersion}". ` +
-        'Add the key to FIELD_ENCRYPTION_PREVIOUS_KEYS.',
+          'Add the key to FIELD_ENCRYPTION_PREVIOUS_KEYS.',
       );
       throw new Error(`Unknown encryption key version: ${keyVersion}`);
     }
@@ -167,9 +157,7 @@ export class EncryptionService implements OnModuleInit {
 
       return decrypted.toString('utf8');
     } catch (error) {
-      this.logger.error(
-        `Decryption failed for key version "${keyVersion}": ${error.message}`,
-      );
+      this.logger.error(`Decryption failed for key version "${keyVersion}": ${error.message}`);
       throw new Error('Failed to decrypt field value. Data may be corrupted.');
     }
   }
@@ -213,10 +201,7 @@ export class EncryptionService implements OnModuleInit {
   hash(value: string): string {
     if (!value) return value;
 
-    return crypto
-      .createHash('sha256')
-      .update(value.toLowerCase().trim())
-      .digest('hex');
+    return crypto.createHash('sha256').update(value.toLowerCase().trim()).digest('hex');
   }
 
   /**

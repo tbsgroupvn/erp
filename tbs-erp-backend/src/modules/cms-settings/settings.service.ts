@@ -62,10 +62,7 @@ export class SettingsService {
     });
   }
 
-  async updateMany(
-    settings: { key: string; value: string }[],
-    updatedBy: string,
-  ) {
+  async updateMany(settings: { key: string; value: string }[], updatedBy: string) {
     await this.prisma.$transaction(
       settings.map((setting) =>
         this.prisma.siteSetting.update({

@@ -6,17 +6,19 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { SupplierOrderStatus, Prisma } from '@prisma/client';
-import {
-  SupplierOrderRepository,
-  SupplierOrderWithRelations,
-} from './supplier-order.repository';
+import { SupplierOrderStatus, Prisma, Currency } from '@prisma/client';
+import { SupplierOrderRepository, SupplierOrderWithRelations } from './supplier-order.repository';
 import { SupplierOrderStatusMachine } from './domain/supplier-order-status.machine';
 import { DepositGateService } from '@modules/order/domain/deposit-gate.service';
+import { WalletService } from '@modules/crm/domain/wallet.service';
+import { ExchangeRateService } from '@modules/exchange-rate/exchange-rate.service';
+import { PrismaService } from '@core/database/prisma.service';
 import { CreateSupplierOrderDto } from './dto/create-supplier-order.dto';
 import { UpdateSupplierOrderDto } from './dto/update-supplier-order.dto';
 import { SupplierOrderQueryDto } from './dto/supplier-order-query.dto';
 import { RecordReceivedDto } from './dto/record-received.dto';
+import { CloseShortfallDto } from './dto/close-shortfall.dto';
+import { RecordSupplierRefundDto } from './dto/record-supplier-refund.dto';
 
 @Injectable()
 export class SupplierOrderService {
@@ -27,17 +29,21 @@ export class SupplierOrderService {
     private readonly statusMachine: SupplierOrderStatusMachine,
     private readonly depositGateService: DepositGateService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+    private readonly walletService: WalletService,
+    private readonly exchangeRateService: ExchangeRateService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   /**
    * Creates a new supplier order with auto-generated code.
    */
   async createSupplierOrder(dto: CreateSupplierOrderDto, userId: string) {
-    // Enforce 70% deposit gate
+    // Enforce deposit gate (tier-based: NEW=100%, REGULAR=70%, VIP=50%, STRATEGIC=30%)
     const gate = await this.depositGateService.canProcure(dto.orderId);
     if (!gate.allowed) {
+      const shortfall = gate.totalAmount * gate.requiredPercent / 100 - gate.depositPaid;
       throw new ForbiddenException(
-        `Chưa đủ 70% cọc để mua hàng. Hiện tại: ${gate.depositPaidPercent.toFixed(1)}%`,
+        `Chưa đủ ${gate.requiredPercent}% cọc để mua hàng. Hiện tại: ${gate.depositPaidPercent.toFixed(1)}%. Thiếu ${Math.ceil(shortfall).toLocaleString('vi-VN')} VND`,
       );
     }
 
@@ -54,9 +60,7 @@ export class SupplierOrderService {
       quotedPriceCNY: dto.quotedPriceCNY,
       shippingFeeCNY: dto.shippingFeeCNY,
       quantityOrdered: dto.quantityOrdered,
-      estimatedDelivery: dto.estimatedDelivery
-        ? new Date(dto.estimatedDelivery)
-        : undefined,
+      estimatedDelivery: dto.estimatedDelivery ? new Date(dto.estimatedDelivery) : undefined,
       note: dto.note,
       internalNote: dto.internalNote,
       attachments: dto.attachments,
@@ -82,9 +86,7 @@ export class SupplierOrderService {
       isPriority: gate.isPriority,
     });
 
-    this.logger.log(
-      `Supplier order ${code} created for order ${dto.orderId} by user ${userId}`,
-    );
+    this.logger.log(`Supplier order ${code} created for order ${dto.orderId} by user ${userId}`);
 
     return supplierOrder;
   }
@@ -153,11 +155,7 @@ export class SupplierOrderService {
    * Updates an existing supplier order.
    * Only allowed when the order is in DRAFT or QUOTED status.
    */
-  async updateSupplierOrder(
-    id: string,
-    dto: UpdateSupplierOrderDto,
-    userId: string,
-  ) {
+  async updateSupplierOrder(id: string, dto: UpdateSupplierOrderDto, userId: string) {
     const supplierOrder = await this.supplierOrderRepo.findById(id);
 
     if (!supplierOrder) {
@@ -165,14 +163,12 @@ export class SupplierOrderService {
     }
 
     // Layer 1C: Immutability after approval — only DRAFT is editable
-    const editableStatuses: SupplierOrderStatus[] = [
-      SupplierOrderStatus.DRAFT,
-    ];
+    const editableStatuses: SupplierOrderStatus[] = [SupplierOrderStatus.DRAFT];
 
     if (!editableStatuses.includes(supplierOrder.status)) {
       throw new BadRequestException(
         `Đơn NCC ${supplierOrder.code} ở trạng thái ${supplierOrder.status} không thể chỉnh sửa. ` +
-        `Chỉ cho phép sửa khi: ${editableStatuses.join(', ')}`,
+          `Chỉ cho phép sửa khi: ${editableStatuses.join(', ')}`,
       );
     }
 
@@ -241,9 +237,7 @@ export class SupplierOrderService {
       changes: dto,
     });
 
-    this.logger.log(
-      `Supplier order ${supplierOrder.code} updated by user ${userId}`,
-    );
+    this.logger.log(`Supplier order ${supplierOrder.code} updated by user ${userId}`);
 
     return updated;
   }
@@ -255,12 +249,7 @@ export class SupplierOrderService {
    * timestamp fields based on the target status, and emits a status
    * change event.
    */
-  async changeStatus(
-    id: string,
-    newStatus: SupplierOrderStatus,
-    userId: string,
-    note?: string,
-  ) {
+  async changeStatus(id: string, newStatus: SupplierOrderStatus, userId: string, note?: string) {
     const supplierOrder = await this.supplierOrderRepo.findById(id);
 
     if (!supplierOrder) {
@@ -298,11 +287,7 @@ export class SupplierOrderService {
         break;
     }
 
-    const updated = await this.supplierOrderRepo.updateStatus(
-      id,
-      newStatus,
-      additionalData,
-    );
+    const updated = await this.supplierOrderRepo.updateStatus(id, newStatus, additionalData);
 
     this.eventEmitter.emit('supplier-order.status.changed', {
       supplierOrderId: id,
@@ -336,9 +321,7 @@ export class SupplierOrderService {
 
     // D4: Mandatory photos when receiving goods from supplier
     if (!dto.attachments || dto.attachments.length === 0) {
-      throw new BadRequestException(
-        'Bắt buộc đính kèm ảnh khi nhận hàng từ NCC',
-      );
+      throw new BadRequestException('Bắt buộc đính kèm ảnh khi nhận hàng từ NCC');
     }
 
     // Validate that we can transition to RECEIVED_CN from the current status
@@ -352,7 +335,7 @@ export class SupplierOrderService {
     if (!allowedStatuses.includes(supplierOrder.status)) {
       throw new BadRequestException(
         `Cannot record receipt for supplier order in status ${supplierOrder.status}. ` +
-        `Allowed statuses: ${allowedStatuses.join(', ')}`,
+          `Allowed statuses: ${allowedStatuses.join(', ')}`,
       );
     }
 
@@ -407,7 +390,7 @@ export class SupplierOrderService {
       dto.actualPriceCNY !== undefined &&
       supplierOrder.quotedPriceCNY !== null &&
       Number(supplierOrder.quotedPriceCNY) > 0 &&
-      dto.actualPriceCNY > Number(supplierOrder.quotedPriceCNY) * 1.10
+      dto.actualPriceCNY > Number(supplierOrder.quotedPriceCNY) * 1.1
     ) {
       this.logger.warn(
         `Price variance on ${supplierOrder.code}: actual ${dto.actualPriceCNY} CNY > quoted ${supplierOrder.quotedPriceCNY} CNY (+10% threshold)`,
@@ -418,7 +401,10 @@ export class SupplierOrderService {
         orderId: supplierOrder.orderId,
         quotedPriceCNY: Number(supplierOrder.quotedPriceCNY),
         actualPriceCNY: dto.actualPriceCNY,
-        variancePercent: ((dto.actualPriceCNY - Number(supplierOrder.quotedPriceCNY)) / Number(supplierOrder.quotedPriceCNY)) * 100,
+        variancePercent:
+          ((dto.actualPriceCNY - Number(supplierOrder.quotedPriceCNY)) /
+            Number(supplierOrder.quotedPriceCNY)) *
+          100,
       });
     }
 
@@ -433,9 +419,84 @@ export class SupplierOrderService {
 
     this.logger.log(
       `Supplier order ${supplierOrder.code} received at CN warehouse by ${userId}` +
-      (dto.quantityReceived !== undefined
-        ? ` (qty: ${dto.quantityReceived})`
-        : ''),
+        (dto.quantityReceived !== undefined ? ` (qty: ${dto.quantityReceived})` : ''),
+    );
+
+    return updated;
+  }
+
+  /**
+   * Closes a shortfall on a partially-shipped supplier order.
+   *
+   * Transitions the SO to RECEIVED_CN and records the shortfall details.
+   * Emits `supplier-order.shortfall.closed` for downstream listeners
+   * (wallet credit, fulfillment tracking).
+   */
+  async closeShortfall(id: string, dto: CloseShortfallDto, userId: string) {
+    const supplierOrder = await this.supplierOrderRepo.findById(id);
+
+    if (!supplierOrder) {
+      throw new NotFoundException(`Supplier order with ID ${id} not found`);
+    }
+
+    // Only PARTIALLY_SHIPPED orders can close shortfall
+    if (supplierOrder.status !== SupplierOrderStatus.PARTIALLY_SHIPPED) {
+      throw new BadRequestException(
+        `Chi co the dong thieu hang khi trang thai la PARTIALLY_SHIPPED. ` +
+          `Trang thai hien tai: ${supplierOrder.status}`,
+      );
+    }
+
+    const shortfallQty = supplierOrder.quantityOrdered - supplierOrder.quantityReceived;
+    if (shortfallQty <= 0) {
+      throw new BadRequestException(
+        `Khong co thieu hang. quantityOrdered=${supplierOrder.quantityOrdered}, ` +
+          `quantityReceived=${supplierOrder.quantityReceived}`,
+      );
+    }
+
+    // Validate FSM transition: PARTIALLY_SHIPPED -> RECEIVED_CN
+    this.statusMachine.assertTransition(
+      supplierOrder.status,
+      SupplierOrderStatus.RECEIVED_CN,
+    );
+
+    const existingAttachments = (supplierOrder.attachments as string[]) ?? [];
+
+    const updateData: Prisma.SupplierOrderUpdateInput = {
+      status: SupplierOrderStatus.RECEIVED_CN,
+      shortfallReason: dto.shortfallReason,
+      supplierRefundCNY: dto.supplierRefundCNY,
+      shortfallClosedAt: new Date(),
+      shortfallClosedBy: userId,
+      receivedAt: new Date(),
+      actualDelivery: new Date(),
+      attachments: [...existingAttachments, ...dto.attachments],
+    };
+
+    if (dto.note) {
+      updateData.note = supplierOrder.note
+        ? `${supplierOrder.note}\nShortfall: ${dto.note}`
+        : `Shortfall: ${dto.note}`;
+    }
+
+    const updated = await this.supplierOrderRepo.update(id, updateData);
+
+    this.eventEmitter.emit('supplier-order.shortfall.closed', {
+      supplierOrderId: id,
+      code: supplierOrder.code,
+      orderId: supplierOrder.orderId,
+      orderItemId: supplierOrder.orderItemId,
+      shortfallQty,
+      quantityOrdered: supplierOrder.quantityOrdered,
+      quantityReceived: supplierOrder.quantityReceived,
+      supplierRefundCNY: dto.supplierRefundCNY,
+      closedBy: userId,
+    });
+
+    this.logger.log(
+      `Supplier order ${supplierOrder.code} shortfall closed: ` +
+        `${shortfallQty} units short, refund ${dto.supplierRefundCNY} CNY, by ${userId}`,
     );
 
     return updated;
@@ -445,13 +506,95 @@ export class SupplierOrderService {
    * Gets all supplier orders for a given parent order.
    */
   async findByOrderId(orderId: string) {
-    const { data, total } = await this.supplierOrderRepo.findAll(
-      { orderId },
-      0,
-      100,
-      { createdAt: 'desc' },
-    );
+    const { data, total } = await this.supplierOrderRepo.findAll({ orderId }, 0, 100, {
+      createdAt: 'desc',
+    });
 
     return { data, total };
+  }
+
+  /**
+   * Records a supplier refund (independent of shortfall closure).
+   * Converts CNY to VND using FIXED or FLOATING exchange rate,
+   * credits the customer's wallet, and emits event for auto-clear AR.
+   */
+  async recordSupplierRefund(dto: RecordSupplierRefundDto, userId: string) {
+    // Validate supplier order exists
+    const supplierOrder = await this.supplierOrderRepo.findById(dto.supplierOrderId);
+    if (!supplierOrder) {
+      throw new NotFoundException(`Supplier order ${dto.supplierOrderId} not found`);
+    }
+
+    // Validate order belongs to the customer
+    const order = await this.prisma.order.findUnique({
+      where: { id: supplierOrder.orderId },
+      select: {
+        id: true,
+        code: true,
+        customerId: true,
+        baseExchangeRate: true,
+        exchangeRateMode: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order ${supplierOrder.orderId} not found`);
+    }
+
+    if (order.customerId !== dto.customerId) {
+      throw new BadRequestException(
+        `Order ${order.code} does not belong to customer ${dto.customerId}`,
+      );
+    }
+
+    // Determine exchange rate: FIXED uses order's baseExchangeRate, FLOATING uses current rate
+    let exchangeRate: number;
+
+    if (order.exchangeRateMode === 'FIXED' && order.baseExchangeRate) {
+      exchangeRate = Number(order.baseExchangeRate);
+    } else {
+      const rate = await this.exchangeRateService.getCurrentRate(Currency.CNY, Currency.VND);
+      exchangeRate = Number(rate.rate);
+    }
+
+    const refundVND = Math.round(dto.refundAmountCNY * exchangeRate * 100) / 100;
+
+    // Credit wallet
+    const note =
+      `Hoan tien NCC: ${dto.reason} - ${supplierOrder.code}` +
+      (dto.note ? ` | ${dto.note}` : '');
+
+    const refundResult = await this.walletService.refund(
+      dto.customerId,
+      refundVND,
+      supplierOrder.code,
+      note,
+    );
+
+    this.logger.log(
+      `Supplier refund recorded: ${supplierOrder.code}, ` +
+        `${dto.refundAmountCNY} CNY * ${exchangeRate} = ${refundVND} VND, ` +
+        `customer=${dto.customerId}, by=${userId}`,
+    );
+
+    // Emit event for AutoClearArListener
+    this.eventEmitter.emit('wallet.credited.supplier-refund', {
+      customerId: dto.customerId,
+      amount: refundVND,
+      newBalance: refundResult.wallet.balance.toNumber(),
+      source: 'SUPPLIER_REFUND',
+      supplierOrderCode: supplierOrder.code,
+      transactionId: refundResult.transaction.id,
+    });
+
+    return {
+      supplierOrderCode: supplierOrder.code,
+      orderCode: order.code,
+      refundAmountCNY: dto.refundAmountCNY,
+      exchangeRate,
+      refundAmountVND: refundVND,
+      walletBalance: refundResult.wallet.balance.toNumber(),
+      transactionId: refundResult.transaction.id,
+    };
   }
 }

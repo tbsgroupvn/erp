@@ -23,6 +23,7 @@ import {
   CardContent,
 } from '@/components/ui/card';
 import type { BaseResponse } from '@/lib/types';
+import { InfoTooltip } from '@/components/shared/info-tooltip';
 
 // ---------------------------------------------------------------------------
 // Exchange Rate Mode enum
@@ -33,8 +34,8 @@ export enum ExchangeRateMode {
 }
 
 const EXCHANGE_RATE_MODE_LABELS: Record<ExchangeRateMode, string> = {
-  [ExchangeRateMode.FLOATING]: 'Tha noi',
-  [ExchangeRateMode.FIXED]: 'Chot cung',
+  [ExchangeRateMode.FLOATING]: 'Thả nổi',
+  [ExchangeRateMode.FIXED]: 'Chốt cứng',
 };
 
 // ---------------------------------------------------------------------------
@@ -44,18 +45,18 @@ const VN_PHONE_REGEX = /^(0|\+84)\d{9,10}$/;
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
 const contactSchema = z.object({
-  fullName: z.string().min(1, 'Ten lien he bat buoc'),
-  phone: z.string().regex(VN_PHONE_REGEX, 'SDT khong hop le (VD: 0912345678)').optional().or(z.literal('')),
-  email: z.string().regex(EMAIL_REGEX, 'Email khong hop le').optional().or(z.literal('')).transform((v) => v || undefined),
+  fullName: z.string().min(1, 'Tên liên hệ bắt buộc'),
+  phone: z.string().regex(VN_PHONE_REGEX, 'SĐT không hợp lệ (VD: 0912345678)').optional().or(z.literal('')),
+  email: z.string().regex(EMAIL_REGEX, 'Email không hợp lệ').optional().or(z.literal('')).transform((v) => v || undefined),
   position: z.string().optional(),
   isPrimary: z.boolean().default(false),
 });
 
 export const customerFormSchema = z.object({
-  fullName: z.string().min(1, 'Ho ten bat buoc'),
-  phone: z.string().min(1, 'So dien thoai bat buoc').regex(VN_PHONE_REGEX, 'So dien thoai khong hop le (VD: 0912345678)'),
+  fullName: z.string().min(1, 'Họ tên bắt buộc'),
+  phone: z.string().min(1, 'Số điện thoại bắt buộc').regex(VN_PHONE_REGEX, 'Số điện thoại không hợp lệ (VD: 0912345678)'),
   companyName: z.string().optional(),
-  email: z.string().regex(EMAIL_REGEX, 'Email khong hop le').optional().or(z.literal('')).transform((v) => v || undefined),
+  email: z.string().regex(EMAIL_REGEX, 'Email không hợp lệ').optional().or(z.literal('')).transform((v) => v || undefined),
   address: z.string().optional(),
   taxCode: z.string().optional(),
   tier: z.nativeEnum(CustomerTier).default(CustomerTier.NEW),
@@ -64,8 +65,8 @@ export const customerFormSchema = z.object({
     .optional()
     .transform((v) => v || undefined),
   saleId: z.string().optional(),
-  creditLimit: z.coerce.number().min(0, 'Han muc >= 0').default(0),
-  depositRate: z.coerce.number().min(0, 'Ty le coc >= 0').max(100, 'Ty le coc <= 100').default(0),
+  creditLimit: z.coerce.number().min(0, 'Hạn mức >= 0').default(0),
+  depositRate: z.coerce.number().min(0, 'Tỷ lệ cọc >= 0').max(100, 'Tỷ lệ cọc <= 100').default(0),
   exchangeRateMode: z.nativeEnum(ExchangeRateMode).default(ExchangeRateMode.FLOATING),
   note: z.string().optional(),
   isActive: z.boolean().optional(),
@@ -112,11 +113,11 @@ function GracePeriodDialog({
         .post<BaseResponse<{ id: string }>>('/customers/grace-period', data)
         .then((r) => r.data.data),
     onSuccess: () => {
-      toast.success('Da gui yeu cau an han thanh cong');
+      toast.success('Đã gửi yêu cầu ân hạn thành công');
       handleClose();
     },
     onError: () => {
-      toast.error('Khong the gui yeu cau an han. Vui long thu lai.');
+      toast.error('Không thể gửi yêu cầu ân hạn. Vui lòng thử lại.');
     },
   });
 
@@ -128,7 +129,7 @@ function GracePeriodDialog({
 
   const handleSubmit = () => {
     if (!days || Number(days) <= 0) {
-      toast.error('So ngay phai lon hon 0');
+      toast.error('Số ngày phải lớn hơn 0');
       return;
     }
     requestGracePeriod.mutate({
@@ -148,14 +149,14 @@ function GracePeriodDialog({
         aria-hidden="true"
       />
       <div className="relative z-50 w-full max-w-md rounded-lg border bg-background p-6 shadow-lg">
-        <h2 className="text-lg font-semibold mb-1">Xin an han</h2>
+        <h2 className="text-lg font-semibold mb-1">Xin ân hạn</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Yeu cau gia han thoi gian thanh toan cho khach hang nay.
+          Yêu cầu gia hạn thời gian thanh toán cho khách hàng này.
         </p>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>So ngay an han *</Label>
+            <Label>Số ngày ân hạn *</Label>
             <Input
               type="number"
               min={1}
@@ -165,15 +166,15 @@ function GracePeriodDialog({
               onChange={(e) => setDays(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Toi da 90 ngay. Yeu cau se can duoc phe duyet.
+              Tối đa 90 ngày. Yêu cầu sẽ cần được phê duyệt.
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label>Ly do (tuy chon)</Label>
+            <Label>Lý do (tuỳ chọn)</Label>
             <textarea
               rows={3}
-              placeholder="Ly do xin an han..."
+              placeholder="Lý do xin ân hạn..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -183,13 +184,13 @@ function GracePeriodDialog({
 
         <div className="flex justify-end gap-2 mt-6">
           <Button variant="outline" onClick={handleClose} disabled={requestGracePeriod.isPending}>
-            Huy
+            Huỷ
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={requestGracePeriod.isPending || !days || Number(days) <= 0}
           >
-            {requestGracePeriod.isPending ? 'Dang gui...' : 'Gui yeu cau'}
+            {requestGracePeriod.isPending ? 'Đang gửi...' : 'Gửi yêu cầu'}
           </Button>
         </div>
       </div>
@@ -270,13 +271,13 @@ export function CustomerForm({
                 <div>
                   <p className="text-sm font-medium text-amber-800">
                     {customerData.isBlocked
-                      ? 'Khach hang dang bi khoa'
-                      : 'Vuot han muc tin dung'}
+                      ? 'Khách hàng đang bị khoá'
+                      : 'Vượt hạn mức tín dụng'}
                   </p>
                   <p className="text-xs text-amber-600">
                     {customerData.isBlocked
-                      ? 'Khach hang bi chan do vi pham chinh sach.'
-                      : `Cong no hien tai vuot han muc tin dung cho phep.`}
+                      ? 'Khách hàng bị chặn do vi phạm chính sách.'
+                      : `Công nợ hiện tại vượt hạn mức tín dụng cho phép.`}
                   </p>
                 </div>
               </div>
@@ -286,7 +287,7 @@ export function CustomerForm({
                 className="border-amber-400 text-amber-700 hover:bg-amber-100"
                 onClick={() => setGracePeriodOpen(true)}
               >
-                Xin an han
+                Xin ân hạn
               </Button>
             </CardContent>
           </Card>
@@ -295,14 +296,14 @@ export function CustomerForm({
         {/* Card 1: Thong tin co ban */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Thong tin co ban</CardTitle>
+            <CardTitle className="text-lg">Thông tin cơ bản</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {/* fullName */}
               <div className="space-y-2">
-                <Label htmlFor="fullName">Ho ten *</Label>
-                <Input id="fullName" placeholder="Ho ten khach hang" {...register('fullName')} />
+                <Label htmlFor="fullName">Họ tên *</Label>
+                <Input id="fullName" placeholder="Họ tên khách hàng" {...register('fullName')} />
                 {errors.fullName && (
                   <p className="text-xs text-destructive">{errors.fullName.message}</p>
                 )}
@@ -310,8 +311,8 @@ export function CustomerForm({
 
               {/* phone */}
               <div className="space-y-2">
-                <Label htmlFor="phone">So dien thoai *</Label>
-                <Input id="phone" placeholder="So dien thoai" {...register('phone')} />
+                <Label htmlFor="phone">Số điện thoại *</Label>
+                <Input id="phone" placeholder="Số điện thoại" {...register('phone')} />
                 {errors.phone && (
                   <p className="text-xs text-destructive">{errors.phone.message}</p>
                 )}
@@ -328,8 +329,8 @@ export function CustomerForm({
 
               {/* companyName */}
               <div className="space-y-2">
-                <Label htmlFor="companyName">Cong ty</Label>
-                <Input id="companyName" placeholder="Ten cong ty" {...register('companyName')} />
+                <Label htmlFor="companyName">Công ty</Label>
+                <Input id="companyName" placeholder="Tên công ty" {...register('companyName')} />
               </div>
             </div>
           </CardContent>
@@ -338,31 +339,31 @@ export function CustomerForm({
         {/* Card 2: Thong tin bo sung */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Thong tin bo sung</CardTitle>
+            <CardTitle className="text-lg">Thông tin bổ sung</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {/* address */}
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="address">Dia chi</Label>
-                <Input id="address" placeholder="Dia chi" {...register('address')} />
+                <Label htmlFor="address">Địa chỉ</Label>
+                <Input id="address" placeholder="Địa chỉ" {...register('address')} />
               </div>
 
               {/* taxCode */}
               <div className="space-y-2">
-                <Label htmlFor="taxCode">Ma so thue</Label>
+                <Label htmlFor="taxCode">Mã số thuế</Label>
                 <Input id="taxCode" placeholder="MST" {...register('taxCode')} />
               </div>
 
               {/* branch */}
               <div className="space-y-2">
-                <Label htmlFor="branch">Chi nhanh</Label>
+                <Label htmlFor="branch">Chi nhánh</Label>
                 <select
                   id="branch"
                   {...register('branch')}
                   className={selectClassName}
                 >
-                  <option value="">Chon chi nhanh</option>
+                  <option value="">Chọn chi nhánh</option>
                   {Object.entries(BRANCH_LABELS).map(([key, label]) => (
                     <option key={key} value={key}>
                       {label}
@@ -373,13 +374,13 @@ export function CustomerForm({
 
               {/* saleId */}
               <div className="space-y-2">
-                <Label htmlFor="saleId">Sale phu trach</Label>
+                <Label htmlFor="saleId">Sale phụ trách</Label>
                 <select
                   id="saleId"
                   {...register('saleId')}
                   className={selectClassName}
                 >
-                  <option value="">Chon Sale</option>
+                  <option value="">Chọn Sale</option>
                   {salesEmployees.map((emp: any) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.fullName} ({emp.code})
@@ -390,7 +391,7 @@ export function CustomerForm({
 
               {/* tier */}
               <div className="space-y-2">
-                <Label htmlFor="tier">Hang khach hang</Label>
+                <Label htmlFor="tier">Hạng khách hàng</Label>
                 <select
                   id="tier"
                   {...register('tier')}
@@ -406,7 +407,7 @@ export function CustomerForm({
 
               {/* creditLimit */}
               <div className="space-y-2">
-                <Label htmlFor="creditLimit">Han muc tin dung</Label>
+                <Label htmlFor="creditLimit" className="flex items-center gap-1">Hạn mức tín dụng <InfoTooltip tipKey="credit-limit" /></Label>
                 <Input
                   id="creditLimit"
                   type="number"
@@ -421,7 +422,7 @@ export function CustomerForm({
 
               {/* depositRate */}
               <div className="space-y-2">
-                <Label htmlFor="depositRate">Ty le coc (%)</Label>
+                <Label htmlFor="depositRate">Tỷ lệ cọc (%)</Label>
                 <Input
                   id="depositRate"
                   type="number"
@@ -437,7 +438,7 @@ export function CustomerForm({
 
               {/* exchangeRateMode (A4: Exchange Rate Mode) */}
               <div className="space-y-2">
-                <Label htmlFor="exchangeRateMode">Che do ty gia</Label>
+                <Label htmlFor="exchangeRateMode">Chế độ tỷ giá</Label>
                 <select
                   id="exchangeRateMode"
                   {...register('exchangeRateMode')}
@@ -451,18 +452,18 @@ export function CustomerForm({
                 </select>
                 <p className="text-xs text-muted-foreground">
                   {mode === 'create'
-                    ? '"Tha noi" ap dung ty gia tai thoi diem thanh toan. "Chot cung" ap dung ty gia tai thoi diem tao don.'
+                    ? '"Thả nổi" áp dụng tỷ giá tại thời điểm thanh toán. "Chốt cứng" áp dụng tỷ giá tại thời điểm tạo đơn.'
                     : null}
                 </p>
               </div>
 
               {/* note */}
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="note">Ghi chu</Label>
+                <Label htmlFor="note">Ghi chú</Label>
                 <textarea
                   id="note"
                   rows={3}
-                  placeholder="Ghi chu..."
+                  placeholder="Ghi chú..."
                   {...register('note')}
                   className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
@@ -477,7 +478,7 @@ export function CustomerForm({
                     {...register('isActive')}
                     className="h-4 w-4 rounded border-input"
                   />
-                  <Label htmlFor="isActive">Dang hoat dong</Label>
+                  <Label htmlFor="isActive">Đang hoạt động</Label>
                 </div>
               )}
             </div>
@@ -487,7 +488,7 @@ export function CustomerForm({
         {/* Card 3: Nguoi lien he */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Nguoi lien he</CardTitle>
+            <CardTitle className="text-lg">Người liên hệ</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {fields.map((field, index) => (
@@ -497,9 +498,9 @@ export function CustomerForm({
               >
                 {/* fullName */}
                 <div className="sm:col-span-2 space-y-1">
-                  <Label className="text-xs">Ho ten *</Label>
+                  <Label className="text-xs">Họ tên *</Label>
                   <Input
-                    placeholder="Ho ten"
+                    placeholder="Họ tên"
                     {...register(`contacts.${index}.fullName`)}
                   />
                   {errors.contacts?.[index]?.fullName && (
@@ -511,9 +512,9 @@ export function CustomerForm({
 
                 {/* phone */}
                 <div className="space-y-1">
-                  <Label className="text-xs">SDT</Label>
+                  <Label className="text-xs">SĐT</Label>
                   <Input
-                    placeholder="SDT"
+                    placeholder="SĐT"
                     {...register(`contacts.${index}.phone`)}
                   />
                 </div>
@@ -529,23 +530,23 @@ export function CustomerForm({
 
                 {/* position */}
                 <div className="space-y-1">
-                  <Label className="text-xs">Chuc vu</Label>
+                  <Label className="text-xs">Chức vụ</Label>
                   <Input
-                    placeholder="Chuc vu"
+                    placeholder="Chức vụ"
                     {...register(`contacts.${index}.position`)}
                   />
                 </div>
 
                 {/* isPrimary + delete */}
                 <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 text-xs cursor-pointer whitespace-nowrap">
+                  <p className="flex items-center gap-1.5 text-xs cursor-pointer whitespace-nowrap">
                     <input
                       type="checkbox"
                       {...register(`contacts.${index}.isPrimary`)}
                       className="h-4 w-4 rounded border-input"
                     />
-                    Chinh
-                  </label>
+                    Chính
+                  </p>
                   <button
                     type="button"
                     onClick={() => remove(index)}
@@ -572,7 +573,7 @@ export function CustomerForm({
               }
             >
               <Plus className="mr-2 h-4 w-4" />
-              Them lien he
+              Thêm liên hệ
             </Button>
           </CardContent>
         </Card>
@@ -581,7 +582,7 @@ export function CustomerForm({
         <div className="flex justify-end gap-3">
           <Button type="submit" disabled={isPending}>
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {mode === 'create' ? 'Tao khach hang' : 'Luu thay doi'}
+            {mode === 'create' ? 'Tạo khách hàng' : 'Lưu thay đổi'}
           </Button>
         </div>
       </form>

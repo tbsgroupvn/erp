@@ -27,10 +27,7 @@ export class SupplierOrderRepository {
   /**
    * Creates a new supplier order.
    */
-  async create(
-    data: Prisma.SupplierOrderCreateInput,
-    userId: string,
-  ): Promise<SupplierOrder> {
+  async create(data: Prisma.SupplierOrderCreateInput, userId: string): Promise<SupplierOrder> {
     return this.prisma.supplierOrder.create({
       data: {
         ...data,
@@ -130,10 +127,7 @@ export class SupplierOrderRepository {
   /**
    * Update a supplier order by ID.
    */
-  async update(
-    id: string,
-    data: Prisma.SupplierOrderUpdateInput,
-  ): Promise<SupplierOrder> {
+  async update(id: string, data: Prisma.SupplierOrderUpdateInput): Promise<SupplierOrder> {
     return this.prisma.supplierOrder.update({
       where: { id },
       data,

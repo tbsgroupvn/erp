@@ -54,14 +54,14 @@ export function OrderAuditLog({ order }: OrderAuditLogProps) {
     return (
       <div className="rounded-lg border bg-card p-6 text-center">
         <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-        <p className="text-sm text-muted-foreground">Chua co nhat ky hoat dong</p>
+        <p className="text-sm text-muted-foreground">Chưa có nhật ký hoạt động</p>
       </div>
     );
   }
 
   return (
     <div className="rounded-lg border bg-card p-6">
-      <h3 className="text-lg font-semibold mb-4">Nhat ky hoat dong</h3>
+      <h3 className="text-lg font-semibold mb-4">Nhật ký hoạt động</h3>
       <div className="relative">
         {/* Timeline line */}
         <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
@@ -111,15 +111,15 @@ export function OrderAuditLog({ order }: OrderAuditLogProps) {
 
 function formatAction(action: string): string {
   const labels: Record<string, string> = {
-    STATUS_CHANGE: 'Doi trang thai',
-    CREATED: 'Tao moi',
-    UPDATED: 'Cap nhat',
-    DELETED: 'Xoa',
-    PAYMENT: 'Thanh toan',
-    ASSIGNED: 'Phan cong',
-    COMMENT: 'Binh luan',
-    DOCUMENT_UPLOAD: 'Tai tai lieu',
-    APPROVAL: 'Phe duyet',
+    STATUS_CHANGE: 'Đổi trạng thái',
+    CREATED: 'Tạo mới',
+    UPDATED: 'Cập nhật',
+    DELETED: 'Xóa',
+    PAYMENT: 'Thanh toán',
+    ASSIGNED: 'Phân công',
+    COMMENT: 'Bình luận',
+    DOCUMENT_UPLOAD: 'Tải tài liệu',
+    APPROVAL: 'Phê duyệt',
   };
   return labels[action] || action;
 }

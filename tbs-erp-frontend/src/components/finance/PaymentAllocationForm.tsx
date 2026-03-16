@@ -12,9 +12,10 @@
  * - Responsive design with Tailwind CSS
  */
 
-import React, { useState } from 'react';
-import { Search, Plus, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Search, Plus, Trash2, AlertCircle, CheckCircle2, Lightbulb } from 'lucide-react';
 import { toast } from 'sonner';
+import { InfoTooltip } from '@/components/shared/info-tooltip';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -144,6 +145,46 @@ const generateId = (): string => {
 // MAIN COMPONENT
 // ============================================
 
+// ============================================
+// PROGRESS BAR COMPONENT
+// ============================================
+
+interface AllocationProgressProps {
+  allocated: number;
+  total: number;
+}
+
+const AllocationProgress: React.FC<AllocationProgressProps> = ({ allocated, total }) => {
+  const pct = total > 0 ? Math.min(100, (allocated / total) * 100) : 0;
+  const isOver = allocated > total + 0.01;
+  const isComplete = !isOver && Math.abs(allocated - total) < 0.01 && total > 0;
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex justify-between text-xs text-slate-600">
+        <span>Tiến độ phân bổ</span>
+        <span className={isOver ? 'text-red-600 font-semibold' : isComplete ? 'text-green-600 font-semibold' : ''}>
+          {pct.toFixed(1)}%
+        </span>
+      </div>
+      <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-300 ${
+            isOver ? 'bg-red-500' : isComplete ? 'bg-green-500' : 'bg-blue-500'
+          }`}
+          style={{ width: `${Math.min(100, pct)}%` }}
+        />
+      </div>
+      {isOver && (
+        <p className="text-xs text-red-600 flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          Vượt quá {formatCurrency(allocated - total)} — vui lòng điều chỉnh
+        </p>
+      )}
+    </div>
+  );
+};
+
 export const PaymentAllocationForm: React.FC = () => {
   // Form state
   const [formData, setFormData] = useState<PaymentVoucherFormData>({
@@ -176,6 +217,25 @@ export const PaymentAllocationForm: React.FC = () => {
 
   const totalAmount = parseCurrency(formData.amount);
   const allocationComplete = Math.abs(totalAllocated - totalAmount) < 0.01 && totalAmount > 0;
+  const isOverAllocated = totalAllocated > totalAmount + 0.01;
+
+  // Auto-suggest: remaining amount to allocate
+  const remainingAmount = Math.max(0, totalAmount - totalAllocated);
+
+  // Similar AR amounts for auto-suggest (orders/contracts within ±10%)
+  const suggestedTargets = useMemo(() => {
+    if (totalAmount <= 0) return [];
+    const tolerance = totalAmount * 0.1;
+    const matches = [
+      ...mockOrders
+        .filter((o) => Math.abs(o.totalAmount - totalAmount) <= tolerance)
+        .map((o) => ({ ...o, type: 'ORDER' as const, matchLabel: 'Gần khớp số tiền đơn' })),
+      ...mockContracts
+        .filter((c) => Math.abs((c.totalValue - c.paidAmount) - totalAmount) <= tolerance)
+        .map((c) => ({ ...c, type: 'CONTRACT' as const, matchLabel: 'Gần khớp số dư HĐ' })),
+    ];
+    return matches.slice(0, 3);
+  }, [totalAmount]);
 
   // ============================================
   // VALIDATION
@@ -217,8 +277,10 @@ export const PaymentAllocationForm: React.FC = () => {
       newErrors.allocations = 'Vui lòng điền đầy đủ thông tin phân bổ';
     }
 
-    // Total mismatch
-    if (Math.abs(totalAllocated - totalAmount) >= 0.01) {
+    // Total mismatch — also catch over-allocation
+    if (totalAllocated > totalAmount + 0.01) {
+      newErrors.totalMismatch = `Tổng phân bổ (${formatCurrency(totalAllocated)}) vượt quá số tiền gốc (${formatCurrency(totalAmount)})`;
+    } else if (Math.abs(totalAllocated - totalAmount) >= 0.01) {
       newErrors.totalMismatch = `Tổng phân bổ (${formatCurrency(totalAllocated)}) phải bằng số tiền thu (${formatCurrency(totalAmount)})`;
     }
 
@@ -317,11 +379,11 @@ export const PaymentAllocationForm: React.FC = () => {
       // Simulate API delay
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      toast.success('Phieu thu da duoc tao thanh cong!');
+      toast.success('Phiếu thu đã được tạo thành công!');
       // Reset form or redirect
     } catch (error) {
       console.error('Payment error:', (error as Error)?.message);
-      toast.error('Co loi xay ra khi tao phieu thu');
+      toast.error('Có lỗi xảy ra khi tạo phiếu thu');
     } finally {
       setIsSubmitting(false);
     }
@@ -491,8 +553,12 @@ export const PaymentAllocationForm: React.FC = () => {
           <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-medium text-slate-900">
+                <h2 className="text-lg font-medium text-slate-900 flex items-center gap-2">
                   Phân Bổ Thanh Toán <span className="text-red-500">*</span>
+                  <InfoTooltip tip={{
+                    definition: 'Bắt buộc chỉ định rõ từng khoản tiền được phân bổ vào hợp đồng hoặc đơn hàng cụ thể.',
+                    howTo: 'Thêm dòng → Chọn Hợp đồng/Đơn hàng → Nhập số tiền → Chọn mục đích → Tổng phân bổ phải bằng số tiền thu.',
+                  }} />
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
                   Chỉ định rõ từng khoản tiền được phân bổ vào hợp đồng hoặc đơn hàng nào
@@ -507,6 +573,43 @@ export const PaymentAllocationForm: React.FC = () => {
                 Thêm dòng
               </button>
             </div>
+
+            {/* Progress bar */}
+            {totalAmount > 0 && (
+              <div className="mb-4">
+                <AllocationProgress allocated={totalAllocated} total={totalAmount} />
+              </div>
+            )}
+
+            {/* Auto-suggest */}
+            {suggestedTargets.length > 0 && totalAmount > 0 && !allocationComplete && (
+              <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Lightbulb className="h-4 w-4 text-blue-600 shrink-0" />
+                  <p className="text-xs font-medium text-blue-800">Gợi ý phân bổ phù hợp</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedTargets.map((target) => (
+                    <button
+                      key={target.id}
+                      type="button"
+                      onClick={() => {
+                        // Quick-fill first empty row
+                        const emptyRow = formData.allocations.find((r) => !r.targetId);
+                        if (!emptyRow) return;
+                        const isContract = target.type === 'CONTRACT';
+                        handleTargetSelect(emptyRow.id, target.type, target.id);
+                        updateAllocationRow(emptyRow.id, 'amount', String(remainingAmount > 0 ? remainingAmount : totalAmount));
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-blue-200 text-xs text-blue-800 hover:bg-blue-100 transition-colors"
+                    >
+                      <span className="font-medium">{target.code}</span>
+                      <span className="text-blue-500">{(target as any).matchLabel}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {errors.allocations && (
               <div className="mb-4 flex items-center gap-2 rounded-md bg-red-50 p-3 text-sm text-red-700">
@@ -584,7 +687,7 @@ export const PaymentAllocationForm: React.FC = () => {
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !allocationComplete}
+              disabled={isSubmitting || !allocationComplete || isOverAllocated}
               className="rounded-md bg-blue-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? 'Đang xử lý...' : 'Tạo phiếu thu'}
@@ -646,7 +749,7 @@ const AllocationRow: React.FC<AllocationRowProps> = ({
 
       {/* Target Type */}
       <div className="sm:col-span-2">
-        <label className="block text-xs font-medium text-slate-700">Loại</label>
+        <p className="block text-xs font-medium text-slate-700">Loại</p>
         <select
           value={row.targetType}
           onChange={(e) => {
@@ -665,9 +768,9 @@ const AllocationRow: React.FC<AllocationRowProps> = ({
 
       {/* Target Selector with Search */}
       <div className="relative sm:col-span-3">
-        <label className="block text-xs font-medium text-slate-700">
+        <p className="block text-xs font-medium text-slate-700">
           {row.targetType === 'CONTRACT' ? 'Hợp đồng' : 'Đơn hàng'}
-        </label>
+        </p>
         <div className="relative mt-1">
           <input
             type="text"
@@ -716,7 +819,7 @@ const AllocationRow: React.FC<AllocationRowProps> = ({
 
       {/* Amount */}
       <div className="sm:col-span-2">
-        <label className="block text-xs font-medium text-slate-700">Số tiền</label>
+        <p className="block text-xs font-medium text-slate-700">Số tiền</p>
         <input
           type="text"
           value={row.amount}
@@ -728,7 +831,10 @@ const AllocationRow: React.FC<AllocationRowProps> = ({
 
       {/* Purpose */}
       <div className="sm:col-span-2">
-        <label className="block text-xs font-medium text-slate-700">Mục đích</label>
+        <p className="block text-xs font-medium text-slate-700 flex items-center gap-1">
+          Mục đích
+          <InfoTooltip tipKey="deposit" />
+        </p>
         <select
           value={row.purposeType}
           onChange={(e) => onUpdate(row.id, 'purposeType', e.target.value)}
@@ -756,7 +862,7 @@ const AllocationRow: React.FC<AllocationRowProps> = ({
 
       {/* Note (full width) */}
       <div className="sm:col-span-12">
-        <label className="block text-xs font-medium text-slate-700">Ghi chú</label>
+        <p className="block text-xs font-medium text-slate-700">Ghi chú</p>
         <input
           type="text"
           value={row.note || ''}

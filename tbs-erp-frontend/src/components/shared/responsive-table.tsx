@@ -53,7 +53,7 @@ export function ResponsiveTable<T extends Record<string, unknown>>({
   data,
   onRowClick,
   isLoading = false,
-  emptyMessage = 'Khong co du lieu',
+  emptyMessage = 'Không có dữ liệu',
   className,
 }: ResponsiveTableProps<T>) {
   // ------- Loading state -------
@@ -62,7 +62,7 @@ export function ResponsiveTable<T extends Record<string, unknown>>({
       <div className={cn('rounded-lg border bg-card p-8', className)}>
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Dang tai du lieu...</p>
+          <p className="text-sm text-muted-foreground">Đang tải dữ liệu...</p>
         </div>
       </div>
     );

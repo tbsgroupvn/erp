@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { Prisma, ApprovalStatus } from '@prisma/client';
@@ -55,9 +50,7 @@ export class UnallocatedFundsService {
     });
 
     if (!transaction) {
-      throw new NotFoundException(
-        `Wallet transaction ${dto.walletTransactionId} not found`,
-      );
+      throw new NotFoundException(`Wallet transaction ${dto.walletTransactionId} not found`);
     }
 
     if (transaction.allocationType !== 'UNALLOCATED') {

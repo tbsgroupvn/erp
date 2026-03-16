@@ -9,6 +9,8 @@ import {
 } from '@tanstack/react-table';
 import { cn } from '@/lib/utils/cn';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { TableSkeleton } from '@/components/shared/page-loading';
+import { NoResults } from '@/components/shared/empty-state';
 
 interface DataTableProps {
   columns: ColumnDef<any, any>[];
@@ -17,6 +19,7 @@ interface DataTableProps {
   page?: number;
   onPageChange?: (page: number) => void;
   isLoading?: boolean;
+  onClearFilters?: () => void;
 }
 
 export function DataTable({
@@ -26,6 +29,7 @@ export function DataTable({
   page = 1,
   onPageChange,
   isLoading,
+  onClearFilters,
 }: DataTableProps) {
   const table = useReactTable({
     data,
@@ -39,17 +43,29 @@ export function DataTable({
     },
   });
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <TableSkeleton rows={5} columns={columns.length} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
+      {/* Horizontal scroll wrapper for responsive tables */}
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+        <table role="table" className="w-full min-w-[640px] text-sm">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b bg-muted/30">
+              <tr key={headerGroup.id} className="border-b bg-gradient-to-r from-muted/50 to-muted/20">
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="px-4 py-3.5 text-left font-semibold text-foreground/80 uppercase text-xs tracking-wider"
+                    role="columnheader"
+                    scope="col"
+                    className="px-4 py-3.5 text-left font-semibold text-muted-foreground uppercase text-xs tracking-wider whitespace-nowrap"
                   >
                     {header.isPlaceholder
                       ? null
@@ -60,26 +76,17 @@ export function DataTable({
             ))}
           </thead>
           <tbody>
-            {isLoading ? (
+            {table.getRowModel().rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="py-12 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                    <p className="text-sm text-muted-foreground">Đang tải dữ liệu...</p>
-                  </div>
-                </td>
-              </tr>
-            ) : table.getRowModel().rows.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length} className="py-12 text-center text-muted-foreground">
-                  Không có dữ liệu
+                <td colSpan={columns.length}>
+                  <NoResults onAction={onClearFilters} />
                 </td>
               </tr>
             ) : (
               table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-b transition-all duration-200 hover:bg-muted/40 cursor-pointer"
+                  className="border-b transition-all duration-200 hover:bg-muted/40 cursor-pointer animate-fade-in"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-3.5">
@@ -91,6 +98,7 @@ export function DataTable({
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {pageCount && pageCount > 1 && onPageChange && (
@@ -102,28 +110,30 @@ export function DataTable({
             <button
               onClick={() => onPageChange(page - 1)}
               disabled={page <= 1}
+              aria-label={`Trang trước (hiện tại: trang ${page})`}
+              aria-disabled={page <= 1}
               className={cn(
                 'inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition-all duration-200',
                 page <= 1
                   ? 'opacity-50 cursor-not-allowed'
                   : 'hover:bg-primary hover:text-primary-foreground hover:border-primary cursor-pointer',
               )}
-              aria-label="Previous page"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
             <button
               onClick={() => onPageChange(page + 1)}
               disabled={page >= pageCount}
+              aria-label={`Trang sau (hiện tại: trang ${page} / ${pageCount})`}
+              aria-disabled={page >= pageCount}
               className={cn(
                 'inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition-all duration-200',
                 page >= pageCount
                   ? 'opacity-50 cursor-not-allowed'
                   : 'hover:bg-primary hover:text-primary-foreground hover:border-primary cursor-pointer',
               )}
-              aria-label="Next page"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </div>

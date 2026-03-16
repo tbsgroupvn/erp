@@ -22,10 +22,10 @@ export class CacheWarmingService implements OnApplicationBootstrap {
 
   /** Cache TTLs in milliseconds */
   private readonly TTL = {
-    DASHBOARD: 5 * 60 * 1000,        // 5 minutes
-    EXCHANGE_RATES: 60 * 60 * 1000,   // 1 hour
-    ACTIVE_COUNTS: 2 * 60 * 1000,     // 2 minutes
-    HS_CODES: 24 * 60 * 60 * 1000,    // 24 hours
+    DASHBOARD: 5 * 60 * 1000, // 5 minutes
+    EXCHANGE_RATES: 60 * 60 * 1000, // 1 hour
+    ACTIVE_COUNTS: 2 * 60 * 1000, // 2 minutes
+    HS_CODES: 24 * 60 * 60 * 1000, // 24 hours
   };
 
   constructor(
@@ -52,9 +52,7 @@ export class CacheWarmingService implements OnApplicationBootstrap {
         ]);
 
         const duration = performance.now() - start;
-        this.logger.log(
-          `Cache warming completed in ${duration.toFixed(0)}ms`,
-        );
+        this.logger.log(`Cache warming completed in ${duration.toFixed(0)}ms`);
       } catch (error) {
         this.logger.error(`Cache warming failed: ${error.message}`);
       }
@@ -127,11 +125,7 @@ export class CacheWarmingService implements OnApplicationBootstrap {
           cachedAt: new Date().toISOString(),
         };
 
-        await this.cacheService.set(
-          `dashboard:overview:${branchKey}`,
-          data,
-          this.TTL.DASHBOARD,
-        );
+        await this.cacheService.set(`dashboard:overview:${branchKey}`, data, this.TTL.DASHBOARD);
       });
 
       await Promise.allSettled(warmingPromises);
@@ -159,11 +153,7 @@ export class CacheWarmingService implements OnApplicationBootstrap {
         distinct: ['from', 'to'],
       });
 
-      await this.cacheService.set(
-        'exchange-rates:active',
-        activeRates,
-        this.TTL.EXCHANGE_RATES,
-      );
+      await this.cacheService.set('exchange-rates:active', activeRates, this.TTL.EXCHANGE_RATES);
 
       // Cache individual currency pairs for direct lookups
       for (const rate of activeRates) {
@@ -211,11 +201,7 @@ export class CacheWarmingService implements OnApplicationBootstrap {
         {} as Record<string, number>,
       );
 
-      await this.cacheService.set(
-        'orders:active-counts',
-        counts,
-        this.TTL.ACTIVE_COUNTS,
-      );
+      await this.cacheService.set('orders:active-counts', counts, this.TTL.ACTIVE_COUNTS);
 
       // Also warm per-branch counts
       const branches = Object.values(Branch);
@@ -247,13 +233,9 @@ export class CacheWarmingService implements OnApplicationBootstrap {
       }
 
       const duration = performance.now() - start;
-      this.logger.debug(
-        `Active order counts cache warmed in ${duration.toFixed(0)}ms`,
-      );
+      this.logger.debug(`Active order counts cache warmed in ${duration.toFixed(0)}ms`);
     } catch (error) {
-      this.logger.error(
-        `Active order counts cache warming failed: ${error.message}`,
-      );
+      this.logger.error(`Active order counts cache warming failed: ${error.message}`);
     }
   }
 }

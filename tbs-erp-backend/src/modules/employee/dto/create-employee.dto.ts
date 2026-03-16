@@ -10,7 +10,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { Branch, EmployeeStatus } from '@prisma/client';
+import { Branch } from '@prisma/client';
 
 export class CreateEmployeeDto {
   @ApiProperty({ description: 'Full name of the employee', example: 'Nguyen Van A' })

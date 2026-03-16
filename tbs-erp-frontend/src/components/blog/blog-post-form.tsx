@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -297,13 +298,13 @@ export function BlogPostForm({
                 )}
                 {watch('coverImage') && (
                   <div className="mt-3 overflow-hidden rounded-lg border">
-                    <img
-                      src={watch('coverImage')}
+                    <Image
+                      src={watch('coverImage') as string}
                       alt="Preview"
+                      width={800}
+                      height={450}
                       className="h-auto w-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
+                      unoptimized
                     />
                   </div>
                 )}

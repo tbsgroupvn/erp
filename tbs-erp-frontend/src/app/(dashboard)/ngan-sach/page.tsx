@@ -34,39 +34,39 @@ interface BudgetsResponse {
 const columns: ColumnDef<Budget>[] = [
   {
     accessorKey: 'department',
-    header: 'Phong ban',
+    header: 'Phòng ban',
     cell: ({ row }) => (
       <span className="font-medium">{row.original.department}</span>
     ),
   },
   {
     accessorKey: 'period',
-    header: 'Ky',
+    header: 'Kỳ',
   },
   {
     accessorKey: 'budget',
-    header: 'Ngan sach',
+    header: 'Ngân sách',
     cell: ({ row }) => (
       <span className="font-medium">{formatCurrency(row.original.budget)}</span>
     ),
   },
   {
     accessorKey: 'spent',
-    header: 'Da chi',
+    header: 'Đã chi',
     cell: ({ row }) => (
       <span className="text-red-600">{formatCurrency(row.original.spent)}</span>
     ),
   },
   {
     accessorKey: 'remaining',
-    header: 'Con lai',
+    header: 'Còn lại',
     cell: ({ row }) => (
       <span className="text-green-600">{formatCurrency(row.original.remaining)}</span>
     ),
   },
   {
     accessorKey: 'ratio',
-    header: 'Ty le',
+    header: 'Tỷ lệ',
     cell: ({ row }) => {
       const ratio = row.original.ratio ?? 0;
       const colorClass =
@@ -96,8 +96,8 @@ export default function NganSachPage() {
   return (
     <div>
       <PageHeader
-        title="Quan ly ngan sach"
-        description="Theo doi ngan sach theo phong ban va ky"
+        title="Quản lý ngân sách"
+        description="Theo dõi ngân sách theo phòng ban và kỳ"
       />
 
       <DataTable

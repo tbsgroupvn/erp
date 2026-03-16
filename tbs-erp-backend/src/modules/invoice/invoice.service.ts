@@ -1,14 +1,9 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { Invoice, InvoiceStatus, InvoiceType, Prisma } from '@prisma/client';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
-import { CreateInvoiceItemDto, TaxType } from './dto/create-invoice-item.dto';
+import { TaxType } from './dto/create-invoice-item.dto';
 import { InvoiceQueryDto } from './dto/invoice-query.dto';
 import { PaginatedResponse } from '@common/dto/base-response.dto';
 
@@ -17,7 +12,7 @@ const TAX_RATE_MAP: Record<TaxType, number> = {
   [TaxType.NO_TAX]: 0,
   [TaxType.ZERO_PERCENT]: 0,
   [TaxType.EIGHT_PERCENT]: 0.08,
-  [TaxType.TEN_PERCENT]: 0.10,
+  [TaxType.TEN_PERCENT]: 0.1,
 };
 
 @Injectable()
@@ -27,7 +22,7 @@ export class InvoiceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   /**
    * Generate a unique invoice code: TBS-INV-000001
@@ -67,10 +62,7 @@ export class InvoiceService {
    *
    * When no items are provided, the legacy behavior is used (single taxRate on dto.amount).
    */
-  async createInvoice(
-    dto: CreateInvoiceDto,
-    createdBy: string,
-  ): Promise<Invoice> {
+  async createInvoice(dto: CreateInvoiceDto, createdBy: string): Promise<Invoice> {
     const hasItems = dto.items && dto.items.length > 0;
 
     const invoice = await this.prisma.executeInTransaction(async (tx) => {
@@ -94,14 +86,8 @@ export class InvoiceService {
         });
 
         // Sum item amounts and taxes for invoice totals
-        const totalAmountBeforeTax = itemCalculations.reduce(
-          (sum, item) => sum + item.amount,
-          0,
-        );
-        const totalTaxAmount = itemCalculations.reduce(
-          (sum, item) => sum + item.taxAmount,
-          0,
-        );
+        const totalAmountBeforeTax = itemCalculations.reduce((sum, item) => sum + item.amount, 0);
+        const totalTaxAmount = itemCalculations.reduce((sum, item) => sum + item.taxAmount, 0);
         const totalAmount = totalAmountBeforeTax + totalTaxAmount;
 
         // Compute effective average tax rate for the invoice header
@@ -230,15 +216,13 @@ export class InvoiceService {
       }
 
       if (invoice.status === 'CANCELLED') {
-        throw new BadRequestException(
-          `Invoice ${invoice.code} is already cancelled`,
-        );
+        throw new BadRequestException(`Invoice ${invoice.code} is already cancelled`);
       }
 
       if (invoice.sentToTaxAt) {
         throw new BadRequestException(
           `Invoice ${invoice.code} has been sent to tax authority. ` +
-          'Cannot cancel directly. Use adjustment invoice instead.',
+            'Cannot cancel directly. Use adjustment invoice instead.',
         );
       }
 
@@ -324,9 +308,7 @@ export class InvoiceService {
         adjustmentCode: adjustmentInvoice.code,
       });
 
-      this.logger.log(
-        `Invoice adjusted: ${original.code} -> ${adjustmentInvoice.code}`,
-      );
+      this.logger.log(`Invoice adjusted: ${original.code} -> ${adjustmentInvoice.code}`);
 
       return { originalInvoice, adjustmentInvoice };
     });

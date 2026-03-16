@@ -33,10 +33,10 @@ interface AssetsResponse {
 // ---------------------------------------------------------------------------
 
 const ASSET_STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'Dang su dung',
-  INACTIVE: 'Khong su dung',
-  DISPOSED: 'Da thanh ly',
-  MAINTENANCE: 'Bao tri',
+  ACTIVE: 'Đang sử dụng',
+  INACTIVE: 'Không sử dụng',
+  DISPOSED: 'Đã thanh lý',
+  MAINTENANCE: 'Bảo trì',
 };
 
 const ASSET_STATUS_COLORS: Record<string, string> = {
@@ -53,36 +53,36 @@ const ASSET_STATUS_COLORS: Record<string, string> = {
 const columns: ColumnDef<Asset>[] = [
   {
     accessorKey: 'code',
-    header: 'Ma TS',
+    header: 'Mã TS',
     cell: ({ row }) => (
       <span className="font-medium">{row.original.code}</span>
     ),
   },
   {
     accessorKey: 'name',
-    header: 'Ten tai san',
+    header: 'Tên tài sản',
   },
   {
     accessorKey: 'type',
-    header: 'Loai',
+    header: 'Loại',
   },
   {
     accessorKey: 'value',
-    header: 'Gia tri',
+    header: 'Giá trị',
     cell: ({ row }) => (
       <span className="font-medium">{formatCurrency(row.original.value)}</span>
     ),
   },
   {
     accessorKey: 'depreciation',
-    header: 'Khau hao',
+    header: 'Khấu hao',
     cell: ({ row }) => (
       <span>{formatCurrency(row.original.depreciation)}</span>
     ),
   },
   {
     accessorKey: 'status',
-    header: 'Trang thai',
+    header: 'Trạng thái',
     cell: ({ row }) => {
       const status = row.original.status || '';
       return (
@@ -111,8 +111,8 @@ export default function TaiSanPage() {
   return (
     <div>
       <PageHeader
-        title="Quan ly tai san"
-        description="Danh sach tai san co dinh cua cong ty"
+        title="Quản lý tài sản"
+        description="Danh sách tài sản cố định của công ty"
       />
 
       <DataTable

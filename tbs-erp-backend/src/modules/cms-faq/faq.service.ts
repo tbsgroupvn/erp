@@ -67,7 +67,7 @@ export class FaqService {
   }
 
   async update(id: string, dto: UpdateFaqDto) {
-    const faq = await this.findOne(id);
+    await this.findOne(id);
 
     return this.prisma.fAQ.update({
       where: { id },
@@ -76,7 +76,7 @@ export class FaqService {
   }
 
   async remove(id: string) {
-    const faq = await this.findOne(id);
+    await this.findOne(id);
 
     await this.prisma.fAQ.delete({
       where: { id },
@@ -86,7 +86,7 @@ export class FaqService {
   }
 
   async togglePublish(id: string, isPublished: boolean) {
-    const faq = await this.findOne(id);
+    await this.findOne(id);
 
     return this.prisma.fAQ.update({
       where: { id },
@@ -95,7 +95,7 @@ export class FaqService {
   }
 
   async incrementViews(id: string) {
-    const faq = await this.findOne(id);
+    await this.findOne(id);
 
     return this.prisma.fAQ.update({
       where: { id },

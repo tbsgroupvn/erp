@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -115,13 +111,17 @@ export class ServiceFeeConfigService {
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.serviceType !== undefined) updateData.serviceType = dto.serviceType;
     if (dto.customerTier !== undefined) updateData.customerTier = dto.customerTier;
-    if (dto.minOrderValue !== undefined) updateData.minOrderValue = dto.minOrderValue != null ? new Decimal(dto.minOrderValue) : null;
-    if (dto.maxOrderValue !== undefined) updateData.maxOrderValue = dto.maxOrderValue != null ? new Decimal(dto.maxOrderValue) : null;
+    if (dto.minOrderValue !== undefined)
+      updateData.minOrderValue = dto.minOrderValue != null ? new Decimal(dto.minOrderValue) : null;
+    if (dto.maxOrderValue !== undefined)
+      updateData.maxOrderValue = dto.maxOrderValue != null ? new Decimal(dto.maxOrderValue) : null;
     if (dto.minQuantity !== undefined) updateData.minQuantity = dto.minQuantity;
     if (dto.productCategory !== undefined) updateData.productCategory = dto.productCategory;
     if (dto.feePercent !== undefined) updateData.feePercent = new Decimal(dto.feePercent);
-    if (dto.minFeeAmount !== undefined) updateData.minFeeAmount = dto.minFeeAmount != null ? new Decimal(dto.minFeeAmount) : null;
-    if (dto.maxFeeAmount !== undefined) updateData.maxFeeAmount = dto.maxFeeAmount != null ? new Decimal(dto.maxFeeAmount) : null;
+    if (dto.minFeeAmount !== undefined)
+      updateData.minFeeAmount = dto.minFeeAmount != null ? new Decimal(dto.minFeeAmount) : null;
+    if (dto.maxFeeAmount !== undefined)
+      updateData.maxFeeAmount = dto.maxFeeAmount != null ? new Decimal(dto.maxFeeAmount) : null;
     if (dto.priority !== undefined) updateData.priority = dto.priority;
     if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
     if (dto.note !== undefined) updateData.note = dto.note;

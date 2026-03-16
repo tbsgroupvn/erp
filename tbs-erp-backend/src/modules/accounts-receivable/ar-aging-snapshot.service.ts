@@ -1,10 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  ARAgingCalculatorService,
-  CustomerAgingResult,
-} from './ar-aging-calculator.service';
+import { ARAgingCalculatorService, CustomerAgingResult } from './ar-aging-calculator.service';
 import { Prisma } from '@prisma/client';
 
 export interface AgingSummary {
@@ -90,10 +87,7 @@ export class ARAgingSnapshotService {
   /**
    * Get aging snapshot for a specific customer and date
    */
-  async getCustomerSnapshot(
-    customerId: string,
-    date: Date = new Date(),
-  ): Promise<any | null> {
+  async getCustomerSnapshot(customerId: string, date: Date = new Date()): Promise<any | null> {
     date.setHours(0, 0, 0, 0);
 
     // Find nearest snapshot before or on the date
@@ -109,10 +103,7 @@ export class ARAgingSnapshotService {
   /**
    * Get aging trend for a customer (last N days)
    */
-  async getCustomerAgingTrend(
-    customerId: string,
-    days: number = 30,
-  ): Promise<any[]> {
+  async getCustomerAgingTrend(customerId: string, days: number = 30): Promise<any[]> {
     const endDate = new Date();
     endDate.setHours(0, 0, 0, 0);
 
@@ -151,8 +142,7 @@ export class ARAgingSnapshotService {
         days31_60: acc.days31_60 + snap.days31_60.toNumber(),
         days61_90: acc.days61_90 + snap.days61_90.toNumber(),
         days90Plus: acc.days90Plus + snap.days90Plus.toNumber(),
-        totalOutstanding:
-          acc.totalOutstanding + snap.totalOutstanding.toNumber(),
+        totalOutstanding: acc.totalOutstanding + snap.totalOutstanding.toNumber(),
       }),
       {
         current: 0,
@@ -208,8 +198,7 @@ export class ARAgingSnapshotService {
         days31_60: existing.days31_60 + snap.days31_60.toNumber(),
         days61_90: existing.days61_90 + snap.days61_90.toNumber(),
         days90Plus: existing.days90Plus + snap.days90Plus.toNumber(),
-        totalOutstanding:
-          existing.totalOutstanding + snap.totalOutstanding.toNumber(),
+        totalOutstanding: existing.totalOutstanding + snap.totalOutstanding.toNumber(),
       });
     }
 
@@ -247,21 +236,19 @@ export class ARAgingSnapshotService {
           },
         },
       },
-      orderBy: [
-        { riskLevel: 'desc' },
-        { totalOutstanding: 'desc' },
-      ],
+      orderBy: [{ riskLevel: 'desc' }, { totalOutstanding: 'desc' }],
     });
 
     return snapshots;
   }
 
   /**
-   * Process auto-block actions for high-risk customers
+   * Process auto-block actions for high-risk customers.
+   *
+   * Uses a single updateMany for bulk blocking instead of 2 queries per customer,
+   * then emits per-customer events using data fetched in one batch query.
    */
-  private async processBlockActions(
-    agingResults: CustomerAgingResult[],
-  ): Promise<void> {
+  private async processBlockActions(agingResults: CustomerAgingResult[]): Promise<void> {
     const customersToBlock = agingResults.filter((r) => r.shouldBlock);
 
     if (customersToBlock.length === 0) {
@@ -271,47 +258,74 @@ export class ARAgingSnapshotService {
 
     this.logger.log(`Processing auto-block for ${customersToBlock.length} customers`);
 
-    for (const result of customersToBlock) {
-      try {
-        // Check if already blocked
-        const customer = await this.prisma.customer.findUnique({
-          where: { id: result.customerId },
-          select: { isBlocked: true, code: true, fullName: true },
-        });
+    const customerIds = customersToBlock.map((r) => r.customerId);
 
-        if (customer?.isBlocked) {
-          this.logger.debug(`Customer ${customer.code} already blocked, skipping`);
-          continue;
-        }
+    // Fetch current state of all candidates in one query
+    const existingCustomers = await this.prisma.customer.findMany({
+      where: { id: { in: customerIds } },
+      select: { id: true, isBlocked: true, code: true, fullName: true },
+    });
 
-        // Block the customer
-        await this.prisma.customer.update({
-          where: { id: result.customerId },
-          data: {
-            isBlocked: true,
-            blockReason: result.blockReason,
-            blockedAt: new Date(),
-          },
-        });
+    const existingMap = new Map(existingCustomers.map((c) => [c.id, c]));
 
-        this.logger.warn(
-          `Customer ${customer?.code} - ${customer?.fullName} auto-blocked: ${result.blockReason}`,
-        );
-
-        // Emit event for notifications
-        this.eventEmitter.emit('customer.blocked', {
-          customerId: result.customerId,
-          customerCode: customer?.code,
-          customerName: customer?.fullName,
-          reason: result.blockReason,
-          aging: result.aging,
-        });
-      } catch (error) {
-        this.logger.error(
-          `Failed to block customer ${result.customerId}:`,
-          error,
-        );
+    // Filter to only those not already blocked
+    const toBlock = customersToBlock.filter((r) => {
+      const customer = existingMap.get(r.customerId);
+      if (customer?.isBlocked) {
+        this.logger.debug(`Customer ${customer.code} already blocked, skipping`);
+        return false;
       }
+      return true;
+    });
+
+    if (toBlock.length === 0) {
+      this.logger.log('All candidates already blocked');
+      return;
+    }
+
+    const blockedAt = new Date();
+
+    // Bulk update — one query instead of N updates.
+    // blockReason may differ per customer so we must do individual updates only when
+    // block reasons differ; otherwise a single updateMany suffices.
+    // Since blockReason is per-customer, we use updateMany per unique reason group.
+    const reasonGroups = new Map<string, string[]>();
+    for (const r of toBlock) {
+      const reason = r.blockReason ?? '';
+      const group = reasonGroups.get(reason) ?? [];
+      group.push(r.customerId);
+      reasonGroups.set(reason, group);
+    }
+
+    for (const [blockReason, ids] of reasonGroups) {
+      await this.prisma.customer.updateMany({
+        where: {
+          id: { in: ids },
+          isBlocked: false, // safety guard: only update unblocked customers
+        },
+        data: {
+          isBlocked: true,
+          blockReason,
+          blockedAt,
+        },
+      });
+    }
+
+    this.logger.log(`Blocked ${toBlock.length} high-risk customers in batch`);
+
+    // Emit per-customer events for notifications
+    for (const result of toBlock) {
+      const customer = existingMap.get(result.customerId);
+      this.logger.warn(
+        `Customer ${customer?.code} - ${customer?.fullName} auto-blocked: ${result.blockReason}`,
+      );
+      this.eventEmitter.emit('customer.blocked', {
+        customerId: result.customerId,
+        customerCode: customer?.code,
+        customerName: customer?.fullName,
+        reason: result.blockReason,
+        aging: result.aging,
+      });
     }
   }
 }

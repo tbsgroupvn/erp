@@ -46,7 +46,7 @@ export default function CreatePagePage() {
       toast.success('Đã tạo trang thành công');
       router.push('/cms/pages');
     },
-    onError: (error: any) => {
+    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
       toast.error(error.response?.data?.message || 'Không thể tạo trang');
     },
   });
@@ -119,7 +119,7 @@ export default function CreatePagePage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Nội dung *</Label>
+              <p className="text-sm font-medium leading-none">Nội dung *</p>
               <Editor
                 value={formData.content}
                 onChange={(content) => setFormData({ ...formData, content })}
@@ -129,7 +129,7 @@ export default function CreatePagePage() {
           </Card>
 
           <Card className="p-6 space-y-4">
-            <Label>Ảnh đại diện</Label>
+            <p className="text-sm font-medium leading-none">Ảnh đại diện</p>
             {formData.featuredImage ? (
               <div className="relative w-full h-64 rounded-lg overflow-hidden">
                 <Image

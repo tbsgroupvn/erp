@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsOptional } from 'class-validator';
 
 export class CommissionDateRangeDto {
   @ApiPropertyOptional({ description: 'Start date (ISO 8601)', example: '2025-01-01' })

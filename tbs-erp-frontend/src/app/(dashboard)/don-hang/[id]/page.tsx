@@ -1,16 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Clock, ChevronDown, ChevronRight, XCircle, ArrowRightCircle, Copy, Package } from 'lucide-react';
-import { toast } from 'sonner';
+import { ChevronDown, ChevronRight, XCircle, ArrowRightCircle, Package, Layers, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { LoadingOverlay } from '@/components/shared/loading-overlay';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { useMasterOrder, useChangeOrderStatus, useCancelOrder } from '@/lib/hooks/use-orders';
+import { useChangeOrderStatus, useCancelOrder } from '@/lib/hooks/use-orders';
+import { useOpenContainers, useAddPackages } from '@/lib/hooks/use-containers';
 import { SupplierOrderSection } from '@/features/orders/supplier-order-section';
 import { MHHIssueSection } from '@/features/orders/mhh-issue-section';
 import { MHHPriceCalculator } from '@/features/orders/mhh-price-calculator';
@@ -20,22 +19,23 @@ import { OrderFinanceBlock } from '@/features/orders/order-finance-block';
 import { OrderOperationsBlock } from '@/features/orders/order-operations-block';
 import { OrderDocumentHub } from '@/features/orders/order-document-hub';
 import { OrderAuditLog } from '@/features/orders/order-audit-log';
+import { OrderProjectTab } from '@/features/orders/order-project-tab';
 import { OrderExtraCharges } from '@/features/orders/order-extra-charges';
+import { OrderHeader } from '@/features/orders/detail/order-header';
+import { OrderTracking } from '@/features/orders/detail/order-tracking';
+import { OrderPackages } from '@/features/orders/detail/order-packages';
 import { apiClient } from '@/lib/api/client';
-import { OrderStatus as OrderStatusEnum, ServiceType as ServiceTypeEnum } from '@/lib/types/enums';
+import { OrderStatus as OrderStatusEnum, ServiceType as ServiceTypeEnum, ClearanceType as ClearanceTypeEnum } from '@/lib/types/enums';
 import {
-  MASTER_ORDER_STATUS_LABELS,
-  MASTER_ORDER_STATUS_COLORS,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_COLORS,
   SERVICE_TYPE_LABELS,
   CLEARANCE_TYPE_LABELS,
   CLEARANCE_TYPE_COLORS,
-  BRANCH_LABELS,
   SHIPPING_ROUTE_LABELS,
 } from '@/lib/utils/constants';
-import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils/format';
-import type { MasterOrderStatus, OrderStatus, ServiceType, ClearanceType, Branch, ShippingRoute, Order } from '@/lib/types';
+import { formatCurrency, formatDate } from '@/lib/utils/format';
+import type { OrderStatus, ServiceType, ClearanceType, ShippingRoute, Order } from '@/lib/types';
 
 /** Fetch full 360 data for an order */
 function useOrder360(id: string) {
@@ -75,18 +75,18 @@ function ThreeWayMatchReport({ orderId }: { orderId: string }) {
   return (
     <div className={`rounded-lg border p-4 space-y-3 ${match.matched ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">3-Way Match (PO / GR / Invoice)</span>
+        <span className="text-sm font-medium">Đối chiếu 3 bên (PO / GR / Hóa đơn)</span>
         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${match.matched ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-          {match.matched ? 'Khop' : 'Chenh lech'}
+          {match.matched ? 'Khớp' : 'Chênh lệch'}
         </span>
       </div>
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
-          <span className="text-muted-foreground">SL dat:</span>{' '}
+          <span className="text-muted-foreground">SL đặt:</span>{' '}
           <span className="font-medium">{match.quantityOrdered}</span>
         </div>
         <div>
-          <span className="text-muted-foreground">SL nhan:</span>{' '}
+          <span className="text-muted-foreground">SL nhận:</span>{' '}
           <span className="font-medium">{match.quantityReceived}</span>
           {match.quantityVariancePercent !== 0 && (
             <span className={`ml-1 text-xs ${match.quantityVariancePercent > 5 ? 'text-red-600' : 'text-muted-foreground'}`}>
@@ -95,11 +95,11 @@ function ThreeWayMatchReport({ orderId }: { orderId: string }) {
           )}
         </div>
         <div>
-          <span className="text-muted-foreground">Tong bao gia:</span>{' '}
+          <span className="text-muted-foreground">Tổng báo giá:</span>{' '}
           <span className="font-medium">{match.totalQuotedCNY?.toLocaleString()} CNY</span>
         </div>
         <div>
-          <span className="text-muted-foreground">Tong chi:</span>{' '}
+          <span className="text-muted-foreground">Tổng chi:</span>{' '}
           <span className="font-medium">{match.totalPaidCNY?.toLocaleString()} CNY</span>
           {match.paymentVariancePercent !== 0 && (
             <span className={`ml-1 text-xs ${match.paymentVariancePercent > 5 ? 'text-red-600' : 'text-muted-foreground'}`}>
@@ -141,10 +141,10 @@ function DepositGateProgress({ orderId }: { orderId: string }) {
   return (
     <div className="rounded-lg border bg-card p-4 space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">Tien do coc</span>
+        <span className="text-sm font-medium">Tiến độ cọc</span>
         {gate.isPriority && (
           <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-            Priority
+            Ưu tiên
           </span>
         )}
       </div>
@@ -164,7 +164,7 @@ function DepositGateProgress({ orderId }: { orderId: string }) {
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>0%</span>
-        <span className="text-orange-600 font-medium">70% (Mo khoa mua hang)</span>
+        <span className="text-orange-600 font-medium">70% (Mở khóa mua hàng)</span>
         <span>100%</span>
       </div>
       <p className="text-xs text-muted-foreground">{gate.message}</p>
@@ -209,9 +209,9 @@ const STATUS_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
 type FulfillmentStatus = 'NONE' | 'PARTIAL' | 'FULL';
 
 const FULFILLMENT_LABELS: Record<FulfillmentStatus, string> = {
-  NONE: 'Chua giao',
-  PARTIAL: 'Giao mot phan',
-  FULL: 'Da giao du',
+  NONE: 'Chưa giao',
+  PARTIAL: 'Giao một phần',
+  FULL: 'Đã giao đủ',
 };
 
 const FULFILLMENT_COLORS: Record<FulfillmentStatus, string> = {
@@ -238,7 +238,7 @@ function FulfillmentProgress({ subOrder }: { subOrder: Order }) {
         <div className="flex items-center gap-2">
           <Package className="h-4 w-4 text-muted-foreground" />
           <span className="font-medium">
-            {delivered}/{total} kien da giao
+            {delivered}/{total} kiện đã giao
           </span>
         </div>
         <StatusBadge
@@ -257,6 +257,173 @@ function FulfillmentProgress({ subOrder }: { subOrder: Order }) {
           }`}
           style={{ width: `${percent}%` }}
         />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Container Consolidation Panel (ghep kien vao container)
+// ---------------------------------------------------------------------------
+
+/** Statuses that indicate packages are in CN warehouse or being consolidated */
+const CONSOLIDATION_ELIGIBLE_STATUSES: OrderStatus[] = [
+  OrderStatusEnum.WAREHOUSE_CN,
+  OrderStatusEnum.PACKING,
+  OrderStatusEnum.CONSOLIDATION,
+];
+
+function ContainerConsolidationPanel({
+  subOrder,
+}: {
+  subOrder: Order;
+}) {
+  const [showPanel, setShowPanel] = useState(false);
+
+  // Get eligible packages: warehouseCNStatus PACKED and not yet in a container
+  const allPackages = ((subOrder as any).packages ?? []) as Array<{
+    id: string;
+    code: string;
+    warehouseCNStatus: string | null;
+    containerId: string | null;
+    chargeableWeight: number | null;
+  }>;
+  const eligiblePackages = allPackages.filter(
+    (p) => p.warehouseCNStatus === 'PACKED' && !p.containerId,
+  );
+  const alreadyAssigned = allPackages.filter((p) => !!p.containerId);
+
+  const subStatus = subOrder.status as OrderStatus;
+  const isWarehouseCNOrBeyond = CONSOLIDATION_ELIGIBLE_STATUSES.includes(subStatus);
+  const isChinhNgach = subOrder.clearanceType === ClearanceTypeEnum.CHINH_NGACH;
+
+  // Show only if: (WAREHOUSE_CN+ or chinh ngach) AND has packages at all
+  if (!(isWarehouseCNOrBeyond || isChinhNgach) || allPackages.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border bg-indigo-50/50 p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Layers className="h-4 w-4 text-indigo-600" />
+          <span>Ghep container</span>
+          {alreadyAssigned.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              ({alreadyAssigned.length}/{allPackages.length} kien da ghep)
+            </span>
+          )}
+        </div>
+        {eligiblePackages.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowPanel((prev) => !prev)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            Ghep {eligiblePackages.length} kien
+          </button>
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            {allPackages.length > 0 && alreadyAssigned.length === allPackages.length
+              ? 'Tat ca kien da duoc ghep'
+              : 'Chua co kien PACKED de ghep'}
+          </span>
+        )}
+      </div>
+
+      {showPanel && eligiblePackages.length > 0 && (
+        <ContainerSelector
+          eligiblePackages={eligiblePackages}
+          shippingRoute={subOrder.shippingRoute ?? undefined}
+          onDone={() => setShowPanel(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ContainerSelector({
+  eligiblePackages,
+  shippingRoute,
+  onDone,
+}: {
+  eligiblePackages: Array<{ id: string; code: string; chargeableWeight: number | null }>;
+  shippingRoute?: string;
+  onDone: () => void;
+}) {
+  const { data: containers, isLoading } = useOpenContainers(shippingRoute);
+  const addPackages = useAddPackages();
+
+  const handleAdd = (containerId: string) => {
+    const packageIds = eligiblePackages.map((p) => p.id);
+    addPackages.mutate(
+      { id: containerId, packageIds },
+      { onSuccess: () => onDone() },
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Đang tải container...
+      </div>
+    );
+  }
+
+  if (!containers || containers.length === 0) {
+    return (
+      <div className="py-3 text-sm text-muted-foreground">
+        Khong co container dang mo {shippingRoute ? `cho tuyen ${SHIPPING_ROUTE_LABELS[shippingRoute as ShippingRoute] || shippingRoute}` : ''}.
+        Vui long tao container truoc.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        Chon container de ghep {eligiblePackages.length} kien
+        (tong {eligiblePackages.reduce((s, p) => s + (p.chargeableWeight ? Number(p.chargeableWeight) : 0), 0).toFixed(1)} kg):
+      </p>
+      <div className="max-h-48 overflow-y-auto space-y-1.5">
+        {containers.map((c) => (
+          <div
+            key={c.id}
+            className="flex items-center justify-between rounded-md border bg-white px-3 py-2 text-sm"
+          >
+            <div className="flex items-center gap-3">
+              <span className="font-medium">{c.code}</span>
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs ${
+                c.status === 'PLANNING' ? 'bg-slate-100 text-slate-700' : 'bg-blue-100 text-blue-700'
+              }`}>
+                {c.status === 'PLANNING' ? 'Ke hoach' : 'Dang xep'}
+              </span>
+              <span className="text-muted-foreground">
+                {c.totalPackages} kien | {c.totalWeight != null ? Number(c.totalWeight).toFixed(1) : 0} kg
+              </span>
+              {c.estimatedDepartureAt && (
+                <span className="text-muted-foreground">
+                  | Khoi hanh: {formatDate(c.estimatedDepartureAt)}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => handleAdd(c.id)}
+              disabled={addPackages.isPending}
+              className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {addPackages.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Layers className="h-3 w-3" />
+              )}
+              Ghep
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -307,7 +474,7 @@ function SubOrderDetailPanel({
             className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 ml-auto"
           >
             <XCircle className="h-3.5 w-3.5" />
-            Huy don
+            Hủy đơn
           </button>
         </div>
       )}
@@ -315,11 +482,11 @@ function SubOrderDetailPanel({
       {/* Cancel dialog */}
       {cancellingSubOrderId === subOrder.id && (
         <div className="rounded-md border border-red-200 bg-red-50 p-4 space-y-3">
-          <p className="text-sm font-medium text-red-800">Xac nhan huy don {subOrder.code}?</p>
+          <p className="text-sm font-medium text-red-800">Xác nhận hủy đơn {subOrder.code}?</p>
           <textarea
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
-            placeholder="Nhap ly do huy don..."
+            placeholder="Nhập lý do hủy đơn..."
             className="w-full rounded-md border px-3 py-2 text-sm bg-white"
             rows={2}
           />
@@ -341,14 +508,14 @@ function SubOrderDetailPanel({
               disabled={!cancelReason.trim() || cancelOrder.isPending}
               className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
             >
-              {cancelOrder.isPending ? 'Dang huy...' : 'Xac nhan huy'}
+              {cancelOrder.isPending ? 'Đang hủy...' : 'Xác nhận hủy'}
             </button>
             <button
               type="button"
               onClick={() => { setCancellingSubOrderId(null); setCancelReason(''); }}
               className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
             >
-              Dong
+              Đóng
             </button>
           </div>
         </div>
@@ -358,15 +525,15 @@ function SubOrderDetailPanel({
       {changingStatus && changingStatus.subOrderId === subOrder.id && (
         <div className="rounded-md border border-blue-200 bg-blue-50 p-4 space-y-3">
           <p className="text-sm font-medium text-blue-800">
-            Xac nhan chuyen trang thai don {changingStatus.currentCode} sang{' '}
+            Xác nhận chuyển trạng thái đơn {changingStatus.currentCode} sang{' '}
             <span className="font-bold">{ORDER_STATUS_LABELS[changingStatus.nextStatus]}</span>?
           </p>
           <div className="space-y-2">
-            <label className="text-xs font-medium text-blue-800">Ghi chu (tuy chon)</label>
+            <p className="text-xs font-medium text-blue-800">Ghi chú (tùy chọn)</p>
             <textarea
               value={statusChangeNote}
               onChange={(e) => setStatusChangeNote(e.target.value)}
-              placeholder="Nhap ghi chu khi chuyen trang thai..."
+              placeholder="Nhập ghi chú khi chuyển trạng thái..."
               className="w-full rounded-md border px-3 py-2 text-sm bg-white"
               rows={2}
             />
@@ -392,14 +559,14 @@ function SubOrderDetailPanel({
               disabled={changeStatus.isPending}
               className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {changeStatus.isPending ? 'Dang xu ly...' : 'Xac nhan'}
+              {changeStatus.isPending ? 'Đang xử lý...' : 'Xác nhận'}
             </button>
             <button
               type="button"
               onClick={() => { setChangingStatus(null); setStatusChangeNote(''); }}
               className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
             >
-              Huy
+              Hủy
             </button>
           </div>
         </div>
@@ -408,24 +575,24 @@ function SubOrderDetailPanel({
       {/* Info */}
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
-          <span className="text-muted-foreground">Loai dich vu:</span>{' '}
+          <span className="text-muted-foreground">Loại dịch vụ:</span>{' '}
           {SERVICE_TYPE_LABELS[subOrder.serviceType as ServiceType]}
         </div>
         <div>
-          <span className="text-muted-foreground">Thong quan:</span>{' '}
+          <span className="text-muted-foreground">Thông quan:</span>{' '}
           {CLEARANCE_TYPE_LABELS[subOrder.clearanceType as ClearanceType]}
         </div>
         <div>
-          <span className="text-muted-foreground">Tuyen:</span>{' '}
+          <span className="text-muted-foreground">Tuyến:</span>{' '}
           {subOrder.shippingRoute ? SHIPPING_ROUTE_LABELS[subOrder.shippingRoute as ShippingRoute] : '---'}
         </div>
         <div>
-          <span className="text-muted-foreground">Dat coc:</span>{' '}
+          <span className="text-muted-foreground">Đặt cọc:</span>{' '}
           {formatCurrency(subOrder.depositPaid, subOrder.currency)} / {formatCurrency(subOrder.depositRequired, subOrder.currency)}
         </div>
         {(subOrder as any).trackingNumber && (
           <div className="col-span-2">
-            <span className="text-muted-foreground">Tracking:</span>{' '}
+            <span className="text-muted-foreground">Mã vận đơn:</span>{' '}
             <Link
               href={`/theo-doi?tracking=${(subOrder as any).trackingNumber}`}
               className="text-primary hover:underline font-medium"
@@ -439,41 +606,15 @@ function SubOrderDetailPanel({
       {/* Fulfillment Progress */}
       <FulfillmentProgress subOrder={subOrder} />
 
+      {/* Container Consolidation */}
+      <ContainerConsolidationPanel subOrder={subOrder} />
+
       {/* Extra Charges */}
       <OrderExtraCharges orderId={subOrder.id} orderCode={subOrder.code} />
 
       {/* Items */}
       {subOrder.items && subOrder.items.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold mb-2">Hang hoa</h4>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-muted-foreground">
-                <th className="pb-2 font-medium">San pham</th>
-                <th className="pb-2 font-medium">SL</th>
-                <th className="pb-2 font-medium text-right">Don gia</th>
-                <th className="pb-2 font-medium text-right">Thanh tien</th>
-              </tr>
-            </thead>
-            <tbody>
-              {subOrder.items.map((item) => (
-                <tr key={item.id} className="border-b">
-                  <td className="py-2">
-                    <p>{item.productName}</p>
-                    {item.productUrl && (
-                      <a href={item.productUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">
-                        Link san pham
-                      </a>
-                    )}
-                  </td>
-                  <td className="py-2">{item.quantity}</td>
-                  <td className="py-2 text-right">{formatCurrency(item.unitPrice, item.currency)}</td>
-                  <td className="py-2 text-right font-medium">{formatCurrency(item.totalPrice, item.currency)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <OrderPackages items={subOrder.items} currency={subOrder.currency} />
       )}
 
       {/* MHH Sections */}
@@ -492,29 +633,7 @@ function SubOrderDetailPanel({
 
       {/* Status History */}
       {subOrder.statusHistory && subOrder.statusHistory.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold mb-2">Lich su trang thai</h4>
-          <div className="space-y-2">
-            {subOrder.statusHistory.map((h) => (
-              <div key={h.id} className="flex items-start gap-3">
-                <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm">
-                    {h.fromStatus && (
-                      <>
-                        <span className="font-medium">{ORDER_STATUS_LABELS[h.fromStatus as OrderStatus] || h.fromStatus}</span>
-                        {' -> '}
-                      </>
-                    )}
-                    <span className="font-medium">{ORDER_STATUS_LABELS[h.toStatus as OrderStatus] || h.toStatus}</span>
-                  </p>
-                  {h.note && <p className="text-xs text-muted-foreground">{h.note}</p>}
-                  <p className="text-xs text-muted-foreground">{formatDateTime(h.createdAt)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <OrderTracking statusHistory={subOrder.statusHistory} />
       )}
     </div>
   );
@@ -526,7 +645,6 @@ function SubOrderDetailPanel({
 
 export default function MasterOrderDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params.id as string;
   const { data: masterOrder, isLoading, isError } = useOrder360(id);
   const changeStatus = useChangeOrderStatus();
@@ -537,10 +655,10 @@ export default function MasterOrderDetailPage() {
   if (isError) {
     return (
       <div className="text-center py-20">
-        <p className="text-destructive font-medium">Loi tai du lieu</p>
-        <p className="text-sm text-muted-foreground mt-1">Khong the tai thong tin don hang. Vui long thu lai.</p>
+        <p className="text-destructive font-medium">Lỗi tải dữ liệu</p>
+        <p className="text-sm text-muted-foreground mt-1">Không thể tải thông tin đơn hàng. Vui lòng thử lại.</p>
         <Link href="/don-hang" className="text-primary hover:underline mt-2 inline-block">
-          Quay lai danh sach
+          Quay lại danh sách
         </Link>
       </div>
     );
@@ -548,80 +666,29 @@ export default function MasterOrderDetailPage() {
   if (!masterOrder) {
     return (
       <div className="text-center py-20">
-        <p className="text-muted-foreground">Khong tim thay don hang</p>
+        <p className="text-muted-foreground">Không tìm thấy đơn hàng</p>
         <Link href="/don-hang" className="text-primary hover:underline mt-2 inline-block">
-          Quay lai danh sach
+          Quay lại danh sách
         </Link>
       </div>
     );
   }
 
-  const overallStatus = masterOrder.overallStatus as MasterOrderStatus;
-
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/don-hang" className="inline-flex h-9 w-9 items-center justify-center rounded-md border hover:bg-accent">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{masterOrder.code}</h1>
-            <StatusBadge
-              label={MASTER_ORDER_STATUS_LABELS[overallStatus] || overallStatus}
-              colorClass={MASTER_ORDER_STATUS_COLORS[overallStatus] || 'bg-gray-100 text-gray-700'}
-            />
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Tao luc {formatDateTime(masterOrder.createdAt)}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            try {
-              if (typeof window === 'undefined') return;
-              sessionStorage.setItem('cloneOrderData', JSON.stringify({
-                customerId: masterOrder.customerId,
-                branch: masterOrder.branch,
-                note: masterOrder.note,
-                subOrders: masterOrder.subOrders?.map((so: any) => ({
-                  serviceType: so.serviceType,
-                  clearanceType: so.clearanceType,
-                  shippingRoute: so.shippingRoute,
-                  note: so.note,
-                  items: so.items?.map((item: any) => ({
-                    productName: item.productName,
-                    productUrl: item.productUrl,
-                    quantity: item.quantity,
-                    unitPrice: item.unitPrice,
-                    note: item.note,
-                  })) || [],
-                })) || [],
-              }));
-              router.push(`/don-hang/tao-moi?clone=${id}`);
-            } catch (error) {
-              console.error('Failed to prepare clone data:', error);
-              toast?.error('Khong the chuan bi du lieu sao chep');
-            }
-          }}
-          className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
-        >
-          <Copy className="h-4 w-4" />
-          Tao don tuong tu
-        </button>
-      </div>
+      <OrderHeader masterOrder={masterOrder} />
 
       {/* Tabbed 360 View */}
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="w-full justify-start overflow-x-auto flex-wrap h-auto gap-1 p-1">
-          <TabsTrigger value="overview">Tong quan</TabsTrigger>
-          <TabsTrigger value="goods">Hang hoa</TabsTrigger>
-          <TabsTrigger value="finance">Tai chinh</TabsTrigger>
-          <TabsTrigger value="operations">Van hanh</TabsTrigger>
-          <TabsTrigger value="documents">Tai lieu</TabsTrigger>
-          <TabsTrigger value="audit">Nhat ky</TabsTrigger>
+          <TabsTrigger value="overview">Tổng quan</TabsTrigger>
+          <TabsTrigger value="goods">Hàng hóa</TabsTrigger>
+          <TabsTrigger value="finance">Tài chính</TabsTrigger>
+          <TabsTrigger value="operations">Vận hành</TabsTrigger>
+          <TabsTrigger value="project">Dự án</TabsTrigger>
+          <TabsTrigger value="documents">Tài liệu</TabsTrigger>
+          <TabsTrigger value="audit">Nhật ký</TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Overview */}
@@ -632,7 +699,7 @@ export default function MasterOrderDetailPage() {
         {/* Tab 2: Goods - includes full sub-order management */}
         <TabsContent value="goods">
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Don con ({masterOrder.subOrders?.length ?? 0})</h3>
+            <h3 className="text-lg font-semibold">Đơn con ({masterOrder.subOrders?.length ?? 0})</h3>
             {masterOrder.subOrders?.map((subOrder: Order) => {
               const isExpanded = expandedSubOrder === subOrder.id;
               const subStatus = subOrder.status as OrderStatus;
@@ -695,7 +762,12 @@ export default function MasterOrderDetailPage() {
           <OrderOperationsBlock order={masterOrder} />
         </TabsContent>
 
-        {/* Tab 5: Documents */}
+        {/* Tab 5: Project View */}
+        <TabsContent value="project">
+          <OrderProjectTab orderId={id} orderCode={masterOrder.code || id} />
+        </TabsContent>
+
+        {/* Tab 6: Documents */}
         <TabsContent value="documents">
           <OrderDocumentHub
             orderId={id}

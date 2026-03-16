@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import {
   Loader2,
@@ -98,8 +99,8 @@ export default function BaoMatPage() {
       const data = await twoFactorApi.setup2FA();
       setSetupData(data);
       setSetupStep('qr');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Khong the bat dau thiet lap 2FA');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Không thể bắt đầu thiết lập 2FA');
     } finally {
       setIsSettingUp(false);
     }
@@ -111,10 +112,10 @@ export default function BaoMatPage() {
     try {
       await navigator.clipboard.writeText(setupData.secret);
       setSecretCopied(true);
-      toast.success('Da sao chep ma bi mat');
+      toast.success('Đã sao chép mã bí mật');
       setTimeout(() => setSecretCopied(false), 2000);
     } catch {
-      toast.error('Khong the sao chep');
+      toast.error('Không thể sao chép');
     }
   };
 
@@ -127,9 +128,9 @@ export default function BaoMatPage() {
       const result = await twoFactorApi.enable2FA(verifyCode);
       setBackupCodes(result.backupCodes);
       setSetupStep('backup');
-      toast.success('Da bat xac thuc 2 yeu to');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Ma xac thuc khong dung');
+      toast.success('Đã bật xác thực 2 yếu tố');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Mã xác thực không đúng');
       setVerifyCode('');
       verifyInputRef.current?.focus();
     } finally {
@@ -144,12 +145,12 @@ export default function BaoMatPage() {
     setIsSettingUpSms(true);
     try {
       await twoFactorApi.setupSms(phoneNumber);
-      toast.success('Da thiet lap SMS thanh cong');
+      toast.success('Đã thiết lập SMS thành công');
       setShowSmsSetup(false);
       setPhoneNumber('');
       loadStatus();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Khong the thiet lap SMS');
+      toast.error(err.response?.data?.message || 'Không thể thiết lập SMS');
     } finally {
       setIsSettingUpSms(false);
     }
@@ -162,9 +163,9 @@ export default function BaoMatPage() {
       const result = await twoFactorApi.regenerateBackupCodes();
       setRegeneratedCodes(result.backupCodes);
       setShowRegenerateDialog(false);
-      toast.success('Da tao lai ma backup moi');
+      toast.success('Đã tạo lại mã backup mới');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Khong the tao lai ma backup');
+      toast.error(err.response?.data?.message || 'Không thể tạo lại mã backup');
     } finally {
       setIsRegenerating(false);
     }
@@ -196,7 +197,7 @@ export default function BaoMatPage() {
   if (isLoadingStatus) {
     return (
       <div>
-        <PageHeader title="Bao mat tai khoan" description="Quan ly xac thuc 2 yeu to" />
+        <PageHeader title="Bảo mật tài khoản" description="Quản lý xác thực 2 yếu tố" />
         <div className="flex items-center justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -206,7 +207,7 @@ export default function BaoMatPage() {
 
   return (
     <div>
-      <PageHeader title="Bao mat tai khoan" description="Quan ly xac thuc 2 yeu to (2FA)" />
+      <PageHeader title="Bảo mật tài khoản" description="Quản lý xác thực 2 yếu tố (2FA)" />
 
       {/* ================================================================== */}
       {/* Section 1: Current 2FA Status                                       */}
@@ -224,23 +225,23 @@ export default function BaoMatPage() {
                   )}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold">Xac thuc 2 yeu to</h3>
+                  <h3 className="text-lg font-semibold">Xác thực 2 yếu tố</h3>
                   <div className="mt-1 flex items-center gap-2">
                     {status?.is2FAEnabled ? (
-                      <Badge variant="default">Da bat</Badge>
+                      <Badge variant="default">Đã bật</Badge>
                     ) : (
-                      <Badge variant="secondary">Chua bat</Badge>
+                      <Badge variant="secondary">Chưa bật</Badge>
                     )}
                     {status?.preferredMethod && (
                       <span className="text-sm text-muted-foreground">
-                        Phuong thuc: {status.preferredMethod === 'TOTP' ? 'Ung dung xac thuc' : 'SMS'}
+                        Phương thức: {status.preferredMethod === 'TOTP' ? 'Ứng dụng xác thực' : 'SMS'}
                       </span>
                     )}
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
                     {status?.is2FAEnabled
-                      ? 'Tai khoan cua ban duoc bao ve bang xac thuc 2 yeu to.'
-                      : 'Tang cuong bao mat tai khoan bang xac thuc 2 yeu to.'}
+                      ? 'Tài khoản của bạn được bảo vệ bằng xác thực 2 yếu tố.'
+                      : 'Tăng cường bảo mật tài khoản bằng xác thực 2 yếu tố.'}
                   </p>
                 </div>
               </div>
@@ -251,7 +252,7 @@ export default function BaoMatPage() {
                 <Button onClick={handleStartSetup} disabled={isSettingUp}>
                   {isSettingUp && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
                   <Shield className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Thiet lap 2FA
+                  Thiết lập 2FA
                 </Button>
               ) : (
                 <Button
@@ -259,7 +260,7 @@ export default function BaoMatPage() {
                   onClick={() => setShowDisableDialog(true)}
                 >
                   <ShieldOff className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Tat 2FA
+                  Tắt 2FA
                 </Button>
               )}
             </div>
@@ -273,11 +274,11 @@ export default function BaoMatPage() {
                   <Smartphone className="h-6 w-6 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold">Xac thuc qua SMS</h3>
+                  <h3 className="text-lg font-semibold">Xác thực qua SMS</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {status.hasPhoneNumber
-                      ? 'So dien thoai da duoc thiet lap de nhan ma OTP.'
-                      : 'Them so dien thoai de nhan ma OTP qua SMS khi khong co ung dung xac thuc.'}
+                      ? 'Số điện thoại đã được thiết lập để nhận mã OTP.'
+                      : 'Thêm số điện thoại để nhận mã OTP qua SMS khi không có ứng dụng xác thực.'}
                   </p>
 
                   {showSmsSetup ? (
@@ -296,7 +297,7 @@ export default function BaoMatPage() {
                           size="sm"
                         >
                           {isSettingUpSms && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
-                          Xac nhan
+                          Xác nhận
                         </Button>
                         <Button
                           variant="ghost"
@@ -306,7 +307,7 @@ export default function BaoMatPage() {
                             setPhoneNumber('');
                           }}
                         >
-                          Huy
+                          Huỷ
                         </Button>
                       </div>
                     </div>
@@ -318,7 +319,7 @@ export default function BaoMatPage() {
                       onClick={() => setShowSmsSetup(true)}
                     >
                       <Smartphone className="mr-2 h-4 w-4" aria-hidden="true" />
-                      {status.hasPhoneNumber ? 'Cap nhat so dien thoai' : 'Thiet lap SMS'}
+                      {status.hasPhoneNumber ? 'Cập nhật số điện thoại' : 'Thiết lập SMS'}
                     </Button>
                   )}
                 </div>
@@ -329,9 +330,9 @@ export default function BaoMatPage() {
           {/* Backup Codes Management (only show when 2FA is enabled) */}
           {status?.is2FAEnabled && (
             <div className="rounded-lg border bg-card p-6">
-              <h3 className="text-lg font-semibold">Ma backup</h3>
+              <h3 className="text-lg font-semibold">Mã backup</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Ma backup dung khi ban khong the truy cap ung dung xac thuc hoac dien thoai.
+                Mã backup dùng khi bạn không thể truy cập ứng dụng xác thực hoặc điện thoại.
               </p>
 
               {regeneratedCodes ? (
@@ -343,7 +344,7 @@ export default function BaoMatPage() {
                     className="mt-4"
                     onClick={() => setRegeneratedCodes(null)}
                   >
-                    Dong
+                    Đóng
                   </Button>
                 </div>
               ) : (
@@ -354,7 +355,7 @@ export default function BaoMatPage() {
                   onClick={() => setShowRegenerateDialog(true)}
                 >
                   <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Tao lai ma backup
+                  Tạo lại mã backup
                 </Button>
               )}
             </div>
@@ -370,25 +371,27 @@ export default function BaoMatPage() {
       {setupStep === 'qr' && setupData && (
         <div className="max-w-md space-y-6">
           <div className="rounded-lg border bg-card p-6">
-            <h3 className="text-lg font-semibold">Buoc 1: Quet ma QR</h3>
+            <h3 className="text-lg font-semibold">Bước 1: Quét mã QR</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Su dung ung dung xac thuc (Google Authenticator, Authy, ...) de quet ma QR ben duoi.
+              Sử dụng ứng dụng xác thực (Google Authenticator, Authy, ...) để quét mã QR bên dưới.
             </p>
 
             {/* QR Code */}
             <div className="mt-4 flex justify-center">
               <div className="rounded-lg border bg-white p-4">
-                <img
+                <Image
                   src={setupData.qrCodeUrl}
-                  alt="Ma QR thiet lap 2FA"
-                  className="h-48 w-48"
+                  alt="Mã QR thiết lập 2FA"
+                  width={192}
+                  height={192}
+                  unoptimized
                 />
               </div>
             </div>
 
             {/* Manual secret */}
             <div className="mt-4 space-y-2">
-              <p className="text-sm font-medium">Hoac nhap ma thu cong:</p>
+              <p className="text-sm font-medium">Hoặc nhập mã thủ công:</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 rounded-md bg-muted px-3 py-2 text-sm font-mono break-all">
                   {setupData.secret}
@@ -405,10 +408,10 @@ export default function BaoMatPage() {
 
             <div className="mt-6 flex gap-2">
               <Button onClick={() => setSetupStep('verify')}>
-                Tiep tuc
+                Tiếp tục
               </Button>
               <Button variant="ghost" onClick={handleFinishSetup}>
-                Huy
+                Huỷ
               </Button>
             </div>
           </div>
@@ -419,15 +422,15 @@ export default function BaoMatPage() {
       {setupStep === 'verify' && (
         <div className="max-w-md space-y-6">
           <div className="rounded-lg border bg-card p-6">
-            <h3 className="text-lg font-semibold">Buoc 2: Xac minh</h3>
+            <h3 className="text-lg font-semibold">Bước 2: Xác minh</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Nhap ma 6 so tu ung dung xac thuc de hoan tat thiet lap.
+              Nhập mã 6 số từ ứng dụng xác thực để hoàn tất thiết lập.
             </p>
 
             <div className="mt-4 space-y-4">
               <div className="space-y-2">
                 <label htmlFor="verify-code" className="text-sm font-medium">
-                  Ma xac thuc
+                  Mã xác thực
                 </label>
                 <input
                   ref={verifyInputRef}
@@ -455,10 +458,10 @@ export default function BaoMatPage() {
                   disabled={isVerifying || verifyCode.length !== 6}
                 >
                   {isVerifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
-                  Xac nhan va bat 2FA
+                  Xác nhận và bật 2FA
                 </Button>
                 <Button variant="ghost" onClick={() => setSetupStep('qr')}>
-                  Quay lai
+                  Quay lại
                 </Button>
               </div>
             </div>
@@ -470,9 +473,9 @@ export default function BaoMatPage() {
       {setupStep === 'backup' && backupCodes.length > 0 && (
         <div className="max-w-md space-y-6">
           <div className="rounded-lg border bg-card p-6">
-            <h3 className="text-lg font-semibold">Buoc 3: Luu ma backup</h3>
+            <h3 className="text-lg font-semibold">Bước 3: Lưu mã backup</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Luu lai cac ma backup nay. Ban se can chung khi khong the su dung ung dung xac thuc.
+              Lưu lại các mã backup này. Bạn sẽ cần chúng khi không thể sử dụng ứng dụng xác thực.
             </p>
 
             <div className="mt-4">
@@ -482,7 +485,7 @@ export default function BaoMatPage() {
             <div className="mt-6">
               <Button onClick={handleFinishSetup}>
                 <Check className="mr-2 h-4 w-4" aria-hidden="true" />
-                Hoan tat
+                Hoàn tất
               </Button>
             </div>
           </div>
@@ -506,20 +509,20 @@ export default function BaoMatPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-yellow-500" aria-hidden="true" />
-              Tao lai ma backup
+              Tạo lại mã backup
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Cac ma backup cu se khong con su dung duoc. Ban se nhan duoc 10 ma backup moi.
+              Các mã backup cũ sẽ không còn sử dụng được. Bạn sẽ nhận được 10 mã backup mới.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isRegenerating}>Huy</AlertDialogCancel>
+            <AlertDialogCancel disabled={isRegenerating}>Huỷ</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleRegenerateBackupCodes}
               disabled={isRegenerating}
             >
               {isRegenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
-              Tao lai
+              Tạo lại
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

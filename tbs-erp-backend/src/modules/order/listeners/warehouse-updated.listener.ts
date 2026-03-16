@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { OrderService } from '../order.service';
+import { OrderStatusService } from '../order-status.service';
 
 export interface WarehousePackageReceivedEvent {
   packageId: string;
@@ -29,23 +29,38 @@ export interface PackageMeasuredEvent {
 export class WarehouseUpdatedListener {
   private readonly logger = new Logger(WarehouseUpdatedListener.name);
 
-  constructor(private readonly orderService: OrderService) {}
+  constructor(private readonly orderStatusService: OrderStatusService) {}
 
   @OnEvent('warehouse.package.received')
-  async handlePackageReceived(
-    event: WarehousePackageReceivedEvent,
-  ): Promise<void> {
+  async handlePackageReceived(event: WarehousePackageReceivedEvent): Promise<void> {
     this.logger.log(
       `Package ${event.packageId} received at warehouse ${event.warehouse} for order ${event.orderId}`,
     );
 
     try {
-      await this.orderService.recalculateOrderWeights(event.orderId);
+      await this.orderStatusService.recalculateOrderWeights(event.orderId);
     } catch (error) {
       this.logger.error(
         `Failed to recalculate weights for order ${event.orderId}: ${error.message}`,
         error.stack,
       );
+    }
+
+    // Auto-transition SOURCING → WAREHOUSE_CN khi kiện đầu tiên về kho TQ
+    if (event.warehouse === 'CN') {
+      try {
+        const transitioned = await this.orderStatusService.autoTransitionToWarehouseCN(event.orderId);
+        if (transitioned) {
+          this.logger.log(
+            `Order ${event.orderId} auto-transitioned to WAREHOUSE_CN after package ${event.packageId} received`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed auto-transition for order ${event.orderId}: ${error.message}`,
+          error.stack,
+        );
+      }
     }
   }
 
@@ -56,7 +71,7 @@ export class WarehouseUpdatedListener {
     );
 
     try {
-      await this.orderService.recalculateOrderWeights(event.orderId);
+      await this.orderStatusService.recalculateOrderWeights(event.orderId);
     } catch (error) {
       this.logger.error(
         `Failed to recalculate weights for order ${event.orderId}: ${error.message}`,

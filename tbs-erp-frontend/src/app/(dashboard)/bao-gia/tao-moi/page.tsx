@@ -20,9 +20,18 @@ import {
 } from '@/lib/hooks/use-quotations';
 import { apiClient } from '@/lib/api/client';
 import { ServiceType, ShippingRoute, Branch } from '@/lib/types';
-import type { QuotationTemplate, RecentQuotationItem } from '@/lib/types';
+import type { QuotationTemplate, RecentQuotationItem, Quotation, QuotationItem, CreateQuotationItemDto } from '@/lib/types';
 import { SERVICE_TYPE_LABELS, SHIPPING_ROUTE_LABELS, BRANCH_LABELS } from '@/lib/utils/constants';
 import { formatCurrency } from '@/lib/utils/format';
+
+/** Extract error message from axios-style error objects */
+function getApiErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const response = (err as { response?: { data?: { message?: string } } }).response;
+    return response?.data?.message || fallback;
+  }
+  return fallback;
+}
 
 // --- Schema ---
 const quotationItemSchema = z.object({
@@ -146,13 +155,13 @@ function TaoMoiBaoGiaContent() {
   // Pre-fill form data in edit mode
   useEffect(() => {
     if (isEditMode && editQuotation) {
-      const q = editQuotation as any;
+      const q = editQuotation as Quotation;
       setValue('customerId', q.customerId || q.customer?.id || '');
       setValue('serviceType', q.serviceType);
       setValue('branch', q.branch);
       setValue('shippingRoute', q.shippingRoute || undefined);
       setValue('discountPercent', Number(q.discountPercent) || 0);
-      setValue('validityDays', q.validityDays || 30);
+      setValue('validityDays', q.validUntil ? Math.max(1, Math.ceil((new Date(q.validUntil).getTime() - Date.now()) / 86400000)) : 30);
       setValue('note', q.note || '');
       if (q.customer) {
         setSelectedCustomer({
@@ -165,7 +174,7 @@ function TaoMoiBaoGiaContent() {
       }
       if (q.items && q.items.length > 0) {
         replace(
-          q.items.map((item: any) => ({
+          q.items.map((item: QuotationItem) => ({
             productName: item.productName,
             productUrl: item.productUrl || '',
             quantity: item.quantity,
@@ -230,7 +239,7 @@ function TaoMoiBaoGiaContent() {
     }
     if (tpl.items && tpl.items.length > 0) {
       replace(
-        tpl.items.map((item: any) => ({
+        tpl.items.map((item: CreateQuotationItemDto) => ({
           productName: item.productName,
           productUrl: item.productUrl || '',
           quantity: item.quantity,
@@ -309,8 +318,8 @@ function TaoMoiBaoGiaContent() {
           onSuccess: () => {
             router.push(`/bao-gia/${editId}`);
           },
-          onError: (err: any) => {
-            toast.error(err.response?.data?.message || 'Lỗi cập nhật báo giá');
+          onError: (err: unknown) => {
+            toast.error(getApiErrorMessage(err, 'Lỗi cập nhật báo giá'));
           },
         },
       );
@@ -324,8 +333,8 @@ function TaoMoiBaoGiaContent() {
           toast.success('Tạo báo giá thành công');
           router.push('/bao-gia');
         },
-        onError: (err: any) => {
-          toast.error(err.response?.data?.message || 'Lỗi tạo báo giá');
+        onError: (err: unknown) => {
+          toast.error(getApiErrorMessage(err, 'Lỗi tạo báo giá'));
         },
       });
     }
@@ -379,7 +388,7 @@ function TaoMoiBaoGiaContent() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Customer Picker */}
             <div className="space-y-2 sm:col-span-2">
-              <label className="text-sm font-medium">Khách hàng *</label>
+              <p className="text-sm font-medium">Khách hàng *</p>
               {selectedCustomer ? (
                 <div className="flex items-center gap-3 rounded-md border bg-accent/30 p-3">
                   <div className="flex-1">
@@ -466,7 +475,7 @@ function TaoMoiBaoGiaContent() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Loại dịch vụ *</label>
+              <p className="text-sm font-medium">Loại dịch vụ *</p>
               <select
                 {...register('serviceType')}
                 className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -478,7 +487,7 @@ function TaoMoiBaoGiaContent() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Chi nhánh *</label>
+              <p className="text-sm font-medium">Chi nhánh *</p>
               <select
                 {...register('branch')}
                 className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -490,7 +499,7 @@ function TaoMoiBaoGiaContent() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tuyến vận chuyển</label>
+              <p className="text-sm font-medium">Tuyến vận chuyển</p>
               <select
                 {...register('shippingRoute')}
                 className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -503,7 +512,7 @@ function TaoMoiBaoGiaContent() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Giảm giá (%)</label>
+              <p className="text-sm font-medium">Giảm giá (%)</p>
               <input
                 {...register('discountPercent')}
                 type="number"
@@ -521,7 +530,7 @@ function TaoMoiBaoGiaContent() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Hiệu lực (ngày)</label>
+              <p className="text-sm font-medium">Hiệu lực (ngày)</p>
               <input
                 {...register('validityDays')}
                 type="number"
@@ -532,7 +541,7 @@ function TaoMoiBaoGiaContent() {
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Ghi chú</label>
+            <p className="text-sm font-medium">Ghi chú</p>
             <textarea
               {...register('note')}
               rows={2}
@@ -578,7 +587,7 @@ function TaoMoiBaoGiaContent() {
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1 sm:col-span-2">
-                  <label className="text-xs font-medium">Tên sản phẩm *</label>
+                  <p className="text-xs font-medium">Tên sản phẩm *</p>
                   <input
                     {...register(`items.${index}.productName`)}
                     placeholder="Tên sản phẩm / dịch vụ"
@@ -589,7 +598,7 @@ function TaoMoiBaoGiaContent() {
                   )}
                 </div>
                 <div className="space-y-1 sm:col-span-2">
-                  <label className="text-xs font-medium">Link sản phẩm</label>
+                  <p className="text-xs font-medium">Link sản phẩm</p>
                   <div className="flex gap-2">
                     <input
                       {...register(`items.${index}.productUrl`)}
@@ -604,11 +613,11 @@ function TaoMoiBaoGiaContent() {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium">Số lượng *</label>
+                  <p className="text-xs font-medium">Số lượng *</p>
                   <input type="number" min={1} {...register(`items.${index}.quantity`)} className="flex h-9 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium">Đơn giá (VNĐ) *</label>
+                  <p className="text-xs font-medium">Đơn giá (VNĐ) *</p>
                   <input type="number" min={0} {...register(`items.${index}.unitPrice`)} className="flex h-9 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
               </div>

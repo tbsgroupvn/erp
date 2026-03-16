@@ -1,10 +1,8 @@
 import {
   Controller,
   Get,
-  Post,
   Patch,
   Delete,
-  Body,
   Param,
   Query,
   UseGuards,
@@ -47,7 +45,7 @@ export class ContactsController {
   @Get('export/excel')
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 exports per minute
   @Roles('CEO', 'COO', 'MARKETING_STAFF')
-  async exportToExcel(@Query() query: GetContactsDto) {
+  async exportToExcel() {
     // TODO: Implement Excel export
     return { success: true, message: 'Export feature coming soon' };
   }

@@ -126,7 +126,7 @@ export default function LuongPage() {
 
   return (
     <div>
-      <PageHeader title="Bảng lương" description="Quản lý bảng lương nhân viên">
+      <PageHeader title="Bảng lương" description="Quản lý bảng lương nhân viên" infoKey="luong">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

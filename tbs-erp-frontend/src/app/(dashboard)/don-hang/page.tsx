@@ -12,6 +12,7 @@ import {
 } from '@tanstack/react-table';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { ErrorState } from '@/components/shared/error-state';
 import { OrderFilters } from '@/features/orders/order-filters';
 import { masterOrderColumns } from '@/features/orders/order-table-columns';
 import { useMasterOrders } from '@/lib/hooks/use-orders';
@@ -30,7 +31,7 @@ import type { MasterOrderQueryParams, MasterOrder, Order, OrderStatus, ServiceTy
 export default function DonHangPage() {
   const [filters, setFilters] = useState<MasterOrderQueryParams>({});
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useMasterOrders({ ...filters, page, limit: 20 });
+  const { data, isLoading, error, refetch } = useMasterOrders({ ...filters, page, limit: 20 });
 
   const table = useReactTable({
     data: data?.data ?? [],
@@ -42,9 +43,13 @@ export default function DonHangPage() {
 
   const pageCount = data?.meta?.totalPages ?? 0;
 
+  if (error) {
+    return <ErrorState error={error as Error} onRetry={() => void refetch()} />;
+  }
+
   return (
     <div>
-      <PageHeader title="Đơn hàng" description="Quản lý đơn hàng">
+      <PageHeader title="Đơn hàng" description="Quản lý đơn hàng" infoKey="don-hang">
         <Button variant="outline" asChild>
           <Link href="/don-hang/nhap-excel" className="gap-2">
             <FileSpreadsheet className="h-4 w-4" />
@@ -63,11 +68,11 @@ export default function DonHangPage() {
         <OrderFilters onFilterChange={(f) => { setFilters(f as MasterOrderQueryParams); setPage(1); }} />
 
         <div className="space-y-4">
-          <div className="rounded-md border bg-card">
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id} className="border-b bg-muted/50">
+                  <tr key={headerGroup.id} className="border-b bg-gradient-to-r from-muted/50 to-muted/20">
                     {headerGroup.headers.map((header) => (
                       <th
                         key={header.id}
@@ -97,7 +102,7 @@ export default function DonHangPage() {
                 ) : (
                   table.getRowModel().rows.map((row) => (
                     <Fragment key={row.id}>
-                      <tr className="border-b transition-colors hover:bg-muted/50">
+                      <tr className="border-b transition-all duration-200 hover:bg-muted/40">
                         {row.getVisibleCells().map((cell) => (
                           <td key={cell.id} className="px-4 py-3">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -175,8 +180,8 @@ export default function DonHangPage() {
                   onClick={() => setPage(page - 1)}
                   disabled={page <= 1}
                   className={cn(
-                    'inline-flex h-8 w-8 items-center justify-center rounded-md border text-sm',
-                    page <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-accent',
+                    'inline-flex h-9 w-9 items-center justify-center rounded-md border text-sm',
+                    page <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-accent cursor-pointer',
                   )}
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -185,8 +190,8 @@ export default function DonHangPage() {
                   onClick={() => setPage(page + 1)}
                   disabled={page >= pageCount}
                   className={cn(
-                    'inline-flex h-8 w-8 items-center justify-center rounded-md border text-sm',
-                    page >= pageCount ? 'opacity-50 cursor-not-allowed' : 'hover:bg-accent',
+                    'inline-flex h-9 w-9 items-center justify-center rounded-md border text-sm',
+                    page >= pageCount ? 'opacity-50 cursor-not-allowed' : 'hover:bg-accent cursor-pointer',
                   )}
                 >
                   <ChevronRightIcon className="h-4 w-4" />

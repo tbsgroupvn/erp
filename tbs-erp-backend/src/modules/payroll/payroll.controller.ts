@@ -17,7 +17,10 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
@@ -26,12 +29,13 @@ import { PayrollQueryDto, CalculatePayrollDto, ApprovePayrollDto } from './dto/p
 
 @ApiTags('Payroll')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('payroll')
 export class PayrollController {
   constructor(private readonly payrollService: PayrollService) {}
 
   @Post('calculate')
+  @Roles(UserRole.HR_MANAGER, UserRole.CFO, UserRole.CEO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Calculate payroll for a month' })
   @ApiResponse({ status: 200, description: 'Payroll calculated successfully' })
@@ -41,43 +45,36 @@ export class PayrollController {
   }
 
   @Post('approve')
+  @Roles(UserRole.HR_MANAGER, UserRole.CFO, UserRole.CEO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Approve payroll for a month' })
   @ApiResponse({ status: 200, description: 'Payroll approved successfully' })
-  async approvePayroll(
-    @Body() dto: ApprovePayrollDto,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  async approvePayroll(@Body() dto: ApprovePayrollDto, @CurrentUser() user: ICurrentUser) {
     const result = await this.payrollService.approvePayroll(dto.month, dto.year, user.id);
     return BaseResponse.ok(result, 'Payroll approved successfully');
   }
 
   @Get()
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.HR_MANAGER, UserRole.CHIEF_ACCOUNTANT)
   @ApiOperation({ summary: 'List payroll records' })
   @ApiResponse({ status: 200, description: 'Payroll records retrieved successfully' })
   async findAll(@Query() query: PayrollQueryDto) {
     const result = await this.payrollService.findAll(query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get('summary')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.HR_MANAGER, UserRole.CHIEF_ACCOUNTANT)
   @ApiOperation({ summary: 'Get payroll summary for a month' })
   @ApiQuery({ name: 'month', required: true, example: 6 })
   @ApiQuery({ name: 'year', required: true, example: 2025 })
-  async getPayrollSummary(
-    @Query('month') month: number,
-    @Query('year') year: number,
-  ) {
+  async getPayrollSummary(@Query('month') month: number, @Query('year') year: number) {
     const result = await this.payrollService.getPayrollSummary(+month, +year);
     return BaseResponse.ok(result);
   }
 
   @Get(':employeeId/payslip')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.HR_MANAGER, UserRole.CHIEF_ACCOUNTANT)
   @ApiOperation({ summary: 'Get individual payslip' })
   @ApiParam({ name: 'employeeId', description: 'Employee ID' })
   @ApiQuery({ name: 'month', required: true, example: 6 })

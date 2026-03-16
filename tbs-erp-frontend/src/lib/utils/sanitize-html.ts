@@ -1,6 +1,19 @@
 import DOMPurify from 'isomorphic-dompurify';
 
 /**
+ * Sanitize search highlight snippets.
+ * Only <mark> and <strong> are permitted — everything else is stripped.
+ * Use this for server-returned highlight fields rendered with dangerouslySetInnerHTML.
+ */
+export function sanitizeHighlight(dirty: string): string {
+  return DOMPurify.sanitize(dirty, {
+    ALLOWED_TAGS: ['mark', 'strong'],
+    ALLOWED_ATTR: [],
+    ALLOW_DATA_ATTR: false,
+  });
+}
+
+/**
  * Sanitize HTML content to prevent XSS attacks.
  * Uses DOMPurify with a safe default configuration.
  */

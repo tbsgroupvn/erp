@@ -22,7 +22,10 @@ export class CreateVendorDto {
   @IsEmail()
   email?: string;
 
-  @ApiPropertyOptional({ description: 'Full address', example: '123 Huanshi Road, Guangzhou, China' })
+  @ApiPropertyOptional({
+    description: 'Full address',
+    example: '123 Huanshi Road, Guangzhou, China',
+  })
   @IsOptional()
   @IsString()
   address?: string;

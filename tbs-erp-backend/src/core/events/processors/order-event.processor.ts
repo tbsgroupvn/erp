@@ -29,7 +29,7 @@ export class OrderEventProcessor extends WorkerHost {
     const event = job.data;
     this.logger.log(
       `Processing ${event.type} (jobId: ${job.id}, ` +
-      `correlationId: ${event.metadata.correlationId})`,
+        `correlationId: ${event.metadata.correlationId})`,
     );
 
     switch (event.type) {
@@ -103,12 +103,9 @@ export class OrderEventProcessor extends WorkerHost {
   private async handleOrderStatusChanged(
     event: DomainEvent<OrderStatusChangedPayload>,
   ): Promise<void> {
-    const { orderId, orderCode, previousStatus, newStatus, customerId, changedBy } =
-      event.payload;
+    const { orderId, orderCode, previousStatus, newStatus, customerId, changedBy } = event.payload;
 
-    this.logger.log(
-      `Order ${orderCode} status changed: ${previousStatus} -> ${newStatus}`,
-    );
+    this.logger.log(`Order ${orderCode} status changed: ${previousStatus} -> ${newStatus}`);
 
     // 1. Notify the customer about the status change
     this.eventEmitter.emit('notification.send', {

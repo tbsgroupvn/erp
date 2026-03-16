@@ -28,44 +28,59 @@ export class ApprovalEventsListener {
   }) {
     this.logger.log(`Leave requested: ${event.type} for ${event.totalDays} days`);
 
-    // Find the employee's manager
-    const employee = await this.prisma.employee.findUnique({
-      where: { id: event.employeeId },
-      select: { managerId: true, fullName: true, code: true, manager: { select: { userId: true } } },
-    });
-
-    if (employee?.manager?.userId) {
-      await this.notificationService.send({
-        userId: employee.manager.userId,
-        title: 'Leave Request',
-        body: `${employee.fullName} (${employee.code}) has submitted a ${event.type} leave request for ${event.totalDays} day(s).`,
-        type: 'APPROVAL',
-        referenceId: event.leaveId,
+    try {
+      // Find the employee's manager
+      const employee = await this.prisma.employee.findUnique({
+        where: { id: event.employeeId },
+        select: {
+          managerId: true,
+          fullName: true,
+          code: true,
+          manager: { select: { userId: true } },
+        },
       });
+
+      if (employee?.manager?.userId) {
+        await this.notificationService.send({
+          userId: employee.manager.userId,
+          title: 'Leave Request',
+          body: `${employee.fullName} (${employee.code}) has submitted a ${event.type} leave request for ${event.totalDays} day(s).`,
+          type: 'APPROVAL',
+          referenceId: event.leaveId,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to process leave.requested for employee ${event.employeeId}: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
   @OnEvent('leave.approved')
-  async handleLeaveApproved(event: {
-    leaveId: string;
-    employeeId: string;
-    approverId: string;
-  }) {
+  async handleLeaveApproved(event: { leaveId: string; employeeId: string; approverId: string }) {
     this.logger.log(`Leave approved: ${event.leaveId}`);
 
-    const employee = await this.prisma.employee.findUnique({
-      where: { id: event.employeeId },
-      select: { userId: true },
-    });
-
-    if (employee?.userId) {
-      await this.notificationService.send({
-        userId: employee.userId,
-        title: 'Leave Request Approved',
-        body: 'Your leave request has been approved.',
-        type: 'APPROVAL',
-        referenceId: event.leaveId,
+    try {
+      const employee = await this.prisma.employee.findUnique({
+        where: { id: event.employeeId },
+        select: { userId: true },
       });
+
+      if (employee?.userId) {
+        await this.notificationService.send({
+          userId: employee.userId,
+          title: 'Leave Request Approved',
+          body: 'Your leave request has been approved.',
+          type: 'APPROVAL',
+          referenceId: event.leaveId,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to process leave.approved for employee ${event.employeeId}: ${error.message}`,
+        error.stack,
+      );
     }
   }
 }

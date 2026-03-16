@@ -216,9 +216,27 @@ export class HsCodeSuggestionService {
    */
   private extractTokens(productName: string): string[] {
     const stopWords = new Set([
-      'va', 'cac', 'cua', 'cho', 'trong', 'ngoai', 'loai',
-      'the', 'and', 'for', 'with', 'from', 'of', 'in',
-      'voi', 'bang', 'tu', 'den', 'mot', 'hai', 'ba',
+      'va',
+      'cac',
+      'cua',
+      'cho',
+      'trong',
+      'ngoai',
+      'loai',
+      'the',
+      'and',
+      'for',
+      'with',
+      'from',
+      'of',
+      'in',
+      'voi',
+      'bang',
+      'tu',
+      'den',
+      'mot',
+      'hai',
+      'ba',
     ]);
 
     const raw = productName

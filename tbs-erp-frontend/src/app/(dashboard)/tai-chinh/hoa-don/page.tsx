@@ -225,7 +225,7 @@ export default function HoaDonPage() {
 
   return (
     <div>
-      <PageHeader title="Hóa đơn" description="Quản lý hóa đơn">
+      <PageHeader title="Hóa đơn" description="Quản lý hóa đơn" infoKey="hoa-don">
         <Button onClick={() => setShowForm((prev) => !prev)}>
           {showForm ? (
             <>
@@ -311,7 +311,7 @@ export default function HoaDonPage() {
 
               {/* Type */}
               <div className="space-y-2">
-                <Label>Loại hóa đơn *</Label>
+                <p className="text-sm font-medium leading-none">Loại hóa đơn *</p>
                 <Select
                   value={formData.type}
                   onValueChange={(value) =>
@@ -390,7 +390,7 @@ export default function HoaDonPage() {
 
       {/* Status filter */}
       <div className="mb-4 flex items-center gap-2">
-        <Label>Lọc trạng thái:</Label>
+        <p className="text-sm font-medium leading-none">Lọc trạng thái:</p>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Tất cả" />

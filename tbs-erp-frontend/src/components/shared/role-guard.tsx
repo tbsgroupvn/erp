@@ -1,12 +1,13 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import type { UserRole } from '@/lib/types';
 
 interface RoleGuardProps {
   allowedRoles: UserRole[];
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
+  children: ReactNode;
+  fallback?: ReactNode;
 }
 
 export function RoleGuard({

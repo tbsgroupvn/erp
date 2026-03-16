@@ -1,4 +1,13 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, Param, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Get,
+  Param,
+  NotFoundException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { BaseResponse } from '@common/dto/base-response.dto';
 import { Public } from '@common/decorators/public.decorator';
@@ -73,6 +82,40 @@ export class PublicController {
   }
 
   @Public()
+  @Get('service-fees')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get active service fee configs for public pricing page',
+    description:
+      'Public endpoint returning active service fee configurations. Used by the pricing calculator and comparison pages.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Service fee configs retrieved successfully',
+  })
+  async getServiceFees() {
+    const configs = await this.publicService.getPublicServiceFees();
+    return BaseResponse.ok(configs, 'Service fee configs retrieved');
+  }
+
+  @Public()
+  @Get('stats')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get aggregate public stats',
+    description:
+      'Public endpoint returning aggregate counts (customers, completed orders, years of operation) for the website success metrics section.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Stats retrieved successfully',
+  })
+  async getStats() {
+    const stats = await this.publicService.getPublicStats();
+    return BaseResponse.ok(stats, 'Stats retrieved');
+  }
+
+  @Public()
   @Get('tracking/:code')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -93,9 +136,7 @@ export class PublicController {
     const result = await this.publicService.trackByCode(code);
 
     if (!result) {
-      throw new NotFoundException(
-        `Không tìm thấy đơn hàng hoặc container với mã: ${code}`,
-      );
+      throw new NotFoundException(`Không tìm thấy đơn hàng hoặc container với mã: ${code}`);
     }
 
     return BaseResponse.ok(result, 'Tracking information retrieved successfully');

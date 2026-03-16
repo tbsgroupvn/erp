@@ -4,10 +4,7 @@ import { Currency } from '@prisma/client';
 /**
  * Locale and formatting configuration for each supported currency.
  */
-const CURRENCY_CONFIG: Record<
-  Currency,
-  { locale: string; symbol: string; decimals: number }
-> = {
+const CURRENCY_CONFIG: Record<Currency, { locale: string; symbol: string; decimals: number }> = {
   [Currency.VND]: { locale: 'vi-VN', symbol: '₫', decimals: 0 },
   [Currency.CNY]: { locale: 'zh-CN', symbol: '¥', decimals: 2 },
   [Currency.USD]: { locale: 'en-US', symbol: '$', decimals: 2 },
@@ -27,12 +24,28 @@ const CURRENCY_CONFIG: Record<
  */
 export function formatCurrency(amount: number, currency: Currency): string {
   const config = CURRENCY_CONFIG[currency];
-  return new Intl.NumberFormat(config.locale, {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: config.decimals,
-    maximumFractionDigits: config.decimals,
-  }).format(amount);
+  try {
+    return new Intl.NumberFormat(config.locale, {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: config.decimals,
+      maximumFractionDigits: config.decimals,
+    }).format(amount);
+  } catch {
+    // Fallback if the locale is not available on the server environment
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: config.decimals,
+        maximumFractionDigits: config.decimals,
+      }).format(amount);
+    } catch {
+      // Last resort: manual formatting
+      const fixed = amount.toFixed(config.decimals);
+      return `${config.symbol}${fixed}`;
+    }
+  }
 }
 
 /**
@@ -99,10 +112,7 @@ export function convertCurrency(
  * @param currency - The currency determining precision
  * @returns Rounded amount
  */
-export function roundToCurrencyPrecision(
-  amount: number,
-  currency: Currency,
-): number {
+export function roundToCurrencyPrecision(amount: number, currency: Currency): number {
   const config = CURRENCY_CONFIG[currency];
   const factor = Math.pow(10, config.decimals);
   return Math.round(amount * factor) / factor;

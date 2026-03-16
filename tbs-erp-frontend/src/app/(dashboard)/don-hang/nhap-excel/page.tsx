@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, type ChangeEvent, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
@@ -198,7 +198,7 @@ export default function NhapExcelPage() {
   );
 
   const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) processFile(file);
       // Reset input so same file can be selected again
@@ -208,7 +208,7 @@ export default function NhapExcelPage() {
   );
 
   const handleDrop = useCallback(
-    (e: React.DragEvent) => {
+    (e: DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
       const file = e.dataTransfer.files?.[0];
@@ -254,14 +254,15 @@ export default function NhapExcelPage() {
           );
           await masterOrdersApi.create(dto);
           results.push({ index: i, group, success: true });
-        } catch (err: any) {
+        } catch (err: unknown) {
+          const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
           results.push({
             index: i,
             group,
             success: false,
             error:
-              err.response?.data?.message ||
-              err.message ||
+              apiErr.response?.data?.message ||
+              apiErr.message ||
               'Lỗi không xác định',
           });
         }

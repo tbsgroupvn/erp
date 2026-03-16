@@ -2,6 +2,7 @@ import { apiClient } from './client';
 import type { BaseResponse, PaginatedResponse } from '@/lib/types';
 import type {
   Quotation,
+  Order,
   CreateQuotationDto,
   QuotationQueryParams,
   QuotationTemplate,
@@ -57,7 +58,7 @@ export const quotationsApi = {
   /** POST /quotations/:id/convert */
   convertToOrder: (id: string) =>
     apiClient
-      .post<BaseResponse<unknown>>(`/quotations/${id}/convert`)
+      .post<BaseResponse<Order>>(`/quotations/${id}/convert`)
       .then((r) => r.data.data),
 
   /** POST /quotations/:id/duplicate */

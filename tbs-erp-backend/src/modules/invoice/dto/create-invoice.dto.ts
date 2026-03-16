@@ -53,7 +53,8 @@ export class CreateInvoiceDto {
   taxRate?: number;
 
   @ApiPropertyOptional({
-    description: 'Invoice line items with per-item tax types. When provided, totals are computed from items.',
+    description:
+      'Invoice line items with per-item tax types. When provided, totals are computed from items.',
     type: [CreateInvoiceItemDto],
   })
   @IsOptional()

@@ -1,10 +1,28 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Check, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Breadcrumbs } from '@/app/(public)/components/breadcrumbs';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+
+interface ServiceFeeConfigItem {
+  serviceType: string;
+  name: string;
+  customerTier: string | null;
+  feePercent: string | number;
+  minFeeAmount: string | number | null;
+  maxFeeAmount: string | number | null;
+  minOrderValue: string | number | null;
+  maxOrderValue: string | number | null;
+  minQuantity: number | null;
+  productCategory: string | null;
+  priority: number;
+  note: string | null;
+}
 
 const shippingMethods = [
   {
@@ -72,7 +90,17 @@ const shippingMethods = [
   },
 ];
 
-const services = [
+interface ServiceComparisonItem {
+  code: string;
+  name: string;
+  description: string;
+  baseFee: string;
+  serviceFee: string;
+  features: { name: string; included: boolean }[];
+  isPopular?: boolean;
+}
+
+const FALLBACK_SERVICES: ServiceComparisonItem[] = [
   {
     code: 'VCT',
     name: 'Vận chuyển thuần',
@@ -136,8 +164,66 @@ const services = [
   },
 ];
 
+function formatVND(value: number): string {
+  return new Intl.NumberFormat('vi-VN').format(value) + 'đ';
+}
+
+/**
+ * Merge backend service fee configs into the comparison service list.
+ * Updates baseFee (from feePercent) and serviceFee (from minFeeAmount) for each matching serviceType.
+ */
+function mergeApiIntoServices(
+  configs: ServiceFeeConfigItem[],
+  fallback: ServiceComparisonItem[],
+): ServiceComparisonItem[] {
+  // Use general configs (no specific customerTier)
+  const generalConfigs = configs.filter((c) => c.customerTier === null);
+  const configMap = new Map<string, ServiceFeeConfigItem>();
+  for (const cfg of generalConfigs) {
+    // Keep highest priority per serviceType
+    const existing = configMap.get(cfg.serviceType);
+    if (!existing || cfg.priority > existing.priority) {
+      configMap.set(cfg.serviceType, cfg);
+    }
+  }
+
+  return fallback.map((svc) => {
+    const cfg = configMap.get(svc.code);
+    if (!cfg) return svc;
+
+    const minFee = cfg.minFeeAmount != null ? Number(cfg.minFeeAmount) : null;
+    const feePercent = Number(cfg.feePercent);
+
+    return {
+      ...svc,
+      serviceFee: minFee != null ? formatVND(minFee) : svc.serviceFee,
+      baseFee: feePercent > 0 ? `${feePercent}%` : svc.baseFee,
+    };
+  });
+}
+
 export default function ComparisonPage() {
   const breadcrumbItems = [{ label: 'So sánh dịch vụ' }];
+  const [services, setServices] = useState<ServiceComparisonItem[]>(FALLBACK_SERVICES);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchServiceFees() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/public/service-fees`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const configs: ServiceFeeConfigItem[] = json.data;
+        if (!cancelled && Array.isArray(configs) && configs.length > 0) {
+          setServices(mergeApiIntoServices(configs, FALLBACK_SERVICES));
+        }
+      } catch {
+        // Silently fall back to hardcoded values
+      }
+    }
+    fetchServiceFees();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div className="min-h-screen">

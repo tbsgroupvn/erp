@@ -2,11 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  DomainEvent,
-  DomainEventType,
-  PaymentReceivedPayload,
-} from '../domain-events';
+import { DomainEvent, DomainEventType, PaymentReceivedPayload } from '../domain-events';
 import { CostAllocationService } from '@modules/operation-cost/domain/cost-allocation.service';
 
 /**
@@ -35,7 +31,7 @@ export class FinanceEventProcessor extends WorkerHost {
     const event = job.data;
     this.logger.log(
       `Processing ${event.type} (jobId: ${job.id}, ` +
-      `correlationId: ${event.metadata.correlationId})`,
+        `correlationId: ${event.metadata.correlationId})`,
     );
 
     switch (event.type) {
@@ -63,7 +59,7 @@ export class FinanceEventProcessor extends WorkerHost {
         await this.handleArOverdue(event);
         break;
 
-      case 'cost-allocation':
+      case DomainEventType.PAYMENT_ALLOCATED:
         await this.handleCostAllocation(job);
         break;
 
@@ -78,14 +74,10 @@ export class FinanceEventProcessor extends WorkerHost {
    * 2. Update dashboard finance metrics
    * 3. Notify relevant accountant
    */
-  private async handlePaymentReceived(
-    event: DomainEvent<PaymentReceivedPayload>,
-  ): Promise<void> {
+  private async handlePaymentReceived(event: DomainEvent<PaymentReceivedPayload>): Promise<void> {
     const { paymentId, orderId, amount, customerId } = event.payload;
 
-    this.logger.log(
-      `Payment received: ${paymentId} for order ${orderId}, amount: ${amount}`,
-    );
+    this.logger.log(`Payment received: ${paymentId} for order ${orderId}, amount: ${amount}`);
 
     // 1. Forward to order module for deposit gate evaluation
     this.eventEmitter.emit('order.payment.received', {
@@ -185,9 +177,7 @@ export class FinanceEventProcessor extends WorkerHost {
           break;
       }
 
-      this.logger.log(
-        `Cost allocation completed for container ${containerCode} (cost ${costId})`,
-      );
+      this.logger.log(`Cost allocation completed for container ${containerCode} (cost ${costId})`);
     } catch (error) {
       this.logger.error(
         `Cost allocation failed for container ${containerCode}: ${error.message}`,

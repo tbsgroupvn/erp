@@ -15,7 +15,7 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
-import { Prisma, OrderStatus, Currency } from '@prisma/client';
+import { Prisma, OrderStatus } from '@prisma/client';
 import { AppModule } from '../../app.module';
 
 interface MigrationResult {
@@ -214,7 +214,6 @@ class LegacyArMigrationScript {
         report.totalArAmount += outstanding;
         report.arStatusBreakdown[status].count++;
         report.arStatusBreakdown[status].amount += outstanding;
-
       } catch (error) {
         this.logger.error(`  ✗ Failed to process order: ${error.message}`);
         report.results.push({
@@ -297,7 +296,9 @@ class LegacyArMigrationScript {
    * Save rollback information
    */
   private async saveRollbackInfo(record: RollbackRecord): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const path = require('path');
 
     const filePath = path.resolve(process.cwd(), this.ROLLBACK_FILE);
@@ -326,7 +327,9 @@ class LegacyArMigrationScript {
   private async rollback(): Promise<void> {
     this.logger.log('Starting rollback process...');
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const path = require('path');
     const filePath = path.resolve(process.cwd(), this.ROLLBACK_FILE);
 
@@ -392,14 +395,18 @@ class LegacyArMigrationScript {
     this.logger.log('-'.repeat(80));
     this.logger.log(`Total AR Amount Created: ${report.totalArAmount.toFixed(2)} VND`);
     this.logger.log('\nStatus Breakdown:');
-    this.logger.log(`  OPEN:     ${report.arStatusBreakdown.OPEN.count} records, ${report.arStatusBreakdown.OPEN.amount.toFixed(2)} VND`);
-    this.logger.log(`  OVERDUE:  ${report.arStatusBreakdown.OVERDUE.count} records, ${report.arStatusBreakdown.OVERDUE.amount.toFixed(2)} VND`);
+    this.logger.log(
+      `  OPEN:     ${report.arStatusBreakdown.OPEN.count} records, ${report.arStatusBreakdown.OPEN.amount.toFixed(2)} VND`,
+    );
+    this.logger.log(
+      `  OVERDUE:  ${report.arStatusBreakdown.OVERDUE.count} records, ${report.arStatusBreakdown.OVERDUE.amount.toFixed(2)} VND`,
+    );
     this.logger.log('='.repeat(80));
 
     if (report.totalFailed > 0) {
       this.logger.log('\nFailed Orders:');
       this.logger.log('-'.repeat(80));
-      const failures = report.results.filter(r => !r.success);
+      const failures = report.results.filter((r) => !r.success);
       failures.forEach((result, index) => {
         this.logger.log(`\n${index + 1}. Order: ${result.orderCode}`);
         this.logger.log(`   Customer: ${result.customerName}`);

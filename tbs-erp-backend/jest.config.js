@@ -16,7 +16,7 @@ module.exports = {
   coverageDirectory: './coverage',
   testEnvironment: 'node',
   transformIgnorePatterns: [
-    'node_modules/(?!(otplib|@otplib|@noble|@scure)/)',
+    'node_modules/(?!(otplib|@otplib|@noble|@scure|@exodus|isomorphic-dompurify)/)',
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -25,4 +25,9 @@ module.exports = {
     '^@modules/(.*)$': '<rootDir>/src/modules/$1',
   },
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/test/integration/',
+    '<rootDir>/test/load/',
+  ],
 };

@@ -49,7 +49,7 @@ export interface CreatePageDto {
 
 export const pagesApi = {
   list: (filters?: PageFilters) =>
-    apiClient.get<{ data: Page[]; meta: any }>('/cms/pages', { params: filters }),
+    apiClient.get<{ data: Page[]; meta: { total: number; page: number; limit: number; totalPages: number } }>('/cms/pages', { params: filters }),
 
   get: (id: string) =>
     apiClient.get<Page>(`/cms/pages/${id}`),

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
+import { WarehouseCNStatus } from '@prisma/client';
 
 export interface ContainerStatusChangedEvent {
   containerId: string;
@@ -34,9 +35,7 @@ export class ContainerEventListener {
    * update all packages in the container to SHIPPED status.
    */
   @OnEvent('container.departed')
-  async handleContainerDeparted(
-    event: ContainerDepartedEvent,
-  ): Promise<void> {
+  async handleContainerDeparted(event: ContainerDepartedEvent): Promise<void> {
     this.logger.log(
       `Container ${event.containerCode} has departed via ${event.shippingRoute}. ` +
         `Updating package statuses to SHIPPED.`,
@@ -46,10 +45,10 @@ export class ContainerEventListener {
       const result = await this.prisma.package.updateMany({
         where: {
           containerId: event.containerId,
-          warehouseCNStatus: { in: ['PACKED', 'CHECKED'] },
+          warehouseCNStatus: { in: [WarehouseCNStatus.PACKED, WarehouseCNStatus.CHECKED] },
         },
         data: {
-          warehouseCNStatus: 'SHIPPED',
+          warehouseCNStatus: WarehouseCNStatus.SHIPPED,
         },
       });
 
@@ -68,27 +67,32 @@ export class ContainerEventListener {
    * When a container status changes, log for warehouse dashboard tracking.
    */
   @OnEvent('container.status.changed')
-  async handleContainerStatusChanged(
-    event: ContainerStatusChangedEvent,
-  ): Promise<void> {
+  async handleContainerStatusChanged(event: ContainerStatusChangedEvent): Promise<void> {
     this.logger.log(
       `Container ${event.containerCode} status: ${event.fromStatus} -> ${event.toStatus}`,
     );
 
-    // When container starts loading, we could trigger notifications
-    // to warehouse agents about which packages to prepare
-    if (event.toStatus === 'LOADING') {
-      const packages = await this.prisma.package.findMany({
-        where: {
-          containerId: event.containerId,
-          warehouseCNStatus: 'PACKED',
-        },
-        select: { id: true, code: true },
-      });
+    try {
+      // When container starts loading, we could trigger notifications
+      // to warehouse agents about which packages to prepare
+      if (event.toStatus === 'LOADING') {
+        const packages = await this.prisma.package.findMany({
+          where: {
+            containerId: event.containerId,
+            warehouseCNStatus: WarehouseCNStatus.PACKED,
+          },
+          select: { id: true, code: true },
+        });
 
-      this.logger.log(
-        `Container ${event.containerCode} is loading. ` +
-          `${packages.length} packages ready for loading.`,
+        this.logger.log(
+          `Container ${event.containerCode} is loading. ` +
+            `${packages.length} packages ready for loading.`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to process container.status.changed for container ${event.containerId}: ${error.message}`,
+        error.stack,
       );
     }
   }

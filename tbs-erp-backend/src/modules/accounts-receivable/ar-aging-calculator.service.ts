@@ -108,13 +108,10 @@ export class ARAgingCalculatorService {
 
       // Calculate days overdue (considering grace period)
       const effectiveDueDate = new Date(ar.dueDate);
-      effectiveDueDate.setDate(
-        effectiveDueDate.getDate() + customer.gracePeriodDays,
-      );
+      effectiveDueDate.setDate(effectiveDueDate.getDate() + customer.gracePeriodDays);
 
       const daysOverdue = Math.floor(
-        (asOfDate.getTime() - effectiveDueDate.getTime()) /
-          (1000 * 60 * 60 * 24),
+        (asOfDate.getTime() - effectiveDueDate.getTime()) / (1000 * 60 * 60 * 24),
       );
 
       // Classify into bucket
@@ -162,9 +159,7 @@ export class ARAgingCalculatorService {
   /**
    * Calculate aging for all customers (for daily snapshot)
    */
-  async calculateAllCustomersAging(
-    asOfDate: Date = new Date(),
-  ): Promise<CustomerAgingResult[]> {
+  async calculateAllCustomersAging(asOfDate: Date = new Date()): Promise<CustomerAgingResult[]> {
     // Get all customers with open receivables
     const customers = await this.prisma.customer.findMany({
       where: {
@@ -187,16 +182,10 @@ export class ARAgingCalculatorService {
     const results: CustomerAgingResult[] = [];
     for (const customer of customers) {
       try {
-        const result = await this.calculateCustomerAging(
-          customer.id,
-          asOfDate,
-        );
+        const result = await this.calculateCustomerAging(customer.id, asOfDate);
         results.push(result);
       } catch (error) {
-        this.logger.error(
-          `Failed to calculate aging for customer ${customer.id}:`,
-          error,
-        );
+        this.logger.error(`Failed to calculate aging for customer ${customer.id}:`, error);
       }
     }
 
@@ -256,13 +245,8 @@ export class ARAgingCalculatorService {
 
     // Rule 3: More than 60% of debt is 60+ days overdue
     const days60Plus = aging.days61_90 + aging.days90Plus;
-    if (
-      aging.totalOutstanding > 0 &&
-      days60Plus / aging.totalOutstanding > 0.6
-    ) {
-      const percentage = Math.round(
-        (days60Plus / aging.totalOutstanding) * 100,
-      );
+    if (aging.totalOutstanding > 0 && days60Plus / aging.totalOutstanding > 0.6) {
+      const percentage = Math.round((days60Plus / aging.totalOutstanding) * 100);
       return {
         shouldBlock: true,
         reason: `${percentage}% công nợ quá hạn >60 ngày (${days60Plus.toLocaleString('vi-VN')} VND)`,

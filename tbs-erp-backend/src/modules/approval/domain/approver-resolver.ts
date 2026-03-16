@@ -61,18 +61,14 @@ export class ApproverResolver {
   /**
    * Resolve direct manager via User.leaderId.
    */
-  private async resolveDirectManager(
-    userId: string,
-  ): Promise<ResolvedApprover[]> {
+  private async resolveDirectManager(userId: string): Promise<ResolvedApprover[]> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { leaderId: true },
     });
 
     if (!user?.leaderId) {
-      this.logger.warn(
-        `No direct manager found for user ${userId}, falling back to COO`,
-      );
+      this.logger.warn(`No direct manager found for user ${userId}, falling back to COO`);
       return [{ role: UserRole.COO }];
     }
 
@@ -91,9 +87,7 @@ export class ApproverResolver {
   /**
    * Resolve department head based on requester's role group.
    */
-  private async resolveDepartmentHead(
-    userId: string,
-  ): Promise<ResolvedApprover[]> {
+  private async resolveDepartmentHead(userId: string): Promise<ResolvedApprover[]> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { role: true },

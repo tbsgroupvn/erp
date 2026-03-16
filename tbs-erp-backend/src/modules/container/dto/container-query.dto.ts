@@ -1,11 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsEnum,
-  IsOptional,
-  IsString,
-  IsDateString,
-  ValidateIf,
-} from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsDateString, ValidateIf } from 'class-validator';
 import { ShippingRoute } from '@prisma/client';
 import { PaginationDto } from '@common/dto/pagination.dto';
 
@@ -42,7 +36,7 @@ export class ContainerQueryDto extends PaginationDto {
 
   @ApiPropertyOptional({
     description: 'Search by container code or booking reference',
-    example: 'TBS-CNT',
+    example: 'TBS202603',
   })
   @IsOptional()
   @IsString()

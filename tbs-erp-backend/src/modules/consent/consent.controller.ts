@@ -9,13 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
@@ -54,17 +48,10 @@ export class ConsentController {
     @Body() dto: GrantConsentDto,
     @Req() req: Request,
   ) {
-    const ipAddress =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.ip;
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip;
     const userAgent = req.headers['user-agent'];
 
-    const consent = await this.consentService.grantConsent(
-      user.id,
-      dto,
-      ipAddress,
-      userAgent,
-    );
+    const consent = await this.consentService.grantConsent(user.id, dto, ipAddress, userAgent);
     return BaseResponse.ok(consent, 'Consent updated successfully');
   }
 
@@ -83,17 +70,10 @@ export class ConsentController {
     @Body() dto: RevokeConsentDto,
     @Req() req: Request,
   ) {
-    const ipAddress =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.ip;
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip;
     const userAgent = req.headers['user-agent'];
 
-    await this.consentService.revokeConsent(
-      user.id,
-      dto.consentType,
-      ipAddress,
-      userAgent,
-    );
+    await this.consentService.revokeConsent(user.id, dto.consentType, ipAddress, userAgent);
     return BaseResponse.ok(null, 'Consent revoked successfully');
   }
 
@@ -113,8 +93,7 @@ export class ConsentController {
   @DataClass(DataClassification.RESTRICTED)
   @ApiOperation({
     summary: 'Get consent summary for current user',
-    description:
-      'Returns a summary of all consent types and their current status.',
+    description: 'Returns a summary of all consent types and their current status.',
   })
   @ApiResponse({ status: 200, description: 'Consent summary' })
   async getConsentSummary(@CurrentUser() user: ICurrentUser) {
@@ -167,10 +146,7 @@ export class ConsentController {
   @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiParam({ name: 'consentType', description: 'Consent type to check' })
   @ApiResponse({ status: 200, description: 'Consent status boolean' })
-  async hasConsent(
-    @Param('userId') userId: string,
-    @Param('consentType') consentType: string,
-  ) {
+  async hasConsent(@Param('userId') userId: string, @Param('consentType') consentType: string) {
     const hasConsent = await this.consentService.hasConsent(userId, consentType);
     return BaseResponse.ok({ hasConsent });
   }

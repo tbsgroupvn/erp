@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { ComplianceStatus } from '@prisma/client';
 
@@ -64,9 +60,7 @@ export class ComplianceCheckerService {
     });
 
     if (!declaration) {
-      throw new NotFoundException(
-        `Customs declaration with ID ${declarationId} not found`,
-      );
+      throw new NotFoundException(`Customs declaration with ID ${declarationId} not found`);
     }
 
     // Load all active compliance rules
@@ -127,10 +121,7 @@ export class ComplianceCheckerService {
       const declaredValue = Number(line.declaredTotalValue);
       const internalValue = Number(line.internalTotalValue);
 
-      if (
-        internalValue > 0 &&
-        declaredValue < internalValue * this.VALUE_ANOMALY_THRESHOLD
-      ) {
+      if (internalValue > 0 && declaredValue < internalValue * this.VALUE_ANOMALY_THRESHOLD) {
         const alert = await this.prisma.complianceAlert.create({
           data: {
             declarationId,
@@ -251,9 +242,7 @@ export class ComplianceCheckerService {
 
     // Wildcard match: convert pattern to regex
     if (pattern.includes('*')) {
-      const regexStr = '^' + pattern
-        .replace(/\./g, '\\.')
-        .replace(/\*/g, '.*') + '$';
+      const regexStr = '^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$';
       try {
         const regex = new RegExp(regexStr);
         return regex.test(hsCode);

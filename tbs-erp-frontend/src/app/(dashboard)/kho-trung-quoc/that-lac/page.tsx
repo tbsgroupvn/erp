@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, type FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Search, UserPlus, X, Loader2 } from 'lucide-react';
@@ -40,9 +40,9 @@ interface OrphanPackage {
 // ---------------------------------------------------------------------------
 
 const ORPHAN_STATUS_LABELS: Record<string, string> = {
-  UNIDENTIFIED: 'Chua xac dinh',
-  CLAIMED: 'Da nhan vo',
-  DISPOSED: 'Da xu ly',
+  UNIDENTIFIED: 'Chưa xác định',
+  CLAIMED: 'Đã nhận vô',
+  DISPOSED: 'Đã xử lý',
 };
 
 const ORPHAN_STATUS_COLORS: Record<string, string> = {
@@ -91,10 +91,10 @@ function useClaimOrphanPackage() {
         .then((r) => r.data.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['orphan-packages'] });
-      toast.success('Nhan vo kien hang thanh cong');
+      toast.success('Nhận vô kiện hàng thành công');
     },
     onError: () => {
-      toast.error('Khong the nhan vo kien hang');
+      toast.error('Không thể nhận vô kiện hàng');
     },
   });
 }
@@ -115,7 +115,7 @@ function ClaimDialog({
   const [note, setNote] = useState('');
   const claimMutation = useClaimOrphanPackage();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!customerId.trim() || !orderId.trim()) return;
     claimMutation.mutate(
@@ -136,42 +136,42 @@ function ClaimDialog({
       <Card className="w-full max-w-md mx-4">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Nhan vo kien hang</CardTitle>
+            <CardTitle className="text-lg">Nhận vô kiện hàng</CardTitle>
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="h-4 w-4" />
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
-            Ma kien: <span className="font-medium">{orphanPackage.code}</span>
+            Mã kiện: <span className="font-medium">{orphanPackage.code}</span>
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="claim-customer">Ma khach hang *</Label>
+              <Label htmlFor="claim-customer">Mã khách hàng *</Label>
               <Input
                 id="claim-customer"
                 value={customerId}
                 onChange={(e) => setCustomerId(e.target.value)}
-                placeholder="Nhap ma khach hang"
+                placeholder="Nhập mã khách hàng"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="claim-order">Ma don hang *</Label>
+              <Label htmlFor="claim-order">Mã đơn hàng *</Label>
               <Input
                 id="claim-order"
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
-                placeholder="Nhap ma don hang"
+                placeholder="Nhập mã đơn hàng"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="claim-note">Ghi chu</Label>
+              <Label htmlFor="claim-note">Ghi chú</Label>
               <Input
                 id="claim-note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Ghi chu them"
+                placeholder="Ghi chú thêm"
               />
             </div>
             <div className="flex gap-2 pt-2">
@@ -182,10 +182,10 @@ function ClaimDialog({
                 {claimMutation.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Xac nhan nhan vo
+                Xác nhận nhận vô
               </Button>
               <Button type="button" variant="outline" onClick={onClose}>
-                Huy
+                Hủy
               </Button>
             </div>
           </form>
@@ -216,17 +216,17 @@ export default function OrphanPackagesPage() {
   const columns: ColumnDef<OrphanPackage>[] = [
     {
       accessorKey: 'code',
-      header: 'Ma kien',
+      header: 'Mã kiện',
       cell: ({ row }) => <span className="font-medium">{row.original.code}</span>,
     },
     {
       accessorKey: 'trackingNumber',
-      header: 'Ma van don',
+      header: 'Mã vận đơn',
       cell: ({ row }) => <span>{row.original.trackingNumber || '---'}</span>,
     },
     {
       accessorKey: 'description',
-      header: 'Mo ta',
+      header: 'Mô tả',
       cell: ({ row }) => (
         <span className="max-w-[200px] truncate block">
           {row.original.description || '---'}
@@ -235,8 +235,8 @@ export default function OrphanPackagesPage() {
     },
     {
       accessorKey: 'weight',
-      header: 'Trong luong (kg)',
-      cell: ({ row }) => <span>{row.original.weight?.toFixed(2) ?? '---'}</span>,
+      header: 'Trọng lượng (kg)',
+      cell: ({ row }) => <span>{row.original.weight != null ? Number(row.original.weight).toFixed(2) : '---'}</span>,
     },
     {
       accessorKey: 'warehouse',
@@ -250,7 +250,7 @@ export default function OrphanPackagesPage() {
     },
     {
       accessorKey: 'status',
-      header: 'Trang thai',
+      header: 'Trạng thái',
       cell: ({ row }) => (
         <StatusBadge
           label={ORPHAN_STATUS_LABELS[row.original.status] || row.original.status}
@@ -260,12 +260,12 @@ export default function OrphanPackagesPage() {
     },
     {
       accessorKey: 'createdAt',
-      header: 'Ngay tao',
+      header: 'Ngày tạo',
       cell: ({ row }) => <span>{formatDate(row.original.createdAt)}</span>,
     },
     {
       id: 'actions',
-      header: 'Thao tac',
+      header: 'Thao tác',
       cell: ({ row }) => {
         if (row.original.status !== 'UNIDENTIFIED') return null;
         return (
@@ -275,7 +275,7 @@ export default function OrphanPackagesPage() {
             onClick={() => setClaimingPackage(row.original)}
           >
             <UserPlus className="mr-1 h-3.5 w-3.5" />
-            Nhan vo
+            Nhận vô
           </Button>
         );
       },
@@ -285,15 +285,15 @@ export default function OrphanPackagesPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Kien hang that lac"
-        description="Quan ly kien hang vo chu / that lac tai kho"
+        title="Kiện hàng thất lạc"
+        description="Quản lý kiện hàng vô chủ / thất lạc tại kho"
       />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <Label htmlFor="orphan-status-filter" className="whitespace-nowrap text-sm">
-            Trang thai:
+            Trạng thái:
           </Label>
           <select
             id="orphan-status-filter"
@@ -304,10 +304,10 @@ export default function OrphanPackagesPage() {
             }}
             className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <option value="">Tat ca</option>
-            <option value="UNIDENTIFIED">Chua xac dinh</option>
-            <option value="CLAIMED">Da nhan vo</option>
-            <option value="DISPOSED">Da xu ly</option>
+            <option value="">Tất cả</option>
+            <option value="UNIDENTIFIED">Chưa xác định</option>
+            <option value="CLAIMED">Đã nhận vô</option>
+            <option value="DISPOSED">Đã xử lý</option>
           </select>
         </div>
 
@@ -324,7 +324,7 @@ export default function OrphanPackagesPage() {
             }}
             className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <option value="">Tat ca</option>
+            <option value="">Tất cả</option>
             <option value="CN">Kho TQ</option>
             <option value="VN">Kho VN</option>
           </select>
@@ -339,7 +339,7 @@ export default function OrphanPackagesPage() {
                 setSearchQuery(e.target.value);
                 setPage(1);
               }}
-              placeholder="Tim kiem ma kien, ma van don..."
+              placeholder="Tìm kiếm mã kiện, mã vận đơn..."
               className="pl-9 h-9 w-64"
             />
           </div>

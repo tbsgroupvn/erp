@@ -1,0 +1,19 @@
+# ============================================
+# ERP Database Maintenance Cron Jobs
+# Add to server crontab: crontab -e
+# ============================================
+
+# Archive audit logs older than 6 months (every Sunday 3:00 AM)
+0 3 * * 0 cd /opt/tbs-erp && ./scripts/archive-audit-logs.sh >> /var/log/erp-archive.log 2>&1
+
+# Clean AR aging snapshots older than 90 days (1st of each month 4:00 AM)
+0 4 1 * * cd /opt/tbs-erp && ./scripts/cleanup-aging-snapshots.sh >> /var/log/erp-cleanup.log 2>&1
+
+# Clean old notifications (daily 2:00 AM)
+0 2 * * * cd /opt/tbs-erp && ./scripts/cleanup-notifications.sh >> /var/log/erp-cleanup.log 2>&1
+
+# Auto-create next month partitions (25th of each month midnight)
+0 0 25 * * cd /opt/tbs-erp && ./scripts/create-partitions.sh >> /var/log/erp-partitions.log 2>&1
+
+# Database backup (daily 2:00 AM) - already in DEPLOY.md
+0 2 * * * cd /opt/tbs-erp && docker compose -f docker-compose.selfhost.yml exec -T postgres pg_dump -U erp_user erp_db | gzip > /opt/backups/daily_$(date +\%Y\%m\%d).sql.gz

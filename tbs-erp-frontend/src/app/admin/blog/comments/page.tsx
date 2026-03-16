@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { blogCommentsApi, BlogComment } from '@/lib/api/cms';
+import { blogCommentsApi, BlogComment, BlogCommentFilters } from '@/lib/api/cms';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +26,7 @@ export default function BlogCommentsPage() {
     queryKey: ['blog-comments', { status }],
     queryFn: () =>
       blogCommentsApi.getAll({
-        status: status !== 'all' ? (status as any) : undefined,
+        status: status !== 'all' ? (status as BlogCommentFilters['status']) : undefined,
         limit: 100,
       }),
   });

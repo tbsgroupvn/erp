@@ -20,11 +20,12 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginated } from '@common/decorators/api-paginated.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
-import { ResolutionType } from '@prisma/client';
+import { ResolutionType, UserRole } from '@prisma/client';
 import { ComplaintService } from './complaint.service';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
@@ -38,6 +39,7 @@ export class ComplaintController {
   constructor(private readonly complaintService: ComplaintService) {}
 
   @Post()
+  @Roles(UserRole.CSKH, UserRole.SALE, UserRole.SALES_LEADER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new complaint',
@@ -47,18 +49,13 @@ export class ComplaintController {
   @ApiResponse({ status: 201, description: 'Complaint created successfully' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 404, description: 'Order or customer not found' })
-  async create(
-    @Body() dto: CreateComplaintDto,
-    @CurrentUser() user: ICurrentUser,
-  ) {
-    const complaint = await this.complaintService.createComplaint(
-      user.id,
-      dto,
-    );
+  async create(@Body() dto: CreateComplaintDto, @CurrentUser() user: ICurrentUser) {
+    const complaint = await this.complaintService.createComplaint(user.id, dto);
     return BaseResponse.ok(complaint, 'Complaint created successfully');
   }
 
   @Get()
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.DIRECTOR_OPERATIONS)
   @ApiOperation({
     summary: 'List complaints',
     description:
@@ -68,15 +65,11 @@ export class ComplaintController {
   @ApiResponse({ status: 200, description: 'Complaints retrieved successfully' })
   async findAll(@Query() query: ComplaintQueryDto) {
     const result = await this.complaintService.findAll(query);
-    return PaginatedResponse.paginate(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get('statistics')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.DIRECTOR_OPERATIONS)
   @ApiOperation({
     summary: 'Get complaint statistics',
     description:
@@ -93,10 +86,7 @@ export class ComplaintController {
     description: 'End date (ISO 8601)',
   })
   @ApiResponse({ status: 200, description: 'Statistics retrieved' })
-  async getStatistics(
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-  ) {
+  async getStatistics(@Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
     const stats = await this.complaintService.getStatistics({
       startDate,
       endDate,
@@ -105,10 +95,10 @@ export class ComplaintController {
   }
 
   @Get(':id')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.DIRECTOR_OPERATIONS)
   @ApiOperation({
     summary: 'Get complaint detail',
-    description:
-      'Returns full complaint details including order and customer info.',
+    description: 'Returns full complaint details including order and customer info.',
   })
   @ApiParam({ name: 'id', description: 'Complaint ID' })
   @ApiResponse({ status: 200, description: 'Complaint retrieved successfully' })
@@ -119,6 +109,7 @@ export class ComplaintController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.CEO, UserRole.COO)
   @ApiOperation({
     summary: 'Update a complaint',
     description:
@@ -128,37 +119,29 @@ export class ComplaintController {
   @ApiResponse({ status: 200, description: 'Complaint updated successfully' })
   @ApiResponse({ status: 400, description: 'Complaint cannot be updated' })
   @ApiResponse({ status: 404, description: 'Complaint not found' })
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateComplaintDto,
-  ) {
+  async update(@Param('id') id: string, @Body() dto: UpdateComplaintDto) {
     const complaint = await this.complaintService.updateComplaint(id, dto);
     return BaseResponse.ok(complaint, 'Complaint updated successfully');
   }
 
   @Post(':id/assign')
+  @Roles(UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.CEO, UserRole.COO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Assign complaint handler',
-    description:
-      'Assigns a complaint to a specific employee for handling.',
+    description: 'Assigns a complaint to a specific employee for handling.',
   })
   @ApiParam({ name: 'id', description: 'Complaint ID' })
   @ApiResponse({ status: 200, description: 'Handler assigned successfully' })
   @ApiResponse({ status: 400, description: 'Cannot assign to resolved/closed complaint' })
   @ApiResponse({ status: 404, description: 'Complaint not found' })
-  async assignHandler(
-    @Param('id') id: string,
-    @Body('handlerId') handlerId: string,
-  ) {
-    const complaint = await this.complaintService.assignHandler(
-      id,
-      handlerId,
-    );
+  async assignHandler(@Param('id') id: string, @Body('handlerId') handlerId: string) {
+    const complaint = await this.complaintService.assignHandler(id, handlerId);
     return BaseResponse.ok(complaint, 'Handler assigned successfully');
   }
 
   @Post(':id/resolve')
+  @Roles(UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.CEO, UserRole.COO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Resolve a complaint',
@@ -183,6 +166,7 @@ export class ComplaintController {
   }
 
   @Post(':id/escalate')
+  @Roles(UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.CEO, UserRole.COO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Escalate a complaint',
@@ -193,10 +177,7 @@ export class ComplaintController {
   @ApiResponse({ status: 200, description: 'Complaint escalated' })
   @ApiResponse({ status: 400, description: 'Cannot escalate resolved/closed complaint' })
   @ApiResponse({ status: 404, description: 'Complaint not found' })
-  async escalate(
-    @Param('id') id: string,
-    @Body('level') level: string,
-  ) {
+  async escalate(@Param('id') id: string, @Body('level') level: string) {
     const complaint = await this.complaintService.escalateComplaint(id, level);
     return BaseResponse.ok(complaint, `Complaint escalated to ${level}`);
   }

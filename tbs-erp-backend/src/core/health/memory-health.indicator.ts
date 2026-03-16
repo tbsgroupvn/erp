@@ -1,9 +1,5 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import {
-  HealthIndicator,
-  HealthIndicatorResult,
-  HealthCheckError,
-} from '@nestjs/terminus';
+import { HealthIndicator, HealthIndicatorResult, HealthCheckError } from '@nestjs/terminus';
 import { MetricsService } from '@core/metrics/metrics.service';
 
 /**
@@ -87,8 +83,7 @@ export class MemoryHealthIndicator
     const heapUsedPercent = heapStats.heapUsedPercent;
 
     const isHeapHealthy = heapUsedPercent < this.HEAP_THRESHOLD_PERCENT;
-    const isEventLoopHealthy =
-      this.currentEventLoopLag < this.EVENT_LOOP_LAG_THRESHOLD_MS;
+    const isEventLoopHealthy = this.currentEventLoopLag < this.EVENT_LOOP_LAG_THRESHOLD_MS;
     const isHealthy = isHeapHealthy && isEventLoopHealthy;
 
     const details = {
@@ -127,7 +122,6 @@ export class MemoryHealthIndicator
    */
   private sampleMetrics(): void {
     const memUsage = process.memoryUsage();
-    const heapStats = this.getHeapStats();
 
     // Export to Prometheus
     this.metricsService.memoryHeapUsed.set(memUsage.heapUsed);
@@ -147,9 +141,7 @@ export class MemoryHealthIndicator
    */
   private trackHeapGrowth(currentHeapUsed: number): void {
     const previousHeap =
-      this.heapHistory.length > 0
-        ? this.heapHistory[this.heapHistory.length - 1]
-        : 0;
+      this.heapHistory.length > 0 ? this.heapHistory[this.heapHistory.length - 1] : 0;
 
     this.heapHistory.push(currentHeapUsed);
 
@@ -167,10 +159,7 @@ export class MemoryHealthIndicator
     }
 
     // Warn on suspected leak
-    if (
-      this.consecutiveGrowth >= this.LEAK_DETECTION_WINDOW &&
-      !this.leakWarningIssued
-    ) {
+    if (this.consecutiveGrowth >= this.LEAK_DETECTION_WINDOW && !this.leakWarningIssued) {
       const growthMB =
         (currentHeapUsed - this.heapHistory[this.heapHistory.length - this.LEAK_DETECTION_WINDOW]) /
         1024 /

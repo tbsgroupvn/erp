@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { ContractStatus, ContractType, Prisma } from '@prisma/client';
@@ -15,9 +10,17 @@ import { ContractQueryDto } from './dto/contract-query.dto';
 /** Valid status transitions */
 const STATUS_TRANSITIONS: Record<ContractStatus, ContractStatus[]> = {
   [ContractStatus.DRAFT]: [ContractStatus.PENDING_SIGNATURE, ContractStatus.CANCELLED],
-  [ContractStatus.PENDING_SIGNATURE]: [ContractStatus.SIGNED, ContractStatus.DRAFT, ContractStatus.CANCELLED],
+  [ContractStatus.PENDING_SIGNATURE]: [
+    ContractStatus.SIGNED,
+    ContractStatus.DRAFT,
+    ContractStatus.CANCELLED,
+  ],
   [ContractStatus.SIGNED]: [ContractStatus.ACTIVE],
-  [ContractStatus.ACTIVE]: [ContractStatus.COMPLETED, ContractStatus.SUSPENDED, ContractStatus.SETTLED],
+  [ContractStatus.ACTIVE]: [
+    ContractStatus.COMPLETED,
+    ContractStatus.SUSPENDED,
+    ContractStatus.SETTLED,
+  ],
   [ContractStatus.SUSPENDED]: [ContractStatus.ACTIVE, ContractStatus.CANCELLED],
   [ContractStatus.SETTLED]: [ContractStatus.COMPLETED],
   [ContractStatus.COMPLETED]: [],
@@ -49,10 +52,7 @@ export class ContractService {
 
     let sequence = 1;
     if (latestContract) {
-      const lastSequence = parseInt(
-        latestContract.code.split('-').pop() || '0',
-        10,
-      );
+      const lastSequence = parseInt(latestContract.code.split('-').pop() || '0', 10);
       sequence = lastSequence + 1;
     }
 
@@ -293,7 +293,8 @@ export class ContractService {
     if (dto.effectiveDate !== undefined) updateData.effectiveDate = new Date(dto.effectiveDate);
     if (dto.expiryDate !== undefined) updateData.expiryDate = new Date(dto.expiryDate);
     if (dto.totalValue !== undefined) updateData.totalValue = new Decimal(dto.totalValue);
-    if (dto.depositRequired !== undefined) updateData.depositRequired = new Decimal(dto.depositRequired);
+    if (dto.depositRequired !== undefined)
+      updateData.depositRequired = new Decimal(dto.depositRequired);
     if (dto.currency !== undefined) updateData.currency = dto.currency;
     if (dto.terms !== undefined) updateData.terms = dto.terms;
     if (dto.note !== undefined) updateData.note = dto.note;
@@ -448,7 +449,7 @@ export class ContractService {
     const terms = `Phụ lục hợp đồng tạo từ báo giá ${quotation.code}\n\nDanh sách hàng hóa/dịch vụ:\n${itemsSummary}`;
 
     // Find or create parent master contract for this customer
-    let parentContract = await this.prisma.contract.findFirst({
+    const parentContract = await this.prisma.contract.findFirst({
       where: {
         customerId: quotation.customerId,
         type: ContractType.MASTER,
@@ -500,9 +501,7 @@ export class ContractService {
       createdBy: approvedBy,
     });
 
-    this.logger.log(
-      `Contract appendix ${code} auto-created from quotation ${quotation.code}`,
-    );
+    this.logger.log(`Contract appendix ${code} auto-created from quotation ${quotation.code}`);
 
     return appendix;
   }

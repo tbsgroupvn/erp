@@ -1,19 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DollarSign, X } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable } from '@/components/shared/data-table';
+import { ErrorState } from '@/components/shared/error-state';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { useReceivables, useRecordArPayment } from '@/lib/hooks/use-finance';
-import { PaymentMethod } from '@/lib/types/enums';
-import { PAYMENT_METHOD_LABELS } from '@/lib/utils/constants';
 import { formatCurrency, formatDate } from '@/lib/utils/format';
+import { cn } from '@/lib/utils/cn';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { AccountReceivable } from '@/lib/types';
+import dynamic from 'next/dynamic';
+
+const TabBuTru = dynamic(
+  () => import('./_components/tab-bu-tru').then((m) => m.TabBuTru),
+  { loading: () => <div className="py-12 text-center text-sm text-muted-foreground">Đang tải...</div> },
+);
+
+const TabChuaPhanBo = dynamic(
+  () => import('./_components/tab-chua-phan-bo').then((m) => m.TabChuaPhanBo),
+  { loading: () => <div className="py-12 text-center text-sm text-muted-foreground">Đang tải...</div> },
+);
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 const AR_STATUS_LABELS: Record<string, string> = {
   OPEN: 'Chưa thu',
@@ -33,28 +49,38 @@ const AR_STATUS_COLORS: Record<string, string> = {
 
 const paymentSchema = z.object({
   amount: z.coerce.number().min(1, 'Số tiền phải > 0'),
-  paymentMethod: z.nativeEnum(PaymentMethod),
   reference: z.string().optional(),
-  notes: z.string().optional(),
+  note: z.string().optional(),
 });
 
 type PaymentFormData = z.infer<typeof paymentSchema>;
 
-export default function CongNoPhaiBaiThuPage() {
+// ---------------------------------------------------------------------------
+// Tab definitions
+// ---------------------------------------------------------------------------
+
+const TABS = [
+  { key: 'default', label: 'Công nợ phải thu' },
+  { key: 'bu-tru', label: 'Bù trừ công nợ' },
+  { key: 'chua-phan-bo', label: 'Chưa phân bổ' },
+] as const;
+
+type TabKey = (typeof TABS)[number]['key'];
+
+// ---------------------------------------------------------------------------
+// AR table (default tab content)
+// ---------------------------------------------------------------------------
+
+function ArContent() {
   const [page, setPage] = useState(1);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [payingBalance, setPayingBalance] = useState(0);
-  const { data, isLoading } = useReceivables({ page, limit: 20 });
+  const { data, isLoading, error, refetch } = useReceivables({ page, limit: 20 });
   const recordPayment = useRecordArPayment();
 
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
-    defaultValues: {
-      amount: 0,
-      paymentMethod: PaymentMethod.BANK_TRANSFER,
-      reference: '',
-      notes: '',
-    },
+    defaultValues: { amount: 0, reference: '', note: '' },
   });
 
   const onSubmit = (formData: PaymentFormData) => {
@@ -64,9 +90,8 @@ export default function CongNoPhaiBaiThuPage() {
         id: payingId,
         data: {
           amount: formData.amount,
-          paymentMethod: formData.paymentMethod,
           reference: formData.reference || undefined,
-          notes: formData.notes || undefined,
+          note: formData.note || undefined,
         },
       },
       {
@@ -78,11 +103,15 @@ export default function CongNoPhaiBaiThuPage() {
     );
   };
 
+  if (error) {
+    return <ErrorState error={error as Error} onRetry={() => void refetch()} />;
+  }
+
   const openPayment = (ar: AccountReceivable) => {
     const remaining = ar.amount - ar.paidAmount;
     setPayingId(ar.id);
     setPayingBalance(remaining);
-    form.reset({ amount: remaining, paymentMethod: PaymentMethod.BANK_TRANSFER, reference: '', notes: '' });
+    form.reset({ amount: remaining, reference: '', note: '' });
   };
 
   const arColumns: ColumnDef<AccountReceivable>[] = [
@@ -110,7 +139,11 @@ export default function CongNoPhaiBaiThuPage() {
       header: 'Còn lại',
       cell: ({ row }) => {
         const remaining = row.original.amount - row.original.paidAmount;
-        return <span className={remaining > 0 ? 'text-red-600 font-medium' : ''}>{formatCurrency(remaining)}</span>;
+        return (
+          <span className={remaining > 0 ? 'text-red-600 font-medium' : ''}>
+            {formatCurrency(remaining)}
+          </span>
+        );
       },
     },
     {
@@ -150,82 +183,82 @@ export default function CongNoPhaiBaiThuPage() {
 
   return (
     <div>
-      <PageHeader title="Công nợ phải thu" description="Quản lý công nợ phải thu từ khách hàng" />
-
-      {/* Record Payment Form */}
       {payingId && (
-        <div className="mb-6 rounded-lg border bg-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Ghi nhận thanh toán</h3>
+        <div className="mb-6 section-card">
+          <div className="section-card-header flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground/80">Ghi nhận thanh toán</h3>
             <button
               type="button"
               onClick={() => { setPayingId(null); form.reset(); }}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            Số tiền còn lại: <span className="font-medium text-red-600">{formatCurrency(payingBalance)}</span>
-          </p>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <label className="text-sm font-medium">Số tiền thu *</label>
-                <input
-                  type="number"
-                  {...form.register('amount')}
-                  className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                />
-                {form.formState.errors.amount && (
-                  <p className="text-xs text-destructive mt-1">{form.formState.errors.amount.message}</p>
-                )}
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Số tiền còn lại:{' '}
+              <span className="font-medium text-red-600">{formatCurrency(payingBalance)}</span>
+            </p>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div>
+                  <label htmlFor="ar-payment-amount" className="text-sm font-medium">
+                    Số tiền thu *
+                  </label>
+                  <input
+                    id="ar-payment-amount"
+                    type="number"
+                    {...form.register('amount')}
+                    className="mt-1 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                  {form.formState.errors.amount && (
+                    <p className="text-xs text-destructive mt-1">
+                      {form.formState.errors.amount.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="ar-payment-reference" className="text-sm font-medium">
+                    Mã tham chiếu
+                  </label>
+                  <input
+                    id="ar-payment-reference"
+                    {...form.register('reference')}
+                    placeholder="Mã GD ngân hàng..."
+                    className="mt-1 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="ar-payment-note" className="text-sm font-medium">
+                    Ghi chú
+                  </label>
+                  <input
+                    id="ar-payment-note"
+                    {...form.register('note')}
+                    placeholder="Ghi chú..."
+                    className="mt-1 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium">Phương thức *</label>
-                <select
-                  {...form.register('paymentMethod')}
-                  className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={recordPayment.isPending}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-sm"
                 >
-                  {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
+                  {recordPayment.isPending ? 'Đang xử lý...' : 'Ghi nhận thanh toán'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setPayingId(null); form.reset(); }}
+                  className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-accent transition-colors"
+                >
+                  Hủy
+                </button>
               </div>
-              <div>
-                <label className="text-sm font-medium">Mã tham chiếu</label>
-                <input
-                  {...form.register('reference')}
-                  placeholder="Mã GD ngân hàng..."
-                  className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Ghi chú</label>
-                <input
-                  {...form.register('notes')}
-                  placeholder="Ghi chú..."
-                  className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={recordPayment.isPending}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-              >
-                {recordPayment.isPending ? 'Đang xử lý...' : 'Ghi nhận thanh toán'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setPayingId(null); form.reset(); }}
-                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
-              >
-                Hủy
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
 
@@ -238,5 +271,60 @@ export default function CongNoPhaiBaiThuPage() {
         isLoading={isLoading}
       />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page with tab navigation
+// ---------------------------------------------------------------------------
+
+function CongNoPhaiBaiThuPageInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const activeTab = (searchParams.get('tab') ?? 'default') as TabKey;
+
+  const setTab = (tab: TabKey) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === 'default') params.delete('tab');
+    else params.set('tab', tab);
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  return (
+    <div>
+      <PageHeader title="Công nợ phải thu" description="Quản lý công nợ phải thu từ khách hàng" infoKey="cong-no-phai-thu" />
+
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b mb-6">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={cn(
+              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+              activeTab === t.key
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      {activeTab === 'default' && <ArContent />}
+      {activeTab === 'bu-tru' && <TabBuTru />}
+      {activeTab === 'chua-phan-bo' && <TabChuaPhanBo />}
+    </div>
+  );
+}
+
+export default function CongNoPhaiBaiThuPage() {
+  return (
+    <Suspense fallback={<div className="py-12 text-center text-sm text-muted-foreground">Đang tải...</div>}>
+      <CongNoPhaiBaiThuPageInner />
+    </Suspense>
   );
 }

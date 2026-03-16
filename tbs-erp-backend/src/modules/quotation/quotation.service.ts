@@ -8,10 +8,13 @@ import {
 import { Cron } from '@nestjs/schedule';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
-import { QuotationStatus, OrderStatus, Prisma } from '@prisma/client';
+import { QuotationStatus, OrderStatus, QuoteMode, ServiceType, Currency, Prisma, Branch } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { ICurrentUser } from '@common/interfaces/current-user.interface';
+import { buildDateFilter } from '@common/utils/date.util';
+import { generateCode } from '@common/utils/code-generator.util';
 import { ContractService } from '@modules/contract/contract.service';
+import { RateCardService } from '@modules/rate-card/rate-card.service';
+import { ExchangeRateService } from '@modules/exchange-rate/exchange-rate.service';
 import { QuotationStatusMachine } from './domain/quotation-status.machine';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { UpdateQuotationDto } from './dto/update-quotation.dto';
@@ -21,6 +24,7 @@ import {
   SaveAsTemplateDto,
   CreateFromTemplateDto,
 } from './dto/quotation-template.dto';
+import { QuickQuoteDto } from './dto/quick-quote.dto';
 
 const TAX_RATE = 0.1; // 10% VAT
 
@@ -33,32 +37,19 @@ export class QuotationService {
     private readonly eventEmitter: EventEmitter2,
     private readonly contractService: ContractService,
     private readonly statusMachine: QuotationStatusMachine,
+    private readonly rateCardService: RateCardService,
+    private readonly exchangeRateService: ExchangeRateService,
   ) {}
 
   /**
    * Generates the next quotation code in the format QUO-YYYYMM-XXXX.
    */
   private async generateQuotationCode(): Promise<string> {
-    const now = new Date();
-    const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const prefix = `QUO-${yearMonth}`;
-
-    const latestQuotation = await this.prisma.quotation.findFirst({
-      where: { code: { startsWith: prefix } },
-      orderBy: { code: 'desc' },
-      select: { code: true },
+    return generateCode(this.prisma.quotation, {
+      prefix: 'QUO',
+      datePrefixFormat: 'YYYYMM',
+      sequenceLength: 4,
     });
-
-    let sequence = 1;
-    if (latestQuotation) {
-      const lastSequence = parseInt(
-        latestQuotation.code.split('-').pop() || '0',
-        10,
-      );
-      sequence = lastSequence + 1;
-    }
-
-    return `${prefix}-${String(sequence).padStart(4, '0')}`;
   }
 
   /**
@@ -82,22 +73,15 @@ export class QuotationService {
     });
 
     if (!customer) {
-      throw new NotFoundException(
-        `Customer with ID ${dto.customerId} not found`,
-      );
+      throw new NotFoundException(`Customer with ID ${dto.customerId} not found`);
     }
 
     if (!customer.isActive) {
-      throw new BadRequestException(
-        `Customer ${customer.code} is inactive`,
-      );
+      throw new BadRequestException(`Customer ${customer.code} is inactive`);
     }
 
     // Calculate totals
-    const subtotal = dto.items.reduce(
-      (sum, item) => sum + item.quantity * item.unitPrice,
-      0,
-    );
+    const subtotal = dto.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
     const discountPercent = dto.discountPercent ?? 0;
     const discountAmount = subtotal * (discountPercent / 100);
@@ -106,10 +90,7 @@ export class QuotationService {
     const totalAmount = afterDiscount + taxAmount;
 
     // Determine initial status
-    const status =
-      discountPercent > 0
-        ? QuotationStatus.PENDING_APPROVAL
-        : QuotationStatus.DRAFT;
+    const status = discountPercent > 0 ? QuotationStatus.PENDING_APPROVAL : QuotationStatus.DRAFT;
 
     // Generate code
     const code = await this.generateQuotationCode();
@@ -178,9 +159,7 @@ export class QuotationService {
       createdBy: userId,
     });
 
-    this.logger.log(
-      `Quotation ${code} created for customer ${customer.code} by user ${userId}`,
-    );
+    this.logger.log(`Quotation ${code} created for customer ${customer.code} by user ${userId}`);
 
     return quotation;
   }
@@ -200,8 +179,10 @@ export class QuotationService {
     }
 
     // Only DRAFT and REJECTED can transition (i.e. are editable)
-    if (this.statusMachine.isTerminal(quotation.status) ||
-        (quotation.status !== QuotationStatus.DRAFT && quotation.status !== QuotationStatus.REJECTED)) {
+    if (
+      this.statusMachine.isTerminal(quotation.status) ||
+      (quotation.status !== QuotationStatus.DRAFT && quotation.status !== QuotationStatus.REJECTED)
+    ) {
       throw new BadRequestException(
         `Quotation in status ${quotation.status} cannot be edited. ` +
           `Edits are only allowed in: DRAFT, REJECTED`,
@@ -254,13 +235,9 @@ export class QuotationService {
       await this.prisma.quotationItem.createMany({ data: newItems });
 
       // Recalculate totals
-      const subtotal = dto.items.reduce(
-        (sum, item) => sum + item.quantity * item.unitPrice,
-        0,
-      );
+      const subtotal = dto.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
-      const discountPercent =
-        dto.discountPercent ?? Number(quotation.discountPercent);
+      const discountPercent = dto.discountPercent ?? Number(quotation.discountPercent);
       const discountAmount = subtotal * (discountPercent / 100);
       const afterDiscount = subtotal - discountAmount;
       const taxAmount = afterDiscount * TAX_RATE;
@@ -318,9 +295,7 @@ export class QuotationService {
       },
     });
 
-    this.logger.log(
-      `Quotation ${quotation.code} updated to version ${updated.version}`,
-    );
+    this.logger.log(`Quotation ${quotation.code} updated to version ${updated.version}`);
 
     return updated;
   }
@@ -355,16 +330,8 @@ export class QuotationService {
       ];
     }
 
-    if (query.startDate || query.endDate) {
-      const dateFilter: { gte?: Date; lte?: Date } = {};
-      if (query.startDate) {
-        dateFilter.gte = new Date(query.startDate);
-      }
-      if (query.endDate) {
-        const endOfDay = new Date(query.endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        dateFilter.lte = endOfDay;
-      }
+    const dateFilter = buildDateFilter(query.startDate, query.endDate);
+    if (dateFilter) {
       where.createdAt = dateFilter;
     }
 
@@ -464,9 +431,7 @@ export class QuotationService {
       approvedBy: userId,
     });
 
-    this.logger.log(
-      `Quotation ${quotation.code} approved by user ${userId}`,
-    );
+    this.logger.log(`Quotation ${quotation.code} approved by user ${userId}`);
 
     // Auto-create contract appendix from the approved quotation
     let contractAppendix: { id: string; code: string } | null = null;
@@ -503,9 +468,7 @@ export class QuotationService {
     this.statusMachine.assertTransition(quotation.status, QuotationStatus.REJECTED);
 
     if (!reason || reason.trim().length < 5) {
-      throw new BadRequestException(
-        'Rejection reason must be at least 5 characters',
-      );
+      throw new BadRequestException('Rejection reason must be at least 5 characters');
     }
 
     const updated = await this.prisma.quotation.update({
@@ -537,9 +500,7 @@ export class QuotationService {
       reason,
     });
 
-    this.logger.log(
-      `Quotation ${quotation.code} rejected by user ${userId}: ${reason}`,
-    );
+    this.logger.log(`Quotation ${quotation.code} rejected by user ${userId}: ${reason}`);
 
     return updated;
   }
@@ -560,31 +521,12 @@ export class QuotationService {
 
     this.statusMachine.assertTransition(quotation.status, QuotationStatus.CONVERTED);
 
-    // Generate order code
-    const now = new Date();
-    const datePrefix = [
-      String(now.getFullYear()).slice(-2),
-      String(now.getMonth() + 1).padStart(2, '0'),
-      String(now.getDate()).padStart(2, '0'),
-    ].join('');
-    const orderPrefix = `TBS-ORD-${datePrefix}`;
-
-    const latestOrder = await this.prisma.order.findFirst({
-      where: { code: { startsWith: orderPrefix } },
-      orderBy: { code: 'desc' },
-      select: { code: true },
+    // Generate order code using shared utility
+    const orderCode = await generateCode(this.prisma.order, {
+      prefix: 'TBS-ORD',
+      datePrefixFormat: 'YYMMDD',
+      sequenceLength: 4,
     });
-
-    let sequence = 1;
-    if (latestOrder) {
-      const lastSequence = parseInt(
-        latestOrder.code.split('-').pop() || '0',
-        10,
-      );
-      sequence = lastSequence + 1;
-    }
-
-    const orderCode = `${orderPrefix}-${String(sequence).padStart(4, '0')}`;
 
     // Create order from quotation data
     const orderItems = quotation.items.map((item) => ({
@@ -742,9 +684,7 @@ export class QuotationService {
       },
     });
 
-    this.logger.log(
-      `Quotation ${original.code} duplicated as ${code} by user ${userId}`,
-    );
+    this.logger.log(`Quotation ${original.code} duplicated as ${code} by user ${userId}`);
 
     return duplicated;
   }
@@ -760,9 +700,7 @@ export class QuotationService {
     });
 
     if (!quotation) {
-      throw new NotFoundException(
-        `Quotation with ID ${quotationId} not found`,
-      );
+      throw new NotFoundException(`Quotation with ID ${quotationId} not found`);
     }
 
     // Find all quotations in this chain by matching parentQuotationId
@@ -845,20 +783,14 @@ export class QuotationService {
     this.logger.log(`Template "${template.name}" deleted by user ${userId}`);
   }
 
-  async saveAsTemplate(
-    quotationId: string,
-    userId: string,
-    dto: SaveAsTemplateDto,
-  ) {
+  async saveAsTemplate(quotationId: string, userId: string, dto: SaveAsTemplateDto) {
     const quotation = await this.prisma.quotation.findUnique({
       where: { id: quotationId },
       include: { items: true },
     });
 
     if (!quotation) {
-      throw new NotFoundException(
-        `Quotation with ID ${quotationId} not found`,
-      );
+      throw new NotFoundException(`Quotation with ID ${quotationId} not found`);
     }
 
     const items = quotation.items.map((item) => ({
@@ -889,11 +821,7 @@ export class QuotationService {
     return template;
   }
 
-  async createFromTemplate(
-    templateId: string,
-    userId: string,
-    dto: CreateFromTemplateDto,
-  ) {
+  async createFromTemplate(templateId: string, userId: string, dto: CreateFromTemplateDto) {
     const template = await this.prisma.quotationTemplate.findUnique({
       where: { id: templateId },
     });
@@ -980,8 +908,402 @@ export class QuotationService {
   }
 
   // =========================================================================
+  // KD-5: QUOTATION SUGGESTIONS FROM HISTORY
+  // =========================================================================
+
+  /**
+   * Returns quotation suggestions based on a customer's order and quotation history.
+   * Includes: common item types, common routes, and recent prices.
+   */
+  async getSuggestionsForCustomer(customerId: string) {
+    // Fetch recent orders for this customer
+    const recentOrders = await this.prisma.order.findMany({
+      where: { customerId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: {
+        id: true,
+        code: true,
+        serviceType: true,
+        shippingRoute: true,
+        totalAmount: true,
+        createdAt: true,
+        items: {
+          select: {
+            productName: true,
+            unitPrice: true,
+            quantity: true,
+            currency: true,
+          },
+        },
+      },
+    });
+
+    // Fetch recent quotations for this customer
+    const recentQuotations = await this.prisma.quotation.findMany({
+      where: { customerId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        code: true,
+        serviceType: true,
+        shippingRoute: true,
+        totalAmount: true,
+        createdAt: true,
+        items: {
+          where: { deletedAt: null },
+          select: {
+            productName: true,
+            unitPrice: true,
+            quantity: true,
+            currency: true,
+          },
+        },
+      },
+    });
+
+    // Compute common service types
+    const serviceTypeCounts: Record<string, number> = {};
+    for (const order of recentOrders) {
+      serviceTypeCounts[order.serviceType] = (serviceTypeCounts[order.serviceType] || 0) + 1;
+    }
+    const commonServiceTypes = Object.entries(serviceTypeCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([type, count]) => ({ type, count }));
+
+    // Compute common routes
+    const routeCounts: Record<string, number> = {};
+    for (const order of recentOrders) {
+      if (order.shippingRoute) {
+        routeCounts[order.shippingRoute] = (routeCounts[order.shippingRoute] || 0) + 1;
+      }
+    }
+    const commonRoutes = Object.entries(routeCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([route, count]) => ({ route, count }));
+
+    // Collect recent product prices (deduplicated by product name)
+    const productPriceMap = new Map<
+      string,
+      { productName: string; unitPrice: number; currency: string; lastUsed: Date }
+    >();
+    const allSources = [
+      ...recentOrders.map((o) => ({ items: o.items, date: o.createdAt })),
+      ...recentQuotations.map((q) => ({ items: q.items, date: q.createdAt })),
+    ];
+
+    for (const source of allSources) {
+      for (const item of source.items) {
+        const key = item.productName.toLowerCase().trim();
+        if (!productPriceMap.has(key)) {
+          productPriceMap.set(key, {
+            productName: item.productName,
+            unitPrice: Number(item.unitPrice),
+            currency: item.currency,
+            lastUsed: source.date,
+          });
+        }
+      }
+    }
+
+    const recentPrices = Array.from(productPriceMap.values()).slice(0, 20);
+
+    return {
+      commonServiceTypes,
+      commonRoutes,
+      recentPrices,
+      totalOrders: recentOrders.length,
+      totalQuotations: recentQuotations.length,
+    };
+  }
+
+  // =========================================================================
   // CRON: AUTO-EXPIRE QUOTATIONS
   // =========================================================================
+
+  // =========================================================================
+  // QUICK QUOTE — Báo giá nhanh (VCT & MHH mode)
+  // =========================================================================
+
+  /**
+   * Tạo báo giá nhanh cho 2 mode: VCT (vận chuyển thuần) và MHH (mua hàng hộ).
+   * - VCT: chỉ cần CBM/KG + tuyến -> tra Rate Card -> tổng cước
+   * - MHH: items + giá NCC (CNY) -> quy đổi VND + phí dịch vụ + cước VC
+   */
+  async quickQuote(userId: string, dto: QuickQuoteDto) {
+    // 1. Validate khách hàng
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: dto.customerId },
+      select: { id: true, code: true, fullName: true, tier: true, isActive: true },
+    });
+    if (!customer) throw new NotFoundException(`Khách hàng ${dto.customerId} không tìm thấy`);
+    if (!customer.isActive) throw new BadRequestException(`Khách hàng ${customer.code} đang bị khóa`);
+
+    const isMHH = dto.serviceType === ServiceType.MHH;
+    const quoteMode = isMHH ? QuoteMode.MHH_QUICK : QuoteMode.VCT_QUICK;
+
+    // 2. Tỷ giá CNY (chỉ cần cho MHH)
+    let exchangeRate = 0;
+    if (isMHH) {
+      try {
+        const rateRecord = await this.exchangeRateService.getCurrentRate(Currency.CNY, Currency.VND);
+        exchangeRate = Number(rateRecord.rate);
+      } catch {
+        throw new BadRequestException('Chưa có tỷ giá CNY/VND. Kế toán vui lòng cập nhật tỷ giá.');
+      }
+    }
+
+    // 3. Tính giá hàng MHH
+    let totalProductAmountVND = 0;
+    let totalProductAmountCNY = 0;
+    let serviceFeePercent = 0;
+    let serviceFeeAmount = 0;
+    const itemsCalc: any[] = [];
+
+    if (isMHH && dto.items?.length) {
+      for (const item of dto.items) {
+        const itemTotalCNY = item.unitPriceCNY * item.quantity + (item.domesticShippingCNY ?? 0) * item.quantity;
+        const itemTotalVND = Math.round(itemTotalCNY * exchangeRate);
+        totalProductAmountCNY += itemTotalCNY;
+        totalProductAmountVND += itemTotalVND;
+        itemsCalc.push({
+          ...item,
+          unitPriceVND: Math.round(item.unitPriceCNY * exchangeRate),
+          totalPriceCNY: item.unitPriceCNY * item.quantity,
+          totalPriceVND: Math.round(item.unitPriceCNY * item.quantity * exchangeRate),
+          exchangeRateSnapshot: exchangeRate,
+        });
+      }
+
+      // Phí dịch vụ MHH theo tier khách hàng
+      const feeConfig = await this.prisma.serviceFeeConfig.findFirst({
+        where: {
+          serviceType: ServiceType.MHH,
+          isActive: true,
+          OR: [{ customerTier: customer.tier }, { customerTier: null }],
+        },
+        orderBy: [{ customerTier: 'desc' }, { priority: 'desc' }],
+      });
+
+      if (feeConfig) {
+        serviceFeePercent = Number(feeConfig.feePercent);
+        const rawFee = totalProductAmountVND * (serviceFeePercent / 100);
+        const minFee = feeConfig.minFeeAmount ? Number(feeConfig.minFeeAmount) * exchangeRate : 0;
+        const maxFee = feeConfig.maxFeeAmount ? Number(feeConfig.maxFeeAmount) * exchangeRate : Infinity;
+        serviceFeeAmount = Math.round(Math.min(Math.max(rawFee, minFee), maxFee));
+      }
+    }
+
+    // 4. Tra Rate Card -> tính cước VC
+    let shippingAmount = 0;
+    let surchargeAmount = 0;
+    let rateCardId: string | undefined;
+    let chargeableWeight = 0;
+    let discountPercent = dto.discountOverride ?? 0;
+    let surchargesDetail: any[] = [];
+
+    const rateResult = await this.rateCardService.lookup({
+      origin: dto.origin,
+      destination: dto.destination,
+      transportMode: dto.transportMode,
+      serviceType: dto.serviceType,
+      cbm: dto.cbm,
+      kg: dto.kg,
+      customerTier: customer.tier,
+    });
+
+    if (rateResult) {
+      shippingAmount = rateResult.shippingAmount;
+      surchargeAmount = rateResult.surchargeAmount;
+      surchargesDetail = rateResult.surcharges;
+      rateCardId = rateResult.rateCard.id;
+      chargeableWeight = rateResult.chargeableWeight;
+      // Dùng discount từ rate card nếu sale không override
+      if (dto.discountOverride === undefined) {
+        discountPercent = rateResult.discountPercent;
+      }
+    }
+
+    // 5. Tổng hợp
+    const baseAmount = totalProductAmountVND + serviceFeeAmount + shippingAmount + surchargeAmount;
+    const discountAmount = Math.round(baseAmount * (discountPercent / 100));
+    const totalAmount = baseAmount - discountAmount;
+
+    // Cọc yêu cầu theo tier
+    const depositRates: Record<string, number> = { NEW: 1.0, REGULAR: 0.7, VIP: 0.5, STRATEGIC: 0.3 };
+    const depositRate = depositRates[customer.tier] ?? 0.7;
+    const depositRequired = isMHH ? Math.round(totalAmount * depositRate) : 0;
+
+    // Hiệu lực: MHH 7 ngày, VCT 30 ngày
+    const validityDays = isMHH ? 7 : 30;
+    const validUntil = new Date();
+    validUntil.setDate(validUntil.getDate() + validityDays);
+
+    // 6. Tạo Quotation trong DB
+    const code = await this.generateQuotationCode();
+
+    const quotation = await this.prisma.quotation.create({
+      data: {
+        code,
+        customerId: dto.customerId,
+        createdBy: userId,
+        serviceType: dto.serviceType,
+        branch: dto.branch ?? Branch.HN,
+        quoteMode,
+        rateCardId: rateCardId ?? null,
+        status: QuotationStatus.DRAFT,
+        validUntil,
+        cbm: dto.cbm ? new Decimal(dto.cbm) : null,
+        kg: dto.kg ? new Decimal(dto.kg) : null,
+        chargeableWeight: chargeableWeight ? new Decimal(chargeableWeight) : null,
+        exchangeRateSnapshot: isMHH ? new Decimal(exchangeRate) : null,
+        totalProductAmount: totalProductAmountVND ? new Decimal(totalProductAmountVND) : null,
+        serviceFeePercent: serviceFeePercent ? new Decimal(serviceFeePercent) : null,
+        serviceFeeAmount: serviceFeeAmount ? new Decimal(serviceFeeAmount) : null,
+        shippingAmount: new Decimal(shippingAmount),
+        surchargeAmount: new Decimal(surchargeAmount),
+        subtotal: new Decimal(baseAmount),
+        discountPercent: new Decimal(discountPercent),
+        discountAmount: new Decimal(discountAmount),
+        taxRate: new Decimal(0),
+        taxAmount: new Decimal(0),
+        totalAmount: new Decimal(totalAmount),
+        note: dto.notes,
+        pricingSnapshot: {
+          computedAt: new Date().toISOString(),
+          exchangeRate,
+          totalProductAmountCNY,
+          totalProductAmountVND,
+          serviceFeePercent,
+          serviceFeeAmount,
+          shippingAmount,
+          surcharges: surchargesDetail,
+          surchargeAmount,
+          discountPercent,
+          discountAmount,
+          totalAmount,
+          depositRate,
+          depositRequired,
+          cbm: dto.cbm,
+          kg: dto.kg,
+          chargeableWeight,
+          rateCardId,
+        },
+        items: isMHH && itemsCalc.length ? {
+          create: itemsCalc.map((item, idx) => ({
+            sortOrder: idx,
+            productName: item.productName,
+            productDescription: item.productDescription,
+            productImageUrl: item.productImageUrl,
+            sourceUrl: item.sourceUrl,
+            vendorId: item.vendorId,
+            vendorName: item.vendorName,
+            quantity: item.quantity,
+            unit: item.unit ?? 'cái',
+            unitPriceCNY: new Decimal(item.unitPriceCNY),
+            totalPriceCNY: new Decimal(item.totalPriceCNY),
+            domesticShippingCNY: item.domesticShippingCNY ? new Decimal(item.domesticShippingCNY) : null,
+            exchangeRateSnapshot: new Decimal(exchangeRate),
+            unitPriceVND: new Decimal(item.unitPriceVND),
+            totalPriceVND: new Decimal(item.totalPriceVND),
+            unitPrice: new Decimal(item.unitPriceVND),
+            totalPrice: new Decimal(item.totalPriceVND),
+            currency: Currency.CNY,
+            note: item.note,
+          })),
+        } : undefined,
+      },
+      include: {
+        customer: { select: { id: true, code: true, fullName: true, tier: true } },
+        items: true,
+        rateCard: { select: { id: true, code: true, name: true } },
+      },
+    });
+
+    // 7. Tạo text summary
+    const textSummary = this.buildTextSummary(quotation, {
+      isMHH, exchangeRate, totalProductAmountVND, totalProductAmountCNY,
+      serviceFeePercent, serviceFeeAmount, shippingAmount, surchargeAmount,
+      surchargesDetail, discountPercent, discountAmount, totalAmount,
+      depositRequired, validityDays, customer,
+    });
+
+    this.eventEmitter.emit('quotation.created', { quotationId: quotation.id, mode: quoteMode });
+
+    return {
+      quotation,
+      pricing: {
+        exchangeRate,
+        totalProductAmountCNY,
+        totalProductAmountVND,
+        serviceFeePercent,
+        serviceFeeAmount,
+        shippingAmount,
+        surchargeAmount,
+        discountPercent,
+        discountAmount,
+        totalAmount,
+        depositRate,
+        depositRequired,
+        validityDays,
+      },
+      textSummary,
+    };
+  }
+
+  private buildTextSummary(quotation: any, calc: any): string {
+    const { isMHH, exchangeRate, totalProductAmountVND, totalProductAmountCNY,
+      serviceFeePercent, serviceFeeAmount, shippingAmount, surchargeAmount,
+      discountPercent, discountAmount, totalAmount, depositRequired,
+      validityDays, customer } = calc;
+
+    const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(Math.round(n));
+    const lines: string[] = [];
+
+    if (isMHH) {
+      lines.push(`--- BÁO GIÁ MUA HÀNG HỘ - TBS GROUP ---`);
+      lines.push(`Khách hàng: ${customer.fullName} (${customer.tier})`);
+      lines.push(`Tuyến: ${quotation.rateCard?.name ?? 'Theo yêu cầu'}`);
+      lines.push(``);
+      lines.push(`SẢN PHẨM:`);
+      quotation.items?.forEach((item: any, i: number) => {
+        const unitVND = Math.round(Number(item.unitPriceCNY) * exchangeRate);
+        lines.push(`${i + 1}. ${item.productName} x ${item.quantity} ${item.unit}`);
+        lines.push(`   Đơn giá: ${item.unitPriceCNY} CNY (~${fmt(unitVND)} VND) | Thành tiền: ${fmt(Number(item.totalPriceVND))} VND`);
+      });
+      lines.push(``);
+      lines.push(`Tổng giá hàng:         ${fmt(totalProductAmountVND)} VND`);
+      lines.push(`Phí dịch vụ MHH (${serviceFeePercent}%): ${fmt(serviceFeeAmount)} VND`);
+    } else {
+      lines.push(`--- BÁO GIÁ VẬN CHUYỂN - TBS GROUP ---`);
+      lines.push(`Khách hàng: ${customer.fullName}`);
+      lines.push(``);
+    }
+
+    lines.push(`Cước vận chuyển:       ${fmt(shippingAmount)} VND`);
+    if (surchargeAmount > 0) {
+      lines.push(`Phụ phí:               ${fmt(surchargeAmount)} VND`);
+    }
+    if (discountPercent > 0) {
+      lines.push(`Chiết khấu (${discountPercent}%):    -${fmt(discountAmount)} VND`);
+    }
+    lines.push(`================================`);
+    lines.push(`TỔNG:                  ${fmt(totalAmount)} VND`);
+    if (depositRequired > 0) {
+      lines.push(`Cọc yêu cầu:           ${fmt(depositRequired)} VND`);
+    }
+    if (isMHH && exchangeRate > 0) {
+      lines.push(``);
+      lines.push(`Tỷ giá áp dụng: 1 CNY = ${fmt(exchangeRate)} VND`);
+    }
+    lines.push(`Hiệu lực: ${validityDays} ngày`);
+    lines.push(`---`);
+
+    return lines.join('\n');
+  }
 
   @Cron('0 9 * * *')
   async handleExpiredQuotations() {
@@ -1003,9 +1325,7 @@ export class QuotationService {
     });
 
     if (expired.count > 0) {
-      this.logger.log(
-        `Auto-expired ${expired.count} quotation(s) past their validity date`,
-      );
+      this.logger.log(`Auto-expired ${expired.count} quotation(s) past their validity date`);
       this.eventEmitter.emit('quotation.expired', {
         count: expired.count,
         expiredAt: now,

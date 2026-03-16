@@ -1,6 +1,6 @@
 # TÀI LIỆU HỆ THỐNG ERP
 
-> Phiên bản: 3.0 | Cập nhật: 2026-02-24
+> Phiên bản: 4.1 | Cập nhật: 2026-03-06
 
 ---
 
@@ -15,6 +15,7 @@
 7. [Cấu hình hệ thống](#7-cấu-hình-hệ-thống)
 8. [Triển khai & Vận hành](#8-triển-khai--vận-hành)
 9. [Chuyển giao hệ thống](#9-chuyển-giao-hệ-thống)
+10. [Hệ thống tích hợp & Xử lý nền](#10-hệ-thống-tích-hợp--xử-lý-nền)
 
 ---
 
@@ -32,15 +33,19 @@ Hệ thống ERP quản lý toàn bộ quy trình kinh doanh của công ty dị
 
 | Thành phần | Số lượng |
 |---|---|
-| Phân hệ nghiệp vụ | 65+ |
-| Mô hình dữ liệu | 95+ |
-| Kiểu liệt kê | 50+ |
+| Phân hệ nghiệp vụ (backend) | 64 |
+| Mô hình dữ liệu (Prisma) | 142 |
+| Kiểu liệt kê (Enum) | 89 |
 | Vai trò người dùng | 22 |
-| Trang tổng quan (nội bộ) | 40+ |
-| Trang tổng quan (website) | 26 |
-| Dịch vụ lõi | 18 |
-| Máy trạng thái nghiệp vụ | 7 |
+| Trang giao diện nội bộ | 106 |
+| Trang quản trị CMS | 16 |
+| Điểm cuối API (HTTP) | 603+ |
+| Bộ lắng nghe sự kiện | 116 |
+| Tác vụ định kỳ (Cron) | 31 |
+| Máy trạng thái nghiệp vụ | 9 |
 | Luồng phê duyệt mặc định | 18 |
+| Hook giao diện (React) | 48 |
+| Module API giao diện | 54 |
 
 ### 1.3 Công nghệ sử dụng
 
@@ -103,11 +108,11 @@ tbs-erp-backend/
 │   │   ├── sms/                 # Nhà cung cấp tin nhắn (mã xác thực)
 │   │   ├── vault/               # Quản lý khóa bí mật
 │   │   └── websocket/           # Thông báo thời gian thực
-│   ├── modules/                 # 59 phân hệ nghiệp vụ
+│   ├── modules/                 # 64 phân hệ nghiệp vụ
 │   ├── common/                  # Bộ bảo vệ, bộ chặn, bộ trang trí, tiện ích
 │   └── config/                  # Cấu hình ứng dụng, nghiệp vụ, thương hiệu
 ├── prisma/
-│   ├── schema/                  # 17 tệp lược đồ
+│   ├── schema/                  # 21 tệp lược đồ
 │   └── seed/                    # Dữ liệu mẫu (vai trò, demo)
 ```
 
@@ -118,7 +123,8 @@ tbs-erp-frontend/
 ├── src/
 │   ├── app/
 │   │   ├── (auth)/              # Đăng nhập, đăng ký
-│   │   ├── (dashboard)/         # 33+ trang tổng quan
+│   │   ├── (dashboard)/         # 106 trang nội bộ
+│   │   ├── admin/               # 16 trang quản trị CMS
 │   │   └── (public)/            # Trang công khai
 │   ├── components/
 │   │   ├── layout/              # Thanh bên, thanh trên
@@ -133,27 +139,31 @@ tbs-erp-frontend/
 │       └── utils/               # Hàm trợ giúp, kiểm tra, hằng số
 ```
 
-### 2.4 Lược đồ Cơ sở dữ liệu (17 tệp)
+### 2.4 Lược đồ Cơ sở dữ liệu (21 tệp, 142 mô hình, 89 kiểu liệt kê)
 
 | Tệp | Mô tả | Mô hình dữ liệu |
 |---|---|---|
 | `schema.prisma` | Cấu hình nguồn dữ liệu | — |
-| `auth.prisma` | Xác thực, Phân quyền, Kiểm toán, Đồng ý, Đăng nhập hộ | User, Session, AuditLog, UserConsent, DataRetentionReport, ImpersonationLog |
-| `common.prisma` | Kiểu liệt kê dùng chung | 45+ enums |
-| `order.prisma` | Đơn hàng, Báo giá, Hợp đồng, MHH | MasterOrder, Order, OrderItem, OrderExtraCharge, Quotation, Contract, SupplierOrder, MHHIssue, ServiceFeeConfig, QCInspection |
-| `crm.prisma` | Khách hàng, Ví điện tử | Customer, Contact, Wallet, WalletTransaction |
-| `finance.prisma` | Kế toán, Thu chi, Hóa đơn | AccountReceivable (chỉ mục orderId), AccountPayable, PaymentVoucher, CashTransaction (chỉ mục voucherId), Invoice, InvoiceItem, ExchangeRate, DebtNetting, CommissionRecord, PurchaseRequest (chỉ mục orderId), PurchaseOrder (chỉ mục orderId), JournalEntry, PaymentAllocation, UnallocatedFundClaim |
-| `warehouse.prisma` | Kho TQ/VN, QC | Package, LostAndFound, QCInspection |
+| `auth.prisma` | Xác thực, Phân quyền, Kiểm toán, Đồng ý, Đăng nhập hộ | User, Session, AuditLog, AuditLogArchive, UserConsent, DataRetentionReport, ImpersonationLog |
+| `common.prisma` | Kiểu liệt kê dùng chung | 89 enums |
+| `order.prisma` | Đơn hàng, Báo giá, Hợp đồng, MHH | MasterOrder, Order, OrderItem, OrderExtraCharge, OrderStatusHistory, PreAlert, Contract, Quotation, QuotationItem, QuotationTemplate, SupplierOrder, MHHIssue, ServiceFeeConfig, ReturnRequest, CancelPenaltyConfig |
+| `crm.prisma` | Khách hàng, Ví điện tử, CRM mở rộng | Customer, Contact, Wallet, WalletTransaction, CustomerInteractionNote, Lead, LeadNote |
+| `finance.prisma` | Kế toán, Thu chi, Hóa đơn (26 mô hình) | AccountReceivable, AccountPayable, PaymentVoucher, CashTransaction, Invoice, InvoiceItem, ExchangeRate, DebtNetting, DebtNettingItem, ChartOfAccount, JournalEntry, JournalEntryLine, CommissionRule, CommissionRecord, PurchaseRequest, PurchaseRequestItem, PurchaseOrder, StockItem, StockMovement, CODRecord, ClosedPeriod, PaymentAllocation, PaymentAllocationDetail, ARAgingSnapshot, UnallocatedFundClaim, BankWebhookTransaction |
+| `warehouse.prisma` | Kho TQ/VN, QC | Package, WeightAuditLog, LostAndFound, QCPhotoGuideline, PackageConsolidation, StorageLocation, InventoryCount, InventoryCountItem, QCInspection |
 | `container.prisma` | Container, Vận chuyển | Container |
-| `logistics.prisma` | Xe, Tài xế, Giao hàng | Vehicle, Driver, Delivery, VehicleMaintenance, FuelRecord, CODRecord |
-| `hr.prisma` | Nhân sự, Lương, Chấm công | Employee, Attendance, LeaveRequest, OvertimeRequest, PayrollRecord |
+| `logistics.prisma` | Xe, Tài xế, Giao hàng | Vehicle, Driver, Delivery, DeliveryPackage, VehicleMaintenance, FuelRecord |
+| `hr.prisma` | Nhân sự, Lương, Chấm công, Tuyển dụng | Employee, Attendance, LeaveRequest, OvertimeRequest, PayrollRecord, TrainingRecord, Candidate, OnboardingChecklist, PerformanceNote |
 | `complaint.prisma` | Khiếu nại | Complaint |
-| `system.prisma` | Phê duyệt, Thông báo, Task, Vendor, Webhook | ApprovalFlowDefinition, Approval, ApprovalStep, Document, Task, Vendor, WebhookEndpoint, ApiKey |
+| `system.prisma` | Phê duyệt, Thông báo, Task, Vendor, Webhook (23 mô hình) | ApprovalFlowDefinition, ApprovalFlowNode, ApprovalFlowEdge, Approval, ApprovalStep, ApprovalCC, ApprovalComment, ApprovalActionLog, ApprovalDelegation, Notification, NotificationRule, EscalationRule, Document, Task, TaskComment, Vendor, VendorRating, LegalDocument, WebhookEndpoint, WebhookDelivery, ApiKey, RevenueTarget, ResponseTemplate |
 | `tracking.prisma` | Sự kiện theo dõi | TrackingEvent |
 | `operation-cost.prisma` | Chi phí vận hành | OperationCost, CostAllocation |
-| `blog.prisma` | Blog nội bộ | BlogPost, BlogComment |
-| `customs.prisma` | Khai báo hải quan | CustomsDeclaration, CustomsDeclarationLine (hỗ trợ xóa mềm), HSCodeLibrary |
-| `cms.prisma` | CMS Website | Page, Menu, Media, Contact, Newsletter, FAQ |
+| `blog.prisma` | Blog nội bộ | BlogCategory, BlogPost, BlogComment |
+| `customs.prisma` | Khai báo hải quan (11 mô hình) | CustomsDeclaration, CustomsDeclarationLine, CustomsLineSourceItem, HSCodeLibrary, HSCodeKeyword, ComplianceAlert, CustomsTaxAllocation, CustomsStatusHistory, ComplianceRule, CustomsDocumentChecklist, CustomsServiceRate |
+| `cms.prisma` | CMS Website | Page, Media, Menu, MenuItem, SiteSetting, Redirect, ContactSubmission, NewsletterSubscription, FAQ |
+| `integration.prisma` | Tích hợp, Outbox, Đối soát | OutboxEvent, DeadLetterEvent, ReconciliationRun, ReconciliationItem, BatchJob, SyncLog |
+| `support-ticket.prisma` | Phiếu hỗ trợ khách hàng | SupportTicket, TicketResponse |
+| `carrier-reconciliation.prisma` | Đối soát hãng vận chuyển | CarrierReconciliation, CarrierReconItem |
+| `cost-adjustment.prisma` | Điều chỉnh chi phí | CostAdjustment |
 
 ### 2.5 Tính năng bảo mật
 
@@ -207,17 +217,19 @@ Toàn bộ hệ thống được xây dựng dựa trên 5 nguyên tắc kiến 
 
 ### 2.7 Máy trạng thái nghiệp vụ
 
-Hệ thống sử dụng 7 máy trạng thái để cưỡng chế quy trình nghiệp vụ một chiều:
+Hệ thống sử dụng 9 máy trạng thái để cưỡng chế quy trình nghiệp vụ một chiều:
 
 | Máy trạng thái | Phạm vi | Các chuyển đổi hợp lệ |
 |---|---|---|
+| Đơn hàng | Vòng đời đơn hàng (13 giai đoạn) | TIẾP NHẬN → BÁO GIÁ → CHỜ CỌC → MUA HÀNG → **NHẬP KHO TQ** → ĐÓNG GÓI → GHÉP CONT → VẬN CHUYỂN → THÔNG QUAN → NHẬP KHO VN → GIAO HÀNG → QUYẾT TOÁN → HOÀN THÀNH (+TẠM GIỮ, SỰ CỐ, HỦY, TRẢ HÀNG). **Lưu ý:** Chuyển tự động MUA HÀNG → NHẬP KHO TQ khi kiện hàng đầu tiên được quét barcode tại kho Trung Quốc. |
 | Đơn nhà cung cấp | Đơn mua hàng từ nhà cung cấp Trung Quốc | NHÁP → BÁO GIÁ → ĐÃ ĐẶT → XÁC NHẬN → GIAO 1 PHẦN → ĐÃ GIAO TQ → ĐÃ NHẬN TQ |
-| Container | Quản lý container vận chuyển | LÊN KẾ HOẠCH → ĐANG TẢI → VẬN CHUYỂN → ĐÃ ĐẾN → THÔNG QUAN → HOÀN THÀNH |
+| Container | Quản lý container vận chuyển | LÊN KẾ HOẠCH → ĐANG TẢI → VẬN CHUYỂN → ĐÃ ĐẾN → THÔNG QUAN → HOÀN THÀNH (+KẸT CỬA KHẨU) |
 | Báo giá | Quy trình báo giá khách hàng | NHÁP → CHỜ DUYỆT → ĐÃ DUYỆT → CHUYỂN ĐỔI / HẾT HẠN / TỪ CHỐI |
 | Khiếu nại | Xử lý khiếu nại khách hàng | MỞ → ĐANG ĐIỀU TRA → CHỜ GIẢI QUYẾT → ĐÃ GIẢI QUYẾT → ĐÓNG |
 | Phiếu thu/chi | Duyệt phiếu thu chi | CHỜ DUYỆT → ĐÃ DUYỆT / TỪ CHỐI |
 | Kho Trung Quốc | Trạng thái kiện hàng tại kho TQ | ĐÃ NHẬN → ĐÃ KIỂM → ĐÃ ĐÓNG GÓI → ĐÃ XUẤT |
 | Kho Việt Nam | Trạng thái kiện hàng tại kho VN | ĐÃ NHẬN → ĐÃ PHÂN LOẠI → SẴN SÀNG → ĐÃ GIAO |
+| Khai báo hải quan | Quy trình thông quan | NHÁP → ĐÃ NỘP → ĐANG XEM XÉT → ĐÃ DUYỆT/TỪ CHỐI → ĐÃ THÔNG QUAN/GIỮ LẠI |
 
 Mỗi máy trạng thái cung cấp 4 phương thức:
 - **Kiểm tra chuyển đổi** — Trả về có/không cho một chuyển đổi cụ thể
@@ -415,7 +427,7 @@ Mỗi máy trạng thái cung cấp 4 phương thức:
 
 | Chức năng | Mô tả |
 |---|---|
-| Nhận kiện | Quét mã vận đơn, nhập trọng lượng/kích thước |
+| Nhận kiện | Quét mã vận đơn, nhập trọng lượng/kích thước. **Tự động chuyển trạng thái đơn hàng sang NHẬP KHO TQ khi kiện đầu tiên được quét barcode đúng** |
 | Quét mã vạch nhanh | Ô quét mã tại đầu trang — bộ nhớ đệm Redis <50ms, hỗ trợ máy quét mã vạch |
 | Tính cước | Tự động tính trọng lượng thể tích (hệ số 5000/6000) |
 | Cân nặng kho Trung Quốc | Ghi nhận trọng lượng cân tại kho Trung Quốc |
@@ -440,10 +452,53 @@ Mỗi máy trạng thái cung cấp 4 phương thức:
 | Phân loại | Sắp xếp theo đơn hàng, khách hàng |
 | Xuất kho (Chặn cứng) | Cưỡng chế thanh toán trước xuất kho — tính tổng công nợ tích lũy **bao gồm cả số tiền chưa thanh toán của đơn hiện tại** trước khi so sánh với hạn mức tín dụng |
 | Tách giao hàng | Cho phép chọn một số kiện để giao trước (không bắt buộc giao hết cùng lúc) |
-| Hàng hoàn trả | Tab riêng hiển thị hàng giao thất bại được trả về kho |
+| Hàng hoàn trả (RTO) | Tab riêng hiển thị hàng giao thất bại được trả về kho |
 | Hàng vô chủ | Quản lý hàng không xác định được chủ |
+| Kiểm kê kho | `/kho-viet-nam/kiem-ke` — Kiểm kê tồn kho theo vị trí lưu trữ |
+| Phiếu xuất hàng | `/kho-viet-nam/pick-list` — Tạo phiếu xuất hàng theo lô |
+| Gộp kiện TQ | `/kho-trung-quoc/gop-kien` — Gộp nhiều kiện nhỏ thành 1 kiện lớn |
 
 **Máy trạng thái kho Việt Nam:** `ĐÃ NHẬN` → `ĐÃ PHÂN LOẠI` → `SẴN SÀNG` → `ĐÃ GIAO` — cưỡng chế bởi máy trạng thái.
+
+**Quy trình giao thất bại & hoàn trả (RTO):**
+
+Khi tài xế giao hàng thất bại (khách không có nhà, từ chối nhận, địa chỉ sai), hệ thống thực hiện luồng hoàn trả hoàn chỉnh:
+
+```
+1. Tài xế bấm "Giao thất bại"
+   POST /warehouse-vn/deliveries/:id/failed
+   - Chọn lý do: KH_KHONG_CO_NHA | KH_TU_CHOI | DIA_CHI_SAI | KHAC
+   - Nhập ghi chú, đính kèm ảnh bằng chứng
+   → Delivery: ĐANG GIAO → THẤT BẠI → TRẢ VỀ KHO (tự động)
+   → Gửi thông báo khẩn cấp cho Sale + CSKH
+
+2. Hàng về kho VN → Nhân viên kho scan nhận
+   POST /warehouse-vn/deliveries/:id/rto/receive
+   → Delivery: TRẢ VỀ KHO → ĐÃ NHẬN LẠI
+   → Gửi thông báo Sale + CSKH: "Hàng đã về kho, phí lưu kho tính từ ngày..."
+
+3. Phí lưu kho tự động tích lũy
+   - Cron chạy hàng đêm @midnight: accrueStorageFees()
+   - Phí: 10.000 VND/ngày (cấu hình qua RTO_DAILY_STORAGE_RATE)
+   - Nhắc nhở tự động: 7 ngày (bình thường), 14 ngày (cao), 30 ngày (khẩn cấp → CEO/COO)
+
+4. Lên lịch giao lại
+   POST /warehouse-vn/deliveries/:id/rto/reschedule
+   - Chọn ngày giao (phải là tương lai)
+   - Tự động tính phí lưu kho = số ngày × 10.000 VND
+   - Tạo phụ phí RTO_STORAGE → quy trình phê duyệt tự động
+   - Tạo delivery mới với ngày giao mới
+   → Giao lại thành công → ĐÃ GIAO
+
+5. Hàng tồn >30 ngày → Cảnh báo CEO/COO để quyết định xử lý
+```
+
+| Endpoint RTO | Vai trò | Mô tả |
+|---|---|---|
+| `POST /deliveries/:id/failed` | DRIVER, WH_VN_MANAGER, WH_VN_STAFF | Báo giao thất bại |
+| `POST /deliveries/:id/rto/initiate` | DRIVER, WH_VN_MANAGER, WH_VN_STAFF | Khởi tạo trả hàng |
+| `POST /deliveries/:id/rto/receive` | WH_VN_MANAGER, WH_VN_STAFF | Kho nhận hàng hoàn |
+| `POST /deliveries/:id/rto/reschedule` | WH_VN_MANAGER, WH_VN_STAFF, SALE | Lên lịch giao lại |
 
 #### 4.8 Container
 **Trang:** `/container`
@@ -451,9 +506,12 @@ Mỗi máy trạng thái cung cấp 4 phương thức:
 | Chức năng | Mô tả |
 |---|---|
 | Kế hoạch | Lên kế hoạch ghép container |
-| Ghép kiện | Gán kiện hàng vào container |
+| Ghép kiện | Gán kiện hàng vào container (chỉ container ở trạng thái LÊN KẾ HOẠCH hoặc ĐANG TẢI) |
 | Theo dõi | Theo dõi vị trí container thời gian thực |
 | Tỷ lệ lấp đầy | Tỷ lệ lấp đầy container |
+| Đề xuất ghép | Hệ thống tự động gợi ý phương án ghép container tối ưu theo tuyến vận chuyển |
+
+**Phân quyền ghép kiện:** Nhân viên kinh doanh (SALE, SALES_LEADER, SALES_DIRECTOR) và nhân viên xuất nhập khẩu (XNK_STAFF, XNK_MANAGER) có quyền xem container và ghép kiện hàng vào container đang mở. Việc tạo container mới và chuyển trạng thái container chỉ do kho vận và logistics thực hiện.
 
 **Trạng thái (cưỡng chế bởi máy trạng thái):** `LÊN KẾ HOẠCH` → `ĐANG TẢI` → `VẬN CHUYỂN` → `ĐÃ ĐẾN` → `THÔNG QUAN` → `HOÀN THÀNH`
 
@@ -849,6 +907,83 @@ Mỗi máy trạng thái cung cấp 4 phương thức:
 | Ví điện tử | Nạp tiền, xem lịch sử |
 | Nạp tiền | 100 nghìn → 100 triệu đồng mỗi giao dịch |
 
+#### 4.48 Hỗ trợ khách hàng
+**Trang:** `/ho-tro`
+
+| Chức năng | Mô tả |
+|---|---|
+| Tạo phiếu hỗ trợ | `/ho-tro/tao-moi` — Loại: Hỏi đáp, Khiếu nại, Yêu cầu kỹ thuật |
+| Chi tiết | `/ho-tro/[id]` — Xem lịch sử trao đổi, phản hồi |
+| Ghi chú khách hàng | `/khach-hang/[id]/ho-tro` — Lịch sử tương tác với khách hàng |
+| Mẫu phản hồi | Mẫu phản hồi nhanh cho các câu hỏi thường gặp |
+
+#### 4.49 Khách hàng tiềm năng (Leads)
+**Trang:** `/khach-hang/tiem-nang`
+
+| Chức năng | Mô tả |
+|---|---|
+| Tạo khách tiềm năng | Nhập thông tin khách hàng tiềm năng |
+| Theo dõi | Trạng thái: MỚI → LIÊN HỆ → ĐÀM PHÁN → CHUYỂN ĐỔI / KHÔNG QUAN TÂM |
+| Ghi chú | Ghi chú từng lần tương tác |
+| Chuyển đổi | Chuyển đổi thành khách hàng chính thức khi ký hợp đồng |
+
+#### 4.50 Báo cáo nâng cao
+**Trang:** `/bao-cao/*`
+
+| Trang | Mô tả |
+|---|---|
+| `/bao-cao/lai-lo-don-hang` | Lãi lỗ theo từng đơn hàng — so sánh doanh thu vs chi phí |
+| `/bao-cao/bien-loi-nhuan` | Biên lợi nhuận theo tháng/quý/năm |
+| `/bao-cao/chenh-lech-ty-gia` | Chênh lệch tỷ giá — so sánh tỷ giá chốt đơn vs thanh toán |
+| `/bao-cao/du-bao-dong-tien` | Dự báo dòng tiền 30/60/90 ngày |
+
+#### 4.51 Bảng tổng quan chuyên biệt
+**Trang:** `/tong-quan/*`
+
+| Trang | Vai trò | Nội dung |
+|---|---|---|
+| `/tong-quan/kinh-doanh` | GĐ KD, Trưởng KD, Sale | Mục tiêu doanh thu, đơn mới, tỷ lệ chuyển đổi |
+| `/tong-quan/cskh` | CSKH | Phiếu hỗ trợ, SLA, khiếu nại, phản hồi KH |
+
+#### 4.52 Cài đặt nâng cao
+
+| Trang | Mô tả |
+|---|---|
+| `/cai-dat/thong-bao` | Cấu hình quy tắc thông báo — kênh, mức ưu tiên, điều kiện gửi |
+| `/cai-dat/leo-thang` | Cấu hình quy tắc leo thang tự động — thời gian, cấp trên |
+
+#### 4.53 Đối soát hãng vận chuyển
+
+| Chức năng | Mô tả |
+|---|---|
+| Tạo đợt đối soát | So khớp chi phí vận chuyển thực tế với hãng |
+| So khớp tự động | Hệ thống tự động so khớp theo mã vận đơn |
+| Xử lý chênh lệch | Đánh dấu thiếu/thừa, liên hệ hãng bổ sung |
+
+#### 4.54 Đóng kỳ kế toán
+**Trang:** `/tai-chinh/dong-ky`
+
+| Chức năng | Mô tả |
+|---|---|
+| Đóng kỳ tháng | Khóa kỳ kế toán — không cho phép tạo bút toán/phiếu sau khi đóng |
+| Mở lại kỳ | Chỉ CEO/CFO mới có quyền mở lại kỳ đã đóng |
+| Bút toán tỷ giá | Tự động tạo bút toán chênh lệch tỷ giá cuối kỳ |
+
+#### 4.55 Bảng giá dịch vụ hải quan
+**Trang:** `/thong-quan/bang-gia`
+
+| Chức năng | Mô tả |
+|---|---|
+| Bảng giá dịch vụ | Cấu hình giá dịch vụ thông quan theo loại hàng |
+| Tra cứu mã HS | `/thong-quan/tra-cuu-hs` — Tra cứu mã HS Code theo từ khóa, gợi ý tự động |
+
+#### 4.56 Tối ưu lộ trình giao hàng
+**Trang:** `/giao-hang/toi-uu-lo-trinh`
+
+| Chức năng | Mô tả |
+|---|---|
+| Tối ưu tuyến đường | Gom nhóm phiếu giao theo khu vực, tối ưu thứ tự giao |
+
 ---
 
 ## 5. QUY TRÌNH NGHIỆP VỤ CHÍNH
@@ -923,7 +1058,7 @@ Trạng thái đặc biệt:
 2. Khách hàng đặt cọc → Trạng thái chuyển sang MUA HÀNG
 3. Đại lý Trung Quốc tạo đơn nhà cung cấp cho mỗi mặt hàng/nhóm mặt hàng
    NHÁP → BÁO GIÁ → ĐÃ ĐẶT → XÁC NHẬN → ĐÃ GIAO TQ → ĐÃ NHẬN TQ
-4. Kho Trung Quốc nhận hàng → Kiểm tra chất lượng → Gửi ảnh cho khách hàng
+4. Kho Trung Quốc nhận hàng (quét barcode → đơn hàng tự động chuyển sang NHẬP KHO TQ) → Kiểm tra chất lượng → Gửi ảnh cho khách hàng
 5. Khách hàng xem xét → ĐỒNG Ý / TỪ CHỐI
    - Từ chối → Sự cố mua hàng hộ → ĐANG TRẢ → ĐÃ HOÀN TIỀN
    - Đồng ý → tiếp tục quy trình bình thường
@@ -1291,6 +1426,78 @@ Sau khi cài đặt, hệ thống tạo sẵn tài khoản quản trị viên:
 
 ---
 
+## 10. HỆ THỐNG TÍCH HỢP & XỬ LÝ NỀN
+
+### 10.1 Kiến trúc sự kiện
+
+Hệ thống sử dụng kiến trúc hướng sự kiện (Event-Driven Architecture) với 116 bộ lắng nghe sự kiện phân bố trên toàn bộ module. Các sự kiện chính:
+
+| Nhóm sự kiện | Ví dụ | Hành động |
+|---|---|---|
+| Đơn hàng | `order.completed`, `order.cancelled` | Tạo công nợ, tính hoa hồng, cập nhật KPI |
+| Thanh toán | `payment.received`, `payment.allocated` | Cập nhật công nợ, kiểm tra cọc, mở khóa đơn |
+| Kho | `package.received`, `package.shipped` | Cập nhật trạng thái đơn, thông báo KH |
+| Container | `container.arrived`, `container.customs` | Cập nhật kiện, thông quan, thông báo |
+| Giao hàng | `delivery.failed`, `delivery.rto.received` | Thông báo Sale/CSKH, tính phí lưu kho |
+| Phê duyệt | `approval.completed`, `approval.rejected` | Thực thi hành động, thông báo người yêu cầu |
+| Tài chính | `cost.allocated`, `ar.overdue` | Phân bổ chi phí, cảnh báo nợ |
+
+### 10.2 Outbox Pattern (Đảm bảo gửi sự kiện)
+
+Hệ thống sử dụng mẫu Outbox để đảm bảo sự kiện không bị mất khi xử lý giao dịch:
+- Sự kiện được ghi vào bảng `OutboxEvent` trong cùng giao dịch CSDL
+- Dịch vụ nền quét bảng Outbox định kỳ (mỗi 10 giây) và phát sự kiện
+- Tự động thử lại tối đa 5 lần với khoảng cách tăng dần
+- Sự kiện thất bại sau 5 lần → chuyển sang hàng đợi thư chết (Dead Letter Queue)
+
+### 10.3 Hàng đợi tác vụ nền (BullMQ)
+
+| Hàng đợi | Mục đích | Timeout |
+|---|---|---|
+| `finance-events` | Phân bổ chi phí, tạo bút toán | 60 giây |
+| `notification-events` | Gửi thông báo đa kênh | 30 giây |
+| `warehouse-events` | Cập nhật trạng thái kho | 30 giây |
+| `order-events` | Saga hoàn thành đơn | 120 giây |
+
+**Giám sát hàng đợi:**
+- BullBoard UI có xác thực (chỉ CEO, COO, DIRECTOR_OPERATIONS)
+- Tự động cảnh báo khi hàng đợi có >100 tác vụ chờ
+- Dead Letter Queue với giao diện replay
+
+### 10.4 Tác vụ định kỳ (31 Cron Jobs)
+
+| Thời gian | Tác vụ | Module |
+|---|---|---|
+| Hàng đêm @midnight | Tính phí lưu kho RTO | warehouse-vn |
+| Hàng đêm @midnight | Chụp ảnh tuổi nợ phải thu | accounts-receivable |
+| 8:00 sáng hàng ngày | Cưỡng chế COD 24h (chặn tài xế) | cod |
+| 9:00 sáng ngày thường | Nhắc nhở RTO tồn kho (7/14/30 ngày) | notification |
+| Mỗi 5 phút | Quét Outbox gửi sự kiện | events/outbox |
+| Mỗi 10 phút | Giám sát Dead Letter Queue | events/dlq-monitor |
+| Mỗi giờ | Đồng bộ tỷ giá (USD) | exchange-rate |
+| Mỗi giờ | Làm nóng bộ nhớ đệm | cache |
+| Mỗi ngày | Kiểm tra chứng chỉ đào tạo sắp hết hạn | employee |
+| Mỗi ngày | Kiểm tra báo giá hết hạn | quotation |
+| Mỗi ngày | Tự động đóng kênh hải quan quá hạn | customs-declaration |
+| Cuối tháng | Leo thang phê duyệt quá hạn | approval |
+
+### 10.5 Đối soát & Reconciliation
+
+| Loại đối soát | Mô tả |
+|---|---|
+| Đối soát hãng vận chuyển | So khớp chi phí vận chuyển thực tế vs hóa đơn hãng |
+| Đối soát ngân hàng | So khớp giao dịch ngân hàng với phiếu thu/chi |
+| Đối soát tỷ giá | Tính chênh lệch tỷ giá giữa thời điểm chốt đơn và thanh toán |
+
+### 10.6 Circuit Breaker & Retry
+
+- Các lời gọi API bên ngoài (ngân hàng, hải quan, SMS) có Circuit Breaker
+- Trạng thái: CLOSED → OPEN (sau 5 lỗi liên tiếp) → HALF_OPEN (thử lại sau 30 giây)
+- Webhook retry: tối đa 5 lần, tăng dần (1s, 4s, 16s, 64s, 256s)
+- Timeout cấu hình theo từng API: `integration-timeout.config.ts`
+
+---
+
 ## PHỤ LỤC
 
 ### A. Danh sách kiểu liệt kê đầy đủ
@@ -1325,6 +1532,15 @@ Sau khi cài đặt, hệ thống tạo sẵn tài khoản quản trị viên:
 | AccountStatus | OPEN, PARTIAL, PAID, OVERDUE, WRITTEN_OFF, CANCELLED |
 | FulfillmentStatus | NONE, PARTIAL, FULL |
 | PackageIndependentStatus | NORMAL, CONFISCATED_BY_CUSTOMS, HIGH_RISK_HOLD |
+| PreAlertStatus | PENDING, MATCHED, EXPIRED |
+| ReturnRequestStatus | PENDING, APPROVED, REJECTED, COMPLETED, CANCELLED |
+| CustomsDeclarationStatus | DRAFT, SUBMITTED, REVIEWING, APPROVED, REJECTED, CLEARED, HELD |
+| CustomsChannel | GREEN, YELLOW, RED |
+| OutboxStatus | PENDING, SENT, FAILED |
+| ReconRunStatus | PENDING, PROCESSING, COMPLETED, FAILED |
+| BatchJobStatus | PENDING, PROCESSING, COMPLETED, FAILED |
+| CostAdjustmentStatus | PENDING, APPROVED, REJECTED |
+| CarrierReconStatus | DRAFT, PROCESSING, COMPLETED, DISPUTED |
 
 </details>
 
@@ -1348,41 +1564,57 @@ Sau khi cài đặt, hệ thống tạo sẵn tài khoản quản trị viên:
 
 ```
 Customer ──┬── Order ──┬── OrderItem ──── SupplierOrder
+           │           ├── OrderExtraCharge
+           │           ├── OrderStatusHistory
            │           ├── Package ────── TrackingEvent
-           │           ├── Delivery ───── CODRecord
+           │           ├── Delivery ──┬── DeliveryPackage
+           │           │              └── CODRecord
            │           ├── PaymentVoucher
-           │           ├── AccountReceivable
+           │           ├── AccountReceivable ── ARAgingSnapshot
            │           ├── Complaint
            │           ├── QCInspection
            │           ├── MHHIssue
+           │           ├── ReturnRequest
            │           └── CostAllocation
            │
-           ├── Contract ── PaymentAllocation
-           ├── Quotation
-           ├── Wallet ──── WalletTransaction
-           └── Contact
+           ├── Contract ── PaymentAllocation ── PaymentAllocationDetail
+           ├── Quotation ── QuotationItem
+           ├── Wallet ──── WalletTransaction ── BankWebhookTransaction
+           ├── Contact
+           ├── CustomerInteractionNote
+           ├── Lead ──── LeadNote
+           └── SupportTicket ── TicketResponse
 
 User ──┬── Session
-       ├── AuditLog
+       ├── AuditLog ──── AuditLogArchive
        ├── Employee ──┬── Attendance
        │              ├── LeaveRequest
        │              ├── PayrollRecord
-       │              └── OvertimeRequest
-       ├── Task
+       │              ├── OvertimeRequest
+       │              ├── TrainingRecord
+       │              └── PerformanceNote
+       ├── Task ──── TaskComment
        ├── Notification
        └── Document
 
-Container ──┬── Package
+Container ──┬── Package ── PackageConsolidation
             ├── Order
             ├── TrackingEvent
-            └── OperationCost
+            └── OperationCost ── CostAdjustment
 
 ApprovalFlowDefinition ──┬── ApprovalFlowNode
                          ├── ApprovalFlowEdge
                          └── Approval ──┬── ApprovalStep
                                         ├── ApprovalComment
                                         ├── ApprovalCC
-                                        └── ApprovalActionLog
+                                        ├── ApprovalActionLog
+                                        └── ApprovalDelegation
+
+OutboxEvent ── DeadLetterEvent
+ReconciliationRun ── ReconciliationItem
+CarrierReconciliation ── CarrierReconItem
+BatchJob
+SyncLog
 ```
 
 ### D. Website công khai
@@ -1451,7 +1683,8 @@ Cả ERP Frontend và CMS Frontend đều có hệ thống trang công khai cho 
    ├── /don-hang          (Đơn hàng)
    ├── /bao-gia           (Báo giá)
    ├── /hop-dong          (Hợp đồng)
-   └── /khach-hang        (Khách hàng)
+   ├── /khach-hang        (Khách hàng)
+   └── /khach-hang/tiem-nang (Khách tiềm năng)
 
 3. 🏭 Kho vận
    ├── /kho-trung-quoc    (Kho Trung Quốc)
@@ -1486,18 +1719,23 @@ Cả ERP Frontend và CMS Frontend đều có hệ thống trang công khai cho 
    └── /hoa-hong          (Hoa hồng)
 
 7. 📈 Báo cáo
-   ├── /bao-cao/doanh-so  (Doanh số)
-   └── /bao-cao/tai-chinh (Tài chính)
+   ├── /bao-cao/doanh-so           (Doanh số)
+   ├── /bao-cao/tai-chinh          (Tài chính)
+   ├── /bao-cao/lai-lo-don-hang    (Lãi lỗ đơn hàng)
+   ├── /bao-cao/bien-loi-nhuan     (Biên lợi nhuận)
+   ├── /bao-cao/chenh-lech-ty-gia  (Chênh lệch tỷ giá)
+   └── /bao-cao/du-bao-dong-tien   (Dự báo dòng tiền)
 
 8. ⚙️ Hệ thống
    ├── /cong-viec         (Công việc)
    ├── /khieu-nai         (Khiếu nại)
+   ├── /ho-tro            (Hỗ trợ khách hàng)
    ├── /tai-lieu          (Tài liệu)
    ├── /thong-bao         (Thông báo)
    ├── /phe-duyet         (Phê duyệt)
    ├── /uy-quyen          (Ủy quyền)
    ├── /quan-ly-user      (Quản lý User)
-   └── /cai-dat           (Cài đặt)
+   └── /cai-dat           (Cài đặt + Thông báo + Leo thang)
 ```
 
 ### G. Trang tổng quan theo vai trò
@@ -1628,7 +1866,7 @@ WAREHOUSE_VN_MANAGER (24h) → CHIEF_ACCOUNTANT (24h) → END
 CHIEF_ACCOUNTANT (24h) → COO (48h) → END
 ```
 
-### I. Danh sách hàm tái sử dụng giao diện (43 hàm)
+### I. Danh sách hàm tái sử dụng giao diện (48 hàm)
 
 <details>
 <summary>Nhấn để xem danh sách hàm tái sử dụng</summary>
@@ -1689,6 +1927,13 @@ CHIEF_ACCOUNTANT (24h) → COO (48h) → END
 - `use-dashboard` — Dữ liệu trang tổng quan
 - `use-reports` — Báo cáo
 
+**CRM mở rộng:**
+- `use-leads` — Khách hàng tiềm năng
+- `use-support-tickets` — Phiếu hỗ trợ
+- `use-customs-split` — Tách hải quan
+- `use-return-request` — Yêu cầu trả hàng
+- `use-sales-dashboard` — Bảng tổng quan kinh doanh
+
 **Blog/Quản trị nội dung:**
 - `use-blog-posts` — Bài viết
 - `use-draft` — Lưu nháp tự động
@@ -1698,7 +1943,7 @@ CHIEF_ACCOUNTANT (24h) → COO (48h) → END
 ### J. Tham chiếu điểm cuối giao diện lập trình
 
 <details>
-<summary>Nhấn để xem toàn bộ điểm cuối API (300+)</summary>
+<summary>Nhấn để xem toàn bộ điểm cuối API (603+)</summary>
 
 #### Đơn hàng — `/orders`
 | Method | Path | Mô tả |
@@ -1803,9 +2048,12 @@ CHIEF_ACCOUNTANT (24h) → COO (48h) → END
 | POST | `/warehouse-vn/deliveries/:id/confirm` | Xác nhận giao hàng |
 | GET | `/warehouse-vn/delivery-plan` | Kế hoạch giao hàng |
 | POST | `/warehouse-vn/packages/:id/reweigh` | Cân lại kiện (VN weight) |
-| POST | `/warehouse-vn/rto/:deliveryId/initiate` | Khởi tạo trả hàng (RTO) |
-| POST | `/warehouse-vn/rto/:deliveryId/receive` | Nhận hàng hoàn trả |
+| POST | `/warehouse-vn/deliveries/:id/failed` | Báo giao thất bại (auto RTO) |
+| POST | `/warehouse-vn/deliveries/:id/rto/initiate` | Khởi tạo trả hàng (RTO) |
+| POST | `/warehouse-vn/deliveries/:id/rto/receive` | Nhận hàng hoàn trả |
+| POST | `/warehouse-vn/deliveries/:id/rto/reschedule` | Lên lịch giao lại |
 | GET | `/warehouse-vn/rto` | Danh sách hàng hoàn trả |
+| GET | `/warehouse-vn/rto/:deliveryId/fee-breakdown` | Chi tiết phí lưu kho |
 
 #### Tiền chờ phân bổ — `/finance/unallocated`
 | Method | Path | Mô tả |
@@ -2058,4 +2306,4 @@ CHIEF_ACCOUNTANT (24h) → COO (48h) → END
 ---
 
 > **Tài liệu này được tạo tự động từ phân tích mã nguồn hệ thống.**
-> Phiên bản: 3.0 | Ngày: 2026-02-24
+> Phiên bản: 4.0 | Ngày: 2026-03-04

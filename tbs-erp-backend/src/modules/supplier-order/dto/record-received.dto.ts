@@ -12,12 +12,17 @@ export class RecordReceivedDto {
   @IsNumber()
   actualPriceCNY?: number;
 
-  @ApiPropertyOptional({ description: 'Note about the received goods (condition, discrepancies, etc.)' })
+  @ApiPropertyOptional({
+    description: 'Note about the received goods (condition, discrepancies, etc.)',
+  })
   @IsOptional()
   @IsString()
   note?: string;
 
-  @ApiProperty({ description: 'Array of attachment URLs (photos of received goods) — mandatory', type: [String] })
+  @ApiProperty({
+    description: 'Array of attachment URLs (photos of received goods) — mandatory',
+    type: [String],
+  })
   @IsArray()
   @ArrayMinSize(1)
   attachments: string[];

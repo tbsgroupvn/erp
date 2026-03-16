@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 import { ApprovalStatus } from '@prisma/client';
 import { PaginationDto } from '@common/dto/pagination.dto';
 import { VoucherType } from './create-voucher.dto';
@@ -27,6 +28,8 @@ export class VoucherQueryDto extends PaginationDto {
 
   @ApiPropertyOptional({ description: 'Filter flagged vouchers only' })
   @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
   isFlagged?: boolean;
 
   @ApiPropertyOptional({ description: 'Search by code' })

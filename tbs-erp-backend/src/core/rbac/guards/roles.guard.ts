@@ -1,9 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
 import { ROLES_KEY } from '../decorators/roles.decorator';
@@ -16,10 +11,10 @@ export class RolesGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     // Get the required roles from both handler and class level,
     // handler-level takes precedence
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
-      ROLES_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     // If no roles are specified, the endpoint is accessible to all authenticated users
     if (!requiredRoles || requiredRoles.length === 0) {
@@ -30,9 +25,7 @@ export class RolesGuard implements CanActivate {
     const user = request.user as ICurrentUser;
 
     if (!user) {
-      throw new ForbiddenException(
-        'Access denied: user information not found.',
-      );
+      throw new ForbiddenException('Access denied: user information not found.');
     }
 
     const hasRole = requiredRoles.includes(user.role);

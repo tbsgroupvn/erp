@@ -181,18 +181,12 @@ export class DataScopeService {
   /**
    * Build filter for a SALE role: only own records.
    */
-  private buildSaleFilter(
-    userId: string,
-    entityType?: string,
-  ): DataScopeFilter {
+  private buildSaleFilter(userId: string, entityType?: string): DataScopeFilter {
     switch (entityType) {
       case 'order':
         return { saleId: userId };
       case 'customer':
-        // Customers created by or assigned to this sale
-        return {
-          OR: [{ createdBy: userId }, { saleId: userId }],
-        };
+        return { saleId: userId };
       case 'finance':
         return { createdBy: userId };
       default:
@@ -216,20 +210,12 @@ export class DataScopeService {
       case 'order':
         return { saleId: { in: teamMemberIds } };
       case 'customer':
-        return {
-          OR: [
-            { createdBy: { in: teamMemberIds } },
-            { saleId: { in: teamMemberIds } },
-          ],
-        };
+        return { saleId: { in: teamMemberIds } };
       case 'finance':
         return { createdBy: { in: teamMemberIds } };
       default:
         return {
-          OR: [
-            { saleId: { in: teamMemberIds } },
-            { createdBy: { in: teamMemberIds } },
-          ],
+          OR: [{ saleId: { in: teamMemberIds } }, { createdBy: { in: teamMemberIds } }],
         };
     }
   }
@@ -239,10 +225,7 @@ export class DataScopeService {
    * If the user has no branch assigned, returns a filter that matches nothing
    * to prevent privilege escalation (seeing all data).
    */
-  private buildBranchFilter(
-    branch?: Branch | null,
-    entityType?: string,
-  ): DataScopeFilter {
+  private buildBranchFilter(branch?: Branch | null, entityType?: string): DataScopeFilter {
     if (!branch) {
       // If branch is required but not set, match nothing for safety
       return { branch: 'NO_BRANCH_ASSIGNED' as Branch };

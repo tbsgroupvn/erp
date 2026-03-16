@@ -24,6 +24,7 @@ import {
 } from '@/lib/hooks/use-exchange-rate';
 import { formatCurrency, formatDate } from '@/lib/utils/format';
 import { Currency, UserRole } from '@/lib/types/enums';
+import { InfoTooltip } from '@/components/shared/info-tooltip';
 
 // ---------------------------------------------------------------------------
 // Types for extended exchange rate data
@@ -42,8 +43,8 @@ interface ExtendedExchangeRate {
 
 const CURRENCY_LABELS: Record<Currency, string> = {
   [Currency.VND]: 'VND',
-  [Currency.CNY]: 'CNY (Nhan dan te)',
-  [Currency.USD]: 'USD (Do la My)',
+  [Currency.CNY]: 'CNY (Nhân dân tệ)',
+  [Currency.USD]: 'USD (Đô la Mỹ)',
 };
 
 export default function TyGiaPage() {
@@ -137,17 +138,17 @@ export default function TyGiaPage() {
 
   return (
     <div>
-      <PageHeader title="Ty gia" description="Quan ly ty gia hoi doai">
+      <PageHeader title="Tỷ giá" description="Quản lý tỷ giá hối đoái" infoKey="exchange-rate">
         <Button
           variant="outline"
           disabled={syncVcb.isPending}
           onClick={() => syncVcb.mutate()}
         >
-          {syncVcb.isPending ? 'Dang dong bo...' : 'Dong bo Vietcombank'}
+          {syncVcb.isPending ? 'Đang đồng bộ...' : 'Đồng bộ Vietcombank'}
         </Button>
         <RoleGuard allowedRoles={[UserRole.CHIEF_ACCOUNTANT, UserRole.CEO, UserRole.COO]}>
           <Button onClick={() => setShowForm((v) => !v)}>
-            {showForm ? 'Dong' : 'Cap nhat ty gia thu cong'}
+            {showForm ? 'Đóng' : 'Cập nhật tỷ giá thủ công'}
           </Button>
         </RoleGuard>
       </PageHeader>
@@ -160,18 +161,18 @@ export default function TyGiaPage() {
           </CardHeader>
           <CardContent>
             {loadingRates ? (
-              <p className="text-sm text-muted-foreground">Dang tai...</p>
+              <p className="text-sm text-muted-foreground">Đang tải...</p>
             ) : cnyCurrent ? (
               <div>
                 <p className="text-2xl font-bold">
                   {cnyCurrent.rate.toLocaleString('vi-VN')}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Nguon: {cnyCurrent.source || '---'} &middot; {formatDate(cnyCurrent.date, 'dd/MM/yyyy')}
+                  Nguồn: {cnyCurrent.source || '---'} &middot; {formatDate(cnyCurrent.date, 'dd/MM/yyyy')}
                 </p>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Chua co du lieu</p>
+              <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
             )}
           </CardContent>
         </Card>
@@ -182,18 +183,18 @@ export default function TyGiaPage() {
           </CardHeader>
           <CardContent>
             {loadingRates ? (
-              <p className="text-sm text-muted-foreground">Dang tai...</p>
+              <p className="text-sm text-muted-foreground">Đang tải...</p>
             ) : usdCurrent ? (
               <div>
                 <p className="text-2xl font-bold">
                   {usdCurrent.rate.toLocaleString('vi-VN')}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Nguon: {usdCurrent.source || '---'} &middot; {formatDate(usdCurrent.date, 'dd/MM/yyyy')}
+                  Nguồn: {usdCurrent.source || '---'} &middot; {formatDate(usdCurrent.date, 'dd/MM/yyyy')}
                 </p>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Chua co du lieu</p>
+              <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
             )}
           </CardContent>
         </Card>
@@ -202,25 +203,28 @@ export default function TyGiaPage() {
       {/* ===== Current Exchange Rates Table ===== */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-lg">Ty gia hien tai</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            Tỷ giá hiện tại
+            <InfoTooltip tipKey="exchange-rate" />
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {loadingRates ? (
-            <p className="text-sm text-muted-foreground">Dang tai...</p>
+            <p className="text-sm text-muted-foreground">Đang tải...</p>
           ) : !activeRates || activeRates.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Chua co du lieu ty gia.</p>
+            <p className="text-sm text-muted-foreground">Chưa có dữ liệu tỷ giá.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b text-left text-sm font-medium text-muted-foreground">
-                    <th className="pb-3 pr-4">Tu</th>
-                    <th className="pb-3 pr-4">Den</th>
-                    <th className="pb-3 pr-4 text-right">Ty gia</th>
-                    <th className="pb-3 pr-4">Ngay</th>
-                    <th className="pb-3 pr-4">Nguon</th>
-                    <th className="pb-3 pr-4">Nguoi cap nhat</th>
-                    <th className="pb-3">Loai</th>
+                    <th className="pb-3 pr-4">Từ</th>
+                    <th className="pb-3 pr-4">Đến</th>
+                    <th className="pb-3 pr-4 text-right">Tỷ giá</th>
+                    <th className="pb-3 pr-4">Ngày</th>
+                    <th className="pb-3 pr-4">Nguồn</th>
+                    <th className="pb-3 pr-4">Người cập nhật</th>
+                    <th className="pb-3">Loại</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -236,9 +240,9 @@ export default function TyGiaPage() {
                       <td className="py-3 pr-4">{row.setBy || '---'}</td>
                       <td className="py-3">
                         {row.isManual ? (
-                          <Badge className="bg-amber-100 text-amber-700 border-0">Thu cong</Badge>
+                          <Badge className="bg-amber-100 text-amber-700 border-0">Thủ công</Badge>
                         ) : (
-                          <Badge className="bg-blue-100 text-blue-700 border-0">Tu dong</Badge>
+                          <Badge className="bg-blue-100 text-blue-700 border-0">Tự động</Badge>
                         )}
                       </td>
                     </tr>
@@ -255,18 +259,18 @@ export default function TyGiaPage() {
         {showForm && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-lg">Cap nhat ty gia CNY thu cong</CardTitle>
+              <CardTitle className="text-lg">Cập nhật tỷ giá CNY thủ công</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-2">
-                  <Label>Tu tien te</Label>
+                  <p className="text-sm font-medium leading-none">Từ tiền tệ</p>
                   <Select
                     value={rateForm.from}
                     onValueChange={(v) => setRateForm((prev) => ({ ...prev, from: v }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Chon tien te" />
+                      <SelectValue placeholder="Chọn tiền tệ" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="CNY">CNY</SelectItem>
@@ -276,13 +280,13 @@ export default function TyGiaPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Den tien te</Label>
+                  <p className="text-sm font-medium leading-none">Đến tiền tệ</p>
                   <Select
                     value={rateForm.to}
                     onValueChange={(v) => setRateForm((prev) => ({ ...prev, to: v }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Chon tien te" />
+                      <SelectValue placeholder="Chọn tiền tệ" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="VND">VND</SelectItem>
@@ -291,18 +295,18 @@ export default function TyGiaPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Ty gia *</Label>
+                  <p className="text-sm font-medium leading-none">Tỷ giá *</p>
                   <Input
                     type="number"
                     step="0.01"
-                    placeholder="Nhap ty gia"
+                    placeholder="Nhập tỷ giá"
                     value={rateForm.rate}
                     onChange={(e) => setRateForm((prev) => ({ ...prev, rate: e.target.value }))}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Ngay hieu luc *</Label>
+                  <p className="text-sm font-medium leading-none">Ngày hiệu lực *</p>
                   <Input
                     type="date"
                     value={rateForm.effectiveDate}
@@ -313,7 +317,7 @@ export default function TyGiaPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Nguon (tuy chon)</Label>
+                  <p className="text-sm font-medium leading-none">Nguồn (tùy chọn)</p>
                   <Input
                     placeholder="VD: Vietcombank"
                     value={rateForm.source}
@@ -324,7 +328,7 @@ export default function TyGiaPage() {
 
               <div className="flex gap-2 mt-4">
                 <Button disabled={setRate.isPending} onClick={handleSetRate}>
-                  {setRate.isPending ? 'Dang luu...' : 'Luu ty gia'}
+                  {setRate.isPending ? 'Đang lưu...' : 'Lưu tỷ giá'}
                 </Button>
                 <Button
                   variant="outline"
@@ -339,7 +343,7 @@ export default function TyGiaPage() {
                     });
                   }}
                 >
-                  Huy
+                  Huỷ
                 </Button>
               </div>
             </CardContent>
@@ -350,18 +354,18 @@ export default function TyGiaPage() {
       {/* ===== Convert Card ===== */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-lg">Quy doi</CardTitle>
+          <CardTitle className="text-lg">Quy đổi</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
-              <Label>Tu tien te</Label>
+              <p className="text-sm font-medium leading-none">Từ tiền tệ</p>
               <Select
                 value={convertForm.from}
                 onValueChange={(v) => setConvertForm((prev) => ({ ...prev, from: v }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Chon tien te" />
+                  <SelectValue placeholder="Chọn tiền tệ" />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.values(Currency).map((c) => (
@@ -374,13 +378,13 @@ export default function TyGiaPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Den tien te</Label>
+              <p className="text-sm font-medium leading-none">Đến tiền tệ</p>
               <Select
                 value={convertForm.to}
                 onValueChange={(v) => setConvertForm((prev) => ({ ...prev, to: v }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Chon tien te" />
+                  <SelectValue placeholder="Chọn tiền tệ" />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.values(Currency).map((c) => (
@@ -393,10 +397,10 @@ export default function TyGiaPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>So tien</Label>
+              <p className="text-sm font-medium leading-none">Số tiền</p>
               <Input
                 type="number"
-                placeholder="Nhap so tien"
+                placeholder="Nhập số tiền"
                 value={convertForm.amount}
                 onChange={(e) => setConvertForm((prev) => ({ ...prev, amount: e.target.value }))}
               />
@@ -408,7 +412,7 @@ export default function TyGiaPage() {
                 disabled={convertCurrency.isPending}
                 onClick={handleConvert}
               >
-                {convertCurrency.isPending ? 'Dang quy doi...' : 'Quy doi'}
+                {convertCurrency.isPending ? 'Đang quy đổi...' : 'Quy đổi'}
               </Button>
             </div>
           </div>
@@ -418,19 +422,19 @@ export default function TyGiaPage() {
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <div>
-                    <p className="text-xs text-muted-foreground">So tien goc</p>
+                    <p className="text-xs text-muted-foreground">Số tiền gốc</p>
                     <p className="text-lg font-semibold">
                       {formatCurrency(convertResult.amount, convertResult.from)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Ty gia ap dung</p>
+                    <p className="text-xs text-muted-foreground">Tỷ giá áp dụng</p>
                     <p className="text-lg font-semibold">
                       {convertResult.rate.toLocaleString('vi-VN')}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Ket qua</p>
+                    <p className="text-xs text-muted-foreground">Kết quả</p>
                     <p className="text-lg font-bold text-primary">
                       {formatCurrency(convertResult.result, convertResult.to)}
                     </p>
@@ -445,25 +449,25 @@ export default function TyGiaPage() {
       {/* ===== Audit Trail / History Table ===== */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Lich su thay doi (Audit Trail)</CardTitle>
+          <CardTitle className="text-lg">Lịch sử thay đổi (Audit Trail)</CardTitle>
         </CardHeader>
         <CardContent>
           {loadingHistory ? (
-            <p className="text-sm text-muted-foreground">Dang tai...</p>
+            <p className="text-sm text-muted-foreground">Đang tải...</p>
           ) : !extendedHistory || extendedHistory.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Chua co du lieu lich su.</p>
+            <p className="text-sm text-muted-foreground">Chưa có dữ liệu lịch sử.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b text-left text-sm font-medium text-muted-foreground">
-                    <th className="pb-3 pr-4">Thoi gian</th>
-                    <th className="pb-3 pr-4">Tu</th>
-                    <th className="pb-3 pr-4">Den</th>
-                    <th className="pb-3 pr-4 text-right">Ty gia</th>
-                    <th className="pb-3 pr-4">Nguon</th>
-                    <th className="pb-3 pr-4">Nguoi cap nhat</th>
-                    <th className="pb-3">Loai</th>
+                    <th className="pb-3 pr-4">Thời gian</th>
+                    <th className="pb-3 pr-4">Từ</th>
+                    <th className="pb-3 pr-4">Đến</th>
+                    <th className="pb-3 pr-4 text-right">Tỷ giá</th>
+                    <th className="pb-3 pr-4">Nguồn</th>
+                    <th className="pb-3 pr-4">Người cập nhật</th>
+                    <th className="pb-3">Loại</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -481,9 +485,9 @@ export default function TyGiaPage() {
                       <td className="py-3 pr-4">{row.setBy || '---'}</td>
                       <td className="py-3">
                         {row.isManual ? (
-                          <Badge className="bg-amber-100 text-amber-700 border-0">Thu cong</Badge>
+                          <Badge className="bg-amber-100 text-amber-700 border-0">Thủ công</Badge>
                         ) : (
-                          <Badge className="bg-blue-100 text-blue-700 border-0">Tu dong</Badge>
+                          <Badge className="bg-blue-100 text-blue-700 border-0">Tự động</Badge>
                         )}
                       </td>
                     </tr>

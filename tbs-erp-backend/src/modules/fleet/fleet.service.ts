@@ -24,7 +24,7 @@ export class FleetService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   /**
    * Creates a new vehicle record.
@@ -293,9 +293,7 @@ export class FleetService {
         totalLiters: Math.round(totalFuelLiters * 100) / 100,
         totalCost: Math.round(totalFuelCost),
         avgLitersPerTrip:
-          deliveries.length > 0
-            ? Math.round((totalFuelLiters / deliveries.length) * 100) / 100
-            : 0,
+          deliveries.length > 0 ? Math.round((totalFuelLiters / deliveries.length) * 100) / 100 : 0,
       },
     };
   }

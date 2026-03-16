@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +26,21 @@ interface PricingResult {
   chargeableWeight: number;
 }
 
+interface ServiceFeeConfigItem {
+  serviceType: string;
+  name: string;
+  customerTier: string | null;
+  feePercent: string | number;
+  minFeeAmount: string | number | null;
+  maxFeeAmount: string | number | null;
+  minOrderValue: string | number | null;
+  maxOrderValue: string | number | null;
+  minQuantity: number | null;
+  productCategory: string | null;
+  priority: number;
+  note: string | null;
+}
+
 const serviceTypeLabels: Record<ServiceType, string> = {
   VCT: 'Vận chuyển thuần',
   MHH: 'Mua hàng hộ',
@@ -39,8 +54,8 @@ const shippingRouteLabels: Record<ShippingRoute, string> = {
   AIR: 'Đường hàng không (nhanh nhất, đắt)',
 };
 
-// Pricing constants (can be moved to config)
-const PRICING_CONFIG = {
+// Fallback pricing constants used when API is unavailable
+const FALLBACK_PRICING_CONFIG = {
   baseRatePerKg: {
     VCT: 35000, // VND per kg
     MHH: 40000,
@@ -66,6 +81,43 @@ const PRICING_CONFIG = {
   customsRate: 0.1, // 10% of shipping fee
 };
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+
+/**
+ * Build PRICING_CONFIG from backend ServiceFeeConfig records.
+ * Each record has feePercent and minFeeAmount per serviceType.
+ * We use the highest-priority config per serviceType (for customerTier=null, i.e. general).
+ */
+function buildPricingFromApi(
+  configs: ServiceFeeConfigItem[],
+): typeof FALLBACK_PRICING_CONFIG {
+  const result = { ...FALLBACK_PRICING_CONFIG };
+  const updated = { ...result.serviceFee };
+  const updatedBase = { ...result.baseRatePerKg };
+
+  // Group by serviceType, pick highest priority general config (customerTier is null)
+  const generalConfigs = configs.filter((c) => c.customerTier === null);
+
+  for (const cfg of generalConfigs) {
+    const st = cfg.serviceType as ServiceType;
+    if (st in updated) {
+      // Use minFeeAmount as the flat service fee if available
+      if (cfg.minFeeAmount != null) {
+        updated[st] = Number(cfg.minFeeAmount);
+      }
+      // Use feePercent to derive base rate: feePercent represents % markup,
+      // but we keep the baseRatePerKg from the config name convention or existing fallback
+      // since ServiceFeeConfig is about service fee %, not shipping rate per kg.
+    }
+  }
+
+  return {
+    ...result,
+    serviceFee: updated,
+    baseRatePerKg: updatedBase,
+  };
+}
+
 export default function PricingCalculator() {
   const [weight, setWeight] = useState<string>('');
   const [length, setLength] = useState<string>('');
@@ -76,6 +128,26 @@ export default function PricingCalculator() {
   const [result, setResult] = useState<PricingResult | null>(null);
   const [email, setEmail] = useState<string>('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [pricingConfig, setPricingConfig] = useState(FALLBACK_PRICING_CONFIG);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchServiceFees() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/public/service-fees`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const configs: ServiceFeeConfigItem[] = json.data;
+        if (!cancelled && Array.isArray(configs) && configs.length > 0) {
+          setPricingConfig(buildPricingFromApi(configs));
+        }
+      } catch {
+        // Silently fall back to hardcoded values
+      }
+    }
+    fetchServiceFees();
+    return () => { cancelled = true; };
+  }, []);
 
   const calculatePrice = () => {
     const actualWeight = parseFloat(weight);
@@ -91,7 +163,7 @@ export default function PricingCalculator() {
     // Calculate dimensional weight if dimensions are provided
     let dimensionalWeight = 0;
     if (l > 0 && w > 0 && h > 0) {
-      const dimFactor = PRICING_CONFIG.dimFactor[shippingRoute];
+      const dimFactor = pricingConfig.dimFactor[shippingRoute];
       dimensionalWeight = (l * w * h) / dimFactor;
     }
 
@@ -99,15 +171,15 @@ export default function PricingCalculator() {
     const chargeableWeight = Math.max(actualWeight, dimensionalWeight);
 
     // Calculate shipping fee
-    const baseRate = PRICING_CONFIG.baseRatePerKg[serviceType];
-    const routeMultiplier = PRICING_CONFIG.routeMultiplier[shippingRoute];
+    const baseRate = pricingConfig.baseRatePerKg[serviceType];
+    const routeMultiplier = pricingConfig.routeMultiplier[shippingRoute];
     const shippingFee = chargeableWeight * baseRate * routeMultiplier;
 
     // Calculate customs fee (10% of shipping fee)
-    const customsFee = shippingFee * PRICING_CONFIG.customsRate;
+    const customsFee = shippingFee * pricingConfig.customsRate;
 
     // Service fee
-    const serviceFee = PRICING_CONFIG.serviceFee[serviceType];
+    const serviceFee = pricingConfig.serviceFee[serviceType];
 
     // Total
     const total = shippingFee + customsFee + serviceFee;
@@ -248,7 +320,7 @@ export default function PricingCalculator() {
 
           {/* Dimensions */}
           <div className="space-y-2">
-            <Label>Kích thước (cm) - Tùy chọn</Label>
+            <p className="text-sm font-medium leading-none">Kích thước (cm) - Tùy chọn</p>
             <div className="grid grid-cols-3 gap-2">
               <Input
                 type="number"

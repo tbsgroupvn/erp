@@ -34,9 +34,7 @@ export class OrderCompletedListener {
       return;
     }
 
-    this.logger.log(
-      `Order ${event.code} completed — calculating commission`,
-    );
+    this.logger.log(`Order ${event.code} completed — calculating commission`);
 
     try {
       // Check if commission already exists for this order
@@ -45,9 +43,7 @@ export class OrderCompletedListener {
       });
 
       if (existing) {
-        this.logger.warn(
-          `Commission already exists for order ${event.code} (${existing.id})`,
-        );
+        this.logger.warn(`Commission already exists for order ${event.code} (${existing.id})`);
         return;
       }
 
@@ -65,6 +61,10 @@ export class OrderCompletedListener {
               allocatedAmount: true,
             },
           },
+          costAdjustments: {
+            where: { status: 'APPROVED' },
+            select: { amount: true },
+          },
         },
       });
 
@@ -77,25 +77,33 @@ export class OrderCompletedListener {
       const result = await this.commissionCalculator.calculateCommission(order);
 
       if (!result) {
-        this.logger.log(
-          `No applicable commission rule for order ${event.code}`,
-        );
+        this.logger.log(`No applicable commission rule for order ${event.code}`);
         return;
       }
 
       // Create CommissionRecord with status PENDING
-      const commission = await this.prisma.commissionRecord.create({
-        data: {
-          orderId: order.id,
-          saleId: order.saleId,
-          orderRevenue: result.revenue,
-          orderCost: result.cost,
-          netProfit: result.profit,
-          commissionRate: result.rate,
-          commissionAmount: result.amount,
-          status: 'PENDING',
-        },
-      });
+      // Use try/catch for P2002 (unique constraint on orderId) to handle concurrent events
+      let commission;
+      try {
+        commission = await this.prisma.commissionRecord.create({
+          data: {
+            orderId: order.id,
+            saleId: order.saleId,
+            orderRevenue: result.revenue,
+            orderCost: result.cost,
+            netProfit: result.profit,
+            commissionRate: result.rate,
+            commissionAmount: result.amount,
+            status: 'PENDING',
+          },
+        });
+      } catch (createError) {
+        if (createError.code === 'P2002') {
+          this.logger.warn(`Commission already exists for order ${event.code} (duplicate event)`);
+          return;
+        }
+        throw createError;
+      }
 
       this.logger.log(
         `Commission PENDING created for order ${event.code}: revenue=${result.revenue}, cost=${result.cost}, profit=${result.profit}, commission=${result.amount}`,
