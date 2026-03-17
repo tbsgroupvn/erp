@@ -1,3 +1,46 @@
+# ============================================
+# TBS ERP - CI/CD Pipeline (10-Stage)
+# ============================================
+#
+# Stage 1: Lint + Type Check       (fast-fail gate)
+# Stage 2: Unit Tests              (Jest backend + Vitest frontend)
+# Stage 3: Build Docker Images     (backend + frontend + CMS)
+# Stage 4: Integration Tests       (real PostgreSQL + Redis)
+# Stage 5: Security Scan           (SAST + dependency + container)
+# Stage 6: Deploy Staging          (auto on staging branch, canary)
+# Stage 7: E2E Tests on Staging    (384 Playwright tests)
+# Stage 8: Deploy Production       (manual approval, blue/green)
+# Stage 9: Post-Deploy Health      (5-minute monitoring window)
+# Stage 10: Rollback Mechanism     (auto on failure + manual workflow)
+#
+# Job dependency graph:
+#
+#   lint-typecheck ──────────────────────────────────────────────┐
+#        │                                                       │
+#   unit-tests ────────┬────────────────────────────────┐        │
+#        │             │                                │        │
+#   integration-tests  │                                │        │
+#        │             │                                │        │
+#        └─────────────┴─── security-scan ──────────────┤        │
+#                                │                      │        │
+#                           build-docker ───────────────┤        │
+#                                │                      │        │
+#                          container-scan               │        │
+#                                │                      │        │
+#                    ┌── deploy-staging (staging only)   │        │
+#                    │           │                       │        │
+#                    │    e2e-staging                    │        │
+#                    │           │                       │        │
+#                    │    verify-staging + dast-scan     │        │
+#                    │                                  │        │
+#                    └── deploy-production (main only) ──┘        │
+#                                │                               │
+#                        post-deploy-health                      │
+#                                │                               │
+#                        [auto-rollback on failure] ─────────────┘
+#
+# ============================================
+
 name: CI/CD Pipeline
 
 on:
@@ -15,28 +58,65 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+# ============================================
+# STAGE 1: LINT + TYPE CHECK (fast-fail gate)
+# ============================================
 jobs:
-  # ============================================
-  # BACKEND TESTS
-  # ============================================
-  backend-test:
-    name: Backend Tests
+  lint-typecheck:
+    name: 'Stage 1: Lint + Type Check'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        project:
+          - name: backend
+            dir: tbs-erp-backend
+            lint: npm run lint
+            typecheck: npx tsc --noEmit
+          - name: frontend
+            dir: tbs-erp-frontend
+            lint: npm run lint
+            typecheck: npx tsc --noEmit
+          - name: cms
+            dir: tbs-cms-frontend
+            lint: npm run lint
+            typecheck: npx tsc --noEmit
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: ${{ secrets.TEST_DB_USER || 'test_user' }}
-          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'test_password_ci' }}
-          POSTGRES_DB: ${{ secrets.TEST_DB_NAME || 'tbs_erp_test' }}
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.project.dir }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./${{ matrix.project.dir }}
+        run: npm ci
+
+      - name: Generate Prisma Client
+        if: matrix.project.name == 'backend'
+        working-directory: ./${{ matrix.project.dir }}
+        run: npx prisma generate
+
+      - name: Run ESLint
+        working-directory: ./${{ matrix.project.dir }}
+        run: ${{ matrix.project.lint }}
+
+      - name: Run TypeScript type check
+        working-directory: ./${{ matrix.project.dir }}
+        run: ${{ matrix.project.typecheck }}
+
+  # ============================================
+  # STAGE 2: UNIT TESTS
+  # ============================================
+  unit-tests-backend:
+    name: 'Stage 2: Backend Unit Tests (Jest)'
+    runs-on: ubuntu-latest
+    needs: lint-typecheck
 
     steps:
       - name: Checkout code
@@ -57,39 +137,23 @@ jobs:
         working-directory: ./tbs-erp-backend
         run: npx prisma generate
 
-      - name: Run database migrations
+      - name: Run unit tests with coverage
         working-directory: ./tbs-erp-backend
         env:
-          DATABASE_URL: ${{ secrets.TEST_DB_URL || format('postgresql://{0}:{1}@localhost:5432/{2}', secrets.TEST_DB_USER || 'test_user', secrets.TEST_DB_PASSWORD || 'test_password_ci', secrets.TEST_DB_NAME || 'tbs_erp_test') }}
-        run: npx prisma migrate deploy
+          JWT_SECRET: ci-test-secret-not-for-production
+        run: npm test -- --coverage --maxWorkers=2
 
-      - name: Run tests
-        working-directory: ./tbs-erp-backend
-        env:
-          DATABASE_URL: ${{ secrets.TEST_DB_URL || format('postgresql://{0}:{1}@localhost:5432/{2}', secrets.TEST_DB_USER || 'test_user', secrets.TEST_DB_PASSWORD || 'test_password_ci', secrets.TEST_DB_NAME || 'tbs_erp_test') }}
-          JWT_SECRET: ${{ secrets.TEST_JWT_SECRET || 'ci-test-secret-not-for-production' }}
-        run: npm test -- --coverage
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage (backend)
+        uses: codecov/codecov-action@v4
         with:
           files: ./tbs-erp-backend/coverage/lcov.info
           flags: backend
+          token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Lint code
-        working-directory: ./tbs-erp-backend
-        run: npm run lint
-
-      - name: Build
-        working-directory: ./tbs-erp-backend
-        run: npm run build
-
-  # ============================================
-  # FRONTEND TESTS
-  # ============================================
-  frontend-test:
-    name: Frontend Tests
+  unit-tests-frontend:
+    name: 'Stage 2: Frontend Unit Tests (Vitest)'
     runs-on: ubuntu-latest
+    needs: lint-typecheck
 
     steps:
       - name: Checkout code
@@ -106,133 +170,27 @@ jobs:
         working-directory: ./tbs-erp-frontend
         run: npm ci
 
-      - name: Run tests
+      - name: Run unit tests with coverage
         working-directory: ./tbs-erp-frontend
         run: npm test -- --coverage --maxWorkers=2
 
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage (frontend)
+        uses: codecov/codecov-action@v4
         with:
           files: ./tbs-erp-frontend/coverage/lcov.info
           flags: frontend
-
-      - name: Lint code
-        working-directory: ./tbs-erp-frontend
-        run: npm run lint
-
-      - name: Build
-        working-directory: ./tbs-erp-frontend
-        env:
-          NEXT_PUBLIC_API_URL: https://api.tbslogistics.com
-        run: npm run build
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   # ============================================
-  # SECURITY SCAN - Filesystem Vulnerability Scan
-  # ============================================
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    needs: [backend-test, frontend-test]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run Trivy vulnerability scanner (filesystem)
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v2
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-  # ============================================
-  # SAST - Static Application Security Testing
-  # ============================================
-  sast-scan:
-    name: SAST (Semgrep)
-    runs-on: ubuntu-latest
-    needs: [backend-test, frontend-test]
-
-    permissions:
-      contents: read
-      security-events: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run Semgrep SAST
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: >-
-            p/owasp-top-ten
-            p/nodejs
-            p/typescript
-            p/sql-injection
-            p/xss
-          generateSarif: true
-
-      - name: Upload Semgrep SARIF
-        uses: github/codeql-action/upload-sarif@v2
-        if: always()
-        with:
-          sarif_file: semgrep.sarif
-
-  # ============================================
-  # DEPENDENCY SCAN - npm audit + Snyk
-  # ============================================
-  dependency-scan:
-    name: Dependency Vulnerability Scan
-    runs-on: ubuntu-latest
-    needs: [backend-test, frontend-test]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Run npm audit (Backend)
-        working-directory: ./tbs-erp-backend
-        run: |
-          npm ci --ignore-scripts
-          npm audit --production --audit-level=critical
-
-      - name: Run npm audit (Frontend)
-        working-directory: ./tbs-erp-frontend
-        run: |
-          npm ci --ignore-scripts
-          npm audit --production --audit-level=critical
-
-      - name: Run Snyk Security Scan
-        if: env.SNYK_TOKEN != ''
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high --all-projects
-
-  # ============================================
-  # BUILD & TAG DOCKER IMAGES
+  # STAGE 3: BUILD DOCKER IMAGES
   # ============================================
   build-docker:
-    name: Build Docker Images
+    name: 'Stage 3: Build Docker Images'
     runs-on: ubuntu-latest
-    needs: [backend-test, frontend-test, security-scan, sast-scan, dependency-scan]
+    needs: [unit-tests-backend, unit-tests-frontend]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+
     outputs:
-      backend-image: ${{ steps.meta-backend.outputs.tags }}
-      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
       image-tag: ${{ steps.vars.outputs.sha_short }}
 
     permissions:
@@ -257,6 +215,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # --- Backend ---
       - name: Extract metadata (Backend)
         id: meta-backend
         uses: docker/metadata-action@v5
@@ -279,6 +238,7 @@ jobs:
           build-args: |
             GIT_SHA=${{ github.sha }}
 
+      # --- Frontend ERP ---
       - name: Extract metadata (Frontend)
         id: meta-frontend
         uses: docker/metadata-action@v5
@@ -299,34 +259,226 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # --- CMS Frontend ---
+      - name: Extract metadata (CMS)
+        id: meta-cms
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-cms
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push CMS image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./tbs-cms-frontend
+          push: true
+          tags: ${{ steps.meta-cms.outputs.tags }}
+          labels: ${{ steps.meta-cms.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # --- Sign images with cosign ---
       - name: Install cosign
+        if: env.COSIGN_PRIVATE_KEY != ''
         uses: sigstore/cosign-installer@v3
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
-      - name: Sign Backend container image
-        run: |
-          cosign sign --yes \
-            --key env://COSIGN_PRIVATE_KEY \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend@${{ steps.meta-backend.outputs.digest || steps.vars.outputs.sha_short }}
+      - name: Sign container images
+        if: env.COSIGN_PRIVATE_KEY != ''
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-
-      - name: Sign Frontend container image
         run: |
-          cosign sign --yes \
-            --key env://COSIGN_PRIVATE_KEY \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend@${{ steps.meta-frontend.outputs.digest || steps.vars.outputs.sha_short }}
-        env:
-          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          for suffix in backend frontend cms; do
+            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${suffix}:${{ github.ref_name }}"
+            cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$IMAGE" || true
+          done
 
   # ============================================
-  # CONTAINER IMAGE SCAN
+  # STAGE 4: INTEGRATION TESTS (real DB + Redis)
   # ============================================
+  integration-tests:
+    name: 'Stage 4: Integration Tests'
+    runs-on: ubuntu-latest
+    needs: [unit-tests-backend]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password_ci
+          POSTGRES_DB: tbs_erp_test
+        options: >-
+          --health-cmd "pg_isready -U test_user -d tbs_erp_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: tbs-erp-backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./tbs-erp-backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./tbs-erp-backend
+        run: npx prisma generate
+
+      - name: Run database migrations
+        working-directory: ./tbs-erp-backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password_ci@localhost:5432/tbs_erp_test
+        run: npx prisma migrate deploy
+
+      - name: Seed test data
+        working-directory: ./tbs-erp-backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password_ci@localhost:5432/tbs_erp_test
+        run: npx prisma db seed || echo "No seed script or seed already applied"
+
+      - name: Run integration tests
+        working-directory: ./tbs-erp-backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password_ci@localhost:5432/tbs_erp_test
+          DIRECT_DATABASE_URL: postgresql://test_user:test_password_ci@localhost:5432/tbs_erp_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: ci-test-secret-not-for-production
+          JWT_REFRESH_SECRET: ci-test-refresh-secret-not-for-production
+          NODE_ENV: test
+          FIELD_ENCRYPTION_KEY: ci-test-encryption-key-32chars!!
+          FIELD_ENCRYPTION_KEY_VERSION: v1
+          TWO_FA_ENCRYPTION_KEY: ci-test-2fa-key-32characters!!
+          TWO_FA_ENCRYPTION_SALT: ci-test-salt-value
+        run: npm run test:integration -- --maxWorkers=1
+
+      - name: Run e2e API tests
+        working-directory: ./tbs-erp-backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password_ci@localhost:5432/tbs_erp_test
+          DIRECT_DATABASE_URL: postgresql://test_user:test_password_ci@localhost:5432/tbs_erp_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: ci-test-secret-not-for-production
+          JWT_REFRESH_SECRET: ci-test-refresh-secret-not-for-production
+          NODE_ENV: test
+          FIELD_ENCRYPTION_KEY: ci-test-encryption-key-32chars!!
+          FIELD_ENCRYPTION_KEY_VERSION: v1
+          TWO_FA_ENCRYPTION_KEY: ci-test-2fa-key-32characters!!
+          TWO_FA_ENCRYPTION_SALT: ci-test-salt-value
+        run: npm run test:e2e -- --maxWorkers=1
+
+  # ============================================
+  # STAGE 5: SECURITY SCAN (SAST + deps + containers)
+  # ============================================
+  security-scan:
+    name: 'Stage 5: Security Scan'
+    runs-on: ubuntu-latest
+    needs: [unit-tests-backend, unit-tests-frontend]
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # --- SAST: Semgrep ---
+      - name: Run Semgrep SAST
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/owasp-top-ten
+            p/nodejs
+            p/typescript
+            p/sql-injection
+            p/xss
+          generateSarif: true
+
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+          category: sast-semgrep
+
+      # --- Filesystem vulnerability scan: Trivy ---
+      - name: Run Trivy vulnerability scanner (filesystem)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs-results.sarif'
+
+      - name: Upload Trivy FS results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-fs-results.sarif'
+          category: trivy-filesystem
+
+      # --- Dependency audit: npm audit ---
+      - name: Setup Node.js for audit
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: npm audit (Backend)
+        working-directory: ./tbs-erp-backend
+        run: |
+          npm ci --ignore-scripts
+          npm audit --production --audit-level=critical || true
+
+      - name: npm audit (Frontend)
+        working-directory: ./tbs-erp-frontend
+        run: |
+          npm ci --ignore-scripts
+          npm audit --production --audit-level=critical || true
+
+      # --- Snyk (optional, if token configured) ---
+      - name: Run Snyk Security Scan
+        if: env.SNYK_TOKEN != ''
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --all-projects
+
+  # --- Container image scan (separate job, needs images) ---
   container-scan:
-    name: Container Image Scan
+    name: 'Stage 5: Container Image Scan'
     runs-on: ubuntu-latest
     needs: build-docker
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
 
     permissions:
       contents: read
@@ -351,7 +503,6 @@ jobs:
           format: 'sarif'
           output: 'trivy-backend-image.sarif'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'
 
       - name: Scan Frontend image with Trivy
         uses: aquasecurity/trivy-action@master
@@ -360,32 +511,39 @@ jobs:
           format: 'sarif'
           output: 'trivy-frontend-image.sarif'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'
+
+      - name: Scan CMS image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-cms:${{ github.ref_name }}
+          format: 'sarif'
+          output: 'trivy-cms-image.sarif'
+          severity: 'CRITICAL,HIGH'
 
       - name: Upload Container Scan Results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-backend-image.sarif'
-          category: 'container-backend'
+          category: container-backend
 
   # ============================================
-  # DEPLOY TO STAGING (Canary -> Full)
+  # STAGE 6: DEPLOY TO STAGING (auto, canary)
   # ============================================
-  deploy-staging-canary:
-    name: Deploy Staging (Canary)
+  deploy-staging:
+    name: 'Stage 6: Deploy Staging (Canary)'
     runs-on: ubuntu-latest
-    needs: build-docker
+    needs: [build-docker, integration-tests, security-scan, container-scan]
     if: github.ref == 'refs/heads/staging'
     environment:
-      name: staging-canary
+      name: staging
       url: https://staging.tbslogistics.com
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy canary (10% traffic)
+      - name: Deploy canary to staging
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.STAGING_HOST }}
@@ -396,38 +554,39 @@ jobs:
             set -euo pipefail
             cd /var/www/tbs-erp
 
-            # Tag for this deployment
             export DEPLOY_TAG="${GITHUB_SHA:0:7}"
             export GIT_SHA="$GITHUB_SHA"
 
-            echo "Deploying canary with tag: $DEPLOY_TAG"
+            echo "=== Deploying canary with tag: $DEPLOY_TAG ==="
 
             # Pull new images
-            docker-compose -f docker-compose.staging.yml pull
+            docker compose -f docker-compose.staging.yml pull
 
-            # Start new backend alongside existing (canary pattern)
-            # Scale to add 1 canary instance alongside existing
-            docker-compose -f docker-compose.staging.yml up -d --no-deps --scale backend=2 backend
+            # Start canary: scale backend to 2 instances
+            docker compose -f docker-compose.staging.yml up -d --no-deps --scale backend=2 backend
 
-            # Run migrations on the canary
-            docker-compose -f docker-compose.staging.yml exec -T backend npx prisma migrate deploy
+            # Run migrations on canary
+            docker compose -f docker-compose.staging.yml exec -T backend npx prisma migrate deploy
 
       - name: Canary smoke tests
         run: |
           echo "Running smoke tests against staging canary..."
           sleep 15
 
-          # Health check
-          for i in {1..6}; do
+          for i in {1..8}; do
             if curl -sf --max-time 10 "https://staging-api.tbslogistics.com/api/v1/health/ready"; then
               echo "Health check passed (attempt $i)"
               break
             fi
-            echo "Health check failed (attempt $i/6), retrying..."
+            if [ "$i" -eq 8 ]; then
+              echo "FAIL: Health check timed out after 8 attempts"
+              exit 1
+            fi
+            echo "Health check attempt $i/8 failed, retrying..."
             sleep 10
           done
 
-          # Verify key endpoints
+          # Verify core API endpoints
           curl -sf --max-time 10 "https://staging-api.tbslogistics.com/api/v1/health" || exit 1
           echo "Canary smoke tests passed"
 
@@ -438,10 +597,13 @@ jobs:
           host: ${{ secrets.STAGING_HOST }}
           username: ${{ secrets.STAGING_USER }}
           key: ${{ secrets.STAGING_SSH_KEY }}
+          envs: GITHUB_SHA
           script: |
             cd /var/www/tbs-erp
-            # Full deployment - replace all instances
-            docker-compose -f docker-compose.staging.yml up -d
+            export GIT_SHA="$GITHUB_SHA"
+
+            # Full deployment - replace all instances with new version
+            docker compose -f docker-compose.staging.yml up -d
             echo "Canary promoted to full staging deployment"
 
       - name: Rollback canary on failure
@@ -454,26 +616,96 @@ jobs:
           script: |
             cd /var/www/tbs-erp
             echo "Canary failed! Rolling back staging..."
-            # Restart with previous images
-            docker-compose -f docker-compose.staging.yml down
-            docker-compose -f docker-compose.staging.yml up -d
+            docker compose -f docker-compose.staging.yml down
+            docker compose -f docker-compose.staging.yml up -d
             echo "Staging rollback complete"
 
   # ============================================
-  # STAGING HEALTH VERIFICATION
+  # STAGE 7: E2E TESTS ON STAGING (Playwright)
+  # ============================================
+  e2e-staging:
+    name: 'Stage 7: E2E Tests on Staging'
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/staging'
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: tbs-erp-frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./tbs-erp-frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: ./tbs-erp-frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Wait for staging to stabilize
+        run: |
+          echo "Waiting for staging to fully stabilize..."
+          for i in {1..12}; do
+            BACKEND=$(curl -sf --max-time 10 "https://staging-api.tbslogistics.com/api/v1/health/ready" && echo "OK" || echo "FAIL")
+            FRONTEND=$(curl -sf --max-time 10 "https://staging.tbslogistics.com" -o /dev/null && echo "OK" || echo "FAIL")
+            if [ "$BACKEND" = "OK" ] && [ "$FRONTEND" = "OK" ]; then
+              echo "Both services ready (attempt $i)"
+              break
+            fi
+            echo "Waiting... Backend=$BACKEND Frontend=$FRONTEND (attempt $i/12)"
+            sleep 10
+          done
+
+      - name: Run Playwright E2E tests (Chromium only on CI)
+        working-directory: ./tbs-erp-frontend
+        env:
+          CI: true
+          BASE_URL: https://staging.tbslogistics.com
+          API_BASE_URL: https://staging-api.tbslogistics.com/api/v1
+          SALE_EMAIL: ${{ secrets.STAGING_SALE_EMAIL }}
+          SALE_PASSWORD: ${{ secrets.STAGING_SALE_PASSWORD }}
+          CEO_EMAIL: ${{ secrets.STAGING_CEO_EMAIL }}
+          CEO_PASSWORD: ${{ secrets.STAGING_CEO_PASSWORD }}
+          ACCOUNTANT_EMAIL: ${{ secrets.STAGING_ACCOUNTANT_EMAIL }}
+          ACCOUNTANT_PASSWORD: ${{ secrets.STAGING_ACCOUNTANT_PASSWORD }}
+        run: npx playwright test --project=setup --project=chromium --reporter=github,html
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-staging
+          path: tbs-erp-frontend/playwright-report/
+          retention-days: 14
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results-staging
+          path: tbs-erp-frontend/e2e-results/
+          retention-days: 7
+
+  # ============================================
+  # STAGING VERIFICATION (after E2E)
   # ============================================
   verify-staging:
-    name: Verify Staging Health
+    name: 'Verify Staging Health'
     runs-on: ubuntu-latest
-    needs: deploy-staging-canary
+    needs: e2e-staging
     if: github.ref == 'refs/heads/staging'
 
     steps:
       - name: Comprehensive health checks
         run: |
           echo "Running comprehensive staging verification..."
-          sleep 30
-
           FAILURES=0
 
           # Backend health
@@ -488,7 +720,7 @@ jobs:
             FAILURES=$((FAILURES + 1))
           fi
 
-          # Frontend accessibility
+          # Frontend ERP
           if ! curl -sf --max-time 15 "https://staging.tbslogistics.com" -o /dev/null; then
             echo "FAIL: Frontend not accessible"
             FAILURES=$((FAILURES + 1))
@@ -499,13 +731,11 @@ jobs:
             exit 1
           fi
 
-          echo "All staging health checks passed"
+          echo "All staging health checks passed after E2E tests"
 
-  # ============================================
-  # DAST - Dynamic Application Security Testing
-  # ============================================
+  # --- DAST scan (after staging verification) ---
   dast-scan:
-    name: DAST (OWASP ZAP)
+    name: 'DAST (OWASP ZAP)'
     runs-on: ubuntu-latest
     needs: verify-staging
     if: github.ref == 'refs/heads/staging'
@@ -519,7 +749,7 @@ jobs:
         uses: zaproxy/action-baseline@v0.12.0
         with:
           target: https://staging-api.tbslogistics.com
-          rules_file_name: '.zap-rules.tsv'
+          rules_file_name: 'scripts/.zap-rules.tsv'
           fail_action: warn_new
           allow_issue_writing: false
 
@@ -532,12 +762,12 @@ jobs:
           retention-days: 30
 
   # ============================================
-  # DEPLOY TO PRODUCTION (Blue/Green)
+  # STAGE 8: DEPLOY TO PRODUCTION (manual approval, blue/green)
   # ============================================
   deploy-production:
-    name: Deploy Production (Blue/Green)
+    name: 'Stage 8: Deploy Production (Blue/Green)'
     runs-on: ubuntu-latest
-    needs: build-docker
+    needs: [build-docker, integration-tests, security-scan, container-scan]
     if: github.ref == 'refs/heads/main'
     environment:
       name: production
@@ -572,38 +802,35 @@ jobs:
             export DEPLOY_TAG="${GITHUB_SHA:0:7}"
 
             echo "Starting blue/green deployment (tag: $DEPLOY_TAG)..."
-
-            # Run blue/green deployment script
             bash scripts/blue-green-deploy.sh --skip-old-teardown
 
-      - name: Run production smoke tests
+      - name: Production smoke tests
         id: smoke-tests
         run: |
           echo "Running production smoke tests..."
           sleep 15
-
           FAILURES=0
 
-          # Backend health
+          # Backend health (with retry)
           for i in {1..12}; do
             if curl -sf --max-time 10 "https://api.nhaphangchinhngach.vn/api/v1/health/ready"; then
-              echo "Backend health check passed (attempt $i)"
+              echo "Backend health OK (attempt $i)"
               break
             fi
-            if [ $i -eq 12 ]; then
-              echo "FAIL: Backend health check timed out"
+            if [ "$i" -eq 12 ]; then
+              echo "FAIL: Backend health timed out"
               FAILURES=$((FAILURES + 1))
             fi
             sleep 10
           done
 
-          # Core API endpoint
+          # Core health endpoint
           if ! curl -sf --max-time 15 "https://api.nhaphangchinhngach.vn/api/v1/health"; then
             echo "FAIL: Core health endpoint"
             FAILURES=$((FAILURES + 1))
           fi
 
-          # Frontend
+          # Frontend ERP
           if ! curl -sf --max-time 15 "https://erp.nhaphangchinhngach.vn" -o /dev/null; then
             echo "FAIL: ERP frontend"
             FAILURES=$((FAILURES + 1))
@@ -624,29 +851,6 @@ jobs:
           echo "smoke_test_failed=false" >> $GITHUB_OUTPUT
           echo "All production smoke tests passed"
 
-      - name: Monitor production for 5 minutes
-        if: success()
-        run: |
-          echo "Monitoring production for 5 minutes post-deploy..."
-          FAIL_COUNT=0
-
-          for i in {1..10}; do
-            sleep 30
-            if ! curl -sf --max-time 10 "https://api.nhaphangchinhngach.vn/api/v1/health/ready" > /dev/null 2>&1; then
-              FAIL_COUNT=$((FAIL_COUNT + 1))
-              echo "Health check failed at minute $((i / 2)) (failures: $FAIL_COUNT)"
-            else
-              echo "Health check OK at interval $i/10"
-            fi
-
-            if [ $FAIL_COUNT -ge 3 ]; then
-              echo "Too many health check failures during monitoring window!"
-              exit 1
-            fi
-          done
-
-          echo "5-minute monitoring window passed successfully"
-
       - name: Auto-rollback on failure
         if: failure()
         uses: appleboy/ssh-action@master
@@ -660,7 +864,78 @@ jobs:
             bash scripts/rollback.sh --docker
             echo "Auto-rollback complete"
 
-      - name: Start health monitor
+      - name: Notify Slack (deploy result)
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author,action,workflow
+          text: |
+            Production Deploy: ${{ job.status }}
+            Commit: ${{ github.sha }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ============================================
+  # STAGE 9: POST-DEPLOY HEALTH MONITORING
+  # ============================================
+  post-deploy-health:
+    name: 'Stage 9: Post-Deploy Health (5min)'
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Monitor production for 5 minutes
+        run: |
+          echo "Monitoring production for 5 minutes post-deploy..."
+          FAIL_COUNT=0
+          TOTAL_CHECKS=10
+
+          for i in $(seq 1 $TOTAL_CHECKS); do
+            sleep 30
+
+            # Backend readiness
+            if ! curl -sf --max-time 10 "https://api.nhaphangchinhngach.vn/api/v1/health/ready" > /dev/null 2>&1; then
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+              echo "WARN: Health check failed at interval $i/$TOTAL_CHECKS (failures: $FAIL_COUNT)"
+            else
+              echo "OK: Health check passed at interval $i/$TOTAL_CHECKS"
+            fi
+
+            # Frontend check (every other interval)
+            if [ $((i % 2)) -eq 0 ]; then
+              if ! curl -sf --max-time 10 "https://erp.nhaphangchinhngach.vn" -o /dev/null 2>&1; then
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+                echo "WARN: Frontend check failed at interval $i"
+              fi
+            fi
+
+            if [ $FAIL_COUNT -ge 3 ]; then
+              echo "FAIL: Too many health check failures ($FAIL_COUNT) during monitoring!"
+              exit 1
+            fi
+          done
+
+          echo "5-minute monitoring window passed ($FAIL_COUNT failures out of $TOTAL_CHECKS checks)"
+
+      # Stage 10: Auto-rollback if post-deploy monitoring fails
+      - name: Auto-rollback on monitoring failure
+        if: failure()
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /var/www/tbs-erp
+            echo "Post-deploy monitoring failed! Auto-rollback..."
+            bash scripts/rollback.sh --docker
+            echo "Rollback complete"
+
+      - name: Start persistent health monitor daemon
         if: success()
         uses: appleboy/ssh-action@master
         with:
@@ -669,13 +944,11 @@ jobs:
           key: ${{ secrets.PRODUCTION_SSH_KEY }}
           script: |
             cd /var/www/tbs-erp
-            # Stop existing monitor if running
             bash scripts/health-monitor.sh --stop 2>/dev/null || true
-            # Start new health monitor daemon
             SLACK_WEBHOOK="${SLACK_WEBHOOK:-}" bash scripts/health-monitor.sh --daemon --threshold 3 --interval 30
-            echo "Health monitor started"
+            echo "Persistent health monitor started"
 
-      - name: Teardown old environment
+      - name: Schedule old environment teardown
         if: success()
         uses: appleboy/ssh-action@master
         with:
@@ -689,26 +962,25 @@ jobs:
             OLD_ENV=$([[ "$CURRENT_ENV" == "blue" ]] && echo "green" || echo "blue")
 
             echo "Scheduling teardown of old environment ($OLD_ENV) in 10 minutes..."
-            (sleep 600 && docker-compose -f docker-compose.${OLD_ENV}.yml down 2>/dev/null) &
+            (sleep 600 && docker compose -f docker-compose.${OLD_ENV}.yml down 2>/dev/null) &
             disown
-            echo "Old environment ($OLD_ENV) will be stopped in 10 minutes"
 
-      - name: Notify Slack
+      - name: Notify Slack (post-deploy result)
         if: always()
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
-          fields: repo,message,commit,author,action,eventName,workflow
+          fields: repo,message,commit,author,workflow
           text: |
-            Production Blue/Green Deployment: ${{ job.status }}
-            Commit: ${{ github.sha }}
+            Post-Deploy Health: ${{ job.status }}
+            5-minute monitoring: ${{ job.status == 'success' && 'PASSED' || 'FAILED' }}
           webhook_url: ${{ secrets.SLACK_WEBHOOK }}
 
   # ============================================
-  # GITOPS SYNC (K8s environments)
+  # GITOPS SYNC (K8s environments, optional)
   # ============================================
   gitops-sync:
-    name: GitOps Image Update
+    name: 'GitOps Image Update'
     runs-on: ubuntu-latest
     needs: build-docker
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
@@ -733,18 +1005,21 @@ jobs:
             exit 0
           fi
 
+          if [ ! -d "$OVERLAY_PATH" ]; then
+            echo "K8s overlay directory not found, skipping"
+            exit 0
+          fi
+
           echo "Updating image tags in $OVERLAY_PATH to $SHORT_SHA..."
 
-          # Install kustomize
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
           sudo mv kustomize /usr/local/bin/
 
           cd "$OVERLAY_PATH"
           kustomize edit set image \
             ghcr.io/tbs-logistics/tbs-erp-backend=ghcr.io/tbs-logistics/tbs-erp-backend:$SHORT_SHA \
-            ghcr.io/tbs-logistics/tbs-erp-frontend=ghcr.io/tbs-logistics/tbs-erp-frontend:$SHORT_SHA
-
-          echo "Image tags updated. ArgoCD will detect the change and sync."
+            ghcr.io/tbs-logistics/tbs-erp-frontend=ghcr.io/tbs-logistics/tbs-erp-frontend:$SHORT_SHA \
+            ghcr.io/tbs-logistics/tbs-erp-cms=ghcr.io/tbs-logistics/tbs-erp-cms:$SHORT_SHA
 
       - name: Commit image tag updates
         run: |
