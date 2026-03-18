@@ -3,6 +3,8 @@
 import { useEffect } from 'react';
 import { AlertTriangle, RefreshCw, Home, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
+import * as Sentry from '@sentry/nextjs';
+import { useAuthStore } from '@/lib/stores/auth-store';
 
 export default function GlobalError({
   error,
@@ -13,6 +15,12 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error('Global error:', error);
+    const userRole = useAuthStore.getState().user?.role;
+    Sentry.captureException(error, {
+      level: 'error',
+      tags: { boundary: 'root', userRole: userRole || 'unknown' },
+      extra: { path: window.location.pathname },
+    });
   }, [error]);
 
   return (

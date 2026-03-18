@@ -2,6 +2,8 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import * as Sentry from '@sentry/nextjs';
+import { useAuthStore } from '@/lib/stores/auth-store';
 
 interface Props {
   children: ReactNode;
@@ -48,16 +50,21 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to console (in production, send to error reporting service)
     console.error('ErrorBoundary caught an error:', error, errorInfo);
 
-    // Call optional onError callback
+    const userRole = useAuthStore.getState().user?.role;
+    Sentry.captureException(error, {
+      level: 'error',
+      tags: { boundary: 'component', userRole: userRole || 'unknown' },
+      extra: { path: typeof window !== 'undefined' ? window.location.pathname : 'ssr' },
+      contexts: {
+        react: { componentStack: errorInfo.componentStack || '' },
+      },
+    });
+
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
-
-    // TODO: Send to error reporting service (Sentry, LogRocket, etc.)
-    // Example: Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } });
   }
 
   handleReset = () => {
