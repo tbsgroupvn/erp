@@ -37,6 +37,7 @@ import { EmailModule } from '@core/email/email.module';
 import { QueueModule } from '@core/queue/queue.module';
 import { BullBoardModule } from '@core/queue/bull-board.module';
 import { WsModule } from '@core/websocket/ws.module';
+import { ShutdownModule } from '@core/shutdown/shutdown.module';
 
 // Middleware
 import { RequestIdMiddleware } from '@common/middleware/request-id.middleware';
@@ -212,10 +213,11 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
     ExportModule,
     EmailModule,
 
-    // ─── Architecture: Event Queues, WebSocket ───
+    // ─── Architecture: Event Queues, WebSocket, Shutdown ───
     QueueModule,
     BullBoardModule,
     WsModule,
+    ShutdownModule,
 
     // ─── Nhóm A: Vận hành Logistics ───
     OrderModule,
