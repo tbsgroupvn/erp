@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in-progress
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-18T09:58:25Z"
-last_activity: 2026-03-18 — Completed Plan 02-01 (error utilities, Sentry setup, mutation toast)
+status: executing
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-03-18T10:07:59.190Z"
+last_activity: 2026-03-18 — Completed Plan 02-02 (error boundaries with Sentry context)
 progress:
   total_phases: 9
   completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
-  percent: 16
+  total_plans: 7
+  completed_plans: 6
+  percent: 86
 ---
 
 # Project State
@@ -26,28 +26,28 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 ## Current Position
 
 Phase: 2 of 9 (Frontend Error Handling)
-Plan: 1 of 3 in current phase (02-01 done)
+Plan: 2 of 3 in current phase (02-02 done)
 Status: In Progress
-Last activity: 2026-03-18 — Completed Plan 02-01 (error utilities, Sentry setup, mutation toast)
+Last activity: 2026-03-18 — Completed Plan 02-02 (error boundaries with Sentry context)
 
-Progress: [▓▓░░░░░░░░] 16%
+Progress: [████████░░] 86%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
+- Total plans completed: 6
 - Average duration: 5min
-- Total execution time: 0.40 hours
+- Total execution time: 0.48 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-backend-error-standardization | 4/4 | 20min | 5min |
-| 02-frontend-error-handling | 1/3 | 4min | 4min |
+| 02-frontend-error-handling | 2/3 | 9min | 4.5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (3min), 01-03 (6min), 01-04 (5min), 02-01 (4min)
+- Last 5 plans: 01-03 (6min), 01-04 (5min), 02-01 (4min), 02-02 (5min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -76,6 +76,8 @@ Recent decisions affecting current work:
 - [02-01]: Vietnamese diacritics used in error messages matching codebase convention (Unicode escapes in source)
 - [02-01]: Sentry 401/403 errors filtered in beforeSend to avoid noise from auth flow
 - [02-01]: Mutation toast shows requestId as description for support contact tracing
+- [02-02]: global-error.tsx uses window.location.href (full URL) since Next.js router is crashed; others use pathname
+- [02-02]: ErrorBoundary uses typeof window guard for SSR safety in componentDidCatch
 
 ### Pending Todos
 
@@ -88,6 +90,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T09:58:25Z
-Stopped at: Completed 02-01-PLAN.md
-Resume file: .planning/phases/02-frontend-error-handling/02-02-PLAN.md
+Last session: 2026-03-18T10:07:59Z
+Stopped at: Completed 02-02-PLAN.md
+Resume file: .planning/phases/02-frontend-error-handling/02-03-PLAN.md
