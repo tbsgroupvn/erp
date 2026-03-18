@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-03-18T08:16:13Z"
-last_activity: 2026-03-18 — Completed Plan 01-02 (core/auth/order/infra error conversion)
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-03-18T08:25:20Z"
+last_activity: 2026-03-18 — Completed Plan 01-03 (non-HTTP error standardization)
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
-  percent: 6
+  completed_plans: 3
+  percent: 8
 ---
 
 # Project State
@@ -26,28 +26,28 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 ## Current Position
 
 Phase: 1 of 9 (Backend Error Standardization)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Executing
-Last activity: 2026-03-18 — Completed Plan 01-02 (core/auth/order/infra error conversion)
+Last activity: 2026-03-18 — Completed Plan 01-03 (non-HTTP error standardization)
 
-Progress: [▓░░░░░░░░░] 6%
+Progress: [▓░░░░░░░░░] 8%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 4.5min
-- Total execution time: 0.15 hours
+- Total plans completed: 3
+- Average duration: 5min
+- Total execution time: 0.25 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-backend-error-standardization | 2/4 | 9min | 4.5min |
+| 01-backend-error-standardization | 3/4 | 15min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (6min), 01-02 (3min)
-- Trend: accelerating
+- Last 5 plans: 01-01 (6min), 01-02 (3min), 01-03 (6min)
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -66,6 +66,9 @@ Recent decisions affecting current work:
 - [01-01]: All filter registration consolidated to APP_FILTER in app.module.ts (removed useGlobalFilters from main.ts)
 - [01-02]: auth.service.ts constructor env check converted to DomainException (acceptance criteria requires zero raw throws)
 - [01-02]: query-analyzer.service.ts uses ForbiddenException (production block) + BadRequestException (input validation) instead of DomainException
+- [01-03]: wsError() auto-generates requestId with 'ws-' prefix + 8-char hex for WebSocket-originated errors
+- [01-03]: extractErrorCode() tries JSON parse, then string match against known ErrorCode values, fallback to JOB_PROCESSING_FAILED
+- [01-03]: FailedJobCaptureService retrieves full Job object on failure for metadata extraction (graceful fallback if removed)
 
 ### Pending Todos
 
@@ -78,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T08:16:13Z
-Stopped at: Completed 01-02-PLAN.md
-Resume file: .planning/phases/01-backend-error-standardization/01-02-SUMMARY.md
+Last session: 2026-03-18T08:25:20Z
+Stopped at: Completed 01-03-PLAN.md
+Resume file: .planning/phases/01-backend-error-standardization/01-03-SUMMARY.md
