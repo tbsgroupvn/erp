@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. No service-layer code throws raw `new Error()` — all exceptions are domain-specific NestJS HttpException subclasses
   3. WebSocket error events and BullMQ failed job logs contain the same `requestId` and `errorCode` structure as HTTP errors
   4. Every HTTP request can be traced from Sentry breadcrumb to application log entry using the same correlation ID
-**Plans:** 4 plans
+**Plans:** 2/4 plans executed
 
 Plans:
 - [ ] 01-01-PLAN.md — Error infrastructure: DomainException, ErrorCode registry, filter updates, double-registration fix
@@ -163,7 +163,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Backend Error Standardization | 0/4 | Planning complete | - |
+| 1. Backend Error Standardization | 2/4 | In Progress|  |
 | 2. Frontend Error Handling | 0/1 | Not started | - |
 | 3. Transaction Consistency | 0/2 | Not started | - |
 | 4. Input Validation & Rate Limiting | 0/1 | Not started | - |

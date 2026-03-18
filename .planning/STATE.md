@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-18T08:08:35Z"
-last_activity: 2026-03-18 — Completed Plan 01-01 (error handling infrastructure)
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-03-18T08:16:13Z"
+last_activity: 2026-03-18 — Completed Plan 01-02 (core/auth/order/infra error conversion)
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
-  percent: 3
+  completed_plans: 2
+  percent: 6
 ---
 
 # Project State
@@ -26,28 +26,28 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 ## Current Position
 
 Phase: 1 of 9 (Backend Error Standardization)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: Executing
-Last activity: 2026-03-18 — Completed Plan 01-01 (error handling infrastructure)
+Last activity: 2026-03-18 — Completed Plan 01-02 (core/auth/order/infra error conversion)
 
-Progress: [▓░░░░░░░░░] 3%
+Progress: [▓░░░░░░░░░] 6%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 6min
-- Total execution time: 0.1 hours
+- Total plans completed: 2
+- Average duration: 4.5min
+- Total execution time: 0.15 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-backend-error-standardization | 1/4 | 6min | 6min |
+| 01-backend-error-standardization | 2/4 | 9min | 4.5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (6min)
-- Trend: starting
+- Last 5 plans: 01-01 (6min), 01-02 (3min)
+- Trend: accelerating
 
 *Updated after each plan completion*
 
@@ -64,6 +64,8 @@ Recent decisions affecting current work:
 - [01-01]: ErrorCode as const object with string values (not enum) for runtime flexibility and tree-shaking
 - [01-01]: SentryExceptionFilter formats 500 response for unknown exceptions instead of re-throwing
 - [01-01]: All filter registration consolidated to APP_FILTER in app.module.ts (removed useGlobalFilters from main.ts)
+- [01-02]: auth.service.ts constructor env check converted to DomainException (acceptance criteria requires zero raw throws)
+- [01-02]: query-analyzer.service.ts uses ForbiddenException (production block) + BadRequestException (input validation) instead of DomainException
 
 ### Pending Todos
 
@@ -76,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T08:08:35Z
-Stopped at: Completed 01-01-PLAN.md
-Resume file: .planning/phases/01-backend-error-standardization/01-01-SUMMARY.md
+Last session: 2026-03-18T08:16:13Z
+Stopped at: Completed 01-02-PLAN.md
+Resume file: .planning/phases/01-backend-error-standardization/01-02-SUMMARY.md

@@ -10,7 +10,7 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 ### Error Handling
 
 - [x] **ERR-01**: All backend API errors return a standardized JSON response format with error code, message, and request correlation ID
-- [ ] **ERR-02**: All service-layer exceptions use domain-specific NestJS exceptions (not raw `throw new Error()`)
+- [x] **ERR-02**: All service-layer exceptions use domain-specific NestJS exceptions (not raw `throw new Error()`)
 - [ ] **ERR-03**: WebSocket and BullMQ worker errors are caught and logged with the same structured format as HTTP errors
 - [ ] **ERR-04**: Next.js App Router has `global-error.tsx` at app root and `error.tsx` at `(dashboard)/` and `(public)/` route levels
 - [ ] **ERR-05**: Frontend displays user-friendly error messages via toast notifications instead of white-screen crashes
@@ -86,7 +86,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | ERR-01 | Phase 1 | Complete |
-| ERR-02 | Phase 1 | Pending |
+| ERR-02 | Phase 1 | Complete |
 | ERR-03 | Phase 1 | Pending |
 | ERR-04 | Phase 2 | Pending |
 | ERR-05 | Phase 2 | Pending |
