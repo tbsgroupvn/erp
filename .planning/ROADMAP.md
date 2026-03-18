@@ -49,10 +49,12 @@ Plans:
   1. Navigating to a broken dashboard page shows an in-context error recovery UI (not a blank screen) with a retry option
   2. Navigating to a broken public page shows a branded error page (not Next.js default error)
   3. API errors from any hook display a Vietnamese toast notification with actionable message instead of crashing the component
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md — Error utilities (errorCode-to-Vietnamese mapping, API error parser), Sentry SDK setup, centralized QueryClient mutation toast
+- [ ] 02-02-PLAN.md — Error boundary files (global-error.tsx, dashboard/error.tsx, public/error.tsx), Sentry wiring in ErrorBoundary
+- [ ] 02-03-PLAN.md — Remove per-hook duplicate toast.error calls from 47 hook files
 
 ### Phase 3: Transaction Consistency
 **Goal**: All multi-table write operations are atomic — either everything commits or nothing does — and the application shuts down without losing in-flight work
@@ -164,7 +166,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Backend Error Standardization | 4/4 | Complete   | 2026-03-18 |
-| 2. Frontend Error Handling | 0/1 | Not started | - |
+| 2. Frontend Error Handling | 0/3 | Not started | - |
 | 3. Transaction Consistency | 0/2 | Not started | - |
 | 4. Input Validation & Rate Limiting | 0/1 | Not started | - |
 | 5. RBAC Audit & Coverage | 0/2 | Not started | - |
