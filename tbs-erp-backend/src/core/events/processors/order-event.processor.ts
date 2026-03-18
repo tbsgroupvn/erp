@@ -8,6 +8,7 @@ import {
   OrderCreatedPayload,
   OrderStatusChangedPayload,
 } from '../domain-events';
+import { logProcessorError } from './processor-error.util';
 
 /**
  * Processes order-related domain events from the 'order-events' BullMQ queue.
@@ -32,29 +33,34 @@ export class OrderEventProcessor extends WorkerHost {
         `correlationId: ${event.metadata.correlationId})`,
     );
 
-    switch (event.type) {
-      case DomainEventType.ORDER_CREATED:
-        await this.handleOrderCreated(event as DomainEvent<OrderCreatedPayload>);
-        break;
+    try {
+      switch (event.type) {
+        case DomainEventType.ORDER_CREATED:
+          await this.handleOrderCreated(event as DomainEvent<OrderCreatedPayload>);
+          break;
 
-      case DomainEventType.ORDER_STATUS_CHANGED:
-        await this.handleOrderStatusChanged(event as DomainEvent<OrderStatusChangedPayload>);
-        break;
+        case DomainEventType.ORDER_STATUS_CHANGED:
+          await this.handleOrderStatusChanged(event as DomainEvent<OrderStatusChangedPayload>);
+          break;
 
-      case DomainEventType.ORDER_CANCELLED:
-        await this.handleOrderCancelled(event);
-        break;
+        case DomainEventType.ORDER_CANCELLED:
+          await this.handleOrderCancelled(event);
+          break;
 
-      case DomainEventType.ORDER_COMPLETED:
-        await this.handleOrderCompleted(event);
-        break;
+        case DomainEventType.ORDER_COMPLETED:
+          await this.handleOrderCompleted(event);
+          break;
 
-      case DomainEventType.ORDER_DEPOSIT_RECEIVED:
-        await this.handleDepositReceived(event);
-        break;
+        case DomainEventType.ORDER_DEPOSIT_RECEIVED:
+          await this.handleDepositReceived(event);
+          break;
 
-      default:
-        this.logger.warn(`Unhandled order event type: ${event.type}`);
+        default:
+          this.logger.warn(`Unhandled order event type: ${event.type}`);
+      }
+    } catch (error) {
+      logProcessorError(this.logger, job, error);
+      throw error; // Re-throw so BullMQ can retry
     }
   }
 

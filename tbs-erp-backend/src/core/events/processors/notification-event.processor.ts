@@ -8,6 +8,7 @@ import {
   NotificationSendPayload,
   NotificationBroadcastPayload,
 } from '../domain-events';
+import { logProcessorError } from './processor-error.util';
 
 /**
  * Processes notification-related domain events from the 'notification-events' queue.
@@ -34,34 +35,39 @@ export class NotificationEventProcessor extends WorkerHost {
         `correlationId: ${event.metadata.correlationId})`,
     );
 
-    switch (event.type) {
-      case DomainEventType.NOTIFICATION_SEND:
-        await this.handleSendNotification(event as DomainEvent<NotificationSendPayload>);
-        break;
+    try {
+      switch (event.type) {
+        case DomainEventType.NOTIFICATION_SEND:
+          await this.handleSendNotification(event as DomainEvent<NotificationSendPayload>);
+          break;
 
-      case DomainEventType.NOTIFICATION_BROADCAST:
-        await this.handleBroadcast(event as DomainEvent<NotificationBroadcastPayload>);
-        break;
+        case DomainEventType.NOTIFICATION_BROADCAST:
+          await this.handleBroadcast(event as DomainEvent<NotificationBroadcastPayload>);
+          break;
 
-      case DomainEventType.NOTIFICATION_EMAIL:
-        await this.handleEmailNotification(event);
-        break;
+        case DomainEventType.NOTIFICATION_EMAIL:
+          await this.handleEmailNotification(event);
+          break;
 
-      case DomainEventType.NOTIFICATION_SMS:
-        await this.handleSmsNotification(event);
-        break;
+        case DomainEventType.NOTIFICATION_SMS:
+          await this.handleSmsNotification(event);
+          break;
 
-      case DomainEventType.APPROVAL_REQUESTED:
-        await this.handleApprovalRequested(event);
-        break;
+        case DomainEventType.APPROVAL_REQUESTED:
+          await this.handleApprovalRequested(event);
+          break;
 
-      case DomainEventType.APPROVAL_APPROVED:
-      case DomainEventType.APPROVAL_REJECTED:
-        await this.handleApprovalDecision(event);
-        break;
+        case DomainEventType.APPROVAL_APPROVED:
+        case DomainEventType.APPROVAL_REJECTED:
+          await this.handleApprovalDecision(event);
+          break;
 
-      default:
-        this.logger.warn(`Unhandled notification event type: ${event.type}`);
+        default:
+          this.logger.warn(`Unhandled notification event type: ${event.type}`);
+      }
+    } catch (error) {
+      logProcessorError(this.logger, job, error);
+      throw error; // Re-throw so BullMQ can retry
     }
   }
 

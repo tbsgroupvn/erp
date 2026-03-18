@@ -4,6 +4,7 @@ import { Job } from 'bullmq';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DomainEvent, DomainEventType, PaymentReceivedPayload } from '../domain-events';
 import { CostAllocationService } from '@modules/operation-cost/domain/cost-allocation.service';
+import { logProcessorError } from './processor-error.util';
 
 /**
  * Processes finance-related domain events from the 'finance-events' queue.
@@ -34,37 +35,42 @@ export class FinanceEventProcessor extends WorkerHost {
         `correlationId: ${event.metadata.correlationId})`,
     );
 
-    switch (event.type) {
-      case DomainEventType.PAYMENT_RECEIVED:
-        await this.handlePaymentReceived(event as DomainEvent<PaymentReceivedPayload>);
-        break;
+    try {
+      switch (event.type) {
+        case DomainEventType.PAYMENT_RECEIVED:
+          await this.handlePaymentReceived(event as DomainEvent<PaymentReceivedPayload>);
+          break;
 
-      case DomainEventType.PAYMENT_ALLOCATED:
-        await this.handlePaymentAllocated(event);
-        break;
+        case DomainEventType.PAYMENT_ALLOCATED:
+          await this.handlePaymentAllocated(event);
+          break;
 
-      case DomainEventType.INVOICE_ISSUED:
-        await this.handleInvoiceIssued(event);
-        break;
+        case DomainEventType.INVOICE_ISSUED:
+          await this.handleInvoiceIssued(event);
+          break;
 
-      case DomainEventType.VOUCHER_APPROVED:
-        await this.handleVoucherApproved(event);
-        break;
+        case DomainEventType.VOUCHER_APPROVED:
+          await this.handleVoucherApproved(event);
+          break;
 
-      case DomainEventType.VOUCHER_REJECTED:
-        await this.handleVoucherRejected(event);
-        break;
+        case DomainEventType.VOUCHER_REJECTED:
+          await this.handleVoucherRejected(event);
+          break;
 
-      case DomainEventType.AR_OVERDUE:
-        await this.handleArOverdue(event);
-        break;
+        case DomainEventType.AR_OVERDUE:
+          await this.handleArOverdue(event);
+          break;
 
-      case DomainEventType.PAYMENT_ALLOCATED:
-        await this.handleCostAllocation(job);
-        break;
+        case DomainEventType.PAYMENT_ALLOCATED:
+          await this.handleCostAllocation(job);
+          break;
 
-      default:
-        this.logger.warn(`Unhandled finance event type: ${event.type}`);
+        default:
+          this.logger.warn(`Unhandled finance event type: ${event.type}`);
+      }
+    } catch (error) {
+      logProcessorError(this.logger, job, error);
+      throw error; // Re-throw so BullMQ can retry
     }
   }
 
@@ -179,10 +185,7 @@ export class FinanceEventProcessor extends WorkerHost {
 
       this.logger.log(`Cost allocation completed for container ${containerCode} (cost ${costId})`);
     } catch (error) {
-      this.logger.error(
-        `Cost allocation failed for container ${containerCode}: ${error.message}`,
-        error.stack,
-      );
+      logProcessorError(this.logger, job, error);
       throw error; // Let BullMQ retry
     }
   }

@@ -111,6 +111,9 @@ export class EventPublisherService {
 
   /**
    * Convenience method: publish an event with auto-generated metadata.
+   *
+   * @param requestId - Optional request ID from HTTP context for end-to-end correlation.
+   *                     When provided, used as the correlationId instead of generating a new UUID.
    */
   async emit<T>(
     type: DomainEventType,
@@ -118,6 +121,7 @@ export class EventPublisherService {
     userId: string,
     source: string,
     aggregateId?: string,
+    requestId?: string,
   ): Promise<string> {
     const event: DomainEvent<T> = {
       type,
@@ -125,7 +129,7 @@ export class EventPublisherService {
       metadata: {
         userId,
         timestamp: new Date(),
-        correlationId: uuidv4(),
+        correlationId: requestId || uuidv4(),
         source,
         aggregateId,
       },
