@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ordersApi, masterOrdersApi } from '@/lib/api/orders.api';
 import type {
@@ -43,6 +43,8 @@ export function useOrders(params?: OrderQueryParams) {
   return useQuery({
     queryKey: orderKeys.list(params),
     queryFn: () => ordersApi.list(params),
+    staleTime: 60 * 1000, // order lists — 1 min
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -51,6 +53,7 @@ export function useOrder(id: string) {
     queryKey: orderKeys.detail(id),
     queryFn: () => ordersApi.getById(id),
     enabled: !!id,
+    staleTime: 30 * 1000, // order detail — 30s
   });
 }
 
@@ -78,9 +81,6 @@ export function useUpdateOrder() {
       qc.invalidateQueries({ queryKey: orderKeys.lists() });
       toast.success('Cập nhật đơn hàng thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật đơn hàng');
-    },
   });
 }
 
@@ -102,9 +102,6 @@ export function useChangeOrderStatus() {
       qc.invalidateQueries({ queryKey: masterOrderKeys.lists() });
       toast.success('Cập nhật trạng thái thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật trạng thái');
-    },
   });
 }
 
@@ -119,8 +116,19 @@ export function useCancelOrder() {
       qc.invalidateQueries({ queryKey: masterOrderKeys.lists() });
       toast.success('Đã hủy đơn hàng');
     },
-    onError: () => {
-      toast.error('Không thể hủy đơn hàng');
+  });
+}
+
+export function useReopenOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      ordersApi.reopen(id, reason),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: orderKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: orderKeys.lists() });
+      qc.invalidateQueries({ queryKey: masterOrderKeys.lists() });
+      toast.success('Đã mở lại đơn hàng thành công');
     },
   });
 }
@@ -133,6 +141,8 @@ export function useMasterOrders(params?: MasterOrderQueryParams) {
   return useQuery({
     queryKey: masterOrderKeys.list(params),
     queryFn: () => masterOrdersApi.list(params),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -141,6 +151,7 @@ export function useMasterOrder(id: string) {
     queryKey: masterOrderKeys.detail(id),
     queryFn: () => masterOrdersApi.getById(id),
     enabled: !!id,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -167,9 +178,6 @@ export function useAddSubOrder() {
       qc.invalidateQueries({ queryKey: masterOrderKeys.detail(masterOrderId) });
       qc.invalidateQueries({ queryKey: masterOrderKeys.lists() });
       toast.success('Thêm đơn con thành công');
-    },
-    onError: () => {
-      toast.error('Không thể thêm đơn con');
     },
   });
 }

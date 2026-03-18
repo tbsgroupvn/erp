@@ -32,6 +32,7 @@ export function useApprovalFlows() {
   return useQuery({
     queryKey: flowKeys.lists(),
     queryFn: () => approvalFlowsApi.list(),
+    staleTime: 5 * 60 * 1000, // flow definitions are near-static — 5 min
   });
 }
 
@@ -40,6 +41,7 @@ export function useApprovalFlow(id: string) {
     queryKey: flowKeys.detail(id),
     queryFn: () => approvalFlowsApi.getById(id),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -55,9 +57,6 @@ export function useCreateApprovalFlow() {
       qc.invalidateQueries({ queryKey: flowKeys.lists() });
       toast.success('Đã tạo quy trình');
     },
-    onError: () => {
-      toast.error('Không thể tạo quy trình');
-    },
   });
 }
 
@@ -71,9 +70,6 @@ export function useUpdateApprovalFlow() {
       qc.invalidateQueries({ queryKey: flowKeys.lists() });
       toast.success('Đã cập nhật quy trình');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật quy trình');
-    },
   });
 }
 
@@ -84,9 +80,6 @@ export function useDeactivateApprovalFlow() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: flowKeys.lists() });
       toast.success('Đã vô hiệu hóa quy trình');
-    },
-    onError: () => {
-      toast.error('Không thể vô hiệu hóa');
     },
   });
 }
@@ -106,9 +99,6 @@ export function useTestApprovalFlow() {
       qc.invalidateQueries({ queryKey: flowKeys.lists() });
       toast.success('Test quy trình thành công');
     },
-    onError: () => {
-      toast.error('Không thể test quy trình');
-    },
   });
 }
 
@@ -120,6 +110,7 @@ export function useDelegations() {
   return useQuery({
     queryKey: delegationKeys.lists(),
     queryFn: () => approvalDelegationsApi.list(),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -131,9 +122,6 @@ export function useCreateDelegation() {
       qc.invalidateQueries({ queryKey: delegationKeys.lists() });
       toast.success('Đã tạo ủy quyền');
     },
-    onError: () => {
-      toast.error('Không thể tạo ủy quyền');
-    },
   });
 }
 
@@ -144,9 +132,6 @@ export function useDeactivateDelegation() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: delegationKeys.lists() });
       toast.success('Đã hủy ủy quyền');
-    },
-    onError: () => {
-      toast.error('Không thể hủy ủy quyền');
     },
   });
 }
@@ -166,9 +151,6 @@ export function useBatchApprove() {
         `Đã duyệt ${result?.processed ?? 0} yêu cầu${result?.failed ? `, ${result.failed} thất bại` : ''}`,
       );
     },
-    onError: () => {
-      toast.error('Không thể duyệt hàng loạt. Vui lòng thử lại sau.');
-    },
   });
 }
 
@@ -182,9 +164,6 @@ export function useBatchReject() {
       toast.success(
         `Đã từ chối ${result?.processed ?? 0} yêu cầu${result?.failed ? `, ${result.failed} thất bại` : ''}`,
       );
-    },
-    onError: () => {
-      toast.error('Không thể từ chối hàng loạt. Vui lòng thử lại sau.');
     },
   });
 }

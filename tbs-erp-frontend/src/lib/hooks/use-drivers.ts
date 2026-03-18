@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { driversApi } from '@/lib/api/drivers.api';
 import type { DriverQueryParams, CreateDriverDto, UpdateDriverDto } from '@/lib/types';
@@ -26,6 +26,8 @@ export function useDrivers(params?: DriverQueryParams) {
   return useQuery({
     queryKey: driverKeys.list(params),
     queryFn: () => driversApi.list(params as Record<string, unknown>),
+    staleTime: 5 * 60 * 1000, // driver list is near-static
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -42,6 +44,7 @@ export function useDriverPerformance(id: string) {
     queryKey: driverKeys.performance(id),
     queryFn: () => driversApi.getPerformance(id),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -65,9 +68,6 @@ export function useCreateDriver() {
       qc.invalidateQueries({ queryKey: driverKeys.lists() });
       toast.success('Tạo tài xế thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo tài xế');
-    },
   });
 }
 
@@ -81,9 +81,6 @@ export function useUpdateDriver() {
       qc.invalidateQueries({ queryKey: driverKeys.lists() });
       toast.success('Cập nhật tài xế thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật tài xế');
-    },
   });
 }
 
@@ -96,9 +93,6 @@ export function useAssignVehicle() {
       qc.invalidateQueries({ queryKey: driverKeys.detail(id) });
       qc.invalidateQueries({ queryKey: driverKeys.lists() });
       toast.success('Gán xe thành công');
-    },
-    onError: () => {
-      toast.error('Không thể gán xe');
     },
   });
 }

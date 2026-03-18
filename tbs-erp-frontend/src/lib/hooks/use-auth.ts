@@ -34,10 +34,6 @@ export function useLogin() {
       useAuthStore.getState().setAuth(user, tokens.accessToken);
       qc.setQueryData(authKeys.profile(), user);
     },
-    onError: (error: unknown) => {
-      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || 'Đăng nhập thất bại');
-    },
   });
 }
 
@@ -75,9 +71,6 @@ export function useChangePassword() {
       authApi.changePassword(data),
     onSuccess: () => {
       toast.success('Đổi mật khẩu thành công');
-    },
-    onError: () => {
-      toast.error('Không thể đổi mật khẩu');
     },
   });
 }

@@ -50,9 +50,6 @@ export function useCreateFolder() {
       qc.invalidateQueries({ queryKey: driveKeys.folders(undefined) });
       toast.success('Tạo thư mục thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo thư mục');
-    },
   });
 }
 
@@ -65,9 +62,6 @@ export function useRenameFolder() {
       qc.invalidateQueries({ queryKey: driveKeys.all });
       toast.success('Đổi tên thư mục thành công');
     },
-    onError: () => {
-      toast.error('Không thể đổi tên thư mục');
-    },
   });
 }
 
@@ -78,9 +72,6 @@ export function useDeleteFolder() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: driveKeys.all });
       toast.success('Đã xoá thư mục');
-    },
-    onError: () => {
-      toast.error('Không thể xoá thư mục');
     },
   });
 }
@@ -111,9 +102,6 @@ export function useFile(id: string) {
 export function useRequestUpload() {
   return useMutation({
     mutationFn: (dto: UploadRequest) => driveApi.requestUpload(dto),
-    onError: () => {
-      toast.error('Không thể tạo URL upload');
-    },
   });
 }
 
@@ -125,9 +113,6 @@ export function useConfirmUpload() {
       qc.invalidateQueries({ queryKey: driveKeys.files() });
       qc.invalidateQueries({ queryKey: driveKeys.usage() });
       toast.success('Upload thành công');
-    },
-    onError: () => {
-      toast.error('Không thể xác nhận upload');
     },
   });
 }
@@ -145,9 +130,6 @@ export function useDeleteFile() {
       qc.invalidateQueries({ queryKey: driveKeys.usage() });
       toast.success('Đã xoá file');
     },
-    onError: () => {
-      toast.error('Không thể xoá file');
-    },
   });
 }
 
@@ -159,9 +141,6 @@ export function useMoveFile() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: driveKeys.files() });
       toast.success('Di chuyển file thành công');
-    },
-    onError: () => {
-      toast.error('Không thể di chuyển file');
     },
   });
 }
@@ -182,9 +161,6 @@ export function useRequestNewVersion() {
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: RequestNewVersionDto }) =>
       driveApi.requestNewVersion(id, dto),
-    onError: () => {
-      toast.error('Không thể tạo URL upload phiên bản mới');
-    },
   });
 }
 
@@ -197,9 +173,6 @@ export function useConfirmNewVersion() {
       qc.invalidateQueries({ queryKey: driveKeys.file(id) });
       qc.invalidateQueries({ queryKey: driveKeys.versions(id) });
       toast.success('Đã cập nhật phiên bản mới');
-    },
-    onError: () => {
-      toast.error('Không thể xác nhận phiên bản mới');
     },
   });
 }
@@ -225,9 +198,6 @@ export function useShareFile() {
       qc.invalidateQueries({ queryKey: driveKeys.shares(id) });
       toast.success('Chia sẻ thành công');
     },
-    onError: () => {
-      toast.error('Không thể chia sẻ file');
-    },
   });
 }
 
@@ -238,9 +208,6 @@ export function useRemoveShare() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: driveKeys.all });
       toast.success('Đã xoá quyền truy cập');
-    },
-    onError: () => {
-      toast.error('Không thể xoá quyền truy cập');
     },
   });
 }

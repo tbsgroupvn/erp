@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { complaintsApi } from '@/lib/api/complaints.api';
 import type { ComplaintQueryParams, CreateComplaintDto, ResolveComplaintDto } from '@/lib/types';
@@ -25,6 +25,8 @@ export function useComplaints(params?: ComplaintQueryParams) {
   return useQuery({
     queryKey: complaintKeys.list(params),
     queryFn: () => complaintsApi.list(params as Record<string, unknown>),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -40,6 +42,7 @@ export function useComplaintStatistics(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: complaintKeys.statistics(),
     queryFn: () => complaintsApi.getStatistics(params),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -56,9 +59,6 @@ export function useCreateComplaint() {
       qc.invalidateQueries({ queryKey: complaintKeys.statistics() });
       toast.success('Tạo khiếu nại thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo khiếu nại');
-    },
   });
 }
 
@@ -73,9 +73,6 @@ export function useResolveComplaint() {
       qc.invalidateQueries({ queryKey: complaintKeys.statistics() });
       toast.success('Giải quyết khiếu nại thành công');
     },
-    onError: () => {
-      toast.error('Không thể giải quyết khiếu nại');
-    },
   });
 }
 
@@ -88,9 +85,6 @@ export function useAssignComplaintHandler() {
       qc.invalidateQueries({ queryKey: complaintKeys.detail(id) });
       qc.invalidateQueries({ queryKey: complaintKeys.lists() });
       toast.success('Gán người xử lý thành công');
-    },
-    onError: () => {
-      toast.error('Không thể gán người xử lý');
     },
   });
 }

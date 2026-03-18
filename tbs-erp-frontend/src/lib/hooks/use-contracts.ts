@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { contractsApi } from '@/lib/api/contracts.api';
 import type {
@@ -29,6 +29,8 @@ export function useContracts(params?: ContractQueryParams) {
   return useQuery({
     queryKey: contractKeys.list(params),
     queryFn: () => contractsApi.list(params),
+    staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -37,6 +39,7 @@ export function useContract(id: string) {
     queryKey: contractKeys.detail(id),
     queryFn: () => contractsApi.getById(id),
     enabled: !!id,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -52,10 +55,6 @@ export function useCreateContract() {
       qc.invalidateQueries({ queryKey: contractKeys.lists() });
       toast.success('Tạo hợp đồng thành công');
     },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || 'Không thể tạo hợp đồng');
-    },
   });
 }
 
@@ -68,9 +67,6 @@ export function useUpdateContract() {
       qc.invalidateQueries({ queryKey: contractKeys.detail(id) });
       qc.invalidateQueries({ queryKey: contractKeys.lists() });
       toast.success('Cập nhật hợp đồng thành công');
-    },
-    onError: () => {
-      toast.error('Không thể cập nhật hợp đồng');
     },
   });
 }
@@ -85,10 +81,6 @@ export function useUpdateContractStatus() {
       qc.invalidateQueries({ queryKey: contractKeys.lists() });
       toast.success('Cập nhật trạng thái hợp đồng thành công');
     },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || 'Không thể cập nhật trạng thái');
-    },
   });
 }
 
@@ -99,10 +91,6 @@ export function useDeleteContract() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: contractKeys.lists() });
       toast.success('Đã xóa hợp đồng');
-    },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || 'Không thể xóa hợp đồng');
     },
   });
 }

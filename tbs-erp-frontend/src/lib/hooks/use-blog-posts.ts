@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { blogApi } from '@/lib/api/blog';
 import type {
@@ -32,6 +32,8 @@ export function useBlogPosts(params?: BlogPostQueryParams) {
   return useQuery({
     queryKey: blogPostKeys.list(params),
     queryFn: () => blogApi.list(params),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -40,6 +42,7 @@ export function useBlogPost(id: string, options?: { enabled?: boolean }) {
     queryKey: blogPostKeys.detail(id),
     queryFn: () => blogApi.getById(id),
     enabled: options?.enabled ?? !!id,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -48,6 +51,7 @@ export function useBlogPostBySlug(slug: string, options?: { enabled?: boolean })
     queryKey: blogPostKeys.slug(slug),
     queryFn: () => blogApi.getBySlug(slug),
     enabled: options?.enabled ?? !!slug,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -55,6 +59,7 @@ export function useBlogTags() {
   return useQuery({
     queryKey: blogPostKeys.tags(),
     queryFn: () => blogApi.getTags(),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -72,9 +77,6 @@ export function useCreateBlogPost() {
       queryClient.invalidateQueries({ queryKey: blogPostKeys.tags() });
       toast.success('Tạo bài viết thành công');
     },
-    onError: (error: Error) => {
-      toast.error(`Tạo bài viết thất bại: ${error.message}`);
-    },
   });
 }
 
@@ -91,9 +93,6 @@ export function useUpdateBlogPost() {
       queryClient.invalidateQueries({ queryKey: blogPostKeys.tags() });
       toast.success('Cập nhật bài viết thành công');
     },
-    onError: (error: Error) => {
-      toast.error(`Cập nhật bài viết thất bại: ${error.message}`);
-    },
   });
 }
 
@@ -106,9 +105,6 @@ export function useDeleteBlogPost() {
       queryClient.invalidateQueries({ queryKey: blogPostKeys.lists() });
       queryClient.invalidateQueries({ queryKey: blogPostKeys.tags() });
       toast.success('Xóa bài viết thành công');
-    },
-    onError: (error: Error) => {
-      toast.error(`Xóa bài viết thất bại: ${error.message}`);
     },
   });
 }

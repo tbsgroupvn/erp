@@ -76,9 +76,6 @@ export function useCreateExpense() {
       qc.invalidateQueries({ queryKey: expenseKeys.stats() });
       toast.success('Tạo đề nghị chi phí thành công');
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Không thể tạo đề nghị chi phí');
-    },
   });
 }
 
@@ -91,9 +88,6 @@ export function useUpdateExpense(id: string) {
       qc.invalidateQueries({ queryKey: expenseKeys.detail(id) });
       qc.invalidateQueries({ queryKey: expenseKeys.myLists() });
       toast.success('Cập nhật đề nghị thành công');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Không thể cập nhật đề nghị');
     },
   });
 }
@@ -109,9 +103,6 @@ export function useSubmitExpense() {
       qc.invalidateQueries({ queryKey: expenseKeys.stats() });
       toast.success('Gửi đề nghị phê duyệt thành công');
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Không thể gửi đề nghị');
-    },
   });
 }
 
@@ -125,9 +116,6 @@ export function useApproveExpense() {
       qc.invalidateQueries({ queryKey: expenseKeys.lists() });
       qc.invalidateQueries({ queryKey: expenseKeys.stats() });
       toast.success('Phê duyệt đề nghị thành công');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Không thể phê duyệt đề nghị');
     },
   });
 }
@@ -144,9 +132,6 @@ export function useRejectExpense() {
       qc.invalidateQueries({ queryKey: expenseKeys.stats() });
       toast.success('Đã từ chối đề nghị chi phí');
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Không thể từ chối đề nghị');
-    },
   });
 }
 
@@ -160,9 +145,6 @@ export function useMarkPaidExpense() {
       qc.invalidateQueries({ queryKey: expenseKeys.lists() });
       qc.invalidateQueries({ queryKey: expenseKeys.stats() });
       toast.success('Đã đánh dấu thanh toán thành công');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Không thể đánh dấu thanh toán');
     },
   });
 }
@@ -178,9 +160,6 @@ export function useAddExpenseItem(claimId: string) {
       qc.invalidateQueries({ queryKey: expenseKeys.stats() });
       toast.success('Thêm khoản chi thành công');
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Không thể thêm khoản chi');
-    },
   });
 }
 
@@ -194,9 +173,6 @@ export function useRemoveExpenseItem(claimId: string) {
       qc.invalidateQueries({ queryKey: expenseKeys.myLists() });
       qc.invalidateQueries({ queryKey: expenseKeys.stats() });
       toast.success('Xóa khoản chi thành công');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Không thể xóa khoản chi');
     },
   });
 }

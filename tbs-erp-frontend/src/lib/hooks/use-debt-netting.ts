@@ -20,6 +20,7 @@ export function useNettingOpportunities() {
   return useQuery({
     queryKey: debtNettingKeys.opportunities(),
     queryFn: () => debtNettingApi.findOpportunities(),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -27,6 +28,7 @@ export function useDebtNettingList(params?: DebtNettingQueryParams) {
   return useQuery({
     queryKey: debtNettingKeys.list(params),
     queryFn: () => debtNettingApi.list(params),
+    staleTime: 60 * 1000,
   });
 }
 
@@ -37,9 +39,6 @@ export function useCreateDebtNetting() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: debtNettingKeys.all });
       toast.success('Tạo yêu cầu bù trừ thành công');
-    },
-    onError: () => {
-      toast.error('Không thể tạo yêu cầu bù trừ');
     },
   });
 }
@@ -52,9 +51,6 @@ export function useApproveDebtNetting() {
       qc.invalidateQueries({ queryKey: debtNettingKeys.all });
       toast.success('Duyệt bù trừ công nợ thành công');
     },
-    onError: () => {
-      toast.error('Không thể duyệt bù trừ');
-    },
   });
 }
 
@@ -65,9 +61,6 @@ export function useExecuteDebtNetting() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: debtNettingKeys.all });
       toast.success('Thực hiện bù trừ thành công');
-    },
-    onError: () => {
-      toast.error('Không thể thực hiện bù trừ');
     },
   });
 }

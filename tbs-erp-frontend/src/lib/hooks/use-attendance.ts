@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   attendanceApi,
@@ -37,6 +37,8 @@ export function useAttendanceList(params?: AttendanceQueryParams) {
   return useQuery({
     queryKey: attendanceKeys.list(params),
     queryFn: () => attendanceApi.list(params),
+    staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -44,6 +46,7 @@ export function useMyAttendance(params?: AttendanceQueryParams) {
   return useQuery({
     queryKey: attendanceKeys.my(params),
     queryFn: () => attendanceApi.getMyAttendance(params),
+    staleTime: 60 * 1000,
   });
 }
 
@@ -66,9 +69,6 @@ export function useCheckIn() {
       qc.invalidateQueries({ queryKey: attendanceKeys.all });
       toast.success('Đã chấm công vào');
     },
-    onError: () => {
-      toast.error('Không thể chấm công vào');
-    },
   });
 }
 
@@ -79,9 +79,6 @@ export function useCheckOut() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: attendanceKeys.all });
       toast.success('Đã chấm công ra');
-    },
-    onError: () => {
-      toast.error('Không thể chấm công ra');
     },
   });
 }
@@ -108,6 +105,7 @@ export function useLeaveBalance() {
   return useQuery({
     queryKey: leaveKeys.balance(),
     queryFn: () => leaveApi.getBalance(),
+    staleTime: 5 * 60 * 1000, // leave balance is near-static
   });
 }
 
@@ -123,9 +121,6 @@ export function useCreateLeaveRequest() {
       qc.invalidateQueries({ queryKey: leaveKeys.all });
       toast.success('Đã gửi yêu cầu nghỉ phép');
     },
-    onError: () => {
-      toast.error('Không thể gửi yêu cầu nghỉ phép');
-    },
   });
 }
 
@@ -136,9 +131,6 @@ export function useCancelLeaveRequest() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: leaveKeys.all });
       toast.success('Đã hủy yêu cầu nghỉ phép');
-    },
-    onError: () => {
-      toast.error('Không thể hủy yêu cầu nghỉ phép');
     },
   });
 }

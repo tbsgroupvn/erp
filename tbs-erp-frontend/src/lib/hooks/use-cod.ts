@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { codApi } from '@/lib/api/cod.api';
 import type { RecordCODCollectionDto, CODQueryParams } from '@/lib/api/cod.api';
@@ -17,6 +17,8 @@ export function useCODList(params?: CODQueryParams) {
   return useQuery({
     queryKey: codKeys.list(params),
     queryFn: () => codApi.list(params),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -36,9 +38,6 @@ export function useRecordCODCollection() {
       qc.invalidateQueries({ queryKey: codKeys.all });
       toast.success('Ghi nhận thu COD thành công');
     },
-    onError: () => {
-      toast.error('Không thể ghi nhận thu COD');
-    },
   });
 }
 
@@ -50,9 +49,6 @@ export function useConfirmRemittance() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: codKeys.all });
       toast.success('Xác nhận nộp tiền COD thành công');
-    },
-    onError: () => {
-      toast.error('Không thể xác nhận nộp tiền');
     },
   });
 }

@@ -71,7 +71,6 @@ export function useCreatePost() {
       qc.invalidateQueries({ queryKey: feedKeys.all });
       toast.success('Đăng bài thành công');
     },
-    onError: () => toast.error('Không thể đăng bài'),
   });
 }
 
@@ -85,7 +84,6 @@ export function useUpdatePost() {
       qc.invalidateQueries({ queryKey: feedKeys.all });
       toast.success('Cập nhật bài viết thành công');
     },
-    onError: () => toast.error('Không thể cập nhật bài viết'),
   });
 }
 
@@ -97,7 +95,6 @@ export function useDeletePost() {
       qc.invalidateQueries({ queryKey: feedKeys.all });
       toast.success('Bài viết đã được xóa');
     },
-    onError: () => toast.error('Không thể xóa bài viết'),
   });
 }
 
@@ -110,7 +107,6 @@ export function useReactToPost() {
       qc.invalidateQueries({ queryKey: feedKeys.posts() });
       qc.invalidateQueries({ queryKey: feedKeys.post(id) });
     },
-    onError: () => toast.error('Không thể thực hiện reaction'),
   });
 }
 
@@ -122,7 +118,6 @@ export function useCreateComment(postId: string) {
       qc.invalidateQueries({ queryKey: feedKeys.comments(postId) });
       qc.invalidateQueries({ queryKey: feedKeys.post(postId) });
     },
-    onError: () => toast.error('Không thể gửi bình luận'),
   });
 }
 
@@ -135,6 +130,5 @@ export function useDeleteComment() {
       qc.invalidateQueries({ queryKey: feedKeys.comments(postId) });
       qc.invalidateQueries({ queryKey: feedKeys.post(postId) });
     },
-    onError: () => toast.error('Không thể xóa bình luận'),
   });
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   arApi,
@@ -73,6 +73,8 @@ export function useReceivables(params?: QueryParams & { customerId?: string; sta
   return useQuery({
     queryKey: financeKeys.ar.list(params),
     queryFn: () => arApi.list(params),
+    staleTime: 60 * 1000, // AR lists — 1 min (financial data)
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -81,6 +83,7 @@ export function useReceivable(id: string) {
     queryKey: financeKeys.ar.detail(id),
     queryFn: () => arApi.getById(id),
     enabled: !!id,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -98,9 +101,6 @@ export function useRecordArPayment() {
       qc.invalidateQueries({ queryKey: financeKeys.ar.all });
       toast.success('Ghi nhận thanh toán thành công');
     },
-    onError: () => {
-      toast.error('Không thể ghi nhận thanh toán');
-    },
   });
 }
 
@@ -112,6 +112,8 @@ export function usePayables(params?: QueryParams) {
   return useQuery({
     queryKey: financeKeys.ap.list(params),
     queryFn: () => apApi.list(params),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -129,9 +131,6 @@ export function useRecordApPayment() {
       qc.invalidateQueries({ queryKey: financeKeys.ap.all });
       toast.success('Ghi nhận thanh toán thành công');
     },
-    onError: () => {
-      toast.error('Không thể ghi nhận thanh toán');
-    },
   });
 }
 
@@ -143,6 +142,8 @@ export function useVouchers(params?: VoucherQueryParams) {
   return useQuery({
     queryKey: financeKeys.vouchers.list(params),
     queryFn: () => vouchersApi.list(params),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -154,9 +155,6 @@ export function useCreateVoucher() {
       qc.invalidateQueries({ queryKey: financeKeys.vouchers.lists() });
       toast.success('Tạo phiếu thu/chi thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo phiếu thu/chi');
-    },
   });
 }
 
@@ -167,9 +165,6 @@ export function useApproveVoucher() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: financeKeys.vouchers.lists() });
       toast.success('Đã duyệt phiếu');
-    },
-    onError: () => {
-      toast.error('Không thể duyệt phiếu');
     },
   });
 }
@@ -183,9 +178,6 @@ export function useRejectVoucher() {
       qc.invalidateQueries({ queryKey: financeKeys.vouchers.lists() });
       toast.success('Đã từ chối phiếu');
     },
-    onError: () => {
-      toast.error('Không thể từ chối phiếu');
-    },
   });
 }
 
@@ -197,6 +189,8 @@ export function useInvoices(params?: InvoiceQueryParams) {
   return useQuery({
     queryKey: financeKeys.invoices.list(params),
     queryFn: () => invoicesApi.list(params),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -207,9 +201,6 @@ export function useCreateInvoice() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: financeKeys.invoices.lists() });
       toast.success('Tạo hóa đơn thành công');
-    },
-    onError: () => {
-      toast.error('Không thể tạo hóa đơn');
     },
   });
 }
@@ -222,9 +213,6 @@ export function useIssueInvoice() {
       qc.invalidateQueries({ queryKey: financeKeys.invoices.all });
       toast.success('Phát hành hóa đơn thành công');
     },
-    onError: () => {
-      toast.error('Không thể phát hành hóa đơn');
-    },
   });
 }
 
@@ -235,9 +223,6 @@ export function useCancelInvoice() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: financeKeys.invoices.all });
       toast.success('Hủy hóa đơn thành công');
-    },
-    onError: () => {
-      toast.error('Không thể hủy hóa đơn');
     },
   });
 }
@@ -256,9 +241,6 @@ export function useAdjustInvoice() {
       qc.invalidateQueries({ queryKey: financeKeys.invoices.all });
       toast.success('Điều chỉnh hóa đơn thành công');
     },
-    onError: () => {
-      toast.error('Không thể điều chỉnh hóa đơn');
-    },
   });
 }
 
@@ -270,6 +252,7 @@ export function useOverdueReceivables() {
   return useQuery({
     queryKey: financeKeys.ar.overdue(),
     queryFn: () => arApi.getOverdue(),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -277,6 +260,7 @@ export function useAgingReport() {
   return useQuery({
     queryKey: financeKeys.ar.aging(),
     queryFn: () => arApi.getAging(),
+    staleTime: 5 * 60 * 1000, // aging report — 5 min
   });
 }
 
@@ -285,6 +269,7 @@ export function useCustomerDebt(customerId: string) {
     queryKey: financeKeys.ar.customerDebt(customerId),
     queryFn: () => arApi.getCustomerDebt(customerId),
     enabled: !!customerId,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -292,6 +277,7 @@ export function useCustomerDebtSummary() {
   return useQuery({
     queryKey: [...financeKeys.ar.all, 'customer-summary'] as const,
     queryFn: () => arApi.getCustomerSummary(),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -299,6 +285,7 @@ export function useCashFlow(params?: { dateFrom?: string; dateTo?: string }) {
   return useQuery({
     queryKey: [...financeKeys.vouchers.cashFlow(), params] as const,
     queryFn: () => vouchersApi.getCashFlow(params),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -323,7 +310,8 @@ export function useReconciliationSummary() {
   return useQuery({
     queryKey: financeKeys.reconciliation.summary(),
     queryFn: () => reconciliationApi.getSummary(),
-    refetchInterval: 2 * 60 * 1000,
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
   });
 }
 
@@ -335,9 +323,6 @@ export function useManualMatch() {
       qc.invalidateQueries({ queryKey: financeKeys.reconciliation.all });
       qc.invalidateQueries({ queryKey: financeKeys.ar.all });
       toast.success('Khớp lệnh thủ công thành công');
-    },
-    onError: () => {
-      toast.error('Không thể khớp lệnh');
     },
   });
 }

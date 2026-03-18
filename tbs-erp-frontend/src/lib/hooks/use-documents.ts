@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { documentsApi } from '@/lib/api/documents.api';
 import type { DocumentQueryParams } from '@/lib/types/document.types';
@@ -24,6 +24,8 @@ export function useDocuments(params?: DocumentQueryParams) {
   return useQuery({
     queryKey: documentKeys.list(params),
     queryFn: () => documentsApi.list(params),
+    staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -47,9 +49,6 @@ export function useUploadDocument() {
       qc.invalidateQueries({ queryKey: documentKeys.lists() });
       toast.success('Tải tài liệu lên thành công');
     },
-    onError: () => {
-      toast.error('Không thể tải tài liệu lên');
-    },
   });
 }
 
@@ -60,9 +59,6 @@ export function useDeleteDocument() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: documentKeys.lists() });
       toast.success('Đã xóa tài liệu');
-    },
-    onError: () => {
-      toast.error('Không thể xóa tài liệu');
     },
   });
 }

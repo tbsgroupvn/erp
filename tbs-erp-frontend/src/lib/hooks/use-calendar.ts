@@ -68,10 +68,6 @@ export function useCreateEvent() {
       qc.invalidateQueries({ queryKey: calendarKeys.all });
       toast.success('Tao su kien thanh cong');
     },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Khong the tao su kien';
-      toast.error(msg);
-    },
   });
 }
 
@@ -85,10 +81,6 @@ export function useUpdateEvent() {
       qc.invalidateQueries({ queryKey: calendarKeys.event(id) });
       toast.success('Cap nhat su kien thanh cong');
     },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Khong the cap nhat su kien';
-      toast.error(msg);
-    },
   });
 }
 
@@ -100,7 +92,6 @@ export function useDeleteEvent() {
       qc.invalidateQueries({ queryKey: calendarKeys.all });
       toast.success('Da xoa su kien');
     },
-    onError: () => toast.error('Khong the xoa su kien'),
   });
 }
 
@@ -119,7 +110,6 @@ export function useRespondToEvent() {
       qc.invalidateQueries({ queryKey: calendarKeys.event(id) });
       toast.success('Da cap nhat trang thai tham gia');
     },
-    onError: () => toast.error('Khong the cap nhat trang thai'),
   });
 }
 
@@ -131,6 +121,5 @@ export function useCreateRoom() {
       qc.invalidateQueries({ queryKey: calendarKeys.rooms() });
       toast.success('Tao phong hop thanh cong');
     },
-    onError: () => toast.error('Khong the tao phong hop'),
   });
 }

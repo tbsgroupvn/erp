@@ -23,6 +23,7 @@ export function useCommissionRules() {
   return useQuery({
     queryKey: commissionKeys.rules(),
     queryFn: () => commissionApi.listRules(),
+    staleTime: 5 * 60 * 1000, // commission rules are near-static settings
   });
 }
 
@@ -34,9 +35,6 @@ export function useCreateCommissionRule() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: commissionKeys.rules() });
       toast.success('Tạo quy tắc hoa hồng thành công');
-    },
-    onError: () => {
-      toast.error('Không thể tạo quy tắc hoa hồng');
     },
   });
 }
@@ -55,9 +53,6 @@ export function useUpdateCommissionRule() {
       qc.invalidateQueries({ queryKey: commissionKeys.rules() });
       toast.success('Cập nhật quy tắc hoa hồng thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật quy tắc');
-    },
   });
 }
 
@@ -68,9 +63,6 @@ export function useDeleteCommissionRule() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: commissionKeys.rules() });
       toast.success('Xóa quy tắc hoa hồng thành công');
-    },
-    onError: () => {
-      toast.error('Không thể xóa quy tắc');
     },
   });
 }
@@ -83,9 +75,6 @@ export function useCalculateCommission() {
       qc.invalidateQueries({ queryKey: commissionKeys.all });
       toast.success('Tính hoa hồng thành công');
     },
-    onError: () => {
-      toast.error('Không thể tính hoa hồng');
-    },
   });
 }
 
@@ -93,6 +82,7 @@ export function useMyCommissions(params?: CommissionQueryParams) {
   return useQuery({
     queryKey: commissionKeys.my(params),
     queryFn: () => commissionApi.getMyCommissions(params),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -100,6 +90,7 @@ export function useTeamCommissions(params?: CommissionQueryParams) {
   return useQuery({
     queryKey: commissionKeys.team(params),
     queryFn: () => commissionApi.getTeamCommissions(params),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -111,9 +102,6 @@ export function useApproveCommission() {
       qc.invalidateQueries({ queryKey: commissionKeys.all });
       toast.success('Duyệt hoa hồng thành công');
     },
-    onError: () => {
-      toast.error('Không thể duyệt hoa hồng');
-    },
   });
 }
 
@@ -122,5 +110,6 @@ export function useMonthlyCommissionReport(period: string) {
     queryKey: commissionKeys.monthlyReport(period),
     queryFn: () => commissionApi.getMonthlyReport(period),
     enabled: !!period,
+    staleTime: 5 * 60 * 1000,
   });
 }

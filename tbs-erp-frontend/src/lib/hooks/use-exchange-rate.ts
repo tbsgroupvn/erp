@@ -23,6 +23,7 @@ export function useCurrentRate(from: Currency, to: Currency) {
     queryKey: exchangeRateKeys.current(from, to),
     queryFn: () => exchangeRateApi.getCurrentRate(from, to),
     enabled: !!from && !!to,
+    staleTime: 5 * 60 * 1000, // exchange rates update daily — 5 min cache
   });
 }
 
@@ -30,6 +31,7 @@ export function useExchangeRateHistory(params?: ExchangeRateQueryParams) {
   return useQuery({
     queryKey: exchangeRateKeys.history(params),
     queryFn: () => exchangeRateApi.getHistory(params),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -37,6 +39,7 @@ export function useActiveRates() {
   return useQuery({
     queryKey: exchangeRateKeys.active(),
     queryFn: () => exchangeRateApi.getActive(),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -47,9 +50,6 @@ export function useSetExchangeRate() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: exchangeRateKeys.all });
       toast.success('Cập nhật tỷ giá thành công');
-    },
-    onError: () => {
-      toast.error('Không thể cập nhật tỷ giá');
     },
   });
 }
@@ -75,9 +75,6 @@ export function useSyncVietcombank() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: exchangeRateKeys.all });
       toast.success('Đồng bộ tỷ giá Vietcombank thành công');
-    },
-    onError: () => {
-      toast.error('Không thể đồng bộ tỷ giá');
     },
   });
 }

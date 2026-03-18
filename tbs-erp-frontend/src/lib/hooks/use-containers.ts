@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { containersApi } from '@/lib/api/containers.api';
 import type {
@@ -36,6 +36,8 @@ export function useContainers(params?: ContainerQueryParams) {
   return useQuery({
     queryKey: containerKeys.list(params),
     queryFn: () => containersApi.list(params),
+    staleTime: 60 * 1000, // container lists — 1 min
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -44,6 +46,7 @@ export function useContainer(id: string) {
     queryKey: containerKeys.detail(id),
     queryFn: () => containersApi.getById(id),
     enabled: !!id,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -51,6 +54,7 @@ export function useConsolidationPlan() {
   return useQuery({
     queryKey: containerKeys.consolidation(),
     queryFn: () => containersApi.getConsolidationPlan(),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -84,9 +88,6 @@ export function useCreateContainer() {
       qc.invalidateQueries({ queryKey: containerKeys.lists() });
       toast.success('Tạo container thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo container');
-    },
   });
 }
 
@@ -102,9 +103,6 @@ export function useAddPackages() {
       qc.invalidateQueries({ queryKey: ['orders'] });
       toast.success('Da them kien hang vao container');
     },
-    onError: () => {
-      toast.error('Khong the them kien hang');
-    },
   });
 }
 
@@ -119,9 +117,6 @@ export function useUpdateContainerStatus() {
       qc.invalidateQueries({ queryKey: containerKeys.lists() });
       toast.success('Cập nhật trạng thái container thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật trạng thái');
-    },
   });
 }
 
@@ -134,6 +129,7 @@ export function useContainerTimeline(id: string) {
     queryKey: containerKeys.timeline(id),
     queryFn: () => containersApi.getTimeline(id),
     enabled: !!id,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -142,6 +138,7 @@ export function useContainerCostBreakdown(id: string) {
     queryKey: containerKeys.costBreakdown(id),
     queryFn: () => containersApi.getCostBreakdown(id),
     enabled: !!id,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -150,6 +147,7 @@ export function useContainerWeightReconciliation(id: string) {
     queryKey: containerKeys.weightReconciliation(id),
     queryFn: () => containersApi.getWeightReconciliation(id),
     enabled: !!id,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -158,6 +156,7 @@ export function useContainerCustomsSplitStatus(id: string, enabled = true) {
     queryKey: containerKeys.customsSplit(id),
     queryFn: () => containersApi.getCustomsSplitStatus(id),
     enabled: !!id && enabled,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -175,9 +174,6 @@ export function useRecordDeliveryOrder() {
       qc.invalidateQueries({ queryKey: containerKeys.timeline(id) });
       toast.success('Đã ghi nhận lệnh giao hàng (D/O)');
     },
-    onError: () => {
-      toast.error('Không thể ghi nhận D/O');
-    },
   });
 }
 
@@ -190,9 +186,6 @@ export function useUpdateFreeTime() {
       qc.invalidateQueries({ queryKey: containerKeys.detail(id) });
       qc.invalidateQueries({ queryKey: containerKeys.timeline(id) });
       toast.success('Đã cập nhật hạn miễn phí lưu cont');
-    },
-    onError: () => {
-      toast.error('Không thể cập nhật free time');
     },
   });
 }

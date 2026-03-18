@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { customsDeclarationApi } from '@/lib/api/customs-declaration.api';
 import type {
@@ -33,6 +33,8 @@ export function useCustomsDeclarations(params?: CustomsDeclarationQueryParams) {
   return useQuery({
     queryKey: customsDeclarationKeys.list(params),
     queryFn: () => customsDeclarationApi.list(params),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -49,6 +51,7 @@ export function useSearchHSCodes(query: string) {
     queryKey: customsDeclarationKeys.hsCodeSearch(query),
     queryFn: () => customsDeclarationApi.searchHSCodes(query),
     enabled: query.length > 1,
+    staleTime: 5 * 60 * 1000, // HS codes are static reference data
   });
 }
 
@@ -57,6 +60,7 @@ export function useSuggestHSCode(productName: string) {
     queryKey: customsDeclarationKeys.hsCodeSuggest(productName),
     queryFn: () => customsDeclarationApi.suggestHSCode(productName),
     enabled: !!productName,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -72,9 +76,6 @@ export function useCreateDeclaration() {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.lists() });
       toast.success('Tạo tờ khai thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo tờ khai');
-    },
   });
 }
 
@@ -87,9 +88,6 @@ export function useUpdateDeclarationHeader() {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.detail(id) });
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.lists() });
       toast.success('Cập nhật tờ khai thành công');
-    },
-    onError: () => {
-      toast.error('Không thể cập nhật tờ khai');
     },
   });
 }
@@ -110,9 +108,6 @@ export function useUpdateDeclarationLine() {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.detail(declarationId) });
       toast.success('Cập nhật dòng thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật dòng');
-    },
   });
 }
 
@@ -131,9 +126,6 @@ export function useRemoveDeclarationLine() {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.lists() });
       toast.success('Xóa dòng thành công');
     },
-    onError: () => {
-      toast.error('Không thể xóa dòng');
-    },
   });
 }
 
@@ -146,9 +138,6 @@ export function useUpdateDeclarationStatus() {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.detail(id) });
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.lists() });
       toast.success('Cập nhật trạng thái thành công');
-    },
-    onError: () => {
-      toast.error('Không thể cập nhật trạng thái');
     },
   });
 }
@@ -163,9 +152,6 @@ export function useUpdateDeclarationChannel() {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.lists() });
       toast.success('Phân luồng thành công');
     },
-    onError: () => {
-      toast.error('Không thể phân luồng');
-    },
   });
 }
 
@@ -176,9 +162,6 @@ export function useRecalculateTax() {
     onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.detail(id) });
       toast.success('Tính lại thuế thành công');
-    },
-    onError: () => {
-      toast.error('Không thể tính lại thuế');
     },
   });
 }
@@ -191,9 +174,6 @@ export function useAllocateTax() {
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.detail(id) });
       toast.success('Phân bổ thuế thành công');
-    },
-    onError: () => {
-      toast.error('Không thể phân bổ thuế');
     },
   });
 }
@@ -212,9 +192,6 @@ export function useExportEcus5() {
       window.URL.revokeObjectURL(url);
       toast.success('Xuất ECUS5 thành công');
     },
-    onError: () => {
-      toast.error('Không thể xuất ECUS5');
-    },
   });
 }
 
@@ -225,9 +202,6 @@ export function useGroupByHs() {
     onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.detail(id) });
       toast.success('Gom nhóm theo HS thành công');
-    },
-    onError: () => {
-      toast.error('Không thể gom nhóm');
     },
   });
 }
@@ -246,9 +220,6 @@ export function useGroupCustom() {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.detail(id) });
       toast.success('Gom nhóm tùy chỉnh thành công');
     },
-    onError: () => {
-      toast.error('Không thể gom nhóm');
-    },
   });
 }
 
@@ -261,9 +232,6 @@ export function useUngroupLine() {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.detail(declarationId) });
       toast.success('Tách nhóm thành công');
     },
-    onError: () => {
-      toast.error('Không thể tách nhóm');
-    },
   });
 }
 
@@ -274,9 +242,6 @@ export function useCheckCompliance() {
     onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.detail(id) });
       toast.success('Kiểm tra tuân thủ hoàn tất');
-    },
-    onError: () => {
-      toast.error('Không thể kiểm tra tuân thủ');
     },
   });
 }
@@ -289,9 +254,6 @@ export function useAcknowledgeAlert() {
     onSuccess: (_data, { declarationId }) => {
       qc.invalidateQueries({ queryKey: customsDeclarationKeys.detail(declarationId) });
       toast.success('Đã xác nhận cảnh báo');
-    },
-    onError: () => {
-      toast.error('Không thể xác nhận cảnh báo');
     },
   });
 }

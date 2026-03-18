@@ -71,7 +71,6 @@ export function useCreateDM() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: chatKeys.conversations() });
     },
-    onError: () => toast.error('Không thể tạo cuộc trò chuyện'),
   });
 }
 
@@ -83,7 +82,6 @@ export function useCreateGroup() {
       qc.invalidateQueries({ queryKey: chatKeys.conversations() });
       toast.success('Tạo nhóm thành công');
     },
-    onError: () => toast.error('Không thể tạo nhóm'),
   });
 }
 
@@ -95,7 +93,6 @@ export function useSendMessage(conversationId: string) {
       qc.invalidateQueries({ queryKey: chatKeys.messages(conversationId) });
       qc.invalidateQueries({ queryKey: chatKeys.conversations() });
     },
-    onError: () => toast.error('Gửi tin nhắn thất bại'),
   });
 }
 
@@ -107,7 +104,6 @@ export function useEditMessage() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: chatKeys.messages(vars.conversationId) });
     },
-    onError: () => toast.error('Không thể chỉnh sửa tin nhắn'),
   });
 }
 
@@ -119,7 +115,6 @@ export function useDeleteMessage() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: chatKeys.messages(vars.conversationId) });
     },
-    onError: () => toast.error('Không thể thu hồi tin nhắn'),
   });
 }
 
@@ -142,7 +137,6 @@ export function useReactToMessage() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: chatKeys.messages(vars.conversationId) });
     },
-    onError: () => toast.error('Không thể thêm reaction'),
   });
 }
 

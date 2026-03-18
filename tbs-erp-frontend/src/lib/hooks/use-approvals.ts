@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   approvalsApi,
@@ -39,6 +39,8 @@ export function useApprovals(params?: ApprovalQueryParams, options?: { enabled?:
     queryKey: approvalKeys.list(params),
     queryFn: () => approvalsApi.list(params),
     enabled: options?.enabled,
+    staleTime: 30 * 1000, // approvals change frequently — 30s
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -62,7 +64,8 @@ export function useApprovalCounts() {
   return useQuery({
     queryKey: approvalKeys.counts(),
     queryFn: () => approvalsApi.getCounts(),
-    refetchInterval: 60_000, // Refresh every minute
+    staleTime: 30 * 1000,
+    refetchInterval: 2 * 60 * 1000, // Refresh every 2 min
   });
 }
 
@@ -95,6 +98,7 @@ export function useApprovalComments(id: string) {
     queryKey: approvalKeys.comments(id),
     queryFn: () => approvalsApi.getComments(id),
     enabled: !!id,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -132,10 +136,6 @@ export function useApproveApproval() {
       invalidate(id);
       toast.success('Đã phê duyệt');
     },
-    onError: (error: unknown) => {
-      console.error('Approval error:', (error as Error)?.message || 'Unknown error');
-      toast.error('Không thể phê duyệt. Vui lòng thử lại sau.');
-    },
   });
 }
 
@@ -147,10 +147,6 @@ export function useRejectApproval() {
     onSuccess: (_data, { id }) => {
       invalidate(id);
       toast.success('Đã từ chối');
-    },
-    onError: (error: unknown) => {
-      console.error('Rejection error:', (error as Error)?.message || 'Unknown error');
-      toast.error('Không thể từ chối. Vui lòng thử lại sau.');
     },
   });
 }
@@ -173,10 +169,6 @@ export function useDelegateApproval() {
       invalidate(id);
       toast.success('Đã chuyển tiếp');
     },
-    onError: (error: unknown) => {
-      console.error('Delegation error:', (error as Error)?.message || 'Unknown error');
-      toast.error('Không thể chuyển tiếp. Vui lòng thử lại sau.');
-    },
   });
 }
 
@@ -198,10 +190,6 @@ export function useAddApprover() {
       invalidate(id);
       toast.success('Đã thêm người duyệt');
     },
-    onError: (error: unknown) => {
-      console.error('Add approver error:', (error as Error)?.message || 'Unknown error');
-      toast.error('Không thể thêm người duyệt. Vui lòng thử lại sau.');
-    },
   });
 }
 
@@ -212,10 +200,6 @@ export function useWithdrawApproval() {
     onSuccess: (_data, { id }) => {
       invalidate(id);
       toast.success('Đã rút lại yêu cầu');
-    },
-    onError: (error: unknown) => {
-      console.error('Withdraw error:', (error as Error)?.message || 'Unknown error');
-      toast.error('Không thể rút lại. Vui lòng thử lại sau.');
     },
   });
 }
@@ -228,10 +212,6 @@ export function useReturnApproval() {
     onSuccess: (_data, { id }) => {
       invalidate(id);
       toast.success('Đã trả lại yêu cầu');
-    },
-    onError: (error: unknown) => {
-      console.error('Return error:', (error as Error)?.message || 'Unknown error');
-      toast.error('Không thể trả lại. Vui lòng thử lại sau.');
     },
   });
 }
@@ -252,10 +232,6 @@ export function useAddApprovalComment() {
       qc.invalidateQueries({ queryKey: approvalKeys.comments(id) });
       qc.invalidateQueries({ queryKey: approvalKeys.detail(id) });
       toast.success('Đã thêm bình luận');
-    },
-    onError: (error: unknown) => {
-      console.error('Add comment error:', (error as Error)?.message || 'Unknown error');
-      toast.error('Không thể thêm bình luận. Vui lòng thử lại sau.');
     },
   });
 }
