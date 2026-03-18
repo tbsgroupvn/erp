@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { QueueModule } from '@core/queue/queue.module';
 import { EventPublisherService } from './event-publisher.service';
+import { TransactionalEmitter } from './transactional-emitter.service';
 
 /**
  * Events module that re-exports the EventPublisherService for convenience.
@@ -10,6 +11,7 @@ import { EventPublisherService } from './event-publisher.service';
  */
 @Module({
   imports: [QueueModule],
-  exports: [EventPublisherService],
+  providers: [TransactionalEmitter],
+  exports: [EventPublisherService, TransactionalEmitter],
 })
 export class EventsModule {}

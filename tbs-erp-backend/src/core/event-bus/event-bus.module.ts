@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DlqMonitorService } from '@core/events/dlq-monitor.service';
 import { EventErrorCaptureService } from '@core/events/event-error-capture.service';
+import { TransactionalEmitter } from '@core/events/transactional-emitter.service';
 import { DeadLetterQueueService } from './dead-letter-queue.service';
 
 @Module({
@@ -14,7 +15,7 @@ import { DeadLetterQueueService } from './dead-letter-queue.service';
       ignoreErrors: false,
     }),
   ],
-  providers: [DeadLetterQueueService, DlqMonitorService, EventErrorCaptureService],
-  exports: [EventEmitterModule, DeadLetterQueueService],
+  providers: [DeadLetterQueueService, DlqMonitorService, EventErrorCaptureService, TransactionalEmitter],
+  exports: [EventEmitterModule, DeadLetterQueueService, TransactionalEmitter],
 })
 export class EventBusModule {}
