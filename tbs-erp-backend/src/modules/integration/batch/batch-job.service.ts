@@ -1,4 +1,6 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, HttpStatus } from '@nestjs/common';
+import { DomainException } from '@common/exceptions';
+import { ErrorCode } from '@common/exceptions';
 import { PrismaService } from '@core/database/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -45,7 +47,7 @@ export class BatchJobService {
     createdBy: string,
   ): Promise<string> {
     if (!this.handlers.has(type)) {
-      throw new Error(`No handler registered for batch job type: ${type}`);
+      throw new DomainException(ErrorCode.INTEGRATION_HANDLER_NOT_FOUND, `No handler registered for batch job type: ${type}`, HttpStatus.BAD_REQUEST);
     }
 
     const job = await this.prisma.batchJob.create({
@@ -104,7 +106,7 @@ export class BatchJobService {
     }
 
     if (!['QUEUED', 'PROCESSING'].includes(job.status)) {
-      throw new Error(`Cannot cancel job in ${job.status} status`);
+      throw new DomainException(ErrorCode.JOB_PROCESSING_FAILED, `Cannot cancel job in ${job.status} status`, HttpStatus.BAD_REQUEST);
     }
 
     this.activeJobs.delete(jobId);
@@ -169,7 +171,7 @@ export class BatchJobService {
       const onProgress = async (processed: number, failed: number, checkpoint?: string) => {
         // Check if job was cancelled
         if (!this.activeJobs.has(jobId)) {
-          throw new Error('Job cancelled');
+          throw new DomainException(ErrorCode.JOB_PROCESSING_FAILED, 'Job cancelled', HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
         await this.prisma.batchJob.update({
@@ -204,7 +206,7 @@ export class BatchJobService {
       this.eventEmitter.emit('batch.job.completed', { jobId, type: job.type });
       this.logger.log(`Batch job ${jobId} completed`);
     } catch (error) {
-      if (error.message === 'Job cancelled') return;
+      if (error instanceof DomainException && error.getResponse()?.['message'] === 'Job cancelled') return;
 
       await this.prisma.batchJob.update({
         where: { id: jobId },

@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { DomainException } from '@common/exceptions';
+import { ErrorCode } from '@common/exceptions';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import {
@@ -163,7 +165,7 @@ export class ApprovalGraphEngine {
     });
 
     if (!approval) {
-      throw new Error('Failed to create approval record');
+      throw new DomainException(ErrorCode.APPROVAL_FAILED, 'Failed to create approval record', HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     this.eventEmitter.emit('approval.submitted', {

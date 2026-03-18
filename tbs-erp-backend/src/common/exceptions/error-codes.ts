@@ -90,6 +90,12 @@ export const ErrorCode = {
 
   // ─── BullMQ ───
   JOB_PROCESSING_FAILED: 'JOB_PROCESSING_FAILED',
+
+  // ─── Automation ───
+  AUTOMATION_ACTION_FAILED: 'AUTOMATION_ACTION_FAILED',
+
+  // ─── Batch Import ───
+  BATCH_IMPORT_VALIDATION_ERROR: 'BATCH_IMPORT_VALIDATION_ERROR',
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];

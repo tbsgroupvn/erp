@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -138,7 +139,7 @@ export class CostAdjustmentController {
     @CurrentUser() user: ICurrentUser,
   ) {
     if (!rejectionNote || rejectionNote.trim().length === 0) {
-      throw new Error('Rejection note is required.');
+      throw new BadRequestException('Rejection note is required.');
     }
     return this.costAdjustmentService.reject(id, user.id, rejectionNote);
   }

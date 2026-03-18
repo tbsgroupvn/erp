@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpStatus } from '@nestjs/common';
+import { DomainException } from '@common/exceptions';
+import { ErrorCode } from '@common/exceptions';
 import { PrismaService } from '@core/database/prisma.service';
 import { EmailService } from '@core/email/email.service';
 import { TriggerType, ActionType, NotificationChannel, NotificationType } from '@prisma/client';
@@ -232,8 +234,10 @@ export class AutomationEngineService {
               signal: controller.signal,
             });
             if (!response.ok) {
-              throw new Error(
+              throw new DomainException(
+                ErrorCode.AUTOMATION_ACTION_FAILED,
                 `Webhook call to ${p.url} failed with status ${response.status}`,
+                HttpStatus.BAD_GATEWAY,
               );
             }
           } finally {

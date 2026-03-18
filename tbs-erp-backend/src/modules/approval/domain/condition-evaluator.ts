@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpStatus } from '@nestjs/common';
+import { DomainException } from '@common/exceptions';
+import { ErrorCode } from '@common/exceptions';
 
 export type ConditionOperator = 'GT' | 'GTE' | 'LT' | 'LTE' | 'EQ' | 'NEQ' | 'IN';
 
@@ -462,8 +464,10 @@ class ExpressionParser {
   parse(): boolean {
     const result = this.parseOr();
     if (this.pos < this.tokens.length) {
-      throw new Error(
+      throw new DomainException(
+        ErrorCode.APPROVAL_CONDITION_PARSE_ERROR,
         `Unexpected token "${this.tokens[this.pos].value}" at position ${this.pos}`,
+        HttpStatus.BAD_REQUEST,
       );
     }
     return result;
@@ -507,7 +511,7 @@ class ExpressionParser {
     const token = this.peek();
 
     if (!token) {
-      throw new Error('Unexpected end of expression');
+      throw new DomainException(ErrorCode.APPROVAL_CONDITION_PARSE_ERROR, 'Unexpected end of expression', HttpStatus.BAD_REQUEST);
     }
 
     if (token.kind === 'LPAREN') {
@@ -516,7 +520,7 @@ class ExpressionParser {
 
       const closing = this.peek();
       if (!closing || closing.kind !== 'RPAREN') {
-        throw new Error('Missing closing parenthesis');
+        throw new DomainException(ErrorCode.APPROVAL_CONDITION_PARSE_ERROR, 'Missing closing parenthesis', HttpStatus.BAD_REQUEST);
       }
       this.consume(); // eat )
       return result;
@@ -527,7 +531,7 @@ class ExpressionParser {
       return this.evaluator._evalAtom(token.value, this.requestData);
     }
 
-    throw new Error(`Unexpected token "${token.value}" (kind=${token.kind})`);
+    throw new DomainException(ErrorCode.APPROVAL_CONDITION_PARSE_ERROR, `Unexpected token "${token.value}" (kind=${token.kind})`, HttpStatus.BAD_REQUEST);
   }
 
   // ---------------------------------------------------------------------------

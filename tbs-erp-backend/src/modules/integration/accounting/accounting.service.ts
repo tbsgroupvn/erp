@@ -1,4 +1,6 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, HttpStatus } from '@nestjs/common';
+import { DomainException } from '@common/exceptions';
+import { ErrorCode } from '@common/exceptions';
 import { ConfigService } from '@nestjs/config';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '@core/database/prisma.service';
@@ -543,8 +545,10 @@ export class AccountingService {
 
         if (!response.ok) {
           const errorBody = await response.text().catch(() => 'Unknown error');
-          throw new Error(
+          throw new DomainException(
+            ErrorCode.INTEGRATION_SYNC_ERROR,
             `${provider} API returned ${response.status}: ${errorBody.substring(0, 200)}`,
+            HttpStatus.BAD_GATEWAY,
           );
         }
 
@@ -625,8 +629,10 @@ export class AccountingService {
 
         if (!response.ok) {
           const errorBody = await response.text().catch(() => 'Unknown error');
-          throw new Error(
+          throw new DomainException(
+            ErrorCode.INTEGRATION_SYNC_ERROR,
             `${provider} API returned ${response.status}: ${errorBody.substring(0, 200)}`,
+            HttpStatus.BAD_GATEWAY,
           );
         }
 

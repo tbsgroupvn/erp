@@ -1,10 +1,13 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { DomainException } from '@common/exceptions';
+import { ErrorCode } from '@common/exceptions';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { PaymentVoucher, Prisma, ApprovalStatus, VoucherType } from '@prisma/client';
@@ -312,7 +315,7 @@ export class CashService {
       }
     }
 
-    throw new Error('Failed to create voucher after multiple attempts');
+    throw new DomainException(ErrorCode.PAYMENT_FAILED, 'Failed to create voucher after multiple attempts', HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
   /**

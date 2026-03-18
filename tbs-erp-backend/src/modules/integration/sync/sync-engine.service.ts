@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpStatus } from '@nestjs/common';
+import { DomainException } from '@common/exceptions';
+import { ErrorCode } from '@common/exceptions';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { createHash } from 'crypto';
 import { PrismaService } from '@core/database/prisma.service';
@@ -189,7 +191,7 @@ export class SyncEngineService {
     try {
       // Validate the incoming data has required fields
       if (!data.id && !data.externalId) {
-        throw new Error('Incoming sync data must have an id or externalId field');
+        throw new DomainException(ErrorCode.INTEGRATION_SYNC_ERROR, 'Incoming sync data must have an id or externalId field', HttpStatus.BAD_REQUEST);
       }
 
       // Compute idempotency key to prevent duplicate processing

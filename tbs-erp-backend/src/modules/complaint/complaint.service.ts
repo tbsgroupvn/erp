@@ -1,4 +1,6 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, HttpStatus } from '@nestjs/common';
+import { DomainException } from '@common/exceptions';
+import { ErrorCode } from '@common/exceptions';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
@@ -133,7 +135,7 @@ export class ComplaintService {
       }
     }
     if (!complaint) {
-      throw new Error('Failed to create complaint after multiple attempts');
+      throw new DomainException(ErrorCode.COMPLAINT_CREATION_FAILED, 'Failed to create complaint after multiple attempts', HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     // Emit event
