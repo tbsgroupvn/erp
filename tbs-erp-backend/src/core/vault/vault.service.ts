@@ -1,5 +1,6 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DomainException, ErrorCode } from '@common/exceptions';
 import * as https from 'https';
 import * as http from 'http';
 
@@ -230,8 +231,10 @@ export class VaultService implements OnModuleInit, OnModuleDestroy {
   private async healthCheck(): Promise<void> {
     const response = await this.vaultRequest('GET', '/v1/sys/health');
     if (!response.initialized || response.sealed) {
-      throw new Error(
+      throw new DomainException(
+        ErrorCode.VAULT_ERROR,
         `Vault is not ready: initialized=${response.initialized}, sealed=${response.sealed}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }

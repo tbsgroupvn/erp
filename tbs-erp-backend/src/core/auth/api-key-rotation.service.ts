@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpStatus } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@core/database/prisma.service';
+import { DomainException, ErrorCode } from '@common/exceptions';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -28,11 +29,11 @@ export class ApiKeyRotationService {
   async rotateKey(keyId: string): Promise<{ newKey: string; expiresAt: Date }> {
     const existing = await this.prisma.apiKey.findUnique({ where: { id: keyId } });
     if (!existing) {
-      throw new Error(`API key ${keyId} not found`);
+      throw new DomainException(ErrorCode.API_KEY_NOT_FOUND, `API key ${keyId} not found`, HttpStatus.NOT_FOUND);
     }
 
     if (!existing.isActive) {
-      throw new Error(`API key ${keyId} is already inactive`);
+      throw new DomainException(ErrorCode.API_KEY_NOT_FOUND, `API key ${keyId} is already inactive`, HttpStatus.BAD_REQUEST);
     }
 
     const { key: newKey, hash: newHash, shortPrefix } = this.generateApiKey();

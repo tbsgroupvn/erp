@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from './prisma.service';
@@ -78,7 +78,7 @@ export class QueryAnalyzerService {
    */
   async analyzeQuery(query: string): Promise<QueryPlan> {
     if (this.isProduction) {
-      throw new Error('Query analysis is disabled in production');
+      throw new ForbiddenException('Query analysis is disabled in production');
     }
 
     // --- Strict input sanitization ---
@@ -86,17 +86,17 @@ export class QueryAnalyzerService {
 
     // Must start with SELECT (case-insensitive)
     if (!/^SELECT\s/i.test(trimmedQuery)) {
-      throw new Error('Only SELECT queries are allowed for analysis');
+      throw new BadRequestException('Only SELECT queries are allowed for analysis');
     }
 
     // Reject semicolons — prevents statement chaining
     if (trimmedQuery.includes(';')) {
-      throw new Error('Semicolons are not allowed in analyzed queries');
+      throw new BadRequestException('Semicolons are not allowed in analyzed queries');
     }
 
     // Reject SQL comments (-- and /* */)
     if (/--/.test(trimmedQuery) || /\/\*/.test(trimmedQuery)) {
-      throw new Error('SQL comments are not allowed in analyzed queries');
+      throw new BadRequestException('SQL comments are not allowed in analyzed queries');
     }
 
     // Block dangerous DML/DDL keywords (case-insensitive, word-boundary match)
@@ -110,7 +110,7 @@ export class QueryAnalyzerService {
       // Word-boundary check: keyword must be surrounded by non-alpha chars
       const regex = new RegExp(`\\b${keyword}\\b`);
       if (regex.test(upperQuery)) {
-        throw new Error(`Dangerous SQL keyword detected: ${keyword}`);
+        throw new BadRequestException(`Dangerous SQL keyword detected: ${keyword}`);
       }
     }
 

@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
+import { DomainException, ErrorCode } from '@common/exceptions';
 import { EncryptionService } from './encryption.service';
 import { ENCRYPTED_FIELDS } from './prisma-encryption.extension';
 
@@ -38,8 +39,10 @@ export class KeyRotationService {
     batchSize = 100,
   ): Promise<{ model: string; processed: number; reEncrypted: number }[]> {
     if (!this.encryptionService.isEnabled()) {
-      throw new Error(
+      throw new DomainException(
+        ErrorCode.ENCRYPTION_ERROR,
         'Encryption is not enabled. Set FIELD_ENCRYPTION_KEY before running key rotation.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
 

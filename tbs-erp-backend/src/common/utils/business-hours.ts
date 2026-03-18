@@ -3,6 +3,7 @@
  * Calculates deadlines considering only business hours, weekends, and holidays.
  * Used by: KD-3 (overdraft), TX-3 (COD deadline), escalation rules
  */
+import { BadRequestException } from '@nestjs/common';
 
 export interface BusinessHoursConfig {
   workStart: number; // e.g. 8 (8:00 AM)
@@ -66,7 +67,7 @@ export function calculateBusinessHoursDeadline(
   const workHoursPerDay = cfg.workEnd - cfg.workStart;
 
   if (workHoursPerDay <= 0) {
-    throw new Error('workEnd must be greater than workStart');
+    throw new BadRequestException('workEnd must be greater than workStart');
   }
 
   if (hours <= 0) {

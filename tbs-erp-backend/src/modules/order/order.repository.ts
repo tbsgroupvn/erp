@@ -1,4 +1,5 @@
-import { Injectable, Logger, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, ConflictException, HttpStatus } from '@nestjs/common';
+import { DomainException, ErrorCode } from '@common/exceptions';
 import { PrismaService } from '@core/database/prisma.service';
 import { CacheService } from '@core/cache/cache.service';
 import { Prisma, Order, OrderStatus, OrderItem } from '@prisma/client';
@@ -147,7 +148,7 @@ export class OrderRepository {
       }
     }
     // Unreachable, but TypeScript needs it
-    throw new Error('Failed to create order after 3 attempts');
+    throw new DomainException(ErrorCode.ORDER_CREATION_FAILED, 'Failed to create order after 3 attempts', HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
   /**

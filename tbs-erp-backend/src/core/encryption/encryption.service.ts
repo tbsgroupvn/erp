@@ -1,5 +1,6 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DomainException, ErrorCode } from '@common/exceptions';
 import * as crypto from 'crypto';
 
 /**
@@ -38,9 +39,11 @@ export class EncryptionService implements OnModuleInit {
     const rawKey = this.configService.get<string>('FIELD_ENCRYPTION_KEY', '');
 
     if (!rawKey) {
-      throw new Error(
+      throw new DomainException(
+        ErrorCode.ENCRYPTION_ERROR,
         'FIELD_ENCRYPTION_KEY environment variable is required. ' +
           "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
 
@@ -141,7 +144,7 @@ export class EncryptionService implements OnModuleInit {
         `Cannot decrypt: unknown key version "${keyVersion}". ` +
           'Add the key to FIELD_ENCRYPTION_PREVIOUS_KEYS.',
       );
-      throw new Error(`Unknown encryption key version: ${keyVersion}`);
+      throw new DomainException(ErrorCode.ENCRYPTION_ERROR, `Unknown encryption key version: ${keyVersion}`, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     try {
@@ -158,7 +161,7 @@ export class EncryptionService implements OnModuleInit {
       return decrypted.toString('utf8');
     } catch (error) {
       this.logger.error(`Decryption failed for key version "${keyVersion}": ${error.message}`);
-      throw new Error('Failed to decrypt field value. Data may be corrupted.');
+      throw new DomainException(ErrorCode.ENCRYPTION_ERROR, 'Failed to decrypt field value. Data may be corrupted.', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 

@@ -21,6 +21,7 @@ import * as QRCode from 'qrcode';
 import { PrismaService } from '@core/database/prisma.service';
 import { CacheService } from '@core/cache/cache.service';
 import { SmsService } from '@core/sms/sms.service';
+import { DomainException, ErrorCode } from '@common/exceptions';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { TwoFactorMethodDto } from './dto/two-factor.dto';
 import { JwtPayload, jwtSessionCacheKey, jwtSessionCachePrefix } from './strategies/jwt.strategy';
@@ -96,9 +97,11 @@ export class AuthService {
     // Derive a 32-byte key from the configured secret using PBKDF2
     const rawKey = this.configService.get<string>('TWO_FA_ENCRYPTION_KEY');
     if (!rawKey) {
-      throw new Error(
+      throw new DomainException(
+        ErrorCode.INTERNAL_ERROR,
         'TWO_FA_ENCRYPTION_KEY environment variable is required. ' +
-        'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+        'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
     // Read salt from env (recommended), fallback for backward compat with existing installs
@@ -244,7 +247,7 @@ export class AuthService {
   ): Promise<LoginResponse> {
     const ip = ipAddress ?? 'unknown';
 
-    // ── Brute-force check ─────────────────────────────────────────────────
+    // ── Brute-force check (IP-based) ────────────────────────────────────
     const failCount = await this.getFailedAttempts(ip);
     if (failCount >= AuthService.MAX_FAILED_ATTEMPTS) {
       this.logger.warn(`Login blocked for IP ${ip} — too many failed attempts (${failCount})`);
@@ -254,10 +257,21 @@ export class AuthService {
       );
     }
 
+    // IAF-01 fix: Account-level brute-force check (prevents distributed attacks)
+    const accountFailCount = await this.getFailedAttempts(`account:${email}`);
+    if (accountFailCount >= AuthService.MAX_FAILED_ATTEMPTS * 2) {
+      this.logger.warn(`Login blocked for account ${email} — too many failed attempts (${accountFailCount})`);
+      throw new HttpException(
+        'Tai khoan tam thoi bi khoa do nhieu lan dang nhap that bai. Vui long thu lai sau 15 phut.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const user = await this.validateUser(email, password);
 
     if (!user) {
       await this.recordFailedAttempt(ip);
+      await this.recordFailedAttempt(`account:${email}`);
       const newCount = failCount + 1;
       const remaining = AuthService.MAX_FAILED_ATTEMPTS - newCount;
       this.logger.warn(
@@ -267,8 +281,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // Successful credential validation — reset the failure counter
+    // Successful credential validation — reset the failure counters
     await this.clearFailedAttempts(ip);
+    await this.clearFailedAttempts(`account:${email}`);
 
     // ── 2FA check ──────────────────────────────────────────────────────────
     if (user.is2FAEnabled) {
@@ -308,21 +323,22 @@ export class AuthService {
    */
   async verifyLoginOtp(
     tempToken: string,
-    userId: string,
     code: string,
     method?: TwoFactorMethodDto,
     userAgent?: string,
     ipAddress?: string,
   ): Promise<LoginResult> {
-    // Validate the temporary token
+    // ID-01 fix: Extract userId from the signed temp token only (not from request body)
+    let userId: string;
     try {
       const payload = this.jwtService.verify(tempToken, {
         secret: this.configService.get<string>('jwt.secret'),
       });
 
-      if (payload.type !== '2fa-pending' || payload.sub !== userId) {
+      if (payload.type !== '2fa-pending' || !payload.sub) {
         throw new UnauthorizedException('Invalid or expired 2FA session');
       }
+      userId = payload.sub;
     } catch {
       throw new UnauthorizedException('Invalid or expired 2FA session');
     }

@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpStatus } from '@nestjs/common';
+import { DomainException, ErrorCode } from '@common/exceptions';
 import { PrismaService } from '@core/database/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SagaOrchestrator, SagaStep } from '@common/patterns/saga';
@@ -46,9 +47,9 @@ export class OrderCompletionSaga {
           include: { customer: true, items: true },
         });
 
-        if (!order) throw new Error(`Order ${ctx.orderId} not found`);
-        if (order.status === 'COMPLETED') throw new Error('Order already completed');
-        if (order.status === 'CANCELLED') throw new Error('Cannot complete cancelled order');
+        if (!order) throw new DomainException(ErrorCode.ORDER_NOT_FOUND, `Order ${ctx.orderId} not found`, HttpStatus.NOT_FOUND);
+        if (order.status === 'COMPLETED') throw new DomainException(ErrorCode.ORDER_ALREADY_COMPLETED, 'Order already completed', HttpStatus.CONFLICT);
+        if (order.status === 'CANCELLED') throw new DomainException(ErrorCode.ORDER_ALREADY_CANCELLED, 'Cannot complete cancelled order', HttpStatus.CONFLICT);
 
         ctx.order = order;
         ctx.previousStatus = order.status;

@@ -1,13 +1,19 @@
 import {
   ForbiddenException,
+  HttpStatus,
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
+import { DomainException, ErrorCode } from '@common/exceptions';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { EncryptionService } from '@core/encryption/encryption.service';
+import { createPrismaEncryptionExtension } from '@core/encryption/prisma-encryption.extension';
 
 /**
  * Extended PrismaService with performance monitoring.
@@ -24,13 +30,36 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
 
-  constructor(private readonly configService: ConfigService) {
+  /** Extended Prisma client with field-level encryption. Use for queries requiring PII decryption. */
+  private _encryptedClient: ReturnType<typeof PrismaClient.prototype.$extends> | null = null;
+
+  /**
+   * Returns the encryption-extended Prisma client.
+   * Falls back to `this` if encryption is disabled.
+   */
+  get encrypted() {
+    return this._encryptedClient ?? this;
+  }
+
+  constructor(
+    private readonly configService: ConfigService,
+    @Optional() @Inject(EncryptionService) private readonly encryptionService?: EncryptionService,
+  ) {
     const isDev = configService.get<string>('app.env', 'development') === 'development';
+
+    // Append connection_limit to the DATABASE_URL so Prisma's connection pool
+    // is sized correctly for the workload.
+    // Pool size = num_cores * 2 + disk_spindles. Default 20 for 50-70 concurrent users.
+    // Override via DATABASE_POOL_SIZE environment variable.
+    const baseUrl = configService.get<string>('database.url') ?? '';
+    const poolSize = configService.get<number>('database.poolSize') ?? 20;
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    const databaseUrl = `${baseUrl}${separator}connection_limit=${poolSize}`;
 
     super({
       datasources: {
         db: {
-          url: configService.get<string>('database.url'),
+          url: databaseUrl,
         },
       },
       // Enable query events in all environments for performance monitoring
@@ -117,6 +146,20 @@ export class PrismaService
         try {
           await this.$connect();
           this.logger.log('Database connection established.');
+
+          // CF-01 fix: Activate field-level encryption extension
+          if (this.encryptionService?.isEnabled()) {
+            this._encryptedClient = this.$extends(
+              createPrismaEncryptionExtension(this.encryptionService),
+            );
+            this.logger.log('Field-level encryption extension activated for PII fields.');
+          } else {
+            this.logger.warn(
+              'Field-level encryption is DISABLED. PII fields will be stored in plaintext. ' +
+                'Set FIELD_ENCRYPTION_KEY to enable.',
+            );
+          }
+
           return;
         } finally {
           clearTimeout(timeout);
@@ -131,8 +174,10 @@ export class PrismaService
           this.logger.error(
             'All database connection attempts exhausted. Application cannot start.',
           );
-          throw new Error(
+          throw new DomainException(
+            ErrorCode.TRANSACTION_ERROR,
             `Failed to connect to database after ${PrismaService.MAX_CONNECTION_RETRIES} attempts: ${error.message}`,
+            HttpStatus.INTERNAL_SERVER_ERROR,
           );
         }
 
