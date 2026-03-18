@@ -64,11 +64,11 @@ Plans:
   1. An order status change that fails mid-operation (e.g., cost allocation fails after status write) rolls back completely — no partial state in the database
   2. Events emitted after a write (e.g., order.completed triggering commission calculation) only fire if the transaction commits successfully
   3. Sending SIGTERM to the backend process completes in-flight BullMQ jobs and disconnects Prisma cleanly before exiting (no orphaned connections or lost jobs)
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md — TransactionalEmitter service, transaction wrapping + deferred emit for order/container/cash/complaint services
+- [ ] 03-02-PLAN.md — GracefulShutdownService with ordered BullMQ worker drain, WebSocket close, Prisma disconnect
 
 ### Phase 4: Input Validation & Rate Limiting
 **Goal**: User-supplied input cannot inject HTML/scripts, upload dangerous files, or overwhelm endpoints with bulk requests
