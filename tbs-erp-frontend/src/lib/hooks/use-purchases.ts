@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { purchasesApi } from '@/lib/api/purchases.api';
 import type {
@@ -29,6 +29,8 @@ export function usePurchaseRequests(params?: PurchaseQueryParams) {
   return useQuery({
     queryKey: purchaseKeys.requestList(params),
     queryFn: () => purchasesApi.listRequests(params),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -44,6 +46,8 @@ export function usePurchaseOrders(params?: PurchaseQueryParams) {
   return useQuery({
     queryKey: purchaseKeys.orderList(params),
     queryFn: () => purchasesApi.listOrders(params),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -67,9 +71,6 @@ export function useCreatePurchaseRequest() {
       qc.invalidateQueries({ queryKey: purchaseKeys.requests() });
       toast.success('Tạo yêu cầu mua thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo yêu cầu mua');
-    },
   });
 }
 
@@ -81,9 +82,6 @@ export function useApprovePurchaseRequest() {
       qc.invalidateQueries({ queryKey: purchaseKeys.requestDetail(id) });
       qc.invalidateQueries({ queryKey: purchaseKeys.requests() });
       toast.success('Duyệt yêu cầu mua thành công');
-    },
-    onError: () => {
-      toast.error('Không thể duyệt yêu cầu mua');
     },
   });
 }
@@ -98,9 +96,6 @@ export function useConvertToPO() {
       qc.invalidateQueries({ queryKey: purchaseKeys.orders() });
       toast.success('Chuyển đổi sang đơn mua hàng thành công');
     },
-    onError: () => {
-      toast.error('Không thể chuyển đổi sang đơn mua hàng');
-    },
   });
 }
 
@@ -112,9 +107,6 @@ export function useRecordReceipt() {
       qc.invalidateQueries({ queryKey: purchaseKeys.orderDetail(id) });
       qc.invalidateQueries({ queryKey: purchaseKeys.orders() });
       toast.success('Ghi nhận nhập hàng thành công');
-    },
-    onError: () => {
-      toast.error('Không thể ghi nhận nhập hàng');
     },
   });
 }

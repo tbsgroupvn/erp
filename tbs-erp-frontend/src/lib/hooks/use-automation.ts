@@ -68,9 +68,6 @@ export function useCreateAutomationRule() {
       qc.invalidateQueries({ queryKey: automationKeys.stats() });
       toast.success('Tạo automation rule thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo automation rule');
-    },
   });
 }
 
@@ -85,9 +82,6 @@ export function useUpdateAutomationRule() {
       qc.invalidateQueries({ queryKey: automationKeys.stats() });
       toast.success('Cập nhật automation rule thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật automation rule');
-    },
   });
 }
 
@@ -99,9 +93,6 @@ export function useDeleteAutomationRule() {
       qc.invalidateQueries({ queryKey: automationKeys.lists() });
       qc.invalidateQueries({ queryKey: automationKeys.stats() });
       toast.success('Đã xóa automation rule');
-    },
-    onError: () => {
-      toast.error('Không thể xóa automation rule');
     },
   });
 }
@@ -120,9 +111,6 @@ export function useTestAutomationRule() {
         toast.error(`Test thất bại: ${result?.errorMsg ?? 'Unknown error'}`);
       }
     },
-    onError: () => {
-      toast.error('Không thể chạy test automation');
-    },
   });
 }
 
@@ -135,9 +123,6 @@ export function useToggleAutomationRule() {
       qc.invalidateQueries({ queryKey: automationKeys.lists() });
       qc.invalidateQueries({ queryKey: automationKeys.stats() });
       toast.success(active ? 'Rule đã được bật' : 'Rule đã được tắt');
-    },
-    onError: () => {
-      toast.error('Không thể thay đổi trạng thái rule');
     },
   });
 }

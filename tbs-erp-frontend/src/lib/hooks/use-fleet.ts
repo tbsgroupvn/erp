@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { fleetApi } from '@/lib/api/fleet.api';
 import type {
@@ -32,6 +32,8 @@ export function useVehicles(params?: VehicleQueryParams) {
   return useQuery({
     queryKey: fleetKeys.list(params),
     queryFn: () => fleetApi.list(params),
+    staleTime: 5 * 60 * 1000, // vehicle list is near-static
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -40,6 +42,7 @@ export function useVehicle(id: string) {
     queryKey: fleetKeys.detail(id),
     queryFn: () => fleetApi.getById(id),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -48,6 +51,7 @@ export function useVehicleMaintenance(id: string) {
     queryKey: fleetKeys.maintenance(id),
     queryFn: () => fleetApi.listMaintenance(id),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -71,9 +75,6 @@ export function useCreateVehicle() {
       qc.invalidateQueries({ queryKey: fleetKeys.lists() });
       toast.success('Thêm phương tiện thành công');
     },
-    onError: () => {
-      toast.error('Không thể thêm phương tiện');
-    },
   });
 }
 
@@ -87,9 +88,6 @@ export function useUpdateVehicle() {
       qc.invalidateQueries({ queryKey: fleetKeys.lists() });
       toast.success('Cập nhật phương tiện thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật phương tiện');
-    },
   });
 }
 
@@ -102,9 +100,6 @@ export function useCreateMaintenance() {
       qc.invalidateQueries({ queryKey: fleetKeys.maintenance(vehicleId) });
       toast.success('Lên lịch bảo dưỡng thành công');
     },
-    onError: () => {
-      toast.error('Không thể lên lịch bảo dưỡng');
-    },
   });
 }
 
@@ -116,9 +111,6 @@ export function useCreateFuelRecord() {
     onSuccess: (_data, { vehicleId }) => {
       qc.invalidateQueries({ queryKey: fleetKeys.fuel(vehicleId) });
       toast.success('Ghi nhận nhiên liệu thành công');
-    },
-    onError: () => {
-      toast.error('Không thể ghi nhận nhiên liệu');
     },
   });
 }

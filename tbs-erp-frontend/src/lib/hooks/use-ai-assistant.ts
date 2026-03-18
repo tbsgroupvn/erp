@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { toast } from 'sonner';
 import { aiAssistantApi } from '@/lib/api/ai-assistant.api';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import type { AISession, AIMessage } from '@/lib/types/ai-assistant.types';
@@ -39,7 +38,6 @@ export function useCreateSession() {
         old ? [newSession, ...old] : [newSession],
       );
     },
-    onError: () => toast.error('Khong the tao phien chat moi'),
   });
 }
 
@@ -53,7 +51,6 @@ export function useDeleteSession() {
         old ? old.filter((s) => s.id !== sessionId) : [],
       );
     },
-    onError: () => toast.error('Khong the xoa phien chat'),
   });
 }
 

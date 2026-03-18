@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { warehouseApi } from '@/lib/api/warehouse';
 import { warehouseCnApi } from '@/lib/api/warehouse-cn.api';
@@ -30,6 +30,8 @@ export function usePackagesCN(params?: QueryParams) {
   return useQuery({
     queryKey: warehouseKeys.cnPackages(params),
     queryFn: () => warehouseApi.listPackagesCN(params).then((r) => r.data),
+    staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -57,9 +59,6 @@ export function useReceivePackageCN() {
         description: 'Don hang se tu dong chuyen trang thai neu day la kien dau tien.',
       });
     },
-    onError: () => {
-      toast.error('Không thể nhận kiện hàng');
-    },
   });
 }
 
@@ -72,9 +71,6 @@ export function useMeasurePackageCN() {
       qc.invalidateQueries({ queryKey: ['packages-cn'] });
       toast.success('Cập nhật kích thước thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật kích thước');
-    },
   });
 }
 
@@ -86,9 +82,6 @@ export function useUpdateCNStatus() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['packages-cn'] });
       toast.success('Cập nhật trạng thái thành công');
-    },
-    onError: () => {
-      toast.error('Không thể cập nhật trạng thái');
     },
   });
 }
@@ -105,9 +98,6 @@ export function useSortPackagesVN() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['packages-vn'] });
       toast.success('Phân loại kiện hàng thành công');
-    },
-    onError: () => {
-      toast.error('Không thể phân loại kiện hàng');
     },
   });
 }
@@ -126,9 +116,6 @@ export function useAddPackagesToContainer() {
       qc.invalidateQueries({ queryKey: ['packages-cn'] });
       qc.invalidateQueries({ queryKey: ['orders'] });
       toast.success('Them kien vao container thanh cong');
-    },
-    onError: () => {
-      toast.error('Khong the them kien vao container');
     },
   });
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { inventoryApi } from '@/lib/api/inventory.api';
 import type {
@@ -29,6 +29,8 @@ export function useCurrentStock(params?: InventoryQueryParams) {
   return useQuery({
     queryKey: inventoryKeys.stockList(params),
     queryFn: () => inventoryApi.listStock(params),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -44,6 +46,7 @@ export function useLowStockAlerts() {
   return useQuery({
     queryKey: inventoryKeys.alerts(),
     queryFn: () => inventoryApi.lowStockAlerts(),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -59,9 +62,6 @@ export function useCreateStockItem() {
       qc.invalidateQueries({ queryKey: inventoryKeys.stocks() });
       toast.success('Thêm vật tư thành công');
     },
-    onError: () => {
-      toast.error('Không thể thêm vật tư');
-    },
   });
 }
 
@@ -74,9 +74,6 @@ export function useCreateStockMovement() {
       qc.invalidateQueries({ queryKey: inventoryKeys.movements() });
       qc.invalidateQueries({ queryKey: inventoryKeys.alerts() });
       toast.success('Ghi nhận biến động kho thành công');
-    },
-    onError: () => {
-      toast.error('Không thể ghi nhận biến động kho');
     },
   });
 }

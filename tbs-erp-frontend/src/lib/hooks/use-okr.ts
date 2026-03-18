@@ -93,9 +93,6 @@ export function useCreateObjective() {
       qc.invalidateQueries({ queryKey: okrKeys.dashboard() });
       toast.success('Da tao muc tieu thanh cong');
     },
-    onError: () => {
-      toast.error('Khong the tao muc tieu');
-    },
   });
 }
 
@@ -110,9 +107,6 @@ export function useUpdateObjective() {
       qc.invalidateQueries({ queryKey: okrKeys.dashboard() });
       toast.success('Da cap nhat muc tieu');
     },
-    onError: () => {
-      toast.error('Khong the cap nhat muc tieu');
-    },
   });
 }
 
@@ -125,9 +119,6 @@ export function useDeleteObjective() {
       qc.invalidateQueries({ queryKey: okrKeys.tree() });
       qc.invalidateQueries({ queryKey: okrKeys.dashboard() });
       toast.success('Da xoa muc tieu');
-    },
-    onError: () => {
-      toast.error('Khong the xoa muc tieu');
     },
   });
 }
@@ -146,9 +137,6 @@ export function useCreateKeyResult() {
       qc.invalidateQueries({ queryKey: okrKeys.objectives() });
       toast.success('Da them ket qua then chot');
     },
-    onError: () => {
-      toast.error('Khong the them Key Result');
-    },
   });
 }
 
@@ -160,9 +148,6 @@ export function useUpdateKeyResult() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: okrKeys.objectives() });
       toast.success('Da cap nhat Key Result');
-    },
-    onError: () => {
-      toast.error('Khong the cap nhat Key Result');
     },
   });
 }
@@ -178,9 +163,6 @@ export function useCheckIn() {
       qc.invalidateQueries({ queryKey: okrKeys.dashboard() });
       toast.success('Da cap nhat tien do');
     },
-    onError: () => {
-      toast.error('Khong the cap nhat tien do');
-    },
   });
 }
 
@@ -193,9 +175,6 @@ export function useLinkTask() {
       qc.invalidateQueries({ queryKey: okrKeys.objectives() });
       toast.success('Da lien ket task');
     },
-    onError: () => {
-      toast.error('Khong the lien ket task');
-    },
   });
 }
 
@@ -207,9 +186,6 @@ export function useUnlinkTask() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: okrKeys.objectives() });
       toast.success('Da huy lien ket task');
-    },
-    onError: () => {
-      toast.error('Khong the huy lien ket');
     },
   });
 }

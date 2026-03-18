@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { orderTemplatesApi } from '@/lib/api/order-templates.api';
 import type {
@@ -29,6 +29,8 @@ export function useOrderTemplates(params?: OrderTemplateQueryParams) {
   return useQuery({
     queryKey: orderTemplateKeys.list(params),
     queryFn: () => orderTemplatesApi.list(params),
+    staleTime: 5 * 60 * 1000, // templates are near-static
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -53,9 +55,6 @@ export function useCreateOrderTemplate() {
       qc.invalidateQueries({ queryKey: orderTemplateKeys.lists() });
       toast.success('Tạo template thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo template');
-    },
   });
 }
 
@@ -69,9 +68,6 @@ export function useUpdateOrderTemplate() {
       qc.invalidateQueries({ queryKey: orderTemplateKeys.lists() });
       toast.success('Cập nhật template thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật template');
-    },
   });
 }
 
@@ -82,9 +78,6 @@ export function useDeleteOrderTemplate() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orderTemplateKeys.lists() });
       toast.success('Xóa template thành công');
-    },
-    onError: () => {
-      toast.error('Không thể xóa template');
     },
   });
 }

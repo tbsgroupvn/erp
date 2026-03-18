@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { tasksApi } from '@/lib/api/tasks.api';
 import type { TaskQueryParams, CreateTaskDto, UpdateTaskDto, Task } from '@/lib/types';
@@ -27,6 +27,8 @@ export function useTasks(params?: TaskQueryParams) {
   return useQuery({
     queryKey: taskKeys.list(params),
     queryFn: () => tasksApi.list(params as Record<string, unknown>),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -34,6 +36,8 @@ export function useMyTasks(params?: TaskQueryParams) {
   return useQuery({
     queryKey: taskKeys.myList(params),
     queryFn: () => tasksApi.getMyTasks(params as Record<string, unknown>),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -49,6 +53,7 @@ export function useOverdueTasks() {
   return useQuery({
     queryKey: taskKeys.overdue(),
     queryFn: () => tasksApi.getOverdue(),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -65,9 +70,6 @@ export function useCreateTask() {
       qc.invalidateQueries({ queryKey: taskKeys.myTasks() });
       toast.success('Tạo công việc thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo công việc');
-    },
   });
 }
 
@@ -81,9 +83,6 @@ export function useUpdateTask() {
       qc.invalidateQueries({ queryKey: taskKeys.lists() });
       qc.invalidateQueries({ queryKey: taskKeys.myTasks() });
       toast.success('Cập nhật công việc thành công');
-    },
-    onError: () => {
-      toast.error('Không thể cập nhật công việc');
     },
   });
 }
@@ -99,9 +98,6 @@ export function useChangeTaskStatus() {
       qc.invalidateQueries({ queryKey: taskKeys.myTasks() });
       toast.success('Cập nhật trạng thái thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật trạng thái');
-    },
   });
 }
 
@@ -113,9 +109,6 @@ export function useAddComment() {
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: taskKeys.detail(id) });
       toast.success('Thêm bình luận thành công');
-    },
-    onError: () => {
-      toast.error('Không thể thêm bình luận');
     },
   });
 }
@@ -158,7 +151,6 @@ export function useOptimisticTaskStatus() {
           qc.setQueryData(key, value);
         });
       }
-      toast.error('Không thể cập nhật trạng thái');
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: taskKeys.lists() });

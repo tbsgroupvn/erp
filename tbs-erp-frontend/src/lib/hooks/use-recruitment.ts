@@ -65,9 +65,6 @@ export function useCreateCandidate() {
       qc.invalidateQueries({ queryKey: recruitmentKeys.all });
       toast.success('Thêm ứng viên thành công');
     },
-    onError: () => {
-      toast.error('Không thể thêm ứng viên');
-    },
   });
 }
 
@@ -81,9 +78,6 @@ export function useUpdateCandidate() {
       qc.invalidateQueries({ queryKey: recruitmentKeys.lists() });
       qc.invalidateQueries({ queryKey: recruitmentKeys.board() });
       toast.success('Cập nhật thông tin thành công');
-    },
-    onError: () => {
-      toast.error('Không thể cập nhật thông tin');
     },
   });
 }
@@ -99,10 +93,6 @@ export function useUpdateCandidateStatus() {
       qc.invalidateQueries({ queryKey: recruitmentKeys.stats() });
       toast.success('Cập nhật trạng thái thành công');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message ?? 'Không thể cập nhật trạng thái';
-      toast.error(msg);
-    },
   });
 }
 
@@ -113,9 +103,6 @@ export function useDeleteCandidate() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: recruitmentKeys.all });
       toast.success('Đã xóa ứng viên');
-    },
-    onError: () => {
-      toast.error('Không thể xóa ứng viên');
     },
   });
 }

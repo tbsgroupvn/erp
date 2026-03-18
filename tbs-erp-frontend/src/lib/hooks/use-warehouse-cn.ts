@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   warehouseCnApi,
@@ -28,6 +28,8 @@ export function useCnPackages(params?: CnPackageQueryParams) {
   return useQuery({
     queryKey: cnPackageKeys.list(params),
     queryFn: () => warehouseCnApi.listPackages(params),
+    staleTime: 30 * 1000, // warehouse operations — 30s
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -51,9 +53,6 @@ export function useReceivePackage() {
       qc.invalidateQueries({ queryKey: cnPackageKeys.lists() });
       toast.success('Nhận kiện hàng thành công');
     },
-    onError: () => {
-      toast.error('Không thể nhận kiện hàng');
-    },
   });
 }
 
@@ -71,9 +70,6 @@ export function useMeasurePackage() {
       qc.invalidateQueries({ queryKey: cnPackageKeys.detail(packageId) });
       qc.invalidateQueries({ queryKey: cnPackageKeys.lists() });
       toast.success('Đo kiện hàng thành công');
-    },
-    onError: () => {
-      toast.error('Không thể đo kiện hàng');
     },
   });
 }

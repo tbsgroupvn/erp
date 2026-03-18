@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { quotationsApi } from '@/lib/api/quotations.api';
 import type {
@@ -30,6 +30,8 @@ export function useQuotations(params?: QuotationQueryParams) {
   return useQuery({
     queryKey: quotationKeys.list(params),
     queryFn: () => quotationsApi.list(params),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -38,6 +40,7 @@ export function useQuotation(id: string) {
     queryKey: quotationKeys.detail(id),
     queryFn: () => quotationsApi.getById(id),
     enabled: !!id,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -64,9 +67,6 @@ export function useUpdateQuotation() {
       qc.invalidateQueries({ queryKey: quotationKeys.detail(id) });
       qc.invalidateQueries({ queryKey: quotationKeys.lists() });
       toast.success('Cập nhật báo giá thành công');
-    },
-    onError: () => {
-      toast.error('Không thể cập nhật báo giá');
     },
   });
 }
@@ -113,9 +113,6 @@ export function useDuplicateQuotation() {
       qc.invalidateQueries({ queryKey: quotationKeys.lists() });
       toast.success('Đã sao chép báo giá');
     },
-    onError: () => {
-      toast.error('Không thể sao chép báo giá');
-    },
   });
 }
 
@@ -132,6 +129,7 @@ export function useQuotationTemplates() {
   return useQuery({
     queryKey: templateKeys.list(),
     queryFn: () => quotationsApi.listTemplates(),
+    staleTime: 5 * 60 * 1000, // templates are near-static
   });
 }
 
@@ -142,9 +140,6 @@ export function useCreateTemplate() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: templateKeys.list() });
       toast.success('Đã tạo mẫu báo giá');
-    },
-    onError: () => {
-      toast.error('Không thể tạo mẫu');
     },
   });
 }
@@ -157,9 +152,6 @@ export function useDeleteTemplate() {
       qc.invalidateQueries({ queryKey: templateKeys.list() });
       toast.success('Đã xóa mẫu');
     },
-    onError: () => {
-      toast.error('Không thể xóa mẫu');
-    },
   });
 }
 
@@ -171,9 +163,6 @@ export function useSaveAsTemplate() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: templateKeys.list() });
       toast.success('Đã lưu mẫu báo giá');
-    },
-    onError: () => {
-      toast.error('Không thể lưu mẫu');
     },
   });
 }
@@ -192,9 +181,6 @@ export function useCreateFromTemplate() {
       qc.invalidateQueries({ queryKey: quotationKeys.lists() });
       toast.success('Đã tạo báo giá từ mẫu');
     },
-    onError: () => {
-      toast.error('Không thể tạo báo giá từ mẫu');
-    },
   });
 }
 
@@ -207,5 +193,6 @@ export function useRecentItemsForCustomer(customerId: string) {
     queryKey: ['quotation-recent-items', customerId],
     queryFn: () => quotationsApi.getRecentItems(customerId),
     enabled: !!customerId,
+    staleTime: 5 * 60 * 1000,
   });
 }

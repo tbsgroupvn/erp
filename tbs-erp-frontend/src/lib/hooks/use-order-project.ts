@@ -83,8 +83,5 @@ export function useReassignOrder() {
       qc.invalidateQueries({ queryKey: orderProjectKeys.departmentBoard() });
       toast.success('Phân công lại thành công');
     },
-    onError: () => {
-      toast.error('Không thể phân công lại');
-    },
   });
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { vendorsApi } from '@/lib/api/vendors.api';
 import type {
@@ -29,6 +29,8 @@ export function useVendors(params?: VendorQueryParams) {
   return useQuery({
     queryKey: vendorKeys.list(params),
     queryFn: () => vendorsApi.list(params),
+    staleTime: 5 * 60 * 1000, // vendor list is near-static
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -37,6 +39,7 @@ export function useVendor(id: string) {
     queryKey: vendorKeys.detail(id),
     queryFn: () => vendorsApi.getById(id),
     enabled: !!id,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -52,9 +55,6 @@ export function useCreateVendor() {
       qc.invalidateQueries({ queryKey: vendorKeys.lists() });
       toast.success('Tạo nhà cung cấp thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo nhà cung cấp');
-    },
   });
 }
 
@@ -67,9 +67,6 @@ export function useUpdateVendor() {
       qc.invalidateQueries({ queryKey: vendorKeys.detail(id) });
       qc.invalidateQueries({ queryKey: vendorKeys.lists() });
       toast.success('Cập nhật nhà cung cấp thành công');
-    },
-    onError: () => {
-      toast.error('Không thể cập nhật nhà cung cấp');
     },
   });
 }
@@ -84,9 +81,6 @@ export function useToggleVendorApproval() {
       qc.invalidateQueries({ queryKey: vendorKeys.lists() });
       toast.success('Cập nhật trạng thái duyệt thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật trạng thái duyệt');
-    },
   });
 }
 
@@ -99,9 +93,6 @@ export function useRateVendor() {
       qc.invalidateQueries({ queryKey: vendorKeys.detail(id) });
       qc.invalidateQueries({ queryKey: vendorKeys.lists() });
       toast.success('Đánh giá nhà cung cấp thành công');
-    },
-    onError: () => {
-      toast.error('Không thể đánh giá nhà cung cấp');
     },
   });
 }

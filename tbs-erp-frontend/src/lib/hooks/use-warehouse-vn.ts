@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   warehouseVnApi,
@@ -28,6 +28,8 @@ export function useVnPackages(params?: VnPackageQueryParams) {
   return useQuery({
     queryKey: vnPackageKeys.list(params),
     queryFn: () => warehouseVnApi.listPackages(params),
+    staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -36,6 +38,7 @@ export function useDeliveryPlan(branch: Branch) {
     queryKey: vnPackageKeys.deliveryPlan(branch),
     queryFn: () => warehouseVnApi.getDeliveryPlan(branch),
     enabled: !!branch,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -55,9 +58,6 @@ export function useReceiveFromContainer() {
       qc.invalidateQueries({ queryKey: vnPackageKeys.lists() });
       toast.success('Nhận hàng từ container thành công');
     },
-    onError: () => {
-      toast.error('Không thể nhận hàng từ container');
-    },
   });
 }
 
@@ -68,9 +68,6 @@ export function useDispatchDelivery() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: vnPackageKeys.lists() });
       toast.success('Phát hàng thành công');
-    },
-    onError: () => {
-      toast.error('Không thể phát hàng');
     },
   });
 }
@@ -93,9 +90,6 @@ export function useConfirmDelivery() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: vnPackageKeys.lists() });
       toast.success('Xác nhận giao hàng thành công');
-    },
-    onError: () => {
-      toast.error('Không thể xác nhận giao hàng');
     },
   });
 }

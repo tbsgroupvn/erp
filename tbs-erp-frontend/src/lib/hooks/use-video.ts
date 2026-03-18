@@ -68,9 +68,6 @@ export function useCreateRoom() {
       qc.invalidateQueries({ queryKey: videoKeys.myRooms() });
       toast.success('Phòng họp đã được tạo');
     },
-    onError: () => {
-      toast.error('Không thể tạo phòng họp');
-    },
   });
 }
 
@@ -86,9 +83,6 @@ export function useEndRoom() {
       qc.invalidateQueries({ queryKey: videoKeys.room(roomId) });
       toast.success('Phòng họp đã kết thúc');
     },
-    onError: () => {
-      toast.error('Không thể kết thúc phòng họp');
-    },
   });
 }
 
@@ -102,9 +96,6 @@ export function useStartDMCall() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: videoKeys.myRooms() });
     },
-    onError: () => {
-      toast.error('Không thể bắt đầu video call');
-    },
   });
 }
 
@@ -114,8 +105,5 @@ export function useStartDMCall() {
 export function useGetRoomToken() {
   return useMutation({
     mutationFn: (roomId: string) => videoApi.getRoomToken(roomId),
-    onError: () => {
-      toast.error('Không thể lấy token tham gia phòng họp');
-    },
   });
 }

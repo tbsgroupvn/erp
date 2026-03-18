@@ -1,7 +1,6 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
   notificationsApi,
   type NotificationQueryParams,
@@ -26,6 +25,7 @@ export function useNotifications(params?: NotificationQueryParams) {
   return useQuery({
     queryKey: notificationKeys.list(params),
     queryFn: () => notificationsApi.list(params),
+    staleTime: 30 * 1000,
   });
 }
 
@@ -38,6 +38,7 @@ export function useUnreadCount() {
       setUnreadCount(count);
       return count;
     },
+    staleTime: 15 * 1000, // unread count — keep fresh
     refetchInterval: 30_000, // Poll every 30 seconds
   });
 }
@@ -54,9 +55,6 @@ export function useMarkAsRead() {
     onSuccess: (_data, id) => {
       markAsReadStore(id);
       qc.invalidateQueries({ queryKey: notificationKeys.all });
-    },
-    onError: () => {
-      toast.error('Không thể đánh dấu đã đọc');
     },
   });
 }

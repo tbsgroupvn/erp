@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   usersApi,
@@ -29,6 +29,8 @@ export function useUsers(params?: UserQueryParams) {
   return useQuery({
     queryKey: userKeys.list(params),
     queryFn: () => usersApi.list(params),
+    staleTime: 5 * 60 * 1000, // user lists are near-static
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -37,6 +39,7 @@ export function useUser(id: string) {
     queryKey: userKeys.detail(id),
     queryFn: () => usersApi.getById(id),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -52,9 +55,6 @@ export function useCreateUser() {
       qc.invalidateQueries({ queryKey: userKeys.lists() });
       toast.success('Đã tạo tài khoản');
     },
-    onError: () => {
-      toast.error('Không thể tạo tài khoản');
-    },
   });
 }
 
@@ -68,9 +68,6 @@ export function useUpdateUser() {
       qc.invalidateQueries({ queryKey: userKeys.lists() });
       toast.success('Đã cập nhật tài khoản');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật tài khoản');
-    },
   });
 }
 
@@ -83,9 +80,6 @@ export function useUpdateUserRole() {
       qc.invalidateQueries({ queryKey: userKeys.all });
       toast.success('Đã cập nhật vai trò');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật vai trò');
-    },
   });
 }
 
@@ -96,9 +90,6 @@ export function useActivateUser() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: userKeys.all });
       toast.success('Đã kích hoạt tài khoản');
-    },
-    onError: () => {
-      toast.error('Không thể kích hoạt tài khoản');
     },
   });
 }
@@ -111,9 +102,6 @@ export function useDeactivateUser() {
       qc.invalidateQueries({ queryKey: userKeys.all });
       toast.success('Đã vô hiệu hóa tài khoản');
     },
-    onError: () => {
-      toast.error('Không thể vô hiệu hóa tài khoản');
-    },
   });
 }
 
@@ -122,9 +110,6 @@ export function useResetUserPassword() {
     mutationFn: (id: string) => usersApi.resetPassword(id),
     onSuccess: (data) => {
       toast.success(`Mật khẩu tạm: ${data.temporaryPassword}`);
-    },
-    onError: () => {
-      toast.error('Không thể đặt lại mật khẩu');
     },
   });
 }

@@ -58,9 +58,6 @@ export function useCreateSpace() {
       qc.invalidateQueries({ queryKey: wikiKeys.spaces() });
       toast.success('Space đã được tạo');
     },
-    onError: (err: unknown) => {
-      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Không thể tạo space');
-    },
   });
 }
 
@@ -73,9 +70,6 @@ export function useUpdateSpace() {
       qc.invalidateQueries({ queryKey: wikiKeys.spaces() });
       toast.success('Space đã được cập nhật');
     },
-    onError: (err: unknown) => {
-      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Không thể cập nhật space');
-    },
   });
 }
 
@@ -86,9 +80,6 @@ export function useDeleteSpace() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: wikiKeys.spaces() });
       toast.success('Space đã được xóa');
-    },
-    onError: (err: unknown) => {
-      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Không thể xóa space');
     },
   });
 }
@@ -150,9 +141,6 @@ export function useCreatePage() {
       qc.invalidateQueries({ queryKey: wikiKeys.pageTree(data.spaceId) });
       toast.success('Trang đã được tạo');
     },
-    onError: (err: unknown) => {
-      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Không thể tạo trang');
-    },
   });
 }
 
@@ -167,9 +155,6 @@ export function useUpdatePage() {
       qc.invalidateQueries({ queryKey: wikiKeys.versions(data.id) });
       toast.success('Trang đã được lưu');
     },
-    onError: (err: unknown) => {
-      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Không thể lưu trang');
-    },
   });
 }
 
@@ -182,9 +167,6 @@ export function useDeletePage() {
       qc.invalidateQueries({ queryKey: wikiKeys.pageTree(data.spaceId) });
       toast.success('Trang đã được xóa');
     },
-    onError: (err: unknown) => {
-      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Không thể xóa trang');
-    },
   });
 }
 
@@ -196,9 +178,6 @@ export function useMovePage() {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: wikiKeys.pageTree(data.spaceId) });
       toast.success('Trang đã được di chuyển');
-    },
-    onError: (err: unknown) => {
-      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Không thể di chuyển trang');
     },
   });
 }

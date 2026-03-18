@@ -34,6 +34,7 @@ export function useMHHIssue(issueId: string) {
     queryKey: mhhIssueKeys.detail(issueId),
     queryFn: () => mhhIssuesApi.getById(issueId),
     enabled: !!issueId,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -42,6 +43,7 @@ export function useMHHIssuesByOrder(orderId: string) {
     queryKey: mhhIssueKeys.byOrder(orderId),
     queryFn: () => mhhIssuesApi.getByOrderId(orderId),
     enabled: !!orderId,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -50,6 +52,7 @@ export function useMHHPriceCalculation(params: MHHPriceCalculateDto | null) {
     queryKey: mhhPriceKeys.calculate(params!),
     queryFn: () => mhhPriceApi.calculate(params!),
     enabled: !!params && params.productPriceCNY > 0 && params.quantity > 0,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -72,9 +75,6 @@ export function useCreateMHHIssue() {
       qc.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
       toast.success('Tạo vấn đề MHH thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo vấn đề MHH');
-    },
   });
 }
 
@@ -96,9 +96,6 @@ export function useUpdateMHHIssueStatus() {
       qc.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
       toast.success('Cập nhật trạng thái vấn đề thành công');
     },
-    onError: () => {
-      toast.error('Không thể cập nhật trạng thái');
-    },
   });
 }
 
@@ -118,9 +115,6 @@ export function useResolveMHHIssue() {
       qc.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
       toast.success('Giải quyết vấn đề MHH thành công');
     },
-    onError: () => {
-      toast.error('Không thể giải quyết vấn đề');
-    },
   });
 }
 
@@ -139,9 +133,6 @@ export function useAssignMHHIssueHandler() {
       qc.invalidateQueries({ queryKey: mhhIssueKeys.byOrder(orderId) });
       qc.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
       toast.success('Phân công xử lý thành công');
-    },
-    onError: () => {
-      toast.error('Không thể phân công xử lý');
     },
   });
 }
@@ -163,9 +154,6 @@ export function useRecordCustomerDecision() {
       qc.invalidateQueries({ queryKey: mhhIssueKeys.byOrder(orderId) });
       qc.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
       toast.success('Ghi nhận quyết định khách hàng thành công');
-    },
-    onError: () => {
-      toast.error('Không thể ghi nhận quyết định');
     },
   });
 }

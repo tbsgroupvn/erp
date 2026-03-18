@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { payrollApi } from '@/lib/api/payroll.api';
 import type { PayrollQueryParams } from '@/lib/types/payroll.types';
@@ -24,6 +24,8 @@ export function usePayrollList(params?: PayrollQueryParams) {
   return useQuery({
     queryKey: payrollKeys.list(params),
     queryFn: () => payrollApi.list(params),
+    staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -32,6 +34,7 @@ export function usePayrollSummary(month: number, year: number) {
     queryKey: payrollKeys.summary(month, year),
     queryFn: () => payrollApi.summary({ month, year }),
     enabled: !!month && !!year,
+    staleTime: 5 * 60 * 1000, // payroll summary changes infrequently
   });
 }
 
@@ -48,9 +51,6 @@ export function useCalculatePayroll() {
       qc.invalidateQueries({ queryKey: payrollKeys.summaries() });
       toast.success('Tính lương thành công');
     },
-    onError: () => {
-      toast.error('Không thể tính lương');
-    },
   });
 }
 
@@ -62,9 +62,6 @@ export function useApprovePayroll() {
       qc.invalidateQueries({ queryKey: payrollKeys.lists() });
       qc.invalidateQueries({ queryKey: payrollKeys.summaries() });
       toast.success('Duyệt bảng lương thành công');
-    },
-    onError: () => {
-      toast.error('Không thể duyệt bảng lương');
     },
   });
 }

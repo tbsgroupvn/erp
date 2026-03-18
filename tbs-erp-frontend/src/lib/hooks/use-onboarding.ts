@@ -56,9 +56,6 @@ export function useCreateChecklist() {
       qc.invalidateQueries({ queryKey: onboardingKeys.byEmployee(variables.employeeId) });
       toast.success('Tạo checklist thành công');
     },
-    onError: () => {
-      toast.error('Không thể tạo checklist');
-    },
   });
 }
 
@@ -71,9 +68,6 @@ export function useToggleChecklistItem() {
       qc.invalidateQueries({ queryKey: onboardingKeys.detail(data.id) });
       qc.invalidateQueries({ queryKey: onboardingKeys.lists() });
     },
-    onError: () => {
-      toast.error('Không thể cập nhật trạng thái mục');
-    },
   });
 }
 
@@ -85,9 +79,6 @@ export function useMarkChecklistComplete() {
       qc.invalidateQueries({ queryKey: onboardingKeys.detail(data.id) });
       qc.invalidateQueries({ queryKey: onboardingKeys.lists() });
       toast.success('Checklist đã được đánh dấu hoàn thành');
-    },
-    onError: () => {
-      toast.error('Không thể đánh dấu hoàn thành checklist');
     },
   });
 }
