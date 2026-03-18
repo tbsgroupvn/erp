@@ -12,7 +12,7 @@ This milestone hardens the existing TBS Order ERP system without adding new feat
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Backend Error Standardization** - Standardized error responses, correlation IDs, and structured exception handling across all backend layers
+- [x] **Phase 1: Backend Error Standardization** - Standardized error responses, correlation IDs, and structured exception handling across all backend layers (completed 2026-03-18)
 - [ ] **Phase 2: Frontend Error Handling** - Error boundaries, user-friendly toast notifications, and crash prevention across all frontend routes
 - [ ] **Phase 3: Transaction Consistency** - Prisma interactive transactions for all multi-write operations, outbox-safe event emission, and graceful shutdown
 - [ ] **Phase 4: Input Validation & Rate Limiting** - HTML sanitization, file upload validation, and rate limiting on vulnerable endpoints
@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. No service-layer code throws raw `new Error()` — all exceptions are domain-specific NestJS HttpException subclasses
   3. WebSocket error events and BullMQ failed job logs contain the same `requestId` and `errorCode` structure as HTTP errors
   4. Every HTTP request can be traced from Sentry breadcrumb to application log entry using the same correlation ID
-**Plans:** 2/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 01-01-PLAN.md — Error infrastructure: DomainException, ErrorCode registry, filter updates, double-registration fix
@@ -163,7 +163,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Backend Error Standardization | 2/4 | In Progress|  |
+| 1. Backend Error Standardization | 4/4 | Complete   | 2026-03-18 |
 | 2. Frontend Error Handling | 0/1 | Not started | - |
 | 3. Transaction Consistency | 0/2 | Not started | - |
 | 4. Input Validation & Rate Limiting | 0/1 | Not started | - |

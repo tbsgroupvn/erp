@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-03-18T08:25:20Z"
-last_activity: 2026-03-18 — Completed Plan 01-03 (non-HTTP error standardization)
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-03-18T08:33:11Z"
+last_activity: 2026-03-18 — Completed Plan 01-04 (remaining module error conversion)
 progress:
   total_phases: 9
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 8
+  completed_plans: 4
+  percent: 11
 ---
 
 # Project State
@@ -21,32 +21,32 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** The order lifecycle (17+ statuses across 9 FSMs) must be bulletproof — no state can be skipped, no unauthorized role can mutate data, and no query can bottleneck under production load.
-**Current focus:** Phase 1: Backend Error Standardization
+**Current focus:** Phase 1: Backend Error Standardization (COMPLETE)
 
 ## Current Position
 
-Phase: 1 of 9 (Backend Error Standardization)
-Plan: 3 of 4 in current phase
-Status: Executing
-Last activity: 2026-03-18 — Completed Plan 01-03 (non-HTTP error standardization)
+Phase: 1 of 9 (Backend Error Standardization) -- COMPLETE
+Plan: 4 of 4 in current phase (all done)
+Status: Phase Complete
+Last activity: 2026-03-18 — Completed Plan 01-04 (remaining module error conversion)
 
-Progress: [▓░░░░░░░░░] 8%
+Progress: [▓▓░░░░░░░░] 11%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
+- Total plans completed: 4
 - Average duration: 5min
-- Total execution time: 0.25 hours
+- Total execution time: 0.33 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-backend-error-standardization | 3/4 | 15min | 5min |
+| 01-backend-error-standardization | 4/4 | 20min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (6min), 01-02 (3min), 01-03 (6min)
+- Last 5 plans: 01-01 (6min), 01-02 (3min), 01-03 (6min), 01-04 (5min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -69,6 +69,9 @@ Recent decisions affecting current work:
 - [01-03]: wsError() auto-generates requestId with 'ws-' prefix + 8-char hex for WebSocket-originated errors
 - [01-03]: extractErrorCode() tries JSON parse, then string match against known ErrorCode values, fallback to JOB_PROCESSING_FAILED
 - [01-03]: FailedJobCaptureService retrieves full Job object on failure for metadata extraction (graceful fallback if removed)
+- [01-04]: accounting.service.ts provider API errors use HttpStatus.BAD_GATEWAY (502) for upstream failures
+- [01-04]: batch-job.service.ts cancellation signal uses DomainException with getResponse() message check
+- [01-04]: Added AUTOMATION_ACTION_FAILED and BATCH_IMPORT_VALIDATION_ERROR to ErrorCode registry
 
 ### Pending Todos
 
@@ -81,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T08:25:20Z
-Stopped at: Completed 01-03-PLAN.md
-Resume file: .planning/phases/01-backend-error-standardization/01-03-SUMMARY.md
+Last session: 2026-03-18T08:33:11Z
+Stopped at: Completed 01-04-PLAN.md
+Resume file: .planning/phases/01-backend-error-standardization/01-04-SUMMARY.md
