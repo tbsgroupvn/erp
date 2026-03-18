@@ -33,12 +33,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. No service-layer code throws raw `new Error()` — all exceptions are domain-specific NestJS HttpException subclasses
   3. WebSocket error events and BullMQ failed job logs contain the same `requestId` and `errorCode` structure as HTTP errors
   4. Every HTTP request can be traced from Sentry breadcrumb to application log entry using the same correlation ID
-**Plans:** 3 plans
+**Plans:** 4 plans
 
 Plans:
 - [ ] 01-01-PLAN.md — Error infrastructure: DomainException, ErrorCode registry, filter updates, double-registration fix
-- [ ] 01-02-PLAN.md — Convert all service-layer raw throw new Error() to DomainException
-- [ ] 01-03-PLAN.md — WebSocket structured errors and BullMQ processor error standardization
+- [ ] 01-02-PLAN.md — Convert core/auth/order/infra raw throw new Error() to DomainException (11 files)
+- [ ] 01-03-PLAN.md — WebSocket structured errors, BullMQ processor error standardization, DLQ integration
+- [ ] 01-04-PLAN.md — Convert remaining module raw throw new Error() to DomainException (10 files)
 
 ### Phase 2: Frontend Error Handling
 **Goal**: The frontend never shows a white-screen crash — every error is caught, displayed as a user-friendly message, and reported
@@ -162,7 +163,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Backend Error Standardization | 0/3 | Planning complete | - |
+| 1. Backend Error Standardization | 0/4 | Planning complete | - |
 | 2. Frontend Error Handling | 0/1 | Not started | - |
 | 3. Transaction Consistency | 0/2 | Not started | - |
 | 4. Input Validation & Rate Limiting | 0/1 | Not started | - |
