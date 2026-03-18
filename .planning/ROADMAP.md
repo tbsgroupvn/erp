@@ -79,10 +79,12 @@ Plans:
   2. Uploading a file exceeding the size limit or with a disallowed MIME type returns a clear error message and the upload is rejected
   3. Submitting more than 5 complaints per hour from the same user returns a 429 rate-limit error
   4. Bulk import endpoints and public-facing endpoints enforce rate limits that prevent abuse
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Infrastructure: CustomThrottlerGuard (global), FileValidationPipe, error codes, file upload constants, @SkipThrottle on WS/health/metrics
+- [ ] 04-02-PLAN.md — @SanitizeHtmlStrict on all non-CMS DTO text fields, @Throttle on complaint/batch/public controllers
+- [ ] 04-03-PLAN.md — FileValidationPipe on CMS media/document/batch upload endpoints, Drive DTO size/MIME tightening
 
 ### Phase 5: RBAC Audit & Coverage
 **Goal**: Every controller endpoint has explicit access control — no endpoint is accidentally public, and every role sees only the data it should
@@ -168,7 +170,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 1. Backend Error Standardization | 4/4 | Complete   | 2026-03-18 |
 | 2. Frontend Error Handling | 1/3 | In progress | - |
 | 3. Transaction Consistency | 0/2 | Not started | - |
-| 4. Input Validation & Rate Limiting | 0/1 | Not started | - |
+| 4. Input Validation & Rate Limiting | 0/3 | Not started | - |
 | 5. RBAC Audit & Coverage | 0/2 | Not started | - |
 | 6. FSM Verification | 0/2 | Not started | - |
 | 7. Business Rule Enforcement | 0/2 | Not started | - |
