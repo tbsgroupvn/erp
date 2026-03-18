@@ -10,6 +10,7 @@ import { DomainException } from '@common/exceptions';
 import { ErrorCode } from '@common/exceptions';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
+import { TransactionalEmitter } from '@core/events/transactional-emitter.service';
 import { PaymentVoucher, Prisma, ApprovalStatus, VoucherType } from '@prisma/client';
 import { generateCode } from '@common/utils/code-generator.util';
 import { CreateVoucherDto } from './dto/create-voucher.dto';
@@ -31,6 +32,7 @@ export class CashService {
     private readonly voucherStatusMachine: VoucherStatusMachine,
     private readonly cashFlowGuard: CashFlowGuardService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly txEmitter: TransactionalEmitter,
     private readonly exchangeRateService: ExchangeRateService,
     private readonly exchangeRateGLService: ExchangeRateGLService,
   ) {}
@@ -322,7 +324,9 @@ export class CashService {
    * Approve a voucher. Creates a cash transaction record.
    */
   async approveVoucher(voucherId: string, approvedBy: string) {
-    return this.prisma.executeInTransaction(async (tx) => {
+    const collector = this.txEmitter.createCollector();
+
+    const result = await this.prisma.executeInTransaction(async (tx) => {
       // Re-fetch voucher INSIDE transaction for consistency
       const voucher = await tx.paymentVoucher.findUnique({
         where: { id: voucherId },
@@ -457,7 +461,7 @@ export class CashService {
         }
       }
 
-      this.eventEmitter.emit('voucher.approved', {
+      collector.emit('voucher.approved', {
         voucherId: voucher.id,
         voucherCode: voucher.code,
         type: voucher.type,
@@ -469,7 +473,7 @@ export class CashService {
       // When a RECEIPT voucher is approved and linked to an order,
       // emit payment.received so the order deposit tracking is updated.
       if (voucher.type === 'RECEIPT' && voucher.orderId) {
-        this.eventEmitter.emit('payment.received', {
+        collector.emit('payment.received', {
           orderId: voucher.orderId,
           amount: voucher.amount.toNumber(),
           paymentMethod: voucher.paymentMethod,
@@ -483,6 +487,11 @@ export class CashService {
 
       return updated;
     });
+
+    // Flush buffered events after transaction commits
+    collector.flush();
+
+    return result;
   }
 
   /**

@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
+import { TransactionalEmitter } from '@core/events/transactional-emitter.service';
+import { CacheService } from '@core/cache/cache.service';
 import { OrderStatus, Prisma, UserRole } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { OrderRepository } from './order.repository';
@@ -23,6 +25,8 @@ export class OrderStatusService {
     private readonly statusMachine: OrderStatusMachine,
     private readonly depositGate: DepositGateService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly txEmitter: TransactionalEmitter,
+    private readonly cacheService: CacheService,
   ) {}
 
   /**
@@ -84,6 +88,8 @@ export class OrderStatusService {
     }
 
     // Perform the status update
+    const collector = this.txEmitter.createCollector();
+
     const updated = await this.orderRepo.updateStatus(
       id,
       order.status,
@@ -93,8 +99,8 @@ export class OrderStatusService {
       additionalData,
     );
 
-    // Emit status change event
-    this.eventEmitter.emit('order.status.changed', {
+    // Buffer status change event for deferred emission
+    collector.emit('order.status.changed', {
       orderId: id,
       code: order.code,
       customerId: order.customerId,
@@ -110,7 +116,7 @@ export class OrderStatusService {
       const remainingAmount = Number(order.totalAmount) - Number(order.depositPaid);
 
       if (remainingAmount > 0) {
-        this.eventEmitter.emit('order.confirmed', {
+        collector.emit('order.confirmed', {
           orderId: id,
           customerId: order.customerId,
           totalAmount: remainingAmount,
@@ -126,6 +132,9 @@ export class OrderStatusService {
     this.logger.log(
       `Order ${order.code} status changed: ${order.status} -> ${newStatus} by ${userId}`,
     );
+
+    // Flush all buffered events after successful status update
+    collector.flush();
 
     return updated;
   }
@@ -158,6 +167,16 @@ export class OrderStatusService {
         isDepositPaid,
       },
     });
+
+    // Invalidate detail + 360-view caches so the updated deposit is visible immediately
+    try {
+      await Promise.all([
+        this.cacheService.del(`order:detail:${orderId}`),
+        this.cacheService.del(`order:360:${orderId}`),
+      ]);
+    } catch {
+      // Cache invalidation failure must never break the request
+    }
 
     this.logger.log(
       `Order ${orderId}: deposit updated +${amount}, total paid=${newDepositPaid}, satisfied=${isDepositPaid}`,
@@ -271,46 +290,65 @@ export class OrderStatusService {
     }
 
     const newTotalPrice = new Decimal(newQuantity).mul(orderItem.unitPrice);
-
-    // Update the order item
-    await this.prisma.orderItem.update({
-      where: { id: orderItemId },
-      data: {
-        quantity: newQuantity,
-        totalPrice: newTotalPrice,
-      },
-    });
-
-    // Recalculate order totalAmount from all items
-    const allItems = await this.prisma.orderItem.findMany({
-      where: { orderId },
-      select: { totalPrice: true },
-    });
-
-    const newOrderTotal = allItems.reduce(
-      (sum, item) => sum.add(item.totalPrice),
-      new Decimal(0),
-    );
-
     const previousAmount = Number(order.totalAmount);
 
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: { totalAmount: newOrderTotal },
+    // Wrap multi-table writes in a transaction for atomicity
+    const collector = this.txEmitter.createCollector();
+
+    const { newAmount } = await this.prisma.executeInTransaction(async (tx) => {
+      // Update the order item
+      await tx.orderItem.update({
+        where: { id: orderItemId },
+        data: {
+          quantity: newQuantity,
+          totalPrice: newTotalPrice,
+        },
+      });
+
+      // Recalculate order totalAmount from all items
+      const allItems = await tx.orderItem.findMany({
+        where: { orderId },
+        select: { totalPrice: true },
+      });
+
+      const newOrderTotal = allItems.reduce(
+        (sum, item) => sum.add(item.totalPrice),
+        new Decimal(0),
+      );
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: { totalAmount: newOrderTotal },
+      });
+
+      const txNewAmount = Number(newOrderTotal);
+
+      collector.emit('order.amount.adjusted', {
+        orderId,
+        orderCode: order.code,
+        previousAmount,
+        newAmount: txNewAmount,
+        deltaAmount: txNewAmount - previousAmount,
+        reason,
+        triggeredBy,
+        orderItemId,
+      });
+
+      return { newAmount: txNewAmount };
     });
 
-    const newAmount = Number(newOrderTotal);
+    // Flush events after transaction commits
+    collector.flush();
 
-    this.eventEmitter.emit('order.amount.adjusted', {
-      orderId,
-      orderCode: order.code,
-      previousAmount,
-      newAmount,
-      deltaAmount: newAmount - previousAmount,
-      reason,
-      triggeredBy,
-      orderItemId,
-    });
+    // Invalidate detail + 360-view caches for the affected order
+    try {
+      await Promise.all([
+        this.cacheService.del(`order:detail:${orderId}`),
+        this.cacheService.del(`order:360:${orderId}`),
+      ]);
+    } catch {
+      // Cache invalidation failure must never break the request
+    }
 
     this.logger.log(
       `Order ${order.code} item ${orderItemId} quantity adjusted: ` +
@@ -385,6 +423,8 @@ export class OrderStatusService {
     }
 
     try {
+      const collector = this.txEmitter.createCollector();
+
       await this.orderRepo.updateStatus(
         orderId,
         order.status,
@@ -393,7 +433,7 @@ export class OrderStatusService {
         'Tu dong chuyen trang thai: kien hang dau tien da nhap kho TQ',
       );
 
-      this.eventEmitter.emit('order.status.changed', {
+      collector.emit('order.status.changed', {
         orderId,
         code: order.code,
         customerId: order.customerId,
@@ -402,6 +442,9 @@ export class OrderStatusService {
         changedBy: 'SYSTEM',
         serviceType: order.serviceType,
       });
+
+      // Flush events after successful status update
+      collector.flush();
 
       this.logger.log(
         `Order ${order.code} auto-transitioned: SOURCING -> WAREHOUSE_CN (first package received at CN)`,

@@ -1,8 +1,11 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
+import { TransactionalEmitter } from '@core/events/transactional-emitter.service';
+import { CacheService } from '@core/cache/cache.service';
 import { ContainerStatus, Prisma, TrackingEventType, WarehouseCNStatus, WarehouseVNStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { createHash } from 'crypto';
 import { buildDateFilter } from '@common/utils/date.util';
 import { ContainerRepository } from './container.repository';
 import { ConsolidationService } from './domain/consolidation.service';
@@ -12,6 +15,21 @@ import { UpdateContainerDto } from './dto/update-container.dto';
 import { ContainerQueryDto } from './dto/container-query.dto';
 import { RecordDeliveryOrderDto } from './dto/delivery-order.dto';
 import { UpdateFreeTimeDto } from './dto/free-time.dto';
+
+/** Cache TTLs in milliseconds. Container data changes frequently — keep them short. */
+const CACHE_TTL = {
+  LIST: 60_000,          // 1 min  — list changes on any create/status change
+  DETAIL: 120_000,       // 2 min
+  PACKAGES: 60_000,      // 1 min  — package assignment changes often
+  TIMELINE: 120_000,     // 2 min
+  COST_BREAKDOWN: 120_000, // 2 min
+  WEIGHT_RECON: 60_000,  // 1 min  — updated as packages are weighed at VN
+} as const;
+
+/** Build a stable, short hash of an object for use as part of a cache key. */
+function hashQuery(params: object): string {
+  return createHash('md5').update(JSON.stringify(params)).digest('hex').slice(0, 12);
+}
 
 @Injectable()
 export class ContainerService {
@@ -23,6 +41,8 @@ export class ContainerService {
     private readonly statusMachine: ContainerStatusMachine,
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly txEmitter: TransactionalEmitter,
+    private readonly cacheService: CacheService,
   ) {}
 
   /**
@@ -63,6 +83,9 @@ export class ContainerService {
       createdBy: userId,
     });
 
+    // Invalidate list cache — a new container changes every paginated result
+    await this.cacheService.invalidateByPrefix('container:list:');
+
     this.logger.log(`Container ${code} created for route ${dto.shippingRoute} by ${userId}`);
 
     return container;
@@ -70,48 +93,66 @@ export class ContainerService {
 
   /**
    * Lists containers with pagination and filters.
+   * Result is cached per unique combination of query parameters (TTL: 60s).
    */
   async findAll(query: ContainerQueryDto) {
-    const where: Prisma.ContainerWhereInput = {};
+    const cacheKey = `container:list:${hashQuery(query)}`;
 
-    if (query.status) {
-      where.status = query.status;
-    }
+    return this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const where: Prisma.ContainerWhereInput = {};
 
-    if (query.shippingRoute) {
-      where.shippingRoute = query.shippingRoute;
-    }
+        if (query.status) {
+          where.status = query.status;
+        }
 
-    if (query.search) {
-      where.OR = [
-        { code: { contains: query.search, mode: 'insensitive' } },
-        { bookingRef: { contains: query.search, mode: 'insensitive' } },
-        { vesselName: { contains: query.search, mode: 'insensitive' } },
-      ];
-    }
+        if (query.shippingRoute) {
+          where.shippingRoute = query.shippingRoute;
+        }
 
-    const dateFilter = buildDateFilter(query.startDate, query.endDate);
-    if (dateFilter) {
-      where.createdAt = dateFilter;
-    }
+        if (query.search) {
+          where.OR = [
+            { code: { contains: query.search, mode: 'insensitive' } },
+            { bookingRef: { contains: query.search, mode: 'insensitive' } },
+            { vesselName: { contains: query.search, mode: 'insensitive' } },
+          ];
+        }
 
-    const { data, total } = await this.containerRepo.findAll(
-      where,
-      query.skip,
-      query.limit,
-      query.orderBy as Prisma.ContainerOrderByWithRelationInput,
+        const dateFilter = buildDateFilter(query.startDate, query.endDate);
+        if (dateFilter) {
+          where.createdAt = dateFilter;
+        }
+
+        const { data, total } = await this.containerRepo.findAll(
+          where,
+          query.skip,
+          query.limit,
+          query.orderBy as Prisma.ContainerOrderByWithRelationInput,
+        );
+
+        return { data, total, page: query.page, limit: query.limit };
+      },
+      CACHE_TTL.LIST,
     );
-
-    return { data, total, page: query.page, limit: query.limit };
   }
 
   /**
    * Gets container detail by ID.
+   * Result is cached per container ID (TTL: 120s).
    */
   async findById(id: string) {
-    const container = await this.containerRepo.findById(id);
+    const cacheKey = `container:detail:${id}`;
+
+    const container = await this.cacheService.getOrSet(
+      cacheKey,
+      () => this.containerRepo.findById(id),
+      CACHE_TTL.DETAIL,
+    );
 
     if (!container) {
+      // Remove a potentially cached null before throwing
+      await this.cacheService.del(cacheKey);
       throw new NotFoundException(`Container with ID ${id} not found`);
     }
 
@@ -156,7 +197,15 @@ export class ContainerService {
     if (dto.customsOfficeCode !== undefined) updateData.customsOfficeCode = dto.customsOfficeCode;
     if (dto.declaredVgm !== undefined) updateData.declaredVgm = new Decimal(dto.declaredVgm);
 
-    return this.containerRepo.update(id, updateData);
+    const updated = await this.containerRepo.update(id, updateData);
+
+    // Invalidate detail and list caches — metadata changed
+    await Promise.all([
+      this.cacheService.del(`container:detail:${id}`),
+      this.cacheService.invalidateByPrefix('container:list:'),
+    ]);
+
+    return updated;
   }
 
   /**
@@ -170,7 +219,9 @@ export class ContainerService {
    * Recalculates container weight totals and fill rate after adding.
    */
   async addPackages(containerId: string, packageIds: string[]) {
-    return this.prisma.executeInTransaction(async (tx) => {
+    const collector = this.txEmitter.createCollector();
+
+    const result = await this.prisma.executeInTransaction(async (tx) => {
       const container = await tx.container.findUnique({
         where: { id: containerId },
         include: { packages: { select: { id: true } } },
@@ -238,17 +289,15 @@ export class ContainerService {
         });
       }
 
-      // Recalculate container totals
-      const allPackages = await tx.package.findMany({
+      // Recalculate container totals using aggregate — avoids loading all package rows
+      const agg = await tx.package.aggregate({
         where: { containerId },
-        select: { chargeableWeight: true },
+        _count: true,
+        _sum: { chargeableWeight: true },
       });
 
-      const totalPackages = allPackages.length;
-      const totalWeight = allPackages.reduce(
-        (sum, p) => sum + (p.chargeableWeight ? Number(p.chargeableWeight) : 0),
-        0,
-      );
+      const totalPackages = agg._count;
+      const totalWeight = agg._sum.chargeableWeight ? Number(agg._sum.chargeableWeight) : 0;
       const maxCapacity = container.maxCapacity ? Number(container.maxCapacity) : 0;
 
       // Check against max capacity within the transaction
@@ -270,7 +319,7 @@ export class ContainerService {
         },
       });
 
-      this.eventEmitter.emit('container.packages.added', {
+      collector.emit('container.packages.added', {
         containerId,
         containerCode: container.code,
         packageIds,
@@ -285,6 +334,18 @@ export class ContainerService {
 
       return updated;
     });
+
+    // Flush buffered events after transaction commits
+    collector.flush();
+
+    // Invalidate detail + packages caches after transaction commits
+    await Promise.all([
+      this.cacheService.del(`container:detail:${containerId}`),
+      this.cacheService.del(`container:packages:${containerId}`),
+      this.cacheService.invalidateByPrefix('container:list:'),
+    ]);
+
+    return result;
   }
 
   /**
@@ -292,7 +353,9 @@ export class ContainerService {
    * Emits events on specific transitions (e.g., ARRIVED triggers warehouse notification).
    */
   async updateStatus(id: string, newStatus: string, userId: string) {
-    return this.prisma.executeInTransaction(async (tx) => {
+    const collector = this.txEmitter.createCollector();
+
+    const result = await this.prisma.executeInTransaction(async (tx) => {
       const container = await tx.container.findUnique({ where: { id } });
 
       if (!container) {
@@ -314,7 +377,7 @@ export class ContainerService {
           break;
         case 'CUSTOMS':
           // Trigger customs declaration workflow
-          this.eventEmitter.emit('container.customs.started', {
+          collector.emit('container.customs.started', {
             containerId: id,
             containerCode: container.code,
             shippingRoute: container.shippingRoute,
@@ -329,8 +392,8 @@ export class ContainerService {
 
       const updated = await tx.container.update({ where: { id }, data: updateData });
 
-      // Emit status-specific events
-      this.eventEmitter.emit('container.status.changed', {
+      // Emit status-specific events (deferred via collector)
+      collector.emit('container.status.changed', {
         containerId: id,
         containerCode: container.code,
         fromStatus: container.status,
@@ -341,7 +404,7 @@ export class ContainerService {
 
       // When container arrives, notify Warehouse VN
       if (newStatus === 'ARRIVED') {
-        this.eventEmitter.emit('container.arrived', {
+        collector.emit('container.arrived', {
           containerId: id,
           containerCode: container.code,
           shippingRoute: container.shippingRoute,
@@ -352,7 +415,7 @@ export class ContainerService {
 
       // When container is in transit, update related orders
       if (newStatus === 'IN_TRANSIT') {
-        this.eventEmitter.emit('container.departed', {
+        collector.emit('container.departed', {
           containerId: id,
           containerCode: container.code,
           shippingRoute: container.shippingRoute,
@@ -360,14 +423,15 @@ export class ContainerService {
       }
 
       // B2: When container is held at border, notify affected customers
+      // Use groupBy to get distinct customerIds without loading full Order rows
       if (newStatus === 'ON_HOLD_BORDER') {
-        const ordersInContainer = await tx.order.findMany({
+        const customerGroups = await tx.order.groupBy({
+          by: ['customerId'],
           where: { containerId: id },
-          select: { customerId: true },
         });
-        const customerIds = [...new Set(ordersInContainer.map((o) => o.customerId))];
+        const customerIds = customerGroups.map((g) => g.customerId);
 
-        this.eventEmitter.emit('container.on_hold_border', {
+        collector.emit('container.on_hold_border', {
           containerId: id,
           containerCode: container.code,
           customerIds,
@@ -380,6 +444,18 @@ export class ContainerService {
 
       return updated;
     });
+
+    // Flush buffered events after transaction commits
+    collector.flush();
+
+    // Status change invalidates detail, list, and timeline caches
+    await Promise.all([
+      this.cacheService.del(`container:detail:${id}`),
+      this.cacheService.del(`container:tracking:${id}`),
+      this.cacheService.invalidateByPrefix('container:list:'),
+    ]);
+
+    return result;
   }
 
   /**
@@ -403,8 +479,16 @@ export class ContainerService {
   /**
    * Returns the unload manifest for a container:
    * the container info and its expected packages.
+   * Result is cached per container ID under the packages key (TTL: 60s).
    */
   async getUnloadManifest(containerId: string) {
+    const cacheKey = `container:packages:${containerId}`;
+
+    const cached = await this.cacheService.get<{ container: any; expectedPackages: any[] }>(cacheKey);
+    if (cached !== undefined) {
+      return cached;
+    }
+
     const container = await this.prisma.container.findUnique({
       where: { id: containerId },
       include: {
@@ -429,10 +513,14 @@ export class ContainerService {
       throw new NotFoundException(`Container with ID ${containerId} not found`);
     }
 
-    return {
+    const result = {
       container,
       expectedPackages: container.packages,
     };
+
+    await this.cacheService.set(cacheKey, result, CACHE_TTL.PACKAGES);
+
+    return result;
   }
 
   /**
@@ -479,6 +567,9 @@ export class ContainerService {
       receivedBy: userId,
     });
 
+    // A package was received — invalidate the packages manifest cache
+    await this.cacheService.del(`container:packages:${containerId}`);
+
     this.logger.log(
       `Package ${pkg.code} scanned & received at VN from container ${container.code}`,
     );
@@ -517,14 +608,15 @@ export class ContainerService {
       });
     }
 
-    // Identify missing packages (in container but not received)
-    const allContainerPackages = await this.prisma.package.findMany({
-      where: { containerId },
+    // Identify missing packages (in container but not in the received set)
+    // Push the NOT-IN filter to the database to avoid loading all package rows
+    const missingPackages = await this.prisma.package.findMany({
+      where: {
+        containerId,
+        ...(receivedPackageIds.length > 0 ? { id: { notIn: receivedPackageIds } } : {}),
+      },
       select: { id: true, code: true },
     });
-
-    const receivedSet = new Set(receivedPackageIds);
-    const missingPackages = allContainerPackages.filter((p) => !receivedSet.has(p.id));
 
     // Emit unload completed event
     this.eventEmitter.emit('container.unload.completed', {
@@ -537,6 +629,12 @@ export class ContainerService {
       notes,
       completedBy: userId,
     });
+
+    // Invalidate packages + detail caches — unload changes the state of all packages
+    await Promise.all([
+      this.cacheService.del(`container:packages:${containerId}`),
+      this.cacheService.del(`container:detail:${containerId}`),
+    ]);
 
     this.logger.log(
       `Container ${container.code} unload completed: ` +
@@ -613,6 +711,12 @@ export class ContainerService {
       doIssuedBy: dto.doIssuedBy,
     });
 
+    // D/O data is part of the detail and timeline views
+    await Promise.all([
+      this.cacheService.del(`container:detail:${id}`),
+      this.cacheService.del(`container:tracking:${id}`),
+    ]);
+
     this.logger.log(`Container ${container.code}: D/O ${dto.doNumber} received by ${userId}`);
 
     return updated;
@@ -659,6 +763,12 @@ export class ContainerService {
       },
     });
 
+    // Free time/demurrage data surfaces in the detail and timeline views
+    await Promise.all([
+      this.cacheService.del(`container:detail:${id}`),
+      this.cacheService.del(`container:tracking:${id}`),
+    ]);
+
     this.logger.log(
       `Container ${container.code}: free time updated to ${dto.freeTimeExpiry} (${daysUntilExpiry} days left)`,
     );
@@ -675,8 +785,16 @@ export class ContainerService {
    *  - Các mốc trạng thái chính với ngày thực tế / dự kiến
    *  - Tất cả tracking events
    *  - Thông tin D/O và free time
+   * Result is cached per container ID under the tracking key (TTL: 30s).
    */
   async getTimeline(id: string) {
+    const cacheKey = `container:tracking:${id}`;
+
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached !== undefined) {
+      return cached;
+    }
+
     const container = await this.prisma.container.findUnique({
       where: { id },
       include: {
@@ -771,7 +889,7 @@ export class ContainerService {
         }
       : null;
 
-    return {
+    const result = {
       containerId: container.id,
       containerCode: container.code,
       status: container.status,
@@ -780,6 +898,11 @@ export class ContainerService {
       doInfo,
       freeTimeInfo,
     };
+
+    // 30s TTL — tracking events are near-real-time data
+    await this.cacheService.set(cacheKey, result, 30_000);
+
+    return result;
   }
 
   // -------------------------------------------------------------------------
@@ -797,8 +920,17 @@ export class ContainerService {
    *  - DO_FEE: Phí lấy lệnh giao hàng
    *  - STORAGE_FEE: Phí lưu bãi / lưu cont
    *  - TRANSPORT_VN: Vận chuyển về kho VN
+   *
+   * Result is cached per container ID (TTL: 120s).
    */
   async getCostBreakdown(id: string) {
+    const cacheKey = `container:cost:${id}`;
+
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached !== undefined) {
+      return cached;
+    }
+
     const container = await this.prisma.container.findUnique({
       where: { id },
       select: {
@@ -848,7 +980,7 @@ export class ContainerService {
     const totalWeight = Number(container.totalWeight);
     const costPerKg = totalWeight > 0 ? grandTotalVND / totalWeight : null;
 
-    return {
+    const result = {
       containerId: id,
       containerCode: container.code,
       totalWeight: totalWeight,
@@ -858,6 +990,10 @@ export class ContainerService {
       costPerKg,
       itemCount: costs.length,
     };
+
+    await this.cacheService.set(cacheKey, result, CACHE_TTL.COST_BREAKDOWN);
+
+    return result;
   }
 
   // -------------------------------------------------------------------------
@@ -869,8 +1005,16 @@ export class ContainerService {
    * với trọng lượng thực tế cân lại tại kho VN (vnWeight).
    *
    * Chênh lệch >0.5 kg/kiện cần xem xét điều chỉnh phí dịch vụ.
+   * Result is cached per container ID (TTL: 60s).
    */
   async getWeightReconciliation(id: string) {
+    const cacheKey = `container:weight-recon:${id}`;
+
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached !== undefined) {
+      return cached;
+    }
+
     const container = await this.prisma.container.findUnique({
       where: { id },
       select: { id: true, code: true, totalPackages: true },
@@ -928,7 +1072,7 @@ export class ContainerService {
       .filter((p) => p.vnWeight !== null)
       .reduce((s, p) => s + (p.vnWeight ?? 0), 0);
 
-    return {
+    const result = {
       containerId: id,
       containerCode: container.code,
       totalPackages: container.totalPackages,
@@ -940,5 +1084,9 @@ export class ContainerService {
       packagesWithSignificantDiff: withDiff.length,
       packages: reconciled,
     };
+
+    await this.cacheService.set(cacheKey, result, CACHE_TTL.WEIGHT_RECON);
+
+    return result;
   }
 }

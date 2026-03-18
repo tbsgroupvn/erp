@@ -33,9 +33,20 @@ import { CustomsDeclarationModule } from '@modules/customs-declaration/customs-d
 import { CrmModule } from '@modules/crm/crm.module';
 import { ApprovalModule } from '@modules/approval/approval.module';
 import { NotificationModule } from '@modules/notification/notification.module';
+import { CacheModule } from '@core/cache/cache.module';
+import { EventBusModule } from '@core/event-bus/event-bus.module';
 
 @Module({
-  imports: [AccountsReceivableModule, ExchangeRateModule, CustomsDeclarationModule, CrmModule, ApprovalModule, NotificationModule],
+  imports: [
+    CacheModule,
+    EventBusModule,
+    AccountsReceivableModule,
+    ExchangeRateModule,
+    CustomsDeclarationModule,
+    CrmModule,
+    ApprovalModule,
+    NotificationModule,
+  ],
   controllers: [OrderController, MasterOrderController, ServiceFeeConfigController],
   providers: [
     OrderService,

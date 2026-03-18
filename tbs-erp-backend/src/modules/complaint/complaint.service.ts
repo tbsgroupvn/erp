@@ -4,6 +4,7 @@ import { ErrorCode } from '@common/exceptions';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
+import { TransactionalEmitter } from '@core/events/transactional-emitter.service';
 import { ComplaintStatus, ComplaintSeverity, ResolutionType, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { buildDateFilter } from '@common/utils/date.util';
@@ -25,6 +26,7 @@ export class ComplaintService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly txEmitter: TransactionalEmitter,
     private readonly statusMachine: ComplaintStatusMachine,
   ) {
     this.compensationGdKdThreshold = this.configService.get<number>(
@@ -473,37 +475,42 @@ export class ComplaintService {
         };
       }
 
-      const approval = await this.prisma.approval.create({
-        data: {
-          type: 'CUSTOM', // Complaint compensation - no dedicated ApprovalType exists
-          referenceId: id,
-          referenceCode: complaint.code,
-          requestedBy: complaint.handlerId || complaint.createdBy,
-          requestData: {
-            complaintId: id,
-            complaintCode: complaint.code,
-            resolutionType: resolution.type,
-            compensationAmount,
-            notes: resolution.notes,
+      // Wrap approval creation + complaint update in a transaction for atomicity
+      const approval = await this.prisma.executeInTransaction(async (tx) => {
+        const newApproval = await tx.approval.create({
+          data: {
+            type: 'CUSTOM', // Complaint compensation - no dedicated ApprovalType exists
+            referenceId: id,
+            referenceCode: complaint.code,
+            requestedBy: complaint.handlerId || complaint.createdBy,
+            requestData: {
+              complaintId: id,
+              complaintCode: complaint.code,
+              resolutionType: resolution.type,
+              compensationAmount,
+              notes: resolution.notes,
+            },
+            totalSteps: 2,
+            steps: {
+              create: [
+                { stepNumber: 1, approverRole: 'SALES_DIRECTOR' },
+                { stepNumber: 2, approverRole: 'CEO' },
+              ],
+            },
           },
-          totalSteps: 2,
-          steps: {
-            create: [
-              { stepNumber: 1, approverRole: 'SALES_DIRECTOR' },
-              { stepNumber: 2, approverRole: 'CEO' },
-            ],
-          },
-        },
-      });
+        });
 
-      await this.prisma.complaint.update({
-        where: { id },
-        data: {
-          status: ComplaintStatus.PENDING_RESOLUTION,
-          resolutionType: resolution.type,
-          compensationAmount: new Decimal(compensationAmount),
-          resolutionNotes: resolution.notes,
-        },
+        await tx.complaint.update({
+          where: { id },
+          data: {
+            status: ComplaintStatus.PENDING_RESOLUTION,
+            resolutionType: resolution.type,
+            compensationAmount: new Decimal(compensationAmount),
+            resolutionNotes: resolution.notes,
+          },
+        });
+
+        return newApproval;
       });
 
       this.logger.log(
@@ -535,34 +542,39 @@ export class ComplaintService {
         };
       }
 
-      const approval = await this.prisma.approval.create({
-        data: {
-          type: 'DISCOUNT',
-          referenceId: id,
-          referenceCode: complaint.code,
-          requestedBy: complaint.handlerId || complaint.createdBy,
-          requestData: {
-            complaintId: id,
-            complaintCode: complaint.code,
-            resolutionType: resolution.type,
-            compensationAmount,
-            notes: resolution.notes,
+      // Wrap approval creation + complaint update in a transaction for atomicity
+      const approval = await this.prisma.executeInTransaction(async (tx) => {
+        const newApproval = await tx.approval.create({
+          data: {
+            type: 'DISCOUNT',
+            referenceId: id,
+            referenceCode: complaint.code,
+            requestedBy: complaint.handlerId || complaint.createdBy,
+            requestData: {
+              complaintId: id,
+              complaintCode: complaint.code,
+              resolutionType: resolution.type,
+              compensationAmount,
+              notes: resolution.notes,
+            },
+            totalSteps: 1,
+            steps: {
+              create: [{ stepNumber: 1, approverRole: 'SALES_DIRECTOR' }],
+            },
           },
-          totalSteps: 1,
-          steps: {
-            create: [{ stepNumber: 1, approverRole: 'SALES_DIRECTOR' }],
-          },
-        },
-      });
+        });
 
-      await this.prisma.complaint.update({
-        where: { id },
-        data: {
-          status: ComplaintStatus.PENDING_RESOLUTION,
-          resolutionType: resolution.type,
-          compensationAmount: new Decimal(compensationAmount),
-          resolutionNotes: resolution.notes,
-        },
+        await tx.complaint.update({
+          where: { id },
+          data: {
+            status: ComplaintStatus.PENDING_RESOLUTION,
+            resolutionType: resolution.type,
+            compensationAmount: new Decimal(compensationAmount),
+            resolutionNotes: resolution.notes,
+          },
+        });
+
+        return newApproval;
       });
 
       this.logger.log(
@@ -577,6 +589,8 @@ export class ComplaintService {
     }
 
     // Direct resolution (no approval needed)
+    const collector = this.txEmitter.createCollector();
+
     const updated = await this.prisma.complaint.update({
       where: { id },
       data: {
@@ -602,12 +616,15 @@ export class ComplaintService {
       },
     });
 
-    this.eventEmitter.emit('complaint.resolved', {
+    collector.emit('complaint.resolved', {
       complaintId: id,
       code: complaint.code,
       resolutionType: resolution.type,
       compensationAmount,
     });
+
+    // Flush events after successful database write
+    collector.flush();
 
     this.logger.log(
       `Complaint ${complaint.code} resolved with ${resolution.type}` +

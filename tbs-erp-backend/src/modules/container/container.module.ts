@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { CacheModule } from '@core/cache/cache.module';
+import { EventBusModule } from '@core/event-bus/event-bus.module';
 import { ContainerController } from './container.controller';
 import { ContainerService } from './container.service';
 import { ContainerRepository } from './container.repository';
@@ -8,6 +10,7 @@ import { CustomsSplitService } from './domain/customs-split.service';
 import { PackageEventListener } from './listeners/package-event.listener';
 
 @Module({
+  imports: [CacheModule, EventBusModule],
   controllers: [ContainerController],
   providers: [
     ContainerService,

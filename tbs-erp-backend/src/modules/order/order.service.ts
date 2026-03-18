@@ -9,6 +9,7 @@ import {
 import { DomainException, ErrorCode } from '@common/exceptions';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
+import { TransactionalEmitter } from '@core/events/transactional-emitter.service';
 import { CacheService } from '@core/cache/cache.service';
 import { OrderStatus, ServiceType, Prisma, Currency } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -64,6 +65,7 @@ export class OrderService {
     private readonly prisma: PrismaService,
     private readonly depositGate: DepositGateService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly txEmitter: TransactionalEmitter,
     private readonly exchangeRateService: ExchangeRateService,
     private readonly cacheService: CacheService,
   ) {}
@@ -554,20 +556,25 @@ export class OrderService {
       // Cache invalidation failure must never break the request
     }
 
-    this.eventEmitter.emit('order.reopened', {
+    const collector = this.txEmitter.createCollector();
+
+    collector.emit('order.reopened', {
       orderId,
       orderCode: order.code,
       reopenedBy: currentUser.id,
       reason,
     });
 
-    this.eventEmitter.emit('order.status.changed', {
+    collector.emit('order.status.changed', {
       orderId,
       orderCode: order.code,
       fromStatus: OrderStatus.COMPLETED,
       toStatus: OrderStatus.SETTLEMENT,
       changedBy: currentUser.id,
     });
+
+    // Flush events after successful database write
+    collector.flush();
 
     this.logger.log(`Order ${order.code} reopened from COMPLETED to SETTLEMENT by ${currentUser.id}: ${reason}`);
 
