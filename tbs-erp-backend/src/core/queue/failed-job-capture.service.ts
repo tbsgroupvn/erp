@@ -1,7 +1,8 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
-import { Queue, QueueEvents } from 'bullmq';
+import { Queue, QueueEvents, Job } from 'bullmq';
 import { PrismaService } from '@core/database/prisma.service';
+import { ErrorCode } from '@common/exceptions';
 
 /**
  * Captures BullMQ failed jobs to PostgreSQL dead_letter_events table
@@ -9,6 +10,9 @@ import { PrismaService } from '@core/database/prisma.service';
  *
  * Listens for 'failed' events on all registered queues via QueueEvents
  * and persists the failure details to the DeadLetterEvent model.
+ *
+ * Structured payload includes errorCode and correlationId for integration
+ * with DlqMonitorService and admin dashboards.
  */
 @Injectable()
 export class FailedJobCaptureService implements OnModuleInit, OnModuleDestroy {
@@ -42,7 +46,13 @@ export class FailedJobCaptureService implements OnModuleInit, OnModuleDestroy {
         });
 
         queueEvents.on('failed', async ({ jobId, failedReason }) => {
-          await this.captureFailedJob(name, jobId, failedReason);
+          let fullJob: Job | undefined;
+          try {
+            fullJob = await queue.getJob(jobId);
+          } catch {
+            // Job may have been removed; proceed without it
+          }
+          await this.captureFailedJob(name, jobId, failedReason, fullJob);
         });
 
         this.queueEventInstances.push(queueEvents);
@@ -69,24 +79,71 @@ export class FailedJobCaptureService implements OnModuleInit, OnModuleDestroy {
     queueName: string,
     jobId: string,
     failedReason: string,
+    job?: Job,
   ): Promise<void> {
     try {
+      const correlationId = job?.data?.metadata?.correlationId || 'unknown';
+      const errorCode = this.extractErrorCode(failedReason);
+
       await this.prisma.deadLetterEvent.create({
         data: {
           event: `bullmq:${queueName}:${jobId}`,
-          payload: { queueName, jobId, failedReason } as any,
+          payload: {
+            queueName,
+            jobId,
+            failedReason,
+            errorCode,
+            correlationId,
+            eventType: job?.data?.type || job?.name || 'unknown',
+            attemptsMade: job?.attemptsMade || 0,
+          } as any,
           error: (failedReason || 'Unknown error').substring(0, 2000),
           source: `bullmq_${queueName}`,
         },
       });
 
       this.logger.warn(
-        `Captured failed BullMQ job: queue=${queueName}, jobId=${jobId}, reason=${failedReason?.substring(0, 100)}`,
+        `Captured failed BullMQ job: queue=${queueName}, jobId=${jobId}, ` +
+          `errorCode=${errorCode}, correlationId=${correlationId}, ` +
+          `reason=${failedReason?.substring(0, 100)}`,
       );
     } catch (error) {
       this.logger.error(
         `Failed to capture BullMQ job to DLQ: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+  }
+
+  /**
+   * Extract a structured errorCode from the failure reason string.
+   *
+   * Attempts to parse as JSON first (for structured error messages),
+   * then checks for known ErrorCode strings in the text,
+   * and falls back to JOB_PROCESSING_FAILED.
+   */
+  private extractErrorCode(failedReason: string): string {
+    if (!failedReason) {
+      return ErrorCode.JOB_PROCESSING_FAILED;
+    }
+
+    // Try JSON parse (logProcessorError may have written JSON)
+    try {
+      const parsed = JSON.parse(failedReason);
+      if (parsed?.errorCode) {
+        return parsed.errorCode;
+      }
+    } catch {
+      // Not JSON, continue with string matching
+    }
+
+    // Check for known ErrorCode values in the failure reason
+    const knownCodes = Object.values(ErrorCode);
+    for (const code of knownCodes) {
+      if (failedReason.includes(code)) {
+        return code;
+      }
+    }
+
+    return ErrorCode.JOB_PROCESSING_FAILED;
   }
 }
