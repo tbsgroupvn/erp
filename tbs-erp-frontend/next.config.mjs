@@ -1,3 +1,4 @@
+import { withSentryConfig } from '@sentry/nextjs';
 import withPWAInit from '@ducanh2912/next-pwa';
 
 const withPWA = withPWAInit({
@@ -119,5 +120,14 @@ if (process.env.ANALYZE === 'true') {
     console.warn('Building without bundle analysis...');
   }
 }
+
+// Wrap with Sentry error reporting
+config = withSentryConfig(config, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  hideSourceMaps: true,
+  disableLogger: true,
+});
 
 export default config;
