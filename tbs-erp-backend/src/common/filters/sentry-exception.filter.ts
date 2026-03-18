@@ -6,15 +6,20 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Prisma } from '@prisma/client';
+import { Request, Response } from 'express';
+import { ErrorCode } from '../exceptions/error-codes';
+import { StandardErrorResponse } from '../exceptions/error-response.interface';
 
 /**
  * Global exception filter that captures unhandled exceptions to Sentry.
  *
  * Behavior:
- * - Only sends 5xx errors to Sentry (skips 4xx client errors)
- * - Strips sensitive headers (Authorization, Cookie) before sending
- * - Adds user context (userId, role) to Sentry scope
+ * - For HttpException: captures to Sentry (if 5xx), then re-throws for HttpExceptionFilter
+ * - For PrismaClientKnownRequestError / PrismaClientValidationError: re-throws for PrismaExceptionFilter
+ * - For ALL OTHER unknown exceptions: captures to Sentry, formats 500 response directly
+ * - Strips sensitive headers (Authorization, Cookie) before sending to Sentry
+ * - Adds user context (userId, role) and requestId to Sentry scope
  * - Falls back gracefully if @sentry/node is not installed
  */
 @Catch()
@@ -26,26 +31,61 @@ export class SentryExceptionFilter implements ExceptionFilter {
   async catch(exception: unknown, host: ArgumentsHost): Promise<void> {
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<Request>();
+    const response = ctx.getResponse<Response>();
+    const requestId = (request as any).requestId || 'unknown';
 
-    // Determine HTTP status
-    const status =
-      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
-
-    // Only capture 5xx server errors to Sentry
-    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
-      await this.captureToSentry(exception, request);
+    // HttpException: capture 5xx to Sentry, then re-throw for HttpExceptionFilter
+    if (exception instanceof HttpException) {
+      const status = exception.getStatus();
+      if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+        await this.captureToSentry(exception, request, requestId);
+      }
+      throw exception;
     }
 
-    // Re-throw so other filters (HttpExceptionFilter, PrismaExceptionFilter) handle the response
-    throw exception;
+    // PrismaClientKnownRequestError / PrismaClientValidationError: re-throw for PrismaExceptionFilter
+    if (
+      exception instanceof Prisma.PrismaClientKnownRequestError ||
+      exception instanceof Prisma.PrismaClientValidationError
+    ) {
+      await this.captureToSentry(exception, request, requestId);
+      throw exception;
+    }
+
+    // Unknown exception: capture to Sentry, format 500 response directly
+    await this.captureToSentry(exception, request, requestId);
+
+    this.logger.error(
+      `[${requestId}] Unhandled exception: ${request.method} ${request.url}`,
+      exception instanceof Error ? exception.stack : String(exception),
+    );
+
+    const errorResponse: StandardErrorResponse = {
+      success: false,
+      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      errorCode: ErrorCode.INTERNAL_ERROR,
+      message: 'An internal server error occurred',
+      requestId,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+    };
+
+    response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(errorResponse);
   }
 
-  private async captureToSentry(exception: unknown, request: Request): Promise<void> {
+  private async captureToSentry(
+    exception: unknown,
+    request: Request,
+    requestId: string,
+  ): Promise<void> {
     try {
       const Sentry = await this.getSentry();
       if (!Sentry) return;
 
       Sentry.withScope((scope: any) => {
+        // Add requestId tag for correlation
+        scope.setTag('requestId', requestId);
+
         // Add user context if available
         const user = (request as any).user as
           | { id?: string; userId?: string; role?: string; email?: string }
@@ -89,7 +129,10 @@ export class SentryExceptionFilter implements ExceptionFilter {
         if (exception instanceof Error) {
           Sentry.captureException(exception);
         } else {
-          Sentry.captureMessage(`Non-Error exception: ${this.sanitizeForSentry(exception)}`, 'error');
+          Sentry.captureMessage(
+            `Non-Error exception: ${this.sanitizeForSentry(exception)}`,
+            'error',
+          );
         }
       });
     } catch (captureError) {
@@ -112,9 +155,20 @@ export class SentryExceptionFilter implements ExceptionFilter {
   }
 
   private sanitizeForSentry(obj: unknown): string {
-    const sensitiveKeys = ['password', 'token', 'secret', 'authorization', 'cookie', 'creditCard', 'ssn', 'apiKey', 'refreshToken', 'accessToken'];
+    const sensitiveKeys = [
+      'password',
+      'token',
+      'secret',
+      'authorization',
+      'cookie',
+      'creditCard',
+      'ssn',
+      'apiKey',
+      'refreshToken',
+      'accessToken',
+    ];
     const str = JSON.stringify(obj, (key, value) => {
-      if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk.toLowerCase()))) {
+      if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk.toLowerCase()))) {
         return '[REDACTED]';
       }
       return value;

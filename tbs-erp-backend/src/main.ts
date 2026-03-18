@@ -8,8 +8,6 @@ import helmet from 'helmet';
 import * as cookieParser from 'cookie-parser';
 import { Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { HttpExceptionFilter } from '@common/filters/http-exception.filter';
-import { PrismaExceptionFilter } from '@common/filters/prisma-exception.filter';
 import { TransformInterceptor } from '@common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from '@common/interceptors/logging.interceptor';
 import { MetricsInterceptor } from '@common/interceptors/metrics.interceptor';
@@ -71,8 +69,7 @@ async function bootstrap() {
     }),
   );
 
-  // Global filters
-  app.useGlobalFilters(new HttpExceptionFilter(), new PrismaExceptionFilter());
+  // Global filters: registered via APP_FILTER in AppModule (no useGlobalFilters needed)
 
   // Global interceptors (MetricsInterceptor, PerformanceInterceptor, AuditLogInterceptor require DI)
   const metricsService = app.get(MetricsService);

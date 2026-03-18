@@ -49,6 +49,7 @@ import { RateCardModule } from '@modules/rate-card/rate-card.module';
 import { ContainerModule } from '@modules/container/container.module';
 import { WarehouseCNModule } from '@modules/warehouse-cn/warehouse-cn.module';
 import { WarehouseVNModule } from '@modules/warehouse-vn/warehouse-vn.module';
+import { WarehouseSyncModule } from '@modules/warehouse-sync/warehouse-sync.module';
 import { TrackingModule } from '@modules/tracking/tracking.module';
 import { ComplaintModule } from '@modules/complaint/complaint.module';
 import { OperationCostModule } from '@modules/operation-cost/operation-cost.module';
@@ -114,6 +115,7 @@ import { DriveModule } from '@modules/drive/drive.module';
 import { OKRModule } from '@modules/okr/okr.module';
 import { WikiModule } from '@modules/wiki/wiki.module';
 import { ReportsModule } from '@modules/reports/reports.module';
+import { BatchModule } from '@modules/batch/batch.module';
 import { VideoModule } from '@modules/video/video.module';
 import { SearchModule } from '@modules/search/search.module';
 import { AiAssistantModule } from '@modules/ai-assistant/ai-assistant.module';
@@ -141,6 +143,7 @@ import { ConsentModule } from '@modules/consent/consent.module';
 // Common Services
 import { SLAMonitorService } from '@common/services/sla-monitor.service';
 import { CsrfGuard } from '@common/guards/csrf.guard';
+import { HttpExceptionFilter } from '@common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from '@common/filters/prisma-exception.filter';
 import { SentryExceptionFilter } from '@common/filters/sentry-exception.filter';
 import { APP_GUARD, APP_FILTER } from '@nestjs/core';
@@ -152,8 +155,12 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
       provide: APP_GUARD,
       useClass: CsrfGuard,
     },
-    // PrismaExceptionFilter phai dang ky TRUOC SentryExceptionFilter
-    // (NestJS chay filter theo thu tu nguoc: filter cuoi chay truoc)
+    // Filter registration order: registered first = runs last (NestJS reverses order)
+    // HttpExceptionFilter (fallback) -> PrismaExceptionFilter -> SentryExceptionFilter (catch-all, runs first)
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
     {
       provide: APP_FILTER,
       useClass: PrismaExceptionFilter,
@@ -218,6 +225,7 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
     ContainerModule,
     WarehouseCNModule,
     WarehouseVNModule,
+    WarehouseSyncModule,
     TrackingModule,
     ComplaintModule,
     OperationCostModule,
@@ -279,6 +287,7 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
     OKRModule,
     WikiModule,
     ReportsModule,
+    BatchModule,
     VideoModule,
     SearchModule,
     AiAssistantModule,
