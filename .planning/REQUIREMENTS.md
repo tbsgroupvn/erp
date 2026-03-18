@@ -27,8 +27,8 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 
 ### Data Integrity
 
-- [ ] **DAT-01**: All multi-table write operations (order status change, cost allocation, deposit recording) use Prisma interactive transactions
-- [ ] **DAT-02**: Service methods that emit events after writes do so inside the same transaction (or use outbox pattern)
+- [x] **DAT-01**: All multi-table write operations (order status change, cost allocation, deposit recording) use Prisma interactive transactions
+- [x] **DAT-02**: Service methods that emit events after writes do so inside the same transaction (or use outbox pattern)
 - [ ] **DAT-03**: Each of the 9 FSMs has negative-path tests verifying that every invalid transition is rejected
 - [ ] **DAT-04**: Integration test exercises full order lifecycle from CONSULTING to COMPLETED, verifying deposit gate enforcement
 - [ ] **DAT-05**: Integration test exercises full container lifecycle from PLANNING to COMPLETED
@@ -97,8 +97,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | SEC-04 | Phase 4 | Pending |
 | SEC-05 | Phase 4 | Pending |
 | SEC-06 | Phase 4 | Pending |
-| DAT-01 | Phase 3 | Pending |
-| DAT-02 | Phase 3 | Pending |
+| DAT-01 | Phase 3 | Complete |
+| DAT-02 | Phase 3 | Complete |
 | DAT-03 | Phase 6 | Pending |
 | DAT-04 | Phase 6 | Pending |
 | DAT-05 | Phase 6 | Pending |

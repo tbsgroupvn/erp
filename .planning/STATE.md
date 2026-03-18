@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 3 context gathered
-last_updated: "2026-03-18T16:09:14.861Z"
-last_activity: 2026-03-18 — Completed Plan 02-03 (remove duplicate toast.error from 47 hook files)
+status: in_progress
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-03-18T16:54:07Z"
+last_activity: 2026-03-18 — Completed Plan 03-01 (TransactionalEmitter + deferred emit)
 progress:
   total_phases: 9
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_plans: 9
+  completed_plans: 8
+  percent: 89
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** The order lifecycle (17+ statuses across 9 FSMs) must be bulletproof — no state can be skipped, no unauthorized role can mutate data, and no query can bottleneck under production load.
-**Current focus:** Phase 2: Frontend Error Handling (COMPLETE)
+**Current focus:** Phase 3: Transaction Consistency (IN PROGRESS)
 
 ## Current Position
 
-Phase: 2 of 9 (Frontend Error Handling) - COMPLETE
-Plan: 3 of 3 in current phase (02-03 done)
-Status: Phase Complete
-Last activity: 2026-03-18 — Completed Plan 02-03 (remove duplicate toast.error from 47 hook files)
+Phase: 3 of 9 (Transaction Consistency)
+Plan: 1 of 2 in current phase (03-01 done)
+Status: In Progress
+Last activity: 2026-03-18 — Completed Plan 03-01 (TransactionalEmitter + deferred emit)
 
-Progress: [██████████] 100%
+Progress: [████████░░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 5min
-- Total execution time: 0.65 hours
+- Total plans completed: 8
+- Average duration: 6min
+- Total execution time: 0.80 hours
 
 **By Phase:**
 
@@ -45,9 +45,10 @@ Progress: [██████████] 100%
 |-------|-------|-------|----------|
 | 01-backend-error-standardization | 4/4 | 20min | 5min |
 | 02-frontend-error-handling | 3/3 | 19min | 6min |
+| 03-transaction-consistency | 1/2 | 9min | 9min |
 
 **Recent Trend:**
-- Last 5 plans: 01-04 (5min), 02-01 (4min), 02-02 (5min), 02-03 (10min)
+- Last 5 plans: 02-01 (4min), 02-02 (5min), 02-03 (10min), 03-01 (9min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -81,6 +82,9 @@ Recent decisions affecting current work:
 - [02-03]: Kept toast.error in useTestAutomationRule onSuccess -- business logic, not duplicate error handler
 - [02-03]: Preserved optimistic rollback in useOptimisticTaskStatus onError, removed only toast.error line
 - [02-03]: Removed orphaned sonner imports from use-notifications.ts and use-ai-assistant.ts
+- [03-01]: TransactionalEmitter registered in both EventsModule and EventBusModule for universal DI access
+- [03-01]: Collector pattern (emit inside tx, flush after commit) chosen over Prisma middleware for zero coupling
+- [03-01]: EventBusModule imported per-module rather than @Global() to maintain explicit dependency graph
 
 ### Pending Todos
 
@@ -93,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T16:09:14.854Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-transaction-consistency/03-CONTEXT.md
+Last session: 2026-03-18T16:54:07Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: .planning/phases/03-transaction-consistency/03-02-PLAN.md
