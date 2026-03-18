@@ -15,6 +15,8 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { Cron } from '@nestjs/schedule';
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from '@core/database/prisma.service';
+import { wsError } from './ws-error.util';
+import { ErrorCode } from '@common/exceptions';
 
 /**
  * WebSocket gateway for real-time communication.
@@ -75,7 +77,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
 
       if (!token) {
         this.logger.warn(`Client ${client.id} connected without token — disconnecting`);
-        client.emit('error', { message: 'Authentication required' });
+        client.emit('error', wsError(ErrorCode.WS_AUTH_REQUIRED, 'Authentication required'));
         client.disconnect(true);
         return;
       }
@@ -93,7 +95,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
 
       if (!user || !user.isActive) {
         this.logger.warn(`Client ${client.id} has inactive/missing user — disconnecting`);
-        client.emit('error', { message: 'User account is inactive or not found' });
+        client.emit('error', wsError(ErrorCode.WS_ACCOUNT_INACTIVE, 'User account is inactive or not found'));
         client.disconnect(true);
         return;
       }
@@ -134,7 +136,7 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
       });
     } catch (error) {
       this.logger.warn(`Client ${client.id} auth failed: ${error.message}`);
-      client.emit('error', { message: 'Authentication failed' });
+      client.emit('error', wsError(ErrorCode.WS_AUTH_FAILED, 'Authentication failed'));
       client.disconnect(true);
     }
   }
@@ -189,16 +191,46 @@ export class WsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayD
     const validChannelPattern =
       /^(user:[a-zA-Z0-9]+|role:[a-zA-Z0-9_]+|branch:[a-zA-Z0-9_]+|dashboard)$/;
     if (!validChannelPattern.test(data.channel)) {
-      client.emit('error', { message: 'Invalid channel format' });
+      client.emit('error', wsError(ErrorCode.WS_INVALID_CHANNEL, 'Invalid channel format'));
       this.logger.warn(
         `Client ${client.id} attempted to subscribe to invalid channel: ${data.channel}`,
       );
       return;
     }
 
+    // BAC-04 fix: Verify the user is authorized for the requested channel
+    const clientMeta = this.connectedClients.get(client.id);
+    if (!clientMeta) {
+      client.emit('error', wsError(ErrorCode.WS_AUTH_REQUIRED, 'Not authenticated'));
+      return;
+    }
+
+    const [channelType, channelValue] = data.channel.split(':');
+    if (channelType === 'user' && channelValue !== clientMeta.userId) {
+      client.emit('error', wsError(ErrorCode.WS_UNAUTHORIZED_CHANNEL, "Cannot subscribe to another user's channel"));
+      this.logger.warn(
+        `Client ${client.id} (user:${clientMeta.userId}) attempted to subscribe to user:${channelValue}`,
+      );
+      return;
+    }
+    if (channelType === 'role' && channelValue !== clientMeta.role) {
+      client.emit('error', wsError(ErrorCode.WS_UNAUTHORIZED_CHANNEL, 'Cannot subscribe to a role channel you do not belong to'));
+      this.logger.warn(
+        `Client ${client.id} (role:${clientMeta.role}) attempted to subscribe to role:${channelValue}`,
+      );
+      return;
+    }
+    if (channelType === 'branch' && channelValue !== clientMeta.branch) {
+      client.emit('error', wsError(ErrorCode.WS_UNAUTHORIZED_CHANNEL, "Cannot subscribe to another branch's channel"));
+      this.logger.warn(
+        `Client ${client.id} (branch:${clientMeta.branch}) attempted to subscribe to branch:${channelValue}`,
+      );
+      return;
+    }
+
     // Limit max 20 subscriptions per client
     if (client.rooms.size > 20) {
-      client.emit('error', { message: 'Maximum subscription limit reached' });
+      client.emit('error', wsError(ErrorCode.WS_MAX_SUBSCRIPTIONS, 'Maximum subscription limit reached'));
       this.logger.warn(`Client ${client.id} exceeded max subscriptions (${client.rooms.size})`);
       return;
     }
