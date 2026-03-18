@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 2 context gathered
-last_updated: "2026-03-18T09:23:17.596Z"
-last_activity: 2026-03-18 — Completed Plan 01-04 (remaining module error conversion)
+status: in-progress
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-18T09:58:25Z"
+last_activity: 2026-03-18 — Completed Plan 02-01 (error utilities, Sentry setup, mutation toast)
 progress:
   total_phases: 9
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 11
+  total_plans: 5
+  completed_plans: 5
+  percent: 16
 ---
 
 # Project State
@@ -21,32 +21,33 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** The order lifecycle (17+ statuses across 9 FSMs) must be bulletproof — no state can be skipped, no unauthorized role can mutate data, and no query can bottleneck under production load.
-**Current focus:** Phase 1: Backend Error Standardization (COMPLETE)
+**Current focus:** Phase 2: Frontend Error Handling (IN PROGRESS)
 
 ## Current Position
 
-Phase: 1 of 9 (Backend Error Standardization) -- COMPLETE
-Plan: 4 of 4 in current phase (all done)
-Status: Phase Complete
-Last activity: 2026-03-18 — Completed Plan 01-04 (remaining module error conversion)
+Phase: 2 of 9 (Frontend Error Handling)
+Plan: 1 of 3 in current phase (02-01 done)
+Status: In Progress
+Last activity: 2026-03-18 — Completed Plan 02-01 (error utilities, Sentry setup, mutation toast)
 
-Progress: [▓▓░░░░░░░░] 11%
+Progress: [▓▓░░░░░░░░] 16%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 5min
-- Total execution time: 0.33 hours
+- Total execution time: 0.40 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-backend-error-standardization | 4/4 | 20min | 5min |
+| 02-frontend-error-handling | 1/3 | 4min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (6min), 01-02 (3min), 01-03 (6min), 01-04 (5min)
+- Last 5 plans: 01-02 (3min), 01-03 (6min), 01-04 (5min), 02-01 (4min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -72,6 +73,9 @@ Recent decisions affecting current work:
 - [01-04]: accounting.service.ts provider API errors use HttpStatus.BAD_GATEWAY (502) for upstream failures
 - [01-04]: batch-job.service.ts cancellation signal uses DomainException with getResponse() message check
 - [01-04]: Added AUTOMATION_ACTION_FAILED and BATCH_IMPORT_VALIDATION_ERROR to ErrorCode registry
+- [02-01]: Vietnamese diacritics used in error messages matching codebase convention (Unicode escapes in source)
+- [02-01]: Sentry 401/403 errors filtered in beforeSend to avoid noise from auth flow
+- [02-01]: Mutation toast shows requestId as description for support contact tracing
 
 ### Pending Todos
 
@@ -84,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T09:23:17.592Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-frontend-error-handling/02-CONTEXT.md
+Last session: 2026-03-18T09:58:25Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: .planning/phases/02-frontend-error-handling/02-02-PLAN.md
