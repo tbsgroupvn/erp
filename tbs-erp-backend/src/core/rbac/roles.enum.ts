@@ -44,6 +44,9 @@ export const LOGISTICS_ROLES: UserRole[] = [UserRole.LOGISTICS_MANAGER, UserRole
 /** Marketing-related roles */
 export const MARKETING_ROLES: UserRole[] = [UserRole.MARKETING_STAFF, UserRole.CSKH];
 
+/** All 22 roles -- use @Roles(...ALL_ROLES) for endpoints accessible to any authenticated user */
+export const ALL_ROLES: UserRole[] = Object.values(UserRole);
+
 /**
  * Check if a role has executive-level access (CEO/COO).
  */
