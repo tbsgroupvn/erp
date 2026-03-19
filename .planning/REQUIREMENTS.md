@@ -21,9 +21,9 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 - [ ] **SEC-01**: Every controller method has explicit `@Roles()` decorator (or is explicitly marked `@Public()`)
 - [ ] **SEC-02**: Integration test exists that scans all controller methods via NestJS reflection and asserts RBAC decorator presence
 - [ ] **SEC-03**: All 22 roles have correct data scoping — Sales sees only own customers, CEO sees all, etc.
-- [ ] **SEC-04**: Rate limiting applied to complaint submission (5/hour), bulk import endpoints, and all public-facing endpoints
+- [x] **SEC-04**: Rate limiting applied to complaint submission (5/hour), bulk import endpoints, and all public-facing endpoints
 - [ ] **SEC-05**: HTML sanitization decorator applied to all user-input text fields (comments, notes, descriptions)
-- [ ] **SEC-06**: File upload endpoints validate file size limits and allowed MIME types
+- [x] **SEC-06**: File upload endpoints validate file size limits and allowed MIME types
 
 ### Data Integrity
 
@@ -94,9 +94,9 @@ Deferred to future release. Tracked but not in current roadmap.
 | SEC-01 | Phase 5 | Pending |
 | SEC-02 | Phase 5 | Pending |
 | SEC-03 | Phase 5 | Pending |
-| SEC-04 | Phase 4 | Pending |
+| SEC-04 | Phase 4 | Complete |
 | SEC-05 | Phase 4 | Pending |
-| SEC-06 | Phase 4 | Pending |
+| SEC-06 | Phase 4 | Complete |
 | DAT-01 | Phase 3 | Complete |
 | DAT-02 | Phase 3 | Complete |
 | DAT-03 | Phase 6 | Pending |

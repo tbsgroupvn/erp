@@ -79,7 +79,7 @@ Plans:
   2. Uploading a file exceeding the size limit or with a disallowed MIME type returns a clear error message and the upload is rejected
   3. Submitting more than 5 complaints per hour from the same user returns a 429 rate-limit error
   4. Bulk import endpoints and public-facing endpoints enforce rate limits that prevent abuse
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 04-01-PLAN.md — Infrastructure: CustomThrottlerGuard (global), FileValidationPipe, error codes, file upload constants, @SkipThrottle on WS/health/metrics
@@ -170,7 +170,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 1. Backend Error Standardization | 4/4 | Complete   | 2026-03-18 |
 | 2. Frontend Error Handling | 1/3 | In progress | - |
 | 3. Transaction Consistency | 0/2 | Not started | - |
-| 4. Input Validation & Rate Limiting | 0/3 | Not started | - |
+| 4. Input Validation & Rate Limiting | 1/3 | In Progress|  |
 | 5. RBAC Audit & Coverage | 0/2 | Not started | - |
 | 6. FSM Verification | 0/2 | Not started | - |
 | 7. Business Rule Enforcement | 0/2 | Not started | - |
