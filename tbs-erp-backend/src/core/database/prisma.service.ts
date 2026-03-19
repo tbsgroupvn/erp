@@ -18,7 +18,7 @@ import { createPrismaEncryptionExtension } from '@core/encryption/prisma-encrypt
 /**
  * Extended PrismaService with performance monitoring.
  *
- * In production, query events are enabled to detect slow queries (>200ms).
+ * In production, query events are enabled to detect slow queries (>500ms).
  * For fine-grained per-model/operation tracking via Prisma extensions,
  * see `prisma-performance.extension.ts` which provides a `createPerformanceExtension()`
  * function that records all query durations to Prometheus.
@@ -85,14 +85,29 @@ export class PrismaService
         );
       });
     } else {
-      // In production, only log slow queries (>200ms)
-      this.$on('query', (event: Prisma.QueryEvent) => {
-        if (event.duration > 2000) {
+      // In production, only log slow queries (>500ms)
+      this.$on('query', async (event: Prisma.QueryEvent) => {
+        if (event.duration > 5000) {
           this.logger.error(
-            `CRITICAL slow query (${event.duration}ms): ${event.query.substring(0, 200)}`,
+            `CRITICAL slow query (${event.duration}ms) | SQL: ${event.query} | Params: ${event.params}`,
           );
-        } else if (event.duration > 200) {
-          this.logger.warn(`Slow query (${event.duration}ms): ${event.query.substring(0, 200)}`);
+          // Log EXPLAIN plan for diagnostics (safe: plans only, no re-execution)
+          try {
+            const plan = await this.$queryRawUnsafe(`EXPLAIN ${event.query}`);
+            this.logger.error(`EXPLAIN plan: ${JSON.stringify(plan)}`);
+          } catch {
+            // EXPLAIN may fail for non-SELECT or parameterized queries — skip silently
+          }
+        } else if (event.duration > 500) {
+          this.logger.warn(
+            `Slow query (${event.duration}ms) | SQL: ${event.query} | Params: ${event.params}`,
+          );
+          try {
+            const plan = await this.$queryRawUnsafe(`EXPLAIN ${event.query}`);
+            this.logger.warn(`EXPLAIN plan: ${JSON.stringify(plan)}`);
+          } catch {
+            // EXPLAIN may fail for non-SELECT or parameterized queries — skip silently
+          }
         }
       });
     }

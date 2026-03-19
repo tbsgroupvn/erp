@@ -5,10 +5,10 @@ import { MetricsService } from '@core/metrics/metrics.service';
 const logger = new Logger('PrismaPerformance');
 
 /** Threshold in milliseconds above which queries are logged as slow */
-const SLOW_QUERY_THRESHOLD_MS = 200;
+const SLOW_QUERY_THRESHOLD_MS = 500;
 
 /** Threshold for critically slow queries */
-const CRITICAL_QUERY_THRESHOLD_MS = 2000;
+const CRITICAL_QUERY_THRESHOLD_MS = 5000;
 
 /**
  * Prisma client extension that instruments all database queries with:
