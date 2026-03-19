@@ -15,6 +15,7 @@ jest.mock('otplib', () => ({
   authenticator: {
     generateSecret: jest.fn().mockReturnValue('mock-secret'),
     keyuri: jest.fn().mockReturnValue('otpauth://totp/mock?issuer=TBS%20ERP'),
+    verify: jest.fn().mockReturnValue(true),
   },
 }));
 
@@ -26,6 +27,7 @@ describe('AuthService', () => {
   let module: TestingModule;
   let service: AuthService;
   let prismaService: PrismaService;
+  let jwtService: JwtService;
   let smsService: SmsService;
 
   // Mock user data
@@ -137,6 +139,7 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
     prismaService = module.get<PrismaService>(PrismaService);
+    jwtService = module.get<JwtService>(JwtService);
     smsService = module.get<SmsService>(SmsService);
   });
 
@@ -430,6 +433,200 @@ describe('AuthService', () => {
 
       // Act & Assert
       await expect(service.regenerateBackupCodes(mockUser.id)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('verifyLoginOtp', () => {
+    // Helper: create an encrypted TOTP secret matching the constructor's key derivation
+    function createEncryptedSecret(): string {
+      const key = crypto.pbkdf2Sync(
+        'test-2fa-encryption-key-for-testing',
+        'tbs-erp-2fa-encryption-salt',
+        100000,
+        32,
+        'sha256',
+      );
+      const iv = crypto.randomBytes(12);
+      const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+      let encrypted = cipher.update('mock-totp-secret', 'utf8');
+      encrypted = Buffer.concat([encrypted, cipher.final()]);
+      const authTag = cipher.getAuthTag();
+      return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted.toString('base64')}`;
+    }
+
+    it('should verify OTP and return LoginResult for valid temp token and code', async () => {
+      // Arrange
+      const encryptedSecret = createEncryptedSecret();
+      const user2FA = {
+        ...mockUser,
+        is2FAEnabled: true,
+        twoFactorSecret: encryptedSecret,
+        preferredTwoFactorMethod: 'TOTP',
+      };
+
+      (jwtService.verify as jest.Mock).mockReturnValue({
+        type: '2fa-pending',
+        sub: 'user-123',
+      });
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(user2FA as any);
+      jest.spyOn(prismaService.user, 'update').mockResolvedValue(user2FA as any);
+      jest.spyOn(prismaService.session, 'create').mockResolvedValue({
+        id: 'session-123',
+        userId: mockUser.id,
+        refreshToken: 'hashed-refresh-token',
+        userAgent: 'test-agent',
+        ipAddress: '127.0.0.1',
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        createdAt: new Date(),
+      } as any);
+
+      // Act
+      const result = await service.verifyLoginOtp(
+        'mock-temp-token',
+        '123456',
+        undefined,
+        'test-agent',
+        '127.0.0.1',
+      );
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(result.user).toBeDefined();
+      expect(result.tokens).toBeDefined();
+      expect(result.tokens.accessToken).toBeDefined();
+    });
+
+    it('should throw UnauthorizedException for invalid/expired temp token', async () => {
+      // Arrange - jwtService.verify throws error
+      (jwtService.verify as jest.Mock).mockImplementation(() => {
+        throw new Error('jwt expired');
+      });
+
+      // Act & Assert
+      await expect(
+        service.verifyLoginOtp('expired-token', '123456'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException for temp token with wrong type', async () => {
+      // Arrange - token type is not '2fa-pending'
+      (jwtService.verify as jest.Mock).mockReturnValue({
+        type: 'access',
+        sub: 'user-123',
+      });
+
+      // Act & Assert
+      await expect(
+        service.verifyLoginOtp('wrong-type-token', '123456'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('refreshToken', () => {
+    const mockSession = {
+      id: 'session-123',
+      userId: 'user-123',
+      refreshToken: 'hashed-refresh-token',
+      userAgent: 'test-agent',
+      ipAddress: '127.0.0.1',
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      createdAt: new Date(),
+      user: {
+        ...mockUser,
+        isActive: true,
+      },
+    };
+
+    it('should return new tokens for valid session and refresh token', async () => {
+      // Arrange
+      jest.spyOn(prismaService.session, 'findUnique').mockResolvedValue(mockSession as any);
+      jest.spyOn(bcrypt, 'compare' as any).mockResolvedValue(true);
+      jest.spyOn(bcrypt, 'hash' as any).mockResolvedValue('new-hashed-refresh-token');
+      jest.spyOn(prismaService.session, 'update').mockResolvedValue(mockSession as any);
+
+      // Act
+      const result = await service.refreshToken('user-123', 'session-123', 'valid-refresh-token');
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(result.accessToken).toBeDefined();
+      expect(result.refreshToken).toBeDefined();
+      expect(prismaService.session.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'session-123' },
+          data: expect.objectContaining({
+            refreshToken: 'new-hashed-refresh-token',
+          }),
+        }),
+      );
+    });
+
+    it('should throw UnauthorizedException when session not found', async () => {
+      // Arrange
+      jest.spyOn(prismaService.session, 'findUnique').mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.refreshToken('user-123', 'nonexistent-session', 'some-token'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when session expired', async () => {
+      // Arrange
+      const expiredSession = {
+        ...mockSession,
+        expiresAt: new Date(Date.now() - 1000), // expired 1 second ago
+      };
+      jest.spyOn(prismaService.session, 'findUnique').mockResolvedValue(expiredSession as any);
+      jest.spyOn(prismaService.session, 'delete').mockResolvedValue(expiredSession as any);
+
+      // Act & Assert
+      await expect(
+        service.refreshToken('user-123', 'session-123', 'some-token'),
+      ).rejects.toThrow(UnauthorizedException);
+
+      // Verify session was cleaned up
+      expect(prismaService.session.delete).toHaveBeenCalledWith({
+        where: { id: 'session-123' },
+      });
+    });
+
+    it('should throw UnauthorizedException when token mismatch (potential theft)', async () => {
+      // Arrange
+      jest.spyOn(prismaService.session, 'findUnique').mockResolvedValue(mockSession as any);
+      jest.spyOn(bcrypt, 'compare' as any).mockResolvedValue(false);
+      jest.spyOn(prismaService.session, 'delete').mockResolvedValue(mockSession as any);
+
+      // Act & Assert
+      await expect(
+        service.refreshToken('user-123', 'session-123', 'stolen-token'),
+      ).rejects.toThrow(UnauthorizedException);
+
+      // Verify session was revoked for security
+      expect(prismaService.session.delete).toHaveBeenCalledWith({
+        where: { id: 'session-123' },
+      });
+    });
+
+    it('should throw ForbiddenException when user is deactivated', async () => {
+      // Arrange
+      const sessionWithInactiveUser = {
+        ...mockSession,
+        user: { ...mockUser, isActive: false },
+      };
+      jest.spyOn(prismaService.session, 'findUnique').mockResolvedValue(sessionWithInactiveUser as any);
+      jest.spyOn(bcrypt, 'compare' as any).mockResolvedValue(true);
+      jest.spyOn(prismaService.session, 'delete').mockResolvedValue(sessionWithInactiveUser as any);
+
+      // Act & Assert
+      await expect(
+        service.refreshToken('user-123', 'session-123', 'valid-token'),
+      ).rejects.toThrow(ForbiddenException);
+
+      // Verify session was cleaned up
+      expect(prismaService.session.delete).toHaveBeenCalledWith({
+        where: { id: 'session-123' },
+      });
     });
   });
 
