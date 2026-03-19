@@ -96,6 +96,13 @@ export const ErrorCode = {
 
   // ─── Batch Import ───
   BATCH_IMPORT_VALIDATION_ERROR: 'BATCH_IMPORT_VALIDATION_ERROR',
+
+  // ─── Rate Limiting ───
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+
+  // ─── File Upload ───
+  FILE_TOO_LARGE: 'FILE_TOO_LARGE',
+  FILE_TYPE_NOT_ALLOWED: 'FILE_TYPE_NOT_ALLOWED',
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
