@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsEnum, IsOptional, IsString } from 'class-validator';
 import { ComplaintType, ComplaintSeverity } from '@prisma/client';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 /**
  * DTO for updating an existing complaint.
@@ -26,6 +27,7 @@ export class UpdateComplaintDto {
   @ApiPropertyOptional({
     description: 'Updated description',
   })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   description?: string;
@@ -43,6 +45,7 @@ export class UpdateComplaintDto {
     description: 'Investigation notes to add',
     example: 'Contacted warehouse team for investigation',
   })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   investigationNote?: string;
@@ -50,6 +53,7 @@ export class UpdateComplaintDto {
   @ApiPropertyOptional({
     description: 'Additional notes',
   })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   note?: string;

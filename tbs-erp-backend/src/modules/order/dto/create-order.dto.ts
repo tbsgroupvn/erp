@@ -17,12 +17,14 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { ServiceType, ShippingRoute, Branch, Currency } from '@prisma/client';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export class CreateOrderItemDto {
   @ApiProperty({
     description: 'Product name',
     example: 'Wireless Bluetooth Headphones',
   })
+  @SanitizeHtmlStrict()
   @IsString()
   @IsNotEmpty()
   @MinLength(2, { message: 'Product name must be at least 2 characters' })
@@ -69,6 +71,7 @@ export class CreateOrderItemDto {
     description: 'Additional notes for this item',
     example: 'Color: Black, Size: L',
   })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   @MaxLength(1000)
@@ -124,6 +127,7 @@ export class CreateOrderDto {
     description: 'Order notes',
     example: 'Please inspect quality before shipping',
   })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   @MaxLength(2000)

@@ -1,14 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { TaskPriority } from '@prisma/client';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export class CreateTaskDto {
   @ApiProperty({ description: 'Task title', example: 'Follow up with customer' })
+  @SanitizeHtmlStrict()
   @IsString()
   @IsNotEmpty()
   title: string;
 
   @ApiPropertyOptional({ description: 'Task description' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   description?: string;

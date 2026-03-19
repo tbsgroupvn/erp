@@ -10,6 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { ComplaintType, ComplaintSeverity, ComplaintStatus, ResolutionType } from '@prisma/client';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 // Re-export for convenience
 export { ComplaintType, ComplaintSeverity, ComplaintStatus, ResolutionType };
@@ -52,6 +53,7 @@ export class CreateComplaintDto {
     example: 'Items arrived with damaged packaging and broken parts',
     minLength: 10,
   })
+  @SanitizeHtmlStrict()
   @IsString()
   @IsNotEmpty()
   @MinLength(10, {
@@ -85,6 +87,7 @@ export class CreateComplaintDto {
     description: 'Additional notes',
     example: 'Customer is very upset and requesting urgent resolution',
   })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   @MaxLength(2000)

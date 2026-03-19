@@ -12,6 +12,7 @@ import {
 import { DrivePermission } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export class CreateFolderDto {
   @ApiProperty({ description: 'Tên thư mục' })
@@ -56,6 +57,7 @@ export class RequestUploadDto {
   folderId?: string;
 
   @ApiPropertyOptional({ description: 'Mô tả file' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   description?: string;
@@ -91,6 +93,7 @@ export class ConfirmUploadDto {
   folderId?: string;
 
   @ApiPropertyOptional({ description: 'Mô tả file' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   description?: string;
@@ -145,6 +148,7 @@ export class RequestNewVersionDto {
   size: number;
 
   @ApiPropertyOptional({ description: 'Ghi chú thay đổi' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   changeNote?: string;
@@ -165,6 +169,7 @@ export class ConfirmNewVersionDto {
   mimeType: string;
 
   @ApiPropertyOptional({ description: 'Ghi chú thay đổi' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   changeNote?: string;

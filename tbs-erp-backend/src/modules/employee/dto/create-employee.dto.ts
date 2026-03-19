@@ -11,9 +11,11 @@ import {
   Min,
 } from 'class-validator';
 import { Branch } from '@prisma/client';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export class CreateEmployeeDto {
   @ApiProperty({ description: 'Full name of the employee', example: 'Nguyen Van A' })
+  @SanitizeHtmlStrict()
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
@@ -37,6 +39,7 @@ export class CreateEmployeeDto {
   departmentCode: string;
 
   @ApiProperty({ description: 'Position title', example: 'Sales Executive' })
+  @SanitizeHtmlStrict()
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)

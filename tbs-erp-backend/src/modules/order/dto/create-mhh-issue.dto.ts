@@ -1,6 +1,7 @@
 import { IsString, IsOptional, IsEnum, IsArray, IsNotEmpty, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MHHIssueType, ComplaintSeverity } from '@prisma/client';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export class CreateMHHIssueDto {
   @ApiProperty({
@@ -56,6 +57,7 @@ export class CreateMHHIssueDto {
     description: 'Detailed description of the issue',
     example: 'The product arrived with visible dents on the surface',
   })
+  @SanitizeHtmlStrict()
   @IsString()
   @IsNotEmpty({ message: 'Description is required' })
   @MinLength(10, { message: 'Description must be at least 10 characters' })

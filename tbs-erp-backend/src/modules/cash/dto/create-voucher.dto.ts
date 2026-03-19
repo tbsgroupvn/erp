@@ -12,6 +12,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { Currency, PaymentMethod } from '@prisma/client';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export enum VoucherType {
   RECEIPT = 'RECEIPT',
@@ -47,12 +48,14 @@ export class CreateVoucherDto {
   paymentMethod: PaymentMethod;
 
   @ApiProperty({ description: 'Cost type (Loai chi phi)', example: 'Van chuyen noi dia' })
+  @SanitizeHtmlStrict()
   @IsNotEmpty()
   @IsString()
   @MaxLength(100)
   costType: string;
 
   @ApiProperty({ description: 'Beneficiary name (Nguoi thu huong)', example: 'Nguyen Van B' })
+  @SanitizeHtmlStrict()
   @IsNotEmpty()
   @IsString()
   @MaxLength(255)
@@ -62,6 +65,7 @@ export class CreateVoucherDto {
     description: 'Reason for this voucher (minimum 20 characters)',
     example: 'Thanh toan phi van chuyen noi dia cho don hang TBS-ORD-240101-0001',
   })
+  @SanitizeHtmlStrict()
   @IsNotEmpty()
   @IsString()
   @MinLength(20)

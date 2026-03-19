@@ -1,15 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { Branch } from '@prisma/client';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export class CreateCustomerDto {
   @ApiProperty({ description: 'Full name of the customer', example: 'Nguyen Van A' })
+  @SanitizeHtmlStrict()
   @IsNotEmpty()
   @IsString()
   @MaxLength(255)
   fullName: string;
 
   @ApiPropertyOptional({ description: 'Company name', example: 'Cong ty ABC' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   @MaxLength(255)
@@ -27,6 +30,7 @@ export class CreateCustomerDto {
   email?: string;
 
   @ApiPropertyOptional({ description: 'Address' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   address?: string;
@@ -48,6 +52,7 @@ export class CreateCustomerDto {
   saleId?: string;
 
   @ApiPropertyOptional({ description: 'Note' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   note?: string;

@@ -11,18 +11,22 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { EventVisibility } from '@prisma/client';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export class CreateEventDto {
   @ApiProperty({ description: 'Tieu de su kien' })
+  @SanitizeHtmlStrict()
   @IsString()
   title: string;
 
   @ApiPropertyOptional({ description: 'Mo ta chi tiet' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   description?: string;
 
   @ApiPropertyOptional({ description: 'Dia diem' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   location?: string;
@@ -81,16 +85,19 @@ export class CreateEventDto {
 
 export class UpdateEventDto {
   @ApiPropertyOptional()
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   title?: string;
 
   @ApiPropertyOptional()
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   description?: string;
 
   @ApiPropertyOptional()
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   location?: string;

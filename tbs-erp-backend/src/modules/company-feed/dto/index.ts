@@ -10,20 +10,24 @@ import {
 import { PostCategory, PostStatus, ReactionType } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export class CreatePostDto {
   @ApiProperty({ description: 'Tiêu đề bài viết' })
+  @SanitizeHtmlStrict()
   @IsString()
   @MinLength(1)
   @MaxLength(500)
   title: string;
 
   @ApiProperty({ description: 'Nội dung HTML' })
+  @SanitizeHtmlStrict()
   @IsString()
   @MinLength(1)
   content: string;
 
   @ApiPropertyOptional({ description: 'Tóm tắt ngắn' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   @MaxLength(1000)
@@ -57,6 +61,7 @@ export class CreatePostDto {
 
 export class UpdatePostDto {
   @ApiPropertyOptional({ description: 'Tiêu đề bài viết' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   @MinLength(1)
@@ -64,11 +69,13 @@ export class UpdatePostDto {
   title?: string;
 
   @ApiPropertyOptional({ description: 'Nội dung HTML' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   content?: string;
 
   @ApiPropertyOptional({ description: 'Tóm tắt ngắn' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   @MaxLength(1000)
@@ -127,6 +134,7 @@ export class ReactPostDto {
 
 export class CreateCommentDto {
   @ApiProperty({ description: 'Nội dung bình luận' })
+  @SanitizeHtmlStrict()
   @IsString()
   @MinLength(1)
   @MaxLength(2000)

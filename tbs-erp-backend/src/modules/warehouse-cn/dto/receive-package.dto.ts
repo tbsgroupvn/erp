@@ -8,6 +8,7 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 /**
  * DTO for receiving a package at Warehouse CN (China).
@@ -36,6 +37,7 @@ export class ReceivePackageDto {
     description: 'Package description',
     example: 'Electronics - 2 boxes',
   })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   description?: string;
@@ -54,6 +56,7 @@ export class ReceivePackageDto {
     description: 'Additional notes',
     example: 'Package has minor dent on corner',
   })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   note?: string;

@@ -1,13 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export class CreateVendorDto {
   @ApiProperty({ description: 'Vendor name', example: 'Guangzhou Logistics Co., Ltd' })
+  @SanitizeHtmlStrict()
   @IsString()
   @IsNotEmpty()
   name: string;
 
   @ApiPropertyOptional({ description: 'Contact person name', example: 'Mr. Zhang Wei' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   contactPerson?: string;
@@ -26,6 +29,7 @@ export class CreateVendorDto {
     description: 'Full address',
     example: '123 Huanshi Road, Guangzhou, China',
   })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   address?: string;
@@ -36,6 +40,7 @@ export class CreateVendorDto {
   country?: string;
 
   @ApiPropertyOptional({ description: 'Payment terms', example: 'Net 30' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   paymentTerms?: string;

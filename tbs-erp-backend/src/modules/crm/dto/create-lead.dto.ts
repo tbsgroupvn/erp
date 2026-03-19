@@ -1,14 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export class CreateLeadDto {
   @ApiProperty({ description: 'Ho ten lien he', example: 'Nguyen Van A' })
+  @SanitizeHtmlStrict()
   @IsNotEmpty()
   @IsString()
   @MaxLength(255)
   fullName: string;
 
   @ApiPropertyOptional({ description: 'Ten cong ty', example: 'Cong ty ABC' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   @MaxLength(255)

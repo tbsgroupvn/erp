@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { OrderStatus } from '@prisma/client';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export class ChangeStatusDto {
   @ApiProperty({
@@ -13,6 +14,7 @@ export class ChangeStatusDto {
   @ApiPropertyOptional({
     description: 'Note for the status change',
   })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   note?: string;
@@ -23,6 +25,7 @@ export class CancelOrderDto {
     description: 'Reason for cancellation (minimum 10 characters)',
     example: 'Customer requested cancellation due to price change',
   })
+  @SanitizeHtmlStrict()
   @IsString()
   @IsNotEmpty({ message: 'Cancellation reason is required' })
   @MinLength(10, { message: 'Cancellation reason must be at least 10 characters' })

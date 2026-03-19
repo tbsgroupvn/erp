@@ -1,14 +1,17 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
+import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
 
 export class UpdateLeadDto {
   @ApiPropertyOptional({ description: 'Ho ten lien he' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   @MaxLength(255)
   fullName?: string;
 
   @ApiPropertyOptional({ description: 'Ten cong ty' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   @MaxLength(255)
@@ -46,6 +49,7 @@ export class UpdateLeadDto {
   assignedTo?: string;
 
   @ApiPropertyOptional({ description: 'Ghi chu them' })
+  @SanitizeHtmlStrict()
   @IsOptional()
   @IsString()
   note?: string;
