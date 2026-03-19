@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 6 context gathered
-last_updated: "2026-03-19T06:28:37.717Z"
-last_activity: 2026-03-19 -- Completed Plan 05-02 (RBAC Audit Test & Data Scope Wiring)
+status: in_progress
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-03-19T07:28:37.000Z"
+last_activity: 2026-03-19 -- Completed Plan 06-01 (FSM Exhaustive Matrix Tests)
 progress:
   total_phases: 9
   completed_phases: 5
-  total_plans: 15
-  completed_plans: 15
-  percent: 100
+  total_plans: 17
+  completed_plans: 16
+  percent: 94
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** The order lifecycle (17+ statuses across 9 FSMs) must be bulletproof — no state can be skipped, no unauthorized role can mutate data, and no query can bottleneck under production load.
-**Current focus:** Phase 5: RBAC Audit & Coverage
+**Current focus:** Phase 6: FSM Verification
 
 ## Current Position
 
-Phase: 5 of 9 (RBAC Audit & Coverage) -- COMPLETE
-Plan: 2 of 2 in current phase (05-02 complete)
-Status: Phase Complete
-Last activity: 2026-03-19 -- Completed Plan 05-02 (RBAC Audit Test & Data Scope Wiring)
+Phase: 6 of 9 (FSM Verification)
+Plan: 1 of 2 in current phase (06-01 complete)
+Status: In Progress
+Last activity: 2026-03-19 -- Completed Plan 06-01 (FSM Exhaustive Matrix Tests)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 16
 - Average duration: 6min
-- Total execution time: 1.25 hours
+- Total execution time: 1.35 hours
 
 **By Phase:**
 
@@ -48,14 +48,16 @@ Progress: [██████████] 100%
 | 03-transaction-consistency | 2/2 | 12min | 6min |
 | 04-input-validation-rate-limiting | 4/4 | 19min | 5min |
 | 05-rbac-audit-coverage | 2/2 | 29min | 15min |
+| 06-fsm-verification | 1/2 | 6min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (8min), 04-03 (5min), 04-04 (1min), 05-01 (5min), 05-02 (24min)
-- Trend: stable (05-02 longer due to discovering 180 undecorated endpoints)
+- Last 5 plans: 04-04 (1min), 05-01 (5min), 05-02 (24min), 06-01 (6min)
+- Trend: stable
 
 *Updated after each plan completion*
 | Phase 05 P01 | 5min | 2 tasks | 16 files |
 | Phase 05 P02 | 24min | 2 tasks | 10 files |
+| Phase 06 P01 | 6min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -103,6 +105,8 @@ Recent decisions affecting current work:
 - [05-02]: Metadata-only scanning for RBAC audit test -- avoids Redis/DB connection in test environment
 - [05-02]: Complaint data scoping via order relation: where.order = scopeFilter
 - [05-02]: OrderReadService user param optional for backward compatibility with internal callers
+- [06-01]: Order FSM has 80 valid transitions (no serviceType) including COMPLETED->SETTLEMENT reopen, computed from machine behavior
+- [06-01]: Fixed 4 pre-existing Order FSM test failures -- tests incorrectly blocked COMPLETED->SETTLEMENT which code allows
 
 ### Pending Todos
 
@@ -115,6 +119,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T06:28:37.712Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-fsm-verification/06-CONTEXT.md
+Last session: 2026-03-19T07:28:37.000Z
+Stopped at: Completed 06-01-PLAN.md
+Resume file: .planning/phases/06-fsm-verification/06-02-PLAN.md
