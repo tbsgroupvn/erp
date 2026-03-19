@@ -37,7 +37,7 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 - [x] **DAT-08**: Anti-fraud checks BLOCK vouchers missing order code, on closed orders, missing docs, or wrong owner; FLAG when total cost > 90% revenue
 - [x] **DAT-09**: Auto-block customer when AR aging exceeds 90 days — prevents new orders and delivery
 - [x] **DAT-10**: COD enforcement blocks driver from new assignments if COD not submitted within 24 hours
-- [ ] **DAT-11**: Approval escalation auto-escalates to next level when approver exceeds SLA (per Phan 5 matrix)
+- [x] **DAT-11**: Approval escalation auto-escalates to next level when approver exceeds SLA (per Phan 5 matrix)
 
 ### Performance
 
@@ -107,7 +107,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | DAT-08 | Phase 7 | Complete |
 | DAT-09 | Phase 7 | Complete |
 | DAT-10 | Phase 7 | Complete |
-| DAT-11 | Phase 7 | Pending |
+| DAT-11 | Phase 7 | Complete |
 | PERF-01 | Phase 8 | Pending |
 | PERF-02 | Phase 8 | Pending |
 | PERF-03 | Phase 8 | Pending |
