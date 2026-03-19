@@ -26,6 +26,8 @@ import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
 import { SupportTicketService } from './support-ticket.service';
+import { CreateTicketDto } from './dto/create-ticket.dto';
+import { AddResponseDto } from './dto/add-response.dto';
 
 @ApiTags('Support Tickets')
 @ApiBearerAuth()
@@ -44,15 +46,7 @@ export class SupportTicketController {
   @ApiResponse({ status: 201, description: 'Support ticket created successfully' })
   @ApiResponse({ status: 404, description: 'Customer not found' })
   async create(
-    @Body()
-    dto: {
-      customerId: string;
-      category: string;
-      subject: string;
-      description: string;
-      priority?: string;
-      assignedTo?: string;
-    },
+    @Body() dto: CreateTicketDto,
     @CurrentUser() user: ICurrentUser,
   ) {
     const ticket = await this.supportTicketService.create(dto, user.id);
@@ -123,13 +117,13 @@ export class SupportTicketController {
   @ApiResponse({ status: 404, description: 'Support ticket not found' })
   async addResponse(
     @Param('id') id: string,
-    @Body() body: { content: string; isInternal?: boolean },
+    @Body() dto: AddResponseDto,
     @CurrentUser() user: ICurrentUser,
   ) {
     const response = await this.supportTicketService.addResponse(
       id,
-      body.content,
-      body.isInternal ?? false,
+      dto.content,
+      dto.isInternal ?? false,
       user.id,
     );
     return BaseResponse.ok(response, 'Response added successfully');
