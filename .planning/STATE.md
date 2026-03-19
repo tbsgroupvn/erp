@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 5 context gathered
-last_updated: "2026-03-19T02:55:41.716Z"
-last_activity: 2026-03-19 -- Completed Plan 04-04 (Support-Ticket DTO Sanitization gap closure)
+status: executing
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-03-19T04:29:20.487Z"
+last_activity: 2026-03-19 -- Completed Plan 05-01 (RBAC Guard Upgrade & Controller Decoration)
 progress:
   total_phases: 9
   completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
-  percent: 100
+  total_plans: 15
+  completed_plans: 14
+  percent: 93
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** The order lifecycle (17+ statuses across 9 FSMs) must be bulletproof — no state can be skipped, no unauthorized role can mutate data, and no query can bottleneck under production load.
-**Current focus:** Phase 4: Input Validation & Rate Limiting (COMPLETE, including gap closure)
+**Current focus:** Phase 5: RBAC Audit & Coverage
 
 ## Current Position
 
-Phase: 4 of 9 (Input Validation & Rate Limiting) -- COMPLETE (including gap closure)
-Plan: 4 of 4 in current phase (04-04 gap closure done, phase fully complete)
-Status: Phase 4 Complete
-Last activity: 2026-03-19 -- Completed Plan 04-04 (Support-Ticket DTO Sanitization gap closure)
+Phase: 5 of 9 (RBAC Audit & Coverage)
+Plan: 1 of 2 in current phase (05-01 complete)
+Status: In Progress
+Last activity: 2026-03-19 -- Completed Plan 05-01 (RBAC Guard Upgrade & Controller Decoration)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 14
 - Average duration: 6min
-- Total execution time: 1.17 hours
+- Total execution time: 1.25 hours
 
 **By Phase:**
 
@@ -47,13 +47,14 @@ Progress: [██████████] 100%
 | 02-frontend-error-handling | 3/3 | 19min | 6min |
 | 03-transaction-consistency | 2/2 | 12min | 6min |
 | 04-input-validation-rate-limiting | 4/4 | 19min | 5min |
+| 05-rbac-audit-coverage | 1/2 | 5min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (3min), 04-01 (5min), 04-02 (8min), 04-03 (5min), 04-04 (1min)
+- Last 5 plans: 04-01 (5min), 04-02 (8min), 04-03 (5min), 04-04 (1min), 05-01 (5min)
 - Trend: stable
 
 *Updated after each plan completion*
-| Phase 04 P04 | 1min | 2 tasks | 3 files |
+| Phase 05 P01 | 5min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,9 @@ Recent decisions affecting current work:
 - [04-03]: Document controller uses DTO-based S3 upload (not multer), validation via @Max/@IsIn in DTO instead of FileValidationPipe
 - [04-03]: Drive presigned URL flow validated at DTO level only (no magic number validation possible -- file goes directly to MinIO)
 - [04-04]: Followed complaint DTO pattern for decorator ordering: @SanitizeHtmlStrict first, then validation, then ApiProperty
+- [05-01]: ALL_ROLES uses Object.values(UserRole) for automatic inclusion of all 22 roles
+- [05-01]: @Roles(...ALL_ROLES) at class level for workplace controllers per RESEARCH.md recommendation
+- [05-01]: @Public() at class level for health/metrics/public-cms controllers (infrastructure endpoints)
 
 ### Pending Todos
 
@@ -107,6 +111,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T02:55:41.708Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-rbac-audit-coverage/05-CONTEXT.md
+Last session: 2026-03-19T04:27:24.000Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: .planning/phases/05-rbac-audit-coverage/05-02-PLAN.md
