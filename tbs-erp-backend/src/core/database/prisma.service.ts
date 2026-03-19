@@ -37,8 +37,8 @@ export class PrismaService
    * Returns the encryption-extended Prisma client.
    * Falls back to `this` if encryption is disabled.
    */
-  get encrypted() {
-    return this._encryptedClient ?? this;
+  get encrypted(): PrismaClient {
+    return (this._encryptedClient ?? this) as PrismaClient;
   }
 
   constructor(
