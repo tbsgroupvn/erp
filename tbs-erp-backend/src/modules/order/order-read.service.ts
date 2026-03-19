@@ -1,10 +1,15 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { CacheService } from '@core/cache/cache.service';
+import { DataScopeService } from '@core/rbac/data-scope.service';
+import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { CursorPaginatedResult } from '@common/dto/pagination.dto';
 
 /** Cache TTL: 2 minutes in milliseconds. */
 const ORDER_DETAIL_CACHE_TTL_MS = 2 * 60 * 1000;
+
+/** Cache TTL: 30 seconds for tier-1 (essential) data — loaded immediately on page open. */
+const ORDER_ESSENTIAL_CACHE_TTL_MS = 30 * 1000;
 
 /** Cache TTL: 5 minutes in milliseconds. */
 const SALES_AGG_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -20,11 +25,14 @@ export class OrderReadService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
+    private readonly dataScopeService: DataScopeService,
   ) {}
 
   /**
    * Lightweight order list for table views.
    * Only selects fields needed for display.
+   * When a user is provided, data scope is applied so SALE sees own orders,
+   * SALES_LEADER sees team orders, CEO/COO sees all.
    */
   async getOrderList(params: {
     page: number;
@@ -34,8 +42,9 @@ export class OrderReadService {
     saleId?: string;
     dateFrom?: Date;
     dateTo?: Date;
+    user?: ICurrentUser;
   }) {
-    const { page, limit, status, customerId, saleId, dateFrom, dateTo } = params;
+    const { page, limit, status, customerId, saleId, dateFrom, dateTo, user } = params;
 
     const where: any = {};
     if (status) where.status = status;
@@ -45,6 +54,15 @@ export class OrderReadService {
       where.createdAt = {};
       if (dateFrom) where.createdAt.gte = dateFrom;
       if (dateTo) where.createdAt.lte = dateTo;
+    }
+
+    // Apply data scope filter based on user role
+    if (user) {
+      const scopeFilter = await this.dataScopeService.getDataScopeFilter(
+        { userId: user.id, role: user.role, branch: user.branch },
+        'order',
+      );
+      Object.assign(where, scopeFilter);
     }
 
     const [items, total] = await Promise.all([
@@ -443,6 +461,380 @@ export class OrderReadService {
         depositRequired: Number(order.depositRequired),
         depositPaid,
         isDepositPaid: order.isDepositPaid,
+        discountPercent: Number(order.discountPercent),
+        discountAmount: Number(order.discountAmount),
+        totalPaid,
+        totalDebt,
+        baseExchangeRate: order.baseExchangeRate ? Number(order.baseExchangeRate) : null,
+        exchangeRateMode: order.exchangeRateMode,
+        commissions: order.commissions,
+        totalCommission,
+        costAllocations: order.costAllocations,
+        totalAllocatedCost,
+        paymentAllocations: order.allocations,
+        receivables: order.receivables,
+        procurementPayments,
+        totalProcurementPaid: procurementPayments
+          .filter((pv) => pv.status === 'APPROVED')
+          .reduce((sum, pv) => sum + Number(pv.amount), 0),
+        totalProcurementAmount: order.supplierOrders.reduce(
+          (sum, so) => sum + (Number(so.totalCNY) || Number(so.totalVND) || 0),
+          0,
+        ),
+      },
+      operations: {
+        container: order.container,
+        deliveries: order.deliveries,
+        complaints: order.complaints,
+      },
+      auditLog,
+    };
+  }
+
+  // ─── Tiered 360 View ────────────────────────────────────────────────────────
+
+  /**
+   * Tier-1 essential data for the Order detail page.
+   *
+   * Loads only the fields needed for immediate page render:
+   * - Order header fields
+   * - Items
+   * - Customer summary
+   * - Status history (last 10 entries)
+   * - Contract + quotation reference
+   * - Sale user
+   *
+   * Cached for 30 seconds (short TTL because this is the "above-the-fold"
+   * data and must feel fresh when navigating between orders).
+   *
+   * Returns the same `sale` block shape as `getOrder360View` so the
+   * frontend can render the header without waiting for tier-2.
+   */
+  async findByIdEssential(orderId: string) {
+    const cacheKey = `order:essential:${orderId}`;
+    this.logger.log(`findByIdEssential orderId=${orderId}`);
+
+    return this.cacheService.getOrSet(
+      cacheKey,
+      () => this.fetchOrderEssential(orderId),
+      ORDER_ESSENTIAL_CACHE_TTL_MS,
+    );
+  }
+
+  /**
+   * Tier-2 extended data for the Order detail page.
+   *
+   * Loads heavier relations that are deferred until the user scrolls or
+   * explicitly requests them:
+   * - Packages (with QC inspections)
+   * - Supplier orders
+   * - Container
+   * - Deliveries
+   * - Complaints
+   * - Commissions
+   * - Cost allocations
+   * - Payment allocations (AR receivables)
+   * - Procurement payment vouchers
+   * - Audit log (last 50 entries)
+   *
+   * Cached for 2 minutes.  Cache is invalidated by `invalidateOrder360Cache`
+   * when the order or any of its sub-entities mutate.
+   */
+  async findByIdExtended(orderId: string) {
+    const cacheKey = `order:extended:${orderId}`;
+    this.logger.log(`findByIdExtended orderId=${orderId}`);
+
+    return this.cacheService.getOrSet(
+      cacheKey,
+      () => this.fetchOrderExtended(orderId),
+      ORDER_DETAIL_CACHE_TTL_MS,
+    );
+  }
+
+  /** Internal: fetch tier-1 essential fields without caching. */
+  private async fetchOrderEssential(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            code: true,
+            fullName: true,
+            companyName: true,
+            tier: true,
+            phone: true,
+            email: true,
+          },
+        },
+        contract: {
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            status: true,
+            quotationId: true,
+            quotation: {
+              select: {
+                id: true,
+                code: true,
+              },
+            },
+          },
+        },
+        items: true,
+        statusHistory: {
+          orderBy: { createdAt: 'desc' },
+          // Tier-1 only loads the 10 most recent status transitions —
+          // this covers 99% of practical read needs without the overhead
+          // of fetching the full history.
+          take: 10,
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    // Fetch sale user in parallel (single extra query, avoids N+1)
+    const saleUser = await this.prisma.user.findUnique({
+      where: { id: order.saleId },
+      select: { id: true, fullName: true, email: true, role: true },
+    });
+
+    return {
+      sale: {
+        id: order.id,
+        code: order.code,
+        status: order.status,
+        serviceType: order.serviceType,
+        branch: order.branch,
+        shippingRoute: order.shippingRoute,
+        clearanceType: order.clearanceType,
+        fulfillmentStatus: order.fulfillmentStatus,
+        note: order.note,
+        createdAt: order.createdAt,
+        completedAt: order.completedAt,
+        totalAmount: Number(order.totalAmount),
+        currency: order.currency,
+        depositRequired: Number(order.depositRequired),
+        depositPaid: Number(order.depositPaid),
+        isDepositPaid: order.isDepositPaid,
+        customer: order.customer,
+        saleUser,
+        contract: order.contract,
+        items: order.items,
+      },
+      // Provide the last 10 status history entries for the timeline widget
+      statusHistory: order.statusHistory,
+    };
+  }
+
+  /** Internal: fetch tier-2 extended fields without caching. */
+  private async fetchOrderExtended(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      // Select only the scalar fields we need for finance summaries —
+      // all heavy relations are fetched below via individual includes.
+      select: {
+        id: true,
+        saleId: true,
+        totalAmount: true,
+        currency: true,
+        discountPercent: true,
+        discountAmount: true,
+        depositPaid: true,
+        baseExchangeRate: true,
+        exchangeRateMode: true,
+        totalActualWeight: true,
+        totalChargeableWeight: true,
+        packages: {
+          include: {
+            qcInspections: true,
+          },
+        },
+        supplierOrders: {
+          select: {
+            id: true,
+            code: true,
+            status: true,
+            supplierName: true,
+            supplierPlatform: true,
+            totalCNY: true,
+            totalVND: true,
+            quantityOrdered: true,
+            quantityReceived: true,
+            trackingNumberCN: true,
+            orderedAt: true,
+            receivedAt: true,
+          },
+        },
+        container: {
+          select: {
+            id: true,
+            code: true,
+            status: true,
+            shippingRoute: true,
+            carrier: true,
+            estimatedDepartureAt: true,
+            actualDepartureAt: true,
+            estimatedArrivalAt: true,
+            actualArrivalAt: true,
+          },
+        },
+        deliveries: {
+          select: {
+            id: true,
+            code: true,
+            status: true,
+            deliveredAt: true,
+          },
+        },
+        complaints: {
+          select: {
+            id: true,
+            code: true,
+            type: true,
+            severity: true,
+            status: true,
+            resolutionType: true,
+            compensationAmount: true,
+            createdAt: true,
+            resolvedAt: true,
+          },
+        },
+        commissions: {
+          select: {
+            id: true,
+            saleId: true,
+            commissionRate: true,
+            commissionAmount: true,
+            status: true,
+            clawbackAmount: true,
+            clawbackReason: true,
+            createdAt: true,
+          },
+        },
+        costAllocations: {
+          select: {
+            id: true,
+            containerId: true,
+            method: true,
+            proportion: true,
+            allocatedAmount: true,
+          },
+        },
+        allocations: {
+          select: {
+            id: true,
+            code: true,
+            totalAmount: true,
+            allocatedAmount: true,
+            purposeType: true,
+            allocatedAt: true,
+            isReversed: true,
+          },
+        },
+        receivables: {
+          select: {
+            id: true,
+            code: true,
+            amount: true,
+            paidAmount: true,
+            status: true,
+            dueDate: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    // Fetch procurement payment vouchers and audit log in parallel
+    const supplierOrderIds = order.supplierOrders.map((so) => so.id);
+    const [procurementPayments, auditLog] = await Promise.all([
+      this.prisma.paymentVoucher.findMany({
+        where: {
+          OR: [
+            ...(supplierOrderIds.length > 0
+              ? [{ supplierOrderId: { in: supplierOrderIds } }]
+              : []),
+            { orderId: orderId, supplierOrderId: { not: null } },
+          ],
+        },
+        select: {
+          id: true,
+          code: true,
+          type: true,
+          amount: true,
+          currency: true,
+          status: true,
+          beneficiary: true,
+          reason: true,
+          costType: true,
+          paymentMethod: true,
+          supplierOrderId: true,
+          approvedBy: true,
+          approvedAt: true,
+          createdBy: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.auditLog.findMany({
+        where: { entity: 'Order', entityId: orderId },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        select: {
+          id: true,
+          userId: true,
+          action: true,
+          oldData: true,
+          newData: true,
+          ipAddress: true,
+          createdAt: true,
+          user: { select: { id: true, fullName: true } },
+        },
+      }),
+    ]);
+
+    // Finance summary calculations (same logic as fetchOrder360View)
+    const totalPaid = order.receivables.reduce((sum, ar) => sum + Number(ar.paidAmount), 0);
+    const totalDebt = order.receivables.reduce(
+      (sum, ar) => sum + (Number(ar.amount) - Number(ar.paidAmount)),
+      0,
+    );
+    const totalAllocatedCost = order.costAllocations.reduce(
+      (sum, ca) => sum + Number(ca.allocatedAmount),
+      0,
+    );
+    const totalCommission = order.commissions.reduce(
+      (sum, c) => sum + Number(c.commissionAmount),
+      0,
+    );
+
+    return {
+      goods: {
+        packages: order.packages.map((pkg) => ({
+          id: pkg.id,
+          code: pkg.code,
+          warehouseCNStatus: pkg.warehouseCNStatus,
+          warehouseVNStatus: pkg.warehouseVNStatus,
+          actualWeight: pkg.actualWeight,
+          chargeableWeight: pkg.chargeableWeight,
+          qcInspections: pkg.qcInspections,
+        })),
+        supplierOrders: order.supplierOrders,
+        totalActualWeight: order.totalActualWeight,
+        totalChargeableWeight: order.totalChargeableWeight,
+      },
+      finance: {
+        totalAmount: Number(order.totalAmount),
+        currency: order.currency,
+        depositPaid: Number(order.depositPaid),
         discountPercent: Number(order.discountPercent),
         discountAmount: Number(order.discountAmount),
         totalPaid,

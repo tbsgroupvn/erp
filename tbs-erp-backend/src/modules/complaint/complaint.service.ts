@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { TransactionalEmitter } from '@core/events/transactional-emitter.service';
+import { DataScopeService } from '@core/rbac/data-scope.service';
+import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { ComplaintStatus, ComplaintSeverity, ResolutionType, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { buildDateFilter } from '@common/utils/date.util';
@@ -28,6 +30,7 @@ export class ComplaintService {
     private readonly eventEmitter: EventEmitter2,
     private readonly txEmitter: TransactionalEmitter,
     private readonly statusMachine: ComplaintStatusMachine,
+    private readonly dataScopeService: DataScopeService,
   ) {
     this.compensationGdKdThreshold = this.configService.get<number>(
       'business.complaint.compensationGdKdThreshold',
@@ -257,9 +260,22 @@ export class ComplaintService {
 
   /**
    * Lists complaints with pagination and filters.
+   * When a user is provided, data scope is applied via the order relation
+   * so SALE sees only complaints on their own orders, CEO sees all, etc.
    */
-  async findAll(query: ComplaintQueryDto) {
+  async findAll(query: ComplaintQueryDto, user?: ICurrentUser) {
     const where: any = {};
+
+    // Apply data scope filter via order relation (complaints are order-linked)
+    if (user) {
+      const scopeFilter = await this.dataScopeService.getDataScopeFilter(
+        { userId: user.id, role: user.role, branch: user.branch },
+        'order',
+      );
+      if (Object.keys(scopeFilter).length > 0) {
+        where.order = scopeFilter;
+      }
+    }
 
     if (query.status) {
       where.status = query.status;
@@ -332,10 +348,22 @@ export class ComplaintService {
 
   /**
    * Gets a single complaint by ID with full details.
+   * When a user is provided, data scope is enforced via the order relation.
    */
-  async findById(id: string) {
-    const complaint = await this.prisma.complaint.findUnique({
-      where: { id },
+  async findById(id: string, user?: ICurrentUser) {
+    const orderScope: any = {};
+    if (user) {
+      const scopeFilter = await this.dataScopeService.getDataScopeFilter(
+        { userId: user.id, role: user.role, branch: user.branch },
+        'order',
+      );
+      if (Object.keys(scopeFilter).length > 0) {
+        orderScope.order = scopeFilter;
+      }
+    }
+
+    const complaint = await this.prisma.complaint.findFirst({
+      where: { id, ...orderScope },
       include: {
         order: {
           select: {

@@ -35,11 +35,13 @@ import { ApprovalModule } from '@modules/approval/approval.module';
 import { NotificationModule } from '@modules/notification/notification.module';
 import { CacheModule } from '@core/cache/cache.module';
 import { EventBusModule } from '@core/event-bus/event-bus.module';
+import { RbacModule } from '@core/rbac/rbac.module';
 
 @Module({
   imports: [
     CacheModule,
     EventBusModule,
+    RbacModule,
     AccountsReceivableModule,
     ExchangeRateModule,
     CustomsDeclarationModule,

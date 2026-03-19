@@ -57,16 +57,16 @@ export class ComplaintController {
   }
 
   @Get()
-  @Roles(UserRole.CEO, UserRole.COO, UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.DIRECTOR_OPERATIONS)
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.DIRECTOR_OPERATIONS, UserRole.SALE, UserRole.SALES_LEADER)
   @ApiOperation({
     summary: 'List complaints',
     description:
-      'Returns paginated complaints with filtering by status, type, severity, customer, and date range.',
+      'Returns paginated complaints with filtering by status, type, severity, customer, and date range. Data scope is applied based on user role.',
   })
   @ApiPaginated()
   @ApiResponse({ status: 200, description: 'Complaints retrieved successfully' })
-  async findAll(@Query() query: ComplaintQueryDto) {
-    const result = await this.complaintService.findAll(query);
+  async findAll(@Query() query: ComplaintQueryDto, @CurrentUser() user: ICurrentUser) {
+    const result = await this.complaintService.findAll(query, user);
     return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
@@ -97,16 +97,16 @@ export class ComplaintController {
   }
 
   @Get(':id')
-  @Roles(UserRole.CEO, UserRole.COO, UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.DIRECTOR_OPERATIONS)
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.DIRECTOR_OPERATIONS, UserRole.SALE, UserRole.SALES_LEADER)
   @ApiOperation({
     summary: 'Get complaint detail',
-    description: 'Returns full complaint details including order and customer info.',
+    description: 'Returns full complaint details including order and customer info. Data scope is enforced based on user role.',
   })
   @ApiParam({ name: 'id', description: 'Complaint ID' })
   @ApiResponse({ status: 200, description: 'Complaint retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Complaint not found' })
-  async findById(@Param('id') id: string) {
-    const complaint = await this.complaintService.findById(id);
+  async findById(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
+    const complaint = await this.complaintService.findById(id, user);
     return BaseResponse.ok(complaint);
   }
 
