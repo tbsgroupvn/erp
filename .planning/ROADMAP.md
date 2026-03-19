@@ -108,11 +108,11 @@ Plans:
   1. For each of the 9 FSMs, a test matrix covers every invalid state transition and asserts it throws an FSM transition error
   2. An integration test drives an order from CONSULTING through every status to COMPLETED, with deposit gate enforcement verified at the PENDING_DEPOSIT stage
   3. An integration test drives a container from PLANNING through every status to COMPLETED, verifying package assignment and customs holds
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [ ] 06-01-PLAN.md — Add exhaustive transition matrix tests to 7 FSM spec files (Order, Supplier Order, Container, Quotation, Warehouse CN, Warehouse VN, Customs)
+- [ ] 06-02-PLAN.md — Order lifecycle and container lifecycle service-layer integration tests with mocked dependencies
 
 ### Phase 7: Business Rule Enforcement
 **Goal**: Domain-specific financial and operational safeguards are enforced — deposits match tier rates, fraud signals are caught, overdue customers are blocked, COD is tracked, and approvals escalate on time
