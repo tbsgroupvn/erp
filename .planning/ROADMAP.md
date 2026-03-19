@@ -124,11 +124,12 @@ Plans:
   3. A customer with AR aging exceeding 90 days cannot place new orders and delivery is halted for existing orders
   4. A driver who has not submitted COD within 24 hours of delivery is blocked from receiving new delivery assignments
   5. An approval request that exceeds the SLA defined in the approval matrix auto-escalates to the next approver level
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 07-01-PLAN.md — Unit tests for DepositGateService (tier rates) and PaymentVoucherValidator (block/flag rules)
+- [ ] 07-02-PLAN.md — AR aging delivery block gap fix + unit tests for DeliveryDispatchService and CodService
+- [ ] 07-03-PLAN.md — Approval escalation listener implementation + unit tests for ApprovalService and SlaTracker
 
 ### Phase 8: Query Performance Optimization
 **Goal**: List endpoints load fast with minimal database round-trips, slow queries are detected and logged, and all logging uses the structured NestJS logger
@@ -173,6 +174,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 4. Input Validation & Rate Limiting | 4/4 | Complete   | 2026-03-19 |
 | 5. RBAC Audit & Coverage | 2/2 | Complete   | 2026-03-19 |
 | 6. FSM Verification | 2/2 | Complete   | 2026-03-19 |
-| 7. Business Rule Enforcement | 0/2 | Not started | - |
+| 7. Business Rule Enforcement | 0/3 | Not started | - |
 | 8. Query Performance Optimization | 0/2 | Not started | - |
 | 9. Test Suite Completion | 0/2 | Not started | - |
