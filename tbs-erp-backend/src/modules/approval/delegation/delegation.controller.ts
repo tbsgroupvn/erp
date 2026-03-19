@@ -1,15 +1,19 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
+import { ALL_ROLES } from '@core/rbac/roles.enum';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse } from '@common/dto/base-response.dto';
 import { DelegationService } from './delegation.service';
 import { CreateDelegationDto } from './dto/create-delegation.dto';
 
+@Roles(...ALL_ROLES)
 @ApiTags('System - Approval Delegations')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('approval-delegations')
 export class DelegationController {
   constructor(private readonly delegationService: DelegationService) {}

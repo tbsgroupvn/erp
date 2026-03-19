@@ -7,10 +7,12 @@ import {
   PrismaHealthIndicator,
   DiskHealthIndicator,
 } from '@nestjs/terminus';
+import { Public } from '@common/decorators/public.decorator';
 import { PrismaService } from '@core/database/prisma.service';
 import { MemoryHealthIndicator } from './memory-health.indicator';
 import { RedisHealthIndicator } from './redis-health.indicator';
 
+@Public()
 @SkipThrottle()
 @Controller('health')
 export class HealthController {

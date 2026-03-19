@@ -21,6 +21,9 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
+import { ALL_ROLES } from '@core/rbac/roles.enum';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse } from '@common/dto/base-response.dto';
@@ -34,9 +37,10 @@ import {
   WikiQueryDto,
 } from './dto/index';
 
+@Roles(...ALL_ROLES)
 @ApiTags('Wiki')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('wiki')
 export class WikiController {
   constructor(private readonly wikiService: WikiService) {}

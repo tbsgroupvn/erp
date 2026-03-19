@@ -14,6 +14,9 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@core/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@core/rbac/guards/roles.guard';
+import { Roles } from '@core/rbac/decorators/roles.decorator';
+import { ALL_ROLES } from '@core/rbac/roles.enum';
 import { ChatService } from './chat.service';
 import { CreateDMDto, CreateGroupDto, UpdateConversationDto } from './dto/create-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
@@ -22,9 +25,10 @@ import { ConversationQueryDto, MessageQueryDto } from './dto/chat-query.dto';
 import { AddParticipantsDto } from './dto/participant.dto';
 import { WsGateway } from '@core/websocket/ws.gateway';
 
+@Roles(...ALL_ROLES)
 @ApiTags('Chat')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('chat')
 export class ChatController {
   constructor(

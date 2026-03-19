@@ -1,6 +1,7 @@
 import { Controller, Get, Res } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
+import { Public } from '@common/decorators/public.decorator';
 import { MetricsService } from './metrics.service';
 import { JobMetricsService } from './job-metrics.service';
 
@@ -10,6 +11,7 @@ import { JobMetricsService } from './job-metrics.service';
  * since it is consumed by Prometheus scraper on the internal network.
  * Access is restricted at the Nginx level (not exposed publicly).
  */
+@Public()
 @SkipThrottle()
 @Controller('metrics')
 export class MetricsController {

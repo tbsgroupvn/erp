@@ -13,6 +13,9 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
+import { ALL_ROLES } from '@core/rbac/roles.enum';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
 import { CustomerPortalService } from './customer-portal.service';
@@ -28,9 +31,10 @@ import { CustomerOrderQueryDto } from './dto/portal-query.dto';
  * data. Internal staff (non-impersonation) can access any customer's data as
  * they already pass through RBAC checks.
  */
+@Roles(...ALL_ROLES)
 @ApiTags('Customer Portal')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('portal')
 export class CustomerPortalController {
   constructor(private readonly portalService: CustomerPortalService) {}

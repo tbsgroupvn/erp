@@ -19,6 +19,9 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
+import { ALL_ROLES } from '@core/rbac/roles.enum';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
@@ -28,9 +31,10 @@ import { ManualCheckInDto, ReviewManualCheckInDto } from './dto/manual-check-in.
 import { RequestLeaveDto, RejectLeaveDto } from './dto/leave-request.dto';
 import { RequestOvertimeDto } from './dto/overtime-request.dto';
 
+@Roles(...ALL_ROLES)
 @ApiTags('Attendance')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('attendance')
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}

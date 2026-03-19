@@ -20,6 +20,9 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@core/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@core/rbac/guards/roles.guard';
+import { Roles } from '@core/rbac/decorators/roles.decorator';
+import { ALL_ROLES } from '@core/rbac/roles.enum';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse } from '@common/dto/base-response.dto';
@@ -32,9 +35,10 @@ import {
 } from './dto/create-event.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 
+@Roles(...ALL_ROLES)
 @ApiTags('Calendar')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('calendar')
 export class CalendarController {
   constructor(private readonly calendarService: CalendarService) {}

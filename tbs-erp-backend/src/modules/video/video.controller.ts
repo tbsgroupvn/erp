@@ -16,15 +16,19 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
+import { ALL_ROLES } from '@core/rbac/roles.enum';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { BaseResponse } from '@common/dto/base-response.dto';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { VideoService } from './video.service';
 import { CreateRoomDto } from './dto';
 
+@Roles(...ALL_ROLES)
 @ApiTags('Video')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('video')
 export class VideoController {
   constructor(private readonly videoService: VideoService) {}

@@ -2,6 +2,7 @@ import { Controller, Get, Param, Query, Post, Body, NotFoundException, Req, UseP
 import { Throttle } from '@nestjs/throttler';
 import { randomBytes } from 'crypto';
 import { Request } from 'express';
+import { Public } from '@common/decorators/public.decorator';
 import { PagesService } from '@modules/cms-pages/pages.service';
 import { MenuService } from '@modules/cms-menu/menu.service';
 import { SettingsService } from '@modules/cms-settings/settings.service';
@@ -11,6 +12,7 @@ import { SubmitContactDto } from './dto/submit-contact.dto';
 import { SubscribeNewsletterDto } from './dto/subscribe-newsletter.dto';
 import { UnsubscribeNewsletterDto } from './dto/unsubscribe-newsletter.dto';
 
+@Public()
 @Throttle({ default: { limit: 10, ttl: 60000 } }) // SEC-04: 10 req/min for public endpoints
 @Controller('public/cms')
 export class PublicCmsController {
