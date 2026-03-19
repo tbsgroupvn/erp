@@ -47,6 +47,8 @@ import { AuthenticatedUser } from './strategies/jwt.strategy';
 import { RefreshTokenUser } from './strategies/refresh-token.strategy';
 import { Roles } from '@core/rbac/decorators/roles.decorator';
 import { RolesGuard } from '@core/rbac/guards/roles.guard';
+import { Public } from '@common/decorators/public.decorator';
+import { ALL_ROLES } from '@core/rbac/roles.enum';
 import { UserRole } from '@prisma/client';
 
 @ApiTags('Authentication')
@@ -65,6 +67,7 @@ export class AuthController {
   // Standard Auth Endpoints
   // =========================================================================
 
+  @Public()
   @Post('login')
   @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 attempts per 15 minutes
   @HttpCode(HttpStatus.OK)
@@ -104,7 +107,7 @@ export class AuthController {
     res.cookie('refreshToken', result.tokens.refreshToken, {
       httpOnly: true,
       secure: process.env.APP_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/api/v1/auth',
     });
@@ -118,6 +121,7 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Post('refresh')
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
@@ -142,7 +146,7 @@ export class AuthController {
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
       secure: process.env.APP_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/api/v1/auth',
     });
@@ -153,6 +157,7 @@ export class AuthController {
     };
   }
 
+  @Roles(...ALL_ROLES)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'))
@@ -170,13 +175,14 @@ export class AuthController {
     res.clearCookie('refreshToken', {
       httpOnly: true,
       secure: process.env.APP_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       path: '/api/v1/auth',
     });
 
     return { message: 'Logged out successfully' };
   }
 
+  @Public()
   @Post('forgot-password')
   @Throttle({ default: { limit: 3, ttl: 3600000 } }) // 3 attempts per hour
   @HttpCode(HttpStatus.OK)
@@ -187,6 +193,7 @@ export class AuthController {
     return this.authService.forgotPassword(dto.email);
   }
 
+  @Public()
   @Post('reset-password')
   @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 attempts per 15 minutes
   @HttpCode(HttpStatus.OK)
@@ -197,6 +204,7 @@ export class AuthController {
     return this.authService.resetPassword(dto.token, dto.newPassword);
   }
 
+  @Roles(...ALL_ROLES)
   @Get('profile')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
@@ -208,6 +216,7 @@ export class AuthController {
     return this.authService.getProfile(user.id);
   }
 
+  @Roles(...ALL_ROLES)
   @Patch('change-password')
   @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   @HttpCode(HttpStatus.OK)
@@ -233,6 +242,7 @@ export class AuthController {
   // Two-Factor Authentication Endpoints
   // =========================================================================
 
+  @Roles(...ALL_ROLES)
   @Post('2fa/setup')
   @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   @HttpCode(HttpStatus.OK)
@@ -253,6 +263,7 @@ export class AuthController {
     return this.authService.generate2FASecret(user.id);
   }
 
+  @Roles(...ALL_ROLES)
   @Post('2fa/enable')
   @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   @HttpCode(HttpStatus.OK)
@@ -273,6 +284,7 @@ export class AuthController {
     return this.authService.enable2FA(user.id, dto.code);
   }
 
+  @Roles(...ALL_ROLES)
   @Post('2fa/disable')
   @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   @HttpCode(HttpStatus.OK)
@@ -291,6 +303,7 @@ export class AuthController {
     return this.authService.disable2FA(user.id, dto.code, dto.password);
   }
 
+  @Public()
   @Post('2fa/verify')
   @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 attempts per 15 minutes
   @HttpCode(HttpStatus.OK)
@@ -319,9 +332,9 @@ export class AuthController {
     const userAgent = req.headers['user-agent'];
     const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip;
 
+    // ID-01 fix: userId is now extracted from tempToken inside the service
     const result = await this.authService.verifyLoginOtp(
       tempToken,
-      dto.userId,
       dto.code,
       dto.method,
       userAgent,
@@ -332,7 +345,7 @@ export class AuthController {
     res.cookie('refreshToken', result.tokens.refreshToken, {
       httpOnly: true,
       secure: process.env.APP_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/api/v1/auth',
     });
@@ -346,6 +359,7 @@ export class AuthController {
     };
   }
 
+  @Roles(...ALL_ROLES)
   @Post('2fa/sms/setup')
   @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   @HttpCode(HttpStatus.OK)
@@ -367,6 +381,7 @@ export class AuthController {
     return this.authService.setupSms2FA(user.id, dto.phoneNumber);
   }
 
+  @Public()
   @Post('2fa/sms/send')
   @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   @HttpCode(HttpStatus.OK)
@@ -427,6 +442,7 @@ export class AuthController {
     return this.authService.sendSmsOtp(body.userId);
   }
 
+  @Roles(...ALL_ROLES)
   @Post('2fa/backup-codes')
   @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   @HttpCode(HttpStatus.OK)
@@ -446,6 +462,7 @@ export class AuthController {
     return this.authService.regenerateBackupCodes(user.id);
   }
 
+  @Roles(...ALL_ROLES)
   @Get('2fa/status')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
@@ -488,6 +505,7 @@ export class AuthController {
     return this.authService.impersonate(user.id, customerId, ipAddress);
   }
 
+  @Roles(...ALL_ROLES)
   @Post('end-impersonation')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'))

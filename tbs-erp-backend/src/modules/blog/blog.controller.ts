@@ -29,6 +29,7 @@ import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
+import { Public } from '@common/decorators/public.decorator';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
 import { BlogService } from './blog.service';
 import { CreateBlogPostDto } from './dto/create-blog-post.dto';
@@ -57,6 +58,7 @@ export class BlogController {
     return BaseResponse.ok(blogPost, 'Blog post created successfully');
   }
 
+  @Public()
   @Get()
   @ApiOperation({
     summary: 'List blog posts',
@@ -74,6 +76,7 @@ export class BlogController {
     );
   }
 
+  @Public()
   @Get('tags')
   @ApiOperation({
     summary: 'Get all unique tags',
@@ -85,6 +88,7 @@ export class BlogController {
     return BaseResponse.ok(tags);
   }
 
+  @Public()
   @Get(':slug')
   @ApiOperation({
     summary: 'Get blog post by slug',
