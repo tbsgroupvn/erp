@@ -140,11 +140,11 @@ Plans:
   2. Frequently filtered and sorted columns (order status, customer ID, created date, container status) have database indexes and queries use them
   3. No production code uses `console.log` — all logging goes through the injected NestJS Logger service (including notification, email, and SMS service stubs)
   4. Any query taking longer than 500ms is automatically logged with its SQL and EXPLAIN ANALYZE output
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [ ] 08-01-PLAN.md — Select projections for container/CRM list endpoints + slow query threshold adjustment to 500ms
+- [ ] 08-02-PLAN.md — Database index verification + console.log audit verification
 
 ### Phase 9: Test Suite Completion
 **Goal**: Critical service layers have unit test coverage and every hardening change made in Phases 1-8 has a regression test proving the fix works
