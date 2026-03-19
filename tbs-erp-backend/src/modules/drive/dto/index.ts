@@ -2,6 +2,7 @@ import {
   IsString,
   IsOptional,
   IsInt,
+  IsIn,
   IsArray,
   IsEnum,
   IsDateString,
@@ -13,6 +14,7 @@ import { DrivePermission } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SanitizeHtmlStrict } from '@common/decorators/sanitize-html.decorator';
+import { FILE_UPLOAD_LIMITS } from '@common/constants/file-upload.constants';
 
 export class CreateFolderDto {
   @ApiProperty({ description: 'Tên thư mục' })
@@ -38,17 +40,19 @@ export class RenameFolderDto {
 
 export class RequestUploadDto {
   @ApiProperty({ description: 'Tên file gốc' })
+  @SanitizeHtmlStrict()
   @IsString()
   filename: string;
 
-  @ApiProperty({ description: 'MIME type, ví dụ application/pdf' })
+  @ApiProperty({ description: 'MIME type, ví dụ application/pdf', enum: [...FILE_UPLOAD_LIMITS.DRIVE.allowedMimeTypes] })
   @IsString()
+  @IsIn([...FILE_UPLOAD_LIMITS.DRIVE.allowedMimeTypes])
   mimeType: string;
 
-  @ApiProperty({ description: 'Kích thước file theo byte' })
+  @ApiProperty({ description: 'Kích thước file theo byte (tối đa 25MB)' })
   @IsInt()
   @Min(1)
-  @Max(524288000) // 500MB max
+  @Max(25 * 1024 * 1024) // 25MB max
   size: number;
 
   @ApiPropertyOptional({ description: 'ID thư mục đích' })
@@ -75,16 +79,19 @@ export class ConfirmUploadDto {
   storageKey: string;
 
   @ApiProperty({ description: 'Tên file hiển thị' })
+  @SanitizeHtmlStrict()
   @IsString()
   filename: string;
 
-  @ApiProperty({ description: 'MIME type' })
+  @ApiProperty({ description: 'MIME type', enum: [...FILE_UPLOAD_LIMITS.DRIVE.allowedMimeTypes] })
   @IsString()
+  @IsIn([...FILE_UPLOAD_LIMITS.DRIVE.allowedMimeTypes])
   mimeType: string;
 
-  @ApiProperty({ description: 'Kích thước file theo byte' })
+  @ApiProperty({ description: 'Kích thước file theo byte (tối đa 25MB)' })
   @IsInt()
   @Min(1)
+  @Max(25 * 1024 * 1024) // 25MB max
   size: number;
 
   @ApiPropertyOptional({ description: 'ID thư mục đích' })
@@ -135,16 +142,19 @@ export class ShareFileDto {
 
 export class RequestNewVersionDto {
   @ApiProperty({ description: 'Tên file mới' })
+  @SanitizeHtmlStrict()
   @IsString()
   filename: string;
 
-  @ApiProperty({ description: 'MIME type' })
+  @ApiProperty({ description: 'MIME type', enum: [...FILE_UPLOAD_LIMITS.DRIVE.allowedMimeTypes] })
   @IsString()
+  @IsIn([...FILE_UPLOAD_LIMITS.DRIVE.allowedMimeTypes])
   mimeType: string;
 
-  @ApiProperty({ description: 'Kích thước file theo byte' })
+  @ApiProperty({ description: 'Kích thước file theo byte (tối đa 25MB)' })
   @IsInt()
   @Min(1)
+  @Max(25 * 1024 * 1024) // 25MB max
   size: number;
 
   @ApiPropertyOptional({ description: 'Ghi chú thay đổi' })
@@ -159,13 +169,15 @@ export class ConfirmNewVersionDto {
   @IsString()
   storageKey: string;
 
-  @ApiProperty({ description: 'Kích thước file theo byte' })
+  @ApiProperty({ description: 'Kích thước file theo byte (tối đa 25MB)' })
   @IsInt()
   @Min(1)
+  @Max(25 * 1024 * 1024) // 25MB max
   size: number;
 
-  @ApiProperty({ description: 'MIME type' })
+  @ApiProperty({ description: 'MIME type', enum: [...FILE_UPLOAD_LIMITS.DRIVE.allowedMimeTypes] })
   @IsString()
+  @IsIn([...FILE_UPLOAD_LIMITS.DRIVE.allowedMimeTypes])
   mimeType: string;
 
   @ApiPropertyOptional({ description: 'Ghi chú thay đổi' })
