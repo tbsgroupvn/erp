@@ -674,6 +674,57 @@ describe('CustomsStatusMachine', () => {
       ).toBe(false);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Exhaustive transition matrix
+  // ---------------------------------------------------------------------------
+  describe('exhaustive transition matrix', () => {
+    const validPairs: [CustomsDeclarationStatus, CustomsDeclarationStatus][] = [
+      // DRAFT -> 2
+      [CustomsDeclarationStatus.DRAFT, CustomsDeclarationStatus.READY],
+      [CustomsDeclarationStatus.DRAFT, CustomsDeclarationStatus.CANCELLED],
+      // READY -> 3
+      [CustomsDeclarationStatus.READY, CustomsDeclarationStatus.SUBMITTED],
+      [CustomsDeclarationStatus.READY, CustomsDeclarationStatus.DRAFT],
+      [CustomsDeclarationStatus.READY, CustomsDeclarationStatus.CANCELLED],
+      // SUBMITTED -> 3
+      [CustomsDeclarationStatus.SUBMITTED, CustomsDeclarationStatus.CHANNEL_ASSIGNED],
+      [CustomsDeclarationStatus.SUBMITTED, CustomsDeclarationStatus.REJECTED],
+      [CustomsDeclarationStatus.SUBMITTED, CustomsDeclarationStatus.CANCELLED],
+      // CHANNEL_ASSIGNED -> 2
+      [CustomsDeclarationStatus.CHANNEL_ASSIGNED, CustomsDeclarationStatus.INSPECTING],
+      [CustomsDeclarationStatus.CHANNEL_ASSIGNED, CustomsDeclarationStatus.CLEARED],
+      // INSPECTING -> 2
+      [CustomsDeclarationStatus.INSPECTING, CustomsDeclarationStatus.CLEARED],
+      [CustomsDeclarationStatus.INSPECTING, CustomsDeclarationStatus.REJECTED],
+      // REJECTED -> 1
+      [CustomsDeclarationStatus.REJECTED, CustomsDeclarationStatus.DRAFT],
+    ];
+
+    const allStatuses = Object.values(CustomsDeclarationStatus);
+
+    it('should have exactly 13 valid transitions in the entire FSM', () => {
+      let validCount = 0;
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (machine.validateTransition(from, to)) {
+            validCount++;
+          }
+        }
+      }
+      expect(validCount).toBe(validPairs.length);
+    });
+
+    it('should throw for every invalid transition', () => {
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (!machine.validateTransition(from, to)) {
+            expect(() => machine.assertTransition(from, to)).toThrow(BadRequestException);
+          }
+        }
+      }
+    });
+  });
 });
 
 // =============================================================================

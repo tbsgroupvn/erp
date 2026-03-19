@@ -479,4 +479,55 @@ describe('ContainerStatusMachine', () => {
       expect(machine.validateTransition(ContainerStatus.PLANNING, 'NONEXISTENT' as ContainerStatus)).toBe(false);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Exhaustive transition matrix
+  // ---------------------------------------------------------------------------
+  describe('exhaustive transition matrix', () => {
+    const validPairs: [ContainerStatus, ContainerStatus][] = [
+      // PLANNING -> 1
+      [ContainerStatus.PLANNING, ContainerStatus.LOADING],
+      // LOADING -> 1
+      [ContainerStatus.LOADING, ContainerStatus.IN_TRANSIT],
+      // IN_TRANSIT -> 2
+      [ContainerStatus.IN_TRANSIT, ContainerStatus.ARRIVED],
+      [ContainerStatus.IN_TRANSIT, ContainerStatus.ON_HOLD_BORDER],
+      // ON_HOLD_BORDER -> 2
+      [ContainerStatus.ON_HOLD_BORDER, ContainerStatus.IN_TRANSIT],
+      [ContainerStatus.ON_HOLD_BORDER, ContainerStatus.ARRIVED],
+      // ARRIVED -> 1
+      [ContainerStatus.ARRIVED, ContainerStatus.CUSTOMS],
+      // CUSTOMS -> 2
+      [ContainerStatus.CUSTOMS, ContainerStatus.COMPLETED],
+      [ContainerStatus.CUSTOMS, ContainerStatus.CUSTOMS_HOLD],
+      // CUSTOMS_HOLD -> 2
+      [ContainerStatus.CUSTOMS_HOLD, ContainerStatus.CUSTOMS],
+      [ContainerStatus.CUSTOMS_HOLD, ContainerStatus.COMPLETED],
+      // COMPLETED -> 0 (terminal)
+    ];
+
+    const allStatuses = Object.values(ContainerStatus);
+
+    it('should have exactly 11 valid transitions in the entire FSM', () => {
+      let validCount = 0;
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (machine.validateTransition(from, to)) {
+            validCount++;
+          }
+        }
+      }
+      expect(validCount).toBe(validPairs.length);
+    });
+
+    it('should throw for every invalid transition', () => {
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (!machine.validateTransition(from, to)) {
+            expect(() => machine.assertTransition(from, to)).toThrow(BadRequestException);
+          }
+        }
+      }
+    });
+  });
 });

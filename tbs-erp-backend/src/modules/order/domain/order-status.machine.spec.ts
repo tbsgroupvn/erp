@@ -114,9 +114,13 @@ describe('OrderStatusMachine', () => {
   describe('TC-ORD-003: Terminal statuses cannot transition', () => {
     const allStatuses = Object.values(OrderStatus);
 
-    it('should not allow any transition from COMPLETED', () => {
+    it('should not allow any transition from COMPLETED except COMPLETED -> SETTLEMENT (reopen)', () => {
       for (const target of allStatuses) {
-        expect(fsm.validateTransition(OrderStatus.COMPLETED, target)).toBe(false);
+        if (target === OrderStatus.SETTLEMENT) {
+          expect(fsm.validateTransition(OrderStatus.COMPLETED, target)).toBe(true);
+        } else {
+          expect(fsm.validateTransition(OrderStatus.COMPLETED, target)).toBe(false);
+        }
       }
     });
 
@@ -126,8 +130,8 @@ describe('OrderStatusMachine', () => {
       }
     });
 
-    it('should have COMPLETED in the transition map with empty targets', () => {
-      expect(fsm.getNextStatuses(OrderStatus.COMPLETED)).toEqual([]);
+    it('should have COMPLETED with only SETTLEMENT as valid target (reopen by BGD)', () => {
+      expect(fsm.getNextStatuses(OrderStatus.COMPLETED)).toEqual([OrderStatus.SETTLEMENT]);
     });
 
     it('should have CANCELLED in the transition map with empty targets', () => {
@@ -408,9 +412,15 @@ describe('OrderStatusMachine', () => {
       ).not.toThrow();
     });
 
-    it('should throw for terminal -> any transition', () => {
+    it('should NOT throw for COMPLETED -> SETTLEMENT (reopen by BGD)', () => {
       expect(() =>
         fsm.assertTransition(OrderStatus.COMPLETED, OrderStatus.SETTLEMENT),
+      ).not.toThrow();
+    });
+
+    it('should throw for COMPLETED -> CONSULTING (terminal blocks non-SETTLEMENT)', () => {
+      expect(() =>
+        fsm.assertTransition(OrderStatus.COMPLETED, OrderStatus.CONSULTING),
       ).toThrow(BadRequestException);
     });
 
@@ -517,8 +527,8 @@ describe('OrderStatusMachine', () => {
       expect(targets).toHaveLength(4);
     });
 
-    it('should return empty array for COMPLETED', () => {
-      expect(fsm.getNextStatuses(OrderStatus.COMPLETED)).toEqual([]);
+    it('should return [SETTLEMENT] for COMPLETED (reopen)', () => {
+      expect(fsm.getNextStatuses(OrderStatus.COMPLETED)).toEqual([OrderStatus.SETTLEMENT]);
     });
 
     it('should return empty array for CANCELLED', () => {
@@ -669,6 +679,181 @@ describe('OrderStatusMachine', () => {
 
     it('should reject WAREHOUSE_VN -> COMPLETED', () => {
       expect(fsm.validateTransition(OrderStatus.WAREHOUSE_VN, OrderStatus.COMPLETED)).toBe(false);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────
+  // Exhaustive transition matrix (no serviceType)
+  // ─────────────────────────────────────────────────────────
+  describe('exhaustive transition matrix (no serviceType)', () => {
+    const validPairs: [OrderStatus, OrderStatus][] = [
+      // CONSULTING -> 4
+      [OrderStatus.CONSULTING, OrderStatus.QUOTATION],
+      [OrderStatus.CONSULTING, OrderStatus.ON_HOLD],
+      [OrderStatus.CONSULTING, OrderStatus.CANCELLED],
+      [OrderStatus.CONSULTING, OrderStatus.ISSUE],
+      // QUOTATION -> 5
+      [OrderStatus.QUOTATION, OrderStatus.PENDING_DEPOSIT],
+      [OrderStatus.QUOTATION, OrderStatus.SOURCING],
+      [OrderStatus.QUOTATION, OrderStatus.ON_HOLD],
+      [OrderStatus.QUOTATION, OrderStatus.CANCELLED],
+      [OrderStatus.QUOTATION, OrderStatus.ISSUE],
+      // PENDING_DEPOSIT -> 4
+      [OrderStatus.PENDING_DEPOSIT, OrderStatus.SOURCING],
+      [OrderStatus.PENDING_DEPOSIT, OrderStatus.ON_HOLD],
+      [OrderStatus.PENDING_DEPOSIT, OrderStatus.CANCELLED],
+      [OrderStatus.PENDING_DEPOSIT, OrderStatus.ISSUE],
+      // SOURCING -> 4
+      [OrderStatus.SOURCING, OrderStatus.WAREHOUSE_CN],
+      [OrderStatus.SOURCING, OrderStatus.ON_HOLD],
+      [OrderStatus.SOURCING, OrderStatus.CANCELLED],
+      [OrderStatus.SOURCING, OrderStatus.ISSUE],
+      // WAREHOUSE_CN -> 4
+      [OrderStatus.WAREHOUSE_CN, OrderStatus.PACKING],
+      [OrderStatus.WAREHOUSE_CN, OrderStatus.ON_HOLD],
+      [OrderStatus.WAREHOUSE_CN, OrderStatus.CANCELLED],
+      [OrderStatus.WAREHOUSE_CN, OrderStatus.ISSUE],
+      // PACKING -> 4
+      [OrderStatus.PACKING, OrderStatus.CONSOLIDATION],
+      [OrderStatus.PACKING, OrderStatus.ON_HOLD],
+      [OrderStatus.PACKING, OrderStatus.CANCELLED],
+      [OrderStatus.PACKING, OrderStatus.ISSUE],
+      // CONSOLIDATION -> 4
+      [OrderStatus.CONSOLIDATION, OrderStatus.IN_TRANSIT],
+      [OrderStatus.CONSOLIDATION, OrderStatus.ON_HOLD],
+      [OrderStatus.CONSOLIDATION, OrderStatus.CANCELLED],
+      [OrderStatus.CONSOLIDATION, OrderStatus.ISSUE],
+      // IN_TRANSIT -> 4
+      [OrderStatus.IN_TRANSIT, OrderStatus.CUSTOMS],
+      [OrderStatus.IN_TRANSIT, OrderStatus.ON_HOLD],
+      [OrderStatus.IN_TRANSIT, OrderStatus.ISSUE],
+      [OrderStatus.IN_TRANSIT, OrderStatus.RETURNED],
+      // CUSTOMS -> 4
+      [OrderStatus.CUSTOMS, OrderStatus.WAREHOUSE_VN],
+      [OrderStatus.CUSTOMS, OrderStatus.ON_HOLD],
+      [OrderStatus.CUSTOMS, OrderStatus.ISSUE],
+      [OrderStatus.CUSTOMS, OrderStatus.RETURNED],
+      // WAREHOUSE_VN -> 4
+      [OrderStatus.WAREHOUSE_VN, OrderStatus.DELIVERING],
+      [OrderStatus.WAREHOUSE_VN, OrderStatus.ON_HOLD],
+      [OrderStatus.WAREHOUSE_VN, OrderStatus.ISSUE],
+      [OrderStatus.WAREHOUSE_VN, OrderStatus.RETURNED],
+      // DELIVERING -> 4
+      [OrderStatus.DELIVERING, OrderStatus.SETTLEMENT],
+      [OrderStatus.DELIVERING, OrderStatus.ON_HOLD],
+      [OrderStatus.DELIVERING, OrderStatus.ISSUE],
+      [OrderStatus.DELIVERING, OrderStatus.RETURNED],
+      // SETTLEMENT -> 4
+      [OrderStatus.SETTLEMENT, OrderStatus.COMPLETED],
+      [OrderStatus.SETTLEMENT, OrderStatus.ON_HOLD],
+      [OrderStatus.SETTLEMENT, OrderStatus.ISSUE],
+      [OrderStatus.SETTLEMENT, OrderStatus.RETURNED],
+      // COMPLETED -> 1 (terminal exception: reopen to SETTLEMENT)
+      [OrderStatus.COMPLETED, OrderStatus.SETTLEMENT],
+      // CANCELLED -> 0 (terminal, no exceptions)
+      // RETURNED -> 0 (dead end, no outgoing)
+      // ON_HOLD -> 15 (all 13 lifecycle + CANCELLED + ISSUE)
+      [OrderStatus.ON_HOLD, OrderStatus.CONSULTING],
+      [OrderStatus.ON_HOLD, OrderStatus.QUOTATION],
+      [OrderStatus.ON_HOLD, OrderStatus.PENDING_DEPOSIT],
+      [OrderStatus.ON_HOLD, OrderStatus.SOURCING],
+      [OrderStatus.ON_HOLD, OrderStatus.WAREHOUSE_CN],
+      [OrderStatus.ON_HOLD, OrderStatus.PACKING],
+      [OrderStatus.ON_HOLD, OrderStatus.CONSOLIDATION],
+      [OrderStatus.ON_HOLD, OrderStatus.IN_TRANSIT],
+      [OrderStatus.ON_HOLD, OrderStatus.CUSTOMS],
+      [OrderStatus.ON_HOLD, OrderStatus.WAREHOUSE_VN],
+      [OrderStatus.ON_HOLD, OrderStatus.DELIVERING],
+      [OrderStatus.ON_HOLD, OrderStatus.SETTLEMENT],
+      [OrderStatus.ON_HOLD, OrderStatus.COMPLETED],
+      [OrderStatus.ON_HOLD, OrderStatus.CANCELLED],
+      [OrderStatus.ON_HOLD, OrderStatus.ISSUE],
+      // ISSUE -> 15 (all 13 lifecycle + ON_HOLD + CANCELLED)
+      [OrderStatus.ISSUE, OrderStatus.CONSULTING],
+      [OrderStatus.ISSUE, OrderStatus.QUOTATION],
+      [OrderStatus.ISSUE, OrderStatus.PENDING_DEPOSIT],
+      [OrderStatus.ISSUE, OrderStatus.SOURCING],
+      [OrderStatus.ISSUE, OrderStatus.WAREHOUSE_CN],
+      [OrderStatus.ISSUE, OrderStatus.PACKING],
+      [OrderStatus.ISSUE, OrderStatus.CONSOLIDATION],
+      [OrderStatus.ISSUE, OrderStatus.IN_TRANSIT],
+      [OrderStatus.ISSUE, OrderStatus.CUSTOMS],
+      [OrderStatus.ISSUE, OrderStatus.WAREHOUSE_VN],
+      [OrderStatus.ISSUE, OrderStatus.DELIVERING],
+      [OrderStatus.ISSUE, OrderStatus.SETTLEMENT],
+      [OrderStatus.ISSUE, OrderStatus.COMPLETED],
+      [OrderStatus.ISSUE, OrderStatus.ON_HOLD],
+      [OrderStatus.ISSUE, OrderStatus.CANCELLED],
+    ];
+
+    const allStatuses = Object.values(OrderStatus);
+
+    it('should have exactly 80 valid transitions in the entire FSM (no serviceType)', () => {
+      let validCount = 0;
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (fsm.validateTransition(from, to)) {
+            validCount++;
+          }
+        }
+      }
+      expect(validCount).toBe(validPairs.length);
+    });
+
+    it('should throw for every invalid transition (no serviceType)', () => {
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (!fsm.validateTransition(from, to)) {
+            expect(() => fsm.assertTransition(from, to)).toThrow(BadRequestException);
+          }
+        }
+      }
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────
+  // Exhaustive transition matrix (MHH serviceType)
+  // ─────────────────────────────────────────────────────────
+  describe('exhaustive transition matrix (MHH serviceType)', () => {
+    const allStatuses = Object.values(OrderStatus);
+
+    it('should have exactly 79 valid transitions for MHH (1 fewer than default)', () => {
+      let validCount = 0;
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (fsm.validateTransition(from, to, ServiceType.MHH)) {
+            validCount++;
+          }
+        }
+      }
+      // MHH blocks QUOTATION->SOURCING, so 80 - 1 = 79
+      expect(validCount).toBe(79);
+    });
+
+    it('should confirm QUOTATION->SOURCING is the only difference from default', () => {
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          const defaultResult = fsm.validateTransition(from, to);
+          const mhhResult = fsm.validateTransition(from, to, ServiceType.MHH);
+          if (defaultResult !== mhhResult) {
+            // The only difference should be QUOTATION->SOURCING
+            expect(from).toBe(OrderStatus.QUOTATION);
+            expect(to).toBe(OrderStatus.SOURCING);
+            expect(defaultResult).toBe(true);
+            expect(mhhResult).toBe(false);
+          }
+        }
+      }
+    });
+
+    it('should throw for every invalid MHH transition', () => {
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (!fsm.validateTransition(from, to, ServiceType.MHH)) {
+            expect(() => fsm.assertTransition(from, to, ServiceType.MHH)).toThrow(BadRequestException);
+          }
+        }
+      }
     });
   });
 });
