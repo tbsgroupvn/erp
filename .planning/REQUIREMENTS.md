@@ -35,8 +35,8 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 - [x] **DAT-06**: Application enables NestJS shutdown hooks with graceful BullMQ worker close and Prisma disconnect
 - [x] **DAT-07**: Deposit gate enforces correct tier-based rates (NEW=100%, REGULAR=70%, VIP=50%, STRATEGIC=30%) and blocks purchase request if deposit insufficient
 - [x] **DAT-08**: Anti-fraud checks BLOCK vouchers missing order code, on closed orders, missing docs, or wrong owner; FLAG when total cost > 90% revenue
-- [ ] **DAT-09**: Auto-block customer when AR aging exceeds 90 days — prevents new orders and delivery
-- [ ] **DAT-10**: COD enforcement blocks driver from new assignments if COD not submitted within 24 hours
+- [x] **DAT-09**: Auto-block customer when AR aging exceeds 90 days — prevents new orders and delivery
+- [x] **DAT-10**: COD enforcement blocks driver from new assignments if COD not submitted within 24 hours
 - [ ] **DAT-11**: Approval escalation auto-escalates to next level when approver exceeds SLA (per Phan 5 matrix)
 
 ### Performance
@@ -105,8 +105,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | DAT-06 | Phase 3 | Complete |
 | DAT-07 | Phase 7 | Complete |
 | DAT-08 | Phase 7 | Complete |
-| DAT-09 | Phase 7 | Pending |
-| DAT-10 | Phase 7 | Pending |
+| DAT-09 | Phase 7 | Complete |
+| DAT-10 | Phase 7 | Complete |
 | DAT-11 | Phase 7 | Pending |
 | PERF-01 | Phase 8 | Pending |
 | PERF-02 | Phase 8 | Pending |
