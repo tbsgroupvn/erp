@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 8 context gathered
-last_updated: "2026-03-19T15:33:46.363Z"
-last_activity: 2026-03-19 -- Completed Plan 07-03 (Approval Escalation Listener + SLA Tests)
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-03-19T16:02:34.000Z"
+last_activity: 2026-03-19 -- Completed Plan 08-01 (Select Projections + Slow Query Thresholds)
 progress:
   total_phases: 9
   completed_phases: 7
-  total_plans: 20
-  completed_plans: 20
-  percent: 100
+  total_plans: 22
+  completed_plans: 21
+  percent: 95
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** The order lifecycle (17+ statuses across 9 FSMs) must be bulletproof — no state can be skipped, no unauthorized role can mutate data, and no query can bottleneck under production load.
-**Current focus:** Phase 7: Business Rule Enforcement (COMPLETE) -- Phase 8 next
+**Current focus:** Phase 8: Query Performance Optimization (IN PROGRESS)
 
 ## Current Position
 
-Phase: 7 of 9 (Business Rule Enforcement) -- COMPLETE
-Plan: 3 of 3 in current phase (07-03 complete)
+Phase: 8 of 9 (Query Performance Optimization)
+Plan: 1 of 2 in current phase (08-01 complete)
 Status: In Progress
-Last activity: 2026-03-19 -- Completed Plan 07-03 (Approval Escalation Listener + SLA Tests)
+Last activity: 2026-03-19 -- Completed Plan 08-01 (Select Projections + Slow Query Thresholds)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 95%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
+- Total plans completed: 21
 - Average duration: 6min
-- Total execution time: 1.47 hours
+- Total execution time: 1.53 hours
 
 **By Phase:**
 
@@ -50,9 +50,10 @@ Progress: [██████████] 100%
 | 05-rbac-audit-coverage | 2/2 | 29min | 15min |
 | 06-fsm-verification | 2/2 | 12min | 6min |
 | 07-business-rule-enforcement | 3/3 | 10min | 3min |
+| 08-query-performance-optimization | 1/2 | 4min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 06-02 (6min), 07-01 (4min), 07-02 (3min), 07-03 (3min)
+- Last 5 plans: 07-01 (4min), 07-02 (3min), 07-03 (3min), 08-01 (4min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -63,6 +64,7 @@ Progress: [██████████] 100%
 | Phase 07 P01 | 4min | 2 tasks | 2 files |
 | Phase 07 P02 | 3min | 2 tasks | 3 files |
 | Phase 07 P03 | 3min | 2 tasks | 4 files |
+| Phase 08 P01 | 4min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -121,6 +123,9 @@ Recent decisions affecting current work:
 - [07-03]: Used AUTO_ESCALATE enum value (exists in Prisma schema) instead of DELEGATE for escalation action logging
 - [07-03]: Skipped escalatedFrom field in step update since ApprovalStep model lacks this column -- tracked via action log comment
 - [07-03]: Manual new ApprovalService() instantiation for test isolation matching Phase 6-7 pattern
+- [08-01]: select projection return type changed to any[] to avoid TypeScript errors from narrowed Prisma types
+- [08-01]: EXPLAIN (not EXPLAIN ANALYZE) used for slow query diagnostics -- plans only, no re-execution in production
+- [08-01]: EXPLAIN wrapped in try/catch because parameterized queries with $1/$2 placeholders cannot be directly EXPLAINed
 
 ### Pending Todos
 
@@ -133,6 +138,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T15:33:46.357Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-query-performance-optimization/08-CONTEXT.md
+Last session: 2026-03-19T16:02:34.000Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: .planning/phases/08-query-performance-optimization/08-02-PLAN.md

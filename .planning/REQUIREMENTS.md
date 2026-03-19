@@ -41,10 +41,10 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 
 ### Performance
 
-- [ ] **PERF-01**: List endpoints use `select` projections instead of `include` for all relations (fix N+1 in order-read, container, CRM)
+- [x] **PERF-01**: List endpoints use `select` projections instead of `include` for all relations (fix N+1 in order-read, container, CRM)
 - [ ] **PERF-02**: Missing database indexes identified and added for frequently filtered/sorted columns
 - [ ] **PERF-03**: All modules use injected NestJS logger instead of `console.log` (replace stubs in notification, email, SMS services)
-- [ ] **PERF-04**: Slow query logging enabled — queries exceeding 500ms are logged with EXPLAIN ANALYZE output
+- [x] **PERF-04**: Slow query logging enabled — queries exceeding 500ms are logged with EXPLAIN ANALYZE output
 
 ### Testing
 
@@ -108,10 +108,10 @@ Deferred to future release. Tracked but not in current roadmap.
 | DAT-09 | Phase 7 | Complete |
 | DAT-10 | Phase 7 | Complete |
 | DAT-11 | Phase 7 | Complete |
-| PERF-01 | Phase 8 | Pending |
+| PERF-01 | Phase 8 | Complete |
 | PERF-02 | Phase 8 | Pending |
 | PERF-03 | Phase 8 | Pending |
-| PERF-04 | Phase 8 | Pending |
+| PERF-04 | Phase 8 | Complete |
 | TEST-01 | Phase 9 | Pending |
 | TEST-02 | Phase 9 | Pending |
 | TEST-03 | Phase 9 | Pending |
