@@ -48,7 +48,7 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 
 ### Testing
 
-- [ ] **TEST-01**: Service-level unit tests exist for OrderService covering create, update status, cancel, and reopen flows
+- [x] **TEST-01**: Service-level unit tests exist for OrderService covering create, update status, cancel, and reopen flows
 - [ ] **TEST-02**: Service-level unit tests exist for AuthService covering login, 2FA verification, token refresh, and logout
 - [ ] **TEST-03**: Service-level unit tests exist for GeneralLedgerService covering journal entry creation and period close
 - [ ] **TEST-04**: All hardening changes include regression tests that verify the fix
@@ -112,7 +112,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | PERF-02 | Phase 8 | Complete |
 | PERF-03 | Phase 8 | Complete |
 | PERF-04 | Phase 8 | Complete |
-| TEST-01 | Phase 9 | Pending |
+| TEST-01 | Phase 9 | Complete |
 | TEST-02 | Phase 9 | Pending |
 | TEST-03 | Phase 9 | Pending |
 | TEST-04 | Phase 9 | Pending |
