@@ -155,11 +155,11 @@ Plans:
   2. AuthService unit tests cover login, 2FA verification, token refresh, and logout — including expired token and invalid TOTP scenarios
   3. GeneralLedgerService unit tests cover journal entry creation and period close — including double-entry balance verification
   4. Every fix from Phases 1-8 has at least one regression test that would fail if the fix were reverted
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 09-01: TBD
-- [ ] 09-02: TBD
+- [ ] 09-01-PLAN.md — OrderService, OrderStatusService, OrderCancellationService unit tests (create, status change, cancel, reopen)
+- [ ] 09-02-PLAN.md — AuthService extension (verifyLoginOtp, refreshToken), GeneralLedgerService tests, Phase 4-5 regression specs
 
 ## Progress
 
