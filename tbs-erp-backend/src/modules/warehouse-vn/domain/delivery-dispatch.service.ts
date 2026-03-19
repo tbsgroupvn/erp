@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '@core/database/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Branch, DeliveryStatus, Prisma } from '@prisma/client';
@@ -133,6 +133,23 @@ export class DeliveryDispatchService {
    * B1: Validates payment status before dispatch.
    */
   async assignDriver(deliveryIds: string[], driverId: string, vehicleId?: string): Promise<void> {
+    // P0-4: Check if driver is COD-blocked (>24h unreturned COD)
+    const driver = await this.prisma.driver.findUnique({
+      where: { id: driverId },
+      select: { id: true, fullName: true, isCODBlocked: true },
+    });
+
+    if (!driver) {
+      throw new NotFoundException(`Driver with ID ${driverId} not found`);
+    }
+
+    if (driver.isCODBlocked) {
+      throw new ForbiddenException(
+        `Tài xế ${driver.fullName} đang bị chặn giao hàng do chưa nộp COD quá 24h. ` +
+          'Vui lòng nộp COD trước khi nhận chuyến mới.',
+      );
+    }
+
     // B1: Payment validation before driver assignment (dispatch)
     const deliveries = await this.prisma.delivery.findMany({
       where: { id: { in: deliveryIds } },
@@ -154,10 +171,22 @@ export class DeliveryDispatchService {
             tempOverdraftLimit: true,
             tempOverdraftExpiry: true,
             gracePeriodUntil: true,
+            isBlocked: true,
+            blockReason: true,
           },
         },
       },
     });
+
+    // DAT-09: Block delivery for customers with AR aging auto-block
+    for (const orderData of ordersWithCustomer) {
+      if (orderData.customer.isBlocked) {
+        throw new ForbiddenException(
+          `Khong the giao hang. Khach hang cua don ${orderData.code} da bi chan do cong no qua han. ` +
+            `Ly do: ${orderData.customer.blockReason}. Vui long lien he bo phan tai chinh.`,
+        );
+      }
+    }
 
     for (const orderData of ordersWithCustomer) {
       const paymentAgg = await this.prisma.paymentAllocation.aggregate({
