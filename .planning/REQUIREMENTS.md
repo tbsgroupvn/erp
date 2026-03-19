@@ -19,8 +19,8 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 ### Security & RBAC
 
 - [x] **SEC-01**: Every controller method has explicit `@Roles()` decorator (or is explicitly marked `@Public()`)
-- [ ] **SEC-02**: Integration test exists that scans all controller methods via NestJS reflection and asserts RBAC decorator presence
-- [ ] **SEC-03**: All 22 roles have correct data scoping — Sales sees only own customers, CEO sees all, etc.
+- [x] **SEC-02**: Integration test exists that scans all controller methods via NestJS reflection and asserts RBAC decorator presence
+- [x] **SEC-03**: All 22 roles have correct data scoping — Sales sees only own customers, CEO sees all, etc.
 - [x] **SEC-04**: Rate limiting applied to complaint submission (5/hour), bulk import endpoints, and all public-facing endpoints
 - [x] **SEC-05**: HTML sanitization decorator applied to all user-input text fields (comments, notes, descriptions)
 - [x] **SEC-06**: File upload endpoints validate file size limits and allowed MIME types
@@ -92,8 +92,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | ERR-05 | Phase 2 | Complete |
 | ERR-06 | Phase 1 | Complete |
 | SEC-01 | Phase 5 | Complete |
-| SEC-02 | Phase 5 | Pending |
-| SEC-03 | Phase 5 | Pending |
+| SEC-02 | Phase 5 | Complete |
+| SEC-03 | Phase 5 | Complete |
 | SEC-04 | Phase 4 | Complete |
 | SEC-05 | Phase 4 | Complete |
 | SEC-06 | Phase 4 | Complete |

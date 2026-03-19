@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: Frontend Error Handling** - Error boundaries, user-friendly toast notifications, and crash prevention across all frontend routes
 - [ ] **Phase 3: Transaction Consistency** - Prisma interactive transactions for all multi-write operations, outbox-safe event emission, and graceful shutdown
 - [x] **Phase 4: Input Validation & Rate Limiting** - HTML sanitization, file upload validation, and rate limiting on vulnerable endpoints (completed 2026-03-19)
-- [ ] **Phase 5: RBAC Audit & Coverage** - Complete @Roles() decorator audit, data scoping verification, and automated RBAC coverage test
+- [x] **Phase 5: RBAC Audit & Coverage** - Complete @Roles() decorator audit, data scoping verification, and automated RBAC coverage test (completed 2026-03-19)
 - [ ] **Phase 6: FSM Verification** - Negative-path tests for all 9 FSMs, full order and container lifecycle integration tests
 - [ ] **Phase 7: Business Rule Enforcement** - Deposit gate, anti-fraud checks, AR aging auto-block, COD enforcement, and approval escalation
 - [ ] **Phase 8: Query Performance Optimization** - Select projections, database indexes, structured logging, and slow query detection
@@ -94,7 +94,7 @@ Plans:
   1. Running the RBAC integration test confirms every controller method has either a `@Roles()` decorator or an explicit `@Public()` marker — zero undecorated methods
   2. A Sales user querying customers sees only their own customers; a CEO querying the same endpoint sees all customers
   3. Attempting to access an endpoint without the required role returns a structured 403 Forbidden response with the user's role and the required role in the error detail
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 05-01-PLAN.md — RolesGuard DomainException upgrade, ALL_ROLES constant, add @Roles/@Public to 14 undecorated controllers
@@ -171,7 +171,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 2. Frontend Error Handling | 1/3 | In progress | - |
 | 3. Transaction Consistency | 0/2 | Not started | - |
 | 4. Input Validation & Rate Limiting | 4/4 | Complete   | 2026-03-19 |
-| 5. RBAC Audit & Coverage | 0/2 | Not started | - |
+| 5. RBAC Audit & Coverage | 2/2 | Complete   | 2026-03-19 |
 | 6. FSM Verification | 0/2 | Not started | - |
 | 7. Business Rule Enforcement | 0/2 | Not started | - |
 | 8. Query Performance Optimization | 0/2 | Not started | - |
