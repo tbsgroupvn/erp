@@ -30,8 +30,14 @@ export default registerAs('business', () => ({
     saleContactHours: 2,
     quotationHours: 4,
     approvalHours: 2,
+    pendingDepositDays: 3,
+    sourcingDays: 7,
     warehouseReceiptHours: 24,
+    packingHours: 48,
+    inTransitDays: 15,
+    customsDays: 5,
     deliveryDays: 3,
+    settlementDays: 7,
   },
 
   // ─── Anti-Fraud Rules ───
@@ -96,7 +102,10 @@ export default registerAs('business', () => ({
   // ─── Rate Limiting (as config, not just decorator) ───
   rateLimit: {
     login: parseInt(process.env.LOGIN_RATE_LIMIT || '5', 10),
-    api: parseInt(process.env.API_RATE_LIMIT || '100', 10),
+    api: parseInt(process.env.API_RATE_LIMIT || '60', 10),
+    complaintPerHour: parseInt(process.env.COMPLAINT_RATE_LIMIT || '5', 10),
+    bulkImportPerHour: parseInt(process.env.BULK_IMPORT_RATE_LIMIT || '3', 10),
+    publicPerMinute: parseInt(process.env.PUBLIC_RATE_LIMIT || '10', 10),
   },
 
   // ─── Weight / CW Alerts ───

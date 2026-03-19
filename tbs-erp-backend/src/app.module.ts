@@ -144,6 +144,7 @@ import { ConsentModule } from '@modules/consent/consent.module';
 // Common Services
 import { SLAMonitorService } from '@common/services/sla-monitor.service';
 import { CsrfGuard } from '@common/guards/csrf.guard';
+import { CustomThrottlerGuard } from '@common/guards/custom-throttler.guard';
 import { HttpExceptionFilter } from '@common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from '@common/filters/prisma-exception.filter';
 import { SentryExceptionFilter } from '@common/filters/sentry-exception.filter';
@@ -155,6 +156,10 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
     {
       provide: APP_GUARD,
       useClass: CsrfGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard,
     },
     // Filter registration order: registered first = runs last (NestJS reverses order)
     // HttpExceptionFilter (fallback) -> PrismaExceptionFilter -> SentryExceptionFilter (catch-all, runs first)
@@ -191,7 +196,7 @@ import { APP_GUARD, APP_FILTER } from '@nestjs/core';
       validationSchema: envValidationSchema,
     }),
 
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
 
     ScheduleModule.forRoot(),
 

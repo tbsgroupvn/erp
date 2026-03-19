@@ -13,6 +13,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Cron } from '@nestjs/schedule';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from '@core/database/prisma.service';
 import { wsError } from './ws-error.util';
@@ -34,6 +35,7 @@ import { ErrorCode } from '@common/exceptions';
  *
  * Namespace: /ws
  */
+@SkipThrottle()
 @WebSocketGateway({
   cors: {
     origin: process.env.CORS_ORIGIN?.split(',') || [
