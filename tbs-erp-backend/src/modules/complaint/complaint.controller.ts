@@ -25,6 +25,7 @@ import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginated } from '@common/decorators/api-paginated.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
+import { Throttle } from '@nestjs/throttler';
 import { ResolutionType, UserRole } from '@prisma/client';
 import { ComplaintService } from './complaint.service';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
@@ -39,6 +40,7 @@ export class ComplaintController {
   constructor(private readonly complaintService: ComplaintService) {}
 
   @Post()
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Roles(UserRole.CSKH, UserRole.SALE, UserRole.SALES_LEADER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({

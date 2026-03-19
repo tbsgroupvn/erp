@@ -11,6 +11,7 @@ import { SubmitContactDto } from './dto/submit-contact.dto';
 import { SubscribeNewsletterDto } from './dto/subscribe-newsletter.dto';
 import { UnsubscribeNewsletterDto } from './dto/unsubscribe-newsletter.dto';
 
+@Throttle({ default: { limit: 10, ttl: 60000 } }) // SEC-04: 10 req/min for public endpoints
 @Controller('public/cms')
 export class PublicCmsController {
   constructor(

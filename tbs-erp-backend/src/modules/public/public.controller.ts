@@ -8,6 +8,7 @@ import {
   Param,
   NotFoundException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { BaseResponse } from '@common/dto/base-response.dto';
 import { Public } from '@common/decorators/public.decorator';
@@ -15,6 +16,7 @@ import { PublicService } from './public.service';
 import { CaptureLeadDto } from './dto/capture-lead.dto';
 
 @ApiTags('Public')
+@Throttle({ default: { limit: 10, ttl: 60000 } }) // SEC-04: 10 req/min for public endpoints
 @Controller('public')
 export class PublicController {
   constructor(private readonly publicService: PublicService) {}
