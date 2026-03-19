@@ -306,4 +306,46 @@ describe('QuotationStatusMachine', () => {
       expect(machine.isTerminal(QuotationStatus.REJECTED)).toBe(false);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Exhaustive transition matrix
+  // ---------------------------------------------------------------------------
+  describe('exhaustive transition matrix', () => {
+    const validPairs: [QuotationStatus, QuotationStatus][] = [
+      // DRAFT -> 1
+      [QuotationStatus.DRAFT, QuotationStatus.PENDING_APPROVAL],
+      // PENDING_APPROVAL -> 2
+      [QuotationStatus.PENDING_APPROVAL, QuotationStatus.APPROVED],
+      [QuotationStatus.PENDING_APPROVAL, QuotationStatus.REJECTED],
+      // APPROVED -> 2
+      [QuotationStatus.APPROVED, QuotationStatus.CONVERTED],
+      [QuotationStatus.APPROVED, QuotationStatus.EXPIRED],
+      // REJECTED -> 1
+      [QuotationStatus.REJECTED, QuotationStatus.DRAFT],
+    ];
+
+    const allStatuses = Object.values(QuotationStatus);
+
+    it('should have exactly 6 valid transitions in the entire FSM', () => {
+      let validCount = 0;
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (machine.validateTransition(from, to)) {
+            validCount++;
+          }
+        }
+      }
+      expect(validCount).toBe(validPairs.length);
+    });
+
+    it('should throw for every invalid transition', () => {
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (!machine.validateTransition(from, to)) {
+            expect(() => machine.assertTransition(from, to)).toThrow(BadRequestException);
+          }
+        }
+      }
+    });
+  });
 });

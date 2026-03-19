@@ -192,4 +192,37 @@ describe('WarehouseVNStatusMachine', () => {
       }
     });
   });
+
+  // ── Exhaustive transition matrix ─────────────────────────────────
+  describe('exhaustive transition matrix', () => {
+    const validPairs: [WarehouseVNStatus, WarehouseVNStatus][] = [
+      [WarehouseVNStatus.RECEIVED, WarehouseVNStatus.SORTED],
+      [WarehouseVNStatus.SORTED, WarehouseVNStatus.READY],
+      [WarehouseVNStatus.READY, WarehouseVNStatus.DELIVERED],
+    ];
+
+    const allStatuses = Object.values(WarehouseVNStatus);
+
+    it('should have exactly 3 valid transitions in the entire FSM', () => {
+      let validCount = 0;
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (machine.validateTransition(from, to)) {
+            validCount++;
+          }
+        }
+      }
+      expect(validCount).toBe(validPairs.length);
+    });
+
+    it('should throw for every invalid transition', () => {
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (!machine.validateTransition(from, to)) {
+            expect(() => machine.assertTransition(from, to)).toThrow(BadRequestException);
+          }
+        }
+      }
+    });
+  });
 });

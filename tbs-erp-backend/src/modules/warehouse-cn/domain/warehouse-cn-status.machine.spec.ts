@@ -180,4 +180,37 @@ describe('WarehouseCNStatusMachine', () => {
       }
     });
   });
+
+  // ── Exhaustive transition matrix ─────────────────────────────────
+  describe('exhaustive transition matrix', () => {
+    const validPairs: [WarehouseCNStatus, WarehouseCNStatus][] = [
+      [WarehouseCNStatus.RECEIVED, WarehouseCNStatus.CHECKED],
+      [WarehouseCNStatus.CHECKED, WarehouseCNStatus.PACKED],
+      [WarehouseCNStatus.PACKED, WarehouseCNStatus.SHIPPED],
+    ];
+
+    const allStatuses = Object.values(WarehouseCNStatus);
+
+    it('should have exactly 3 valid transitions in the entire FSM', () => {
+      let validCount = 0;
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (machine.validateTransition(from, to)) {
+            validCount++;
+          }
+        }
+      }
+      expect(validCount).toBe(validPairs.length);
+    });
+
+    it('should throw for every invalid transition', () => {
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (!machine.validateTransition(from, to)) {
+            expect(() => machine.assertTransition(from, to)).toThrow(BadRequestException);
+          }
+        }
+      }
+    });
+  });
 });

@@ -427,4 +427,68 @@ describe('SupplierOrderStatusMachine', () => {
       expect(machine.validateTransition(S.ISSUE, S.CANCELLED)).toBe(true);
     });
   });
+
+  // ── Exhaustive transition matrix ─────────────────────────────────
+  describe('exhaustive transition matrix', () => {
+    const validPairs: [SupplierOrderStatus, SupplierOrderStatus][] = [
+      // DRAFT -> 3
+      [S.DRAFT, S.QUOTED],
+      [S.DRAFT, S.ORDERED],
+      [S.DRAFT, S.CANCELLED],
+      // QUOTED -> 2
+      [S.QUOTED, S.ORDERED],
+      [S.QUOTED, S.CANCELLED],
+      // ORDERED -> 3
+      [S.ORDERED, S.CONFIRMED],
+      [S.ORDERED, S.CANCELLED],
+      [S.ORDERED, S.ISSUE],
+      // CONFIRMED -> 4
+      [S.CONFIRMED, S.PARTIALLY_SHIPPED],
+      [S.CONFIRMED, S.SHIPPED_CN],
+      [S.CONFIRMED, S.CANCELLED],
+      [S.CONFIRMED, S.ISSUE],
+      // PARTIALLY_SHIPPED -> 3
+      [S.PARTIALLY_SHIPPED, S.SHIPPED_CN],
+      [S.PARTIALLY_SHIPPED, S.RECEIVED_CN],
+      [S.PARTIALLY_SHIPPED, S.ISSUE],
+      // SHIPPED_CN -> 2
+      [S.SHIPPED_CN, S.RECEIVED_CN],
+      [S.SHIPPED_CN, S.ISSUE],
+      // RECEIVED_CN -> 2
+      [S.RECEIVED_CN, S.RETURN_IN_PROGRESS],
+      [S.RECEIVED_CN, S.ISSUE],
+      // RETURN_IN_PROGRESS -> 2
+      [S.RETURN_IN_PROGRESS, S.REFUNDED],
+      [S.RETURN_IN_PROGRESS, S.ISSUE],
+      // ISSUE -> 4
+      [S.ISSUE, S.ORDERED],
+      [S.ISSUE, S.CONFIRMED],
+      [S.ISSUE, S.RETURN_IN_PROGRESS],
+      [S.ISSUE, S.CANCELLED],
+    ];
+
+    const allStatuses = Object.values(SupplierOrderStatus);
+
+    it('should have exactly 25 valid transitions in the entire FSM', () => {
+      let validCount = 0;
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (machine.validateTransition(from, to)) {
+            validCount++;
+          }
+        }
+      }
+      expect(validCount).toBe(validPairs.length);
+    });
+
+    it('should throw for every invalid transition', () => {
+      for (const from of allStatuses) {
+        for (const to of allStatuses) {
+          if (!machine.validateTransition(from, to)) {
+            expect(() => machine.assertTransition(from, to)).toThrow(BadRequestException);
+          }
+        }
+      }
+    });
+  });
 });
