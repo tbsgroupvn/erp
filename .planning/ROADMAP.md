@@ -94,11 +94,11 @@ Plans:
   1. Running the RBAC integration test confirms every controller method has either a `@Roles()` decorator or an explicit `@Public()` marker — zero undecorated methods
   2. A Sales user querying customers sees only their own customers; a CEO querying the same endpoint sees all customers
   3. Attempting to access an endpoint without the required role returns a structured 403 Forbidden response with the user's role and the required role in the error detail
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
+- [ ] 05-01-PLAN.md — RolesGuard DomainException upgrade, ALL_ROLES constant, add @Roles/@Public to 14 undecorated controllers
+- [ ] 05-02-PLAN.md — RBAC audit integration test (DiscoveryService), DataScopeService wiring for complaint and order-read services
 
 ### Phase 6: FSM Verification
 **Goal**: All 9 state machines reject every invalid transition and the complete order and container lifecycles work end-to-end through the service layer
