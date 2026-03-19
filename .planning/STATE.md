@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-03-19T02:12:35Z"
-last_activity: 2026-03-19 -- Completed Plan 04-03 (File Upload Validation), Phase 4 complete
+status: completed
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-03-19T02:39:59.781Z"
+last_activity: 2026-03-19 -- Completed Plan 04-04 (Support-Ticket DTO Sanitization gap closure)
 progress:
   total_phases: 9
   completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 13
+  completed_plans: 13
   percent: 100
 ---
 
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** The order lifecycle (17+ statuses across 9 FSMs) must be bulletproof — no state can be skipped, no unauthorized role can mutate data, and no query can bottleneck under production load.
-**Current focus:** Phase 4: Input Validation & Rate Limiting (COMPLETE)
+**Current focus:** Phase 4: Input Validation & Rate Limiting (COMPLETE, including gap closure)
 
 ## Current Position
 
-Phase: 4 of 9 (Input Validation & Rate Limiting) -- COMPLETE
-Plan: 3 of 3 in current phase (04-03 done, phase complete)
+Phase: 4 of 9 (Input Validation & Rate Limiting) -- COMPLETE (including gap closure)
+Plan: 4 of 4 in current phase (04-04 gap closure done, phase fully complete)
 Status: Phase 4 Complete
-Last activity: 2026-03-19 -- Completed Plan 04-03 (File Upload Validation), Phase 4 complete
+Last activity: 2026-03-19 -- Completed Plan 04-04 (Support-Ticket DTO Sanitization gap closure)
 
 Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 6min
-- Total execution time: 1.15 hours
+- Total execution time: 1.17 hours
 
 **By Phase:**
 
@@ -46,13 +46,14 @@ Progress: [██████████] 100%
 | 01-backend-error-standardization | 4/4 | 20min | 5min |
 | 02-frontend-error-handling | 3/3 | 19min | 6min |
 | 03-transaction-consistency | 2/2 | 12min | 6min |
-| 04-input-validation-rate-limiting | 3/3 | 18min | 6min |
+| 04-input-validation-rate-limiting | 4/4 | 19min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (9min), 03-02 (3min), 04-01 (5min), 04-02 (8min), 04-03 (5min)
+- Last 5 plans: 03-02 (3min), 04-01 (5min), 04-02 (8min), 04-03 (5min), 04-04 (1min)
 - Trend: stable
 
 *Updated after each plan completion*
+| Phase 04 P04 | 1min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,7 @@ Recent decisions affecting current work:
 - [Phase 04]: SanitizeHtmlStrict on user-input text fields strips ALL HTML; CMS DTOs retain relaxed SanitizeHtml for rich content
 - [04-03]: Document controller uses DTO-based S3 upload (not multer), validation via @Max/@IsIn in DTO instead of FileValidationPipe
 - [04-03]: Drive presigned URL flow validated at DTO level only (no magic number validation possible -- file goes directly to MinIO)
+- [04-04]: Followed complaint DTO pattern for decorator ordering: @SanitizeHtmlStrict first, then validation, then ApiProperty
 
 ### Pending Todos
 
@@ -105,6 +107,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T02:12:35Z
-Stopped at: Completed 04-03-PLAN.md (Phase 4 complete)
+Last session: 2026-03-19T02:39:59.774Z
+Stopped at: Completed 04-04-PLAN.md
 Resume file: None

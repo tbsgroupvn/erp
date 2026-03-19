@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Backend Error Standardization** - Standardized error responses, correlation IDs, and structured exception handling across all backend layers (completed 2026-03-18)
 - [ ] **Phase 2: Frontend Error Handling** - Error boundaries, user-friendly toast notifications, and crash prevention across all frontend routes
 - [ ] **Phase 3: Transaction Consistency** - Prisma interactive transactions for all multi-write operations, outbox-safe event emission, and graceful shutdown
-- [ ] **Phase 4: Input Validation & Rate Limiting** - HTML sanitization, file upload validation, and rate limiting on vulnerable endpoints
+- [x] **Phase 4: Input Validation & Rate Limiting** - HTML sanitization, file upload validation, and rate limiting on vulnerable endpoints (completed 2026-03-19)
 - [ ] **Phase 5: RBAC Audit & Coverage** - Complete @Roles() decorator audit, data scoping verification, and automated RBAC coverage test
 - [ ] **Phase 6: FSM Verification** - Negative-path tests for all 9 FSMs, full order and container lifecycle integration tests
 - [ ] **Phase 7: Business Rule Enforcement** - Deposit gate, anti-fraud checks, AR aging auto-block, COD enforcement, and approval escalation
@@ -79,7 +79,7 @@ Plans:
   2. Uploading a file exceeding the size limit or with a disallowed MIME type returns a clear error message and the upload is rejected
   3. Submitting more than 5 complaints per hour from the same user returns a 429 rate-limit error
   4. Bulk import endpoints and public-facing endpoints enforce rate limits that prevent abuse
-**Plans:** 3/3 plans complete
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 04-01-PLAN.md — Infrastructure: CustomThrottlerGuard (global), FileValidationPipe, error codes, file upload constants, @SkipThrottle on WS/health/metrics
@@ -170,7 +170,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 1. Backend Error Standardization | 4/4 | Complete   | 2026-03-18 |
 | 2. Frontend Error Handling | 1/3 | In progress | - |
 | 3. Transaction Consistency | 0/2 | Not started | - |
-| 4. Input Validation & Rate Limiting | 3/3 | Complete | 2026-03-19 |
+| 4. Input Validation & Rate Limiting | 4/4 | Complete   | 2026-03-19 |
 | 5. RBAC Audit & Coverage | 0/2 | Not started | - |
 | 6. FSM Verification | 0/2 | Not started | - |
 | 7. Business Rule Enforcement | 0/2 | Not started | - |
