@@ -23,6 +23,8 @@ import { JwtAuthGuard } from '@core/auth/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '@common/interfaces/authenticated-request.interface';
 import { RolesGuard } from '@core/rbac/guards/roles.guard';
 import { Roles } from '@core/rbac/decorators/roles.decorator';
+import { FileValidationPipe } from '@common/pipes/file-validation.pipe';
+import { FILE_UPLOAD_LIMITS } from '@common/constants/file-upload.constants';
 
 @ApiTags('CMS - Media')
 @ApiBearerAuth()
@@ -38,7 +40,11 @@ export class MediaController {
   @ApiOperation({ summary: 'Upload a single file' })
   @ApiConsumes('multipart/form-data')
   async upload(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(new FileValidationPipe({
+      maxSizeBytes: FILE_UPLOAD_LIMITS.CMS_MEDIA.maxSizeBytes,
+      allowedMimeTypes: [...FILE_UPLOAD_LIMITS.CMS_MEDIA.allowedMimeTypes],
+    }))
+    file: Express.Multer.File,
     @Body() dto: UploadMediaDto,
     @Request() req: AuthenticatedRequest,
   ) {
@@ -63,6 +69,15 @@ export class MediaController {
   ) {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files uploaded');
+    }
+
+    // Validate each file against CMS_MEDIA limits
+    const pipe = new FileValidationPipe({
+      maxSizeBytes: FILE_UPLOAD_LIMITS.CMS_MEDIA.maxSizeBytes,
+      allowedMimeTypes: [...FILE_UPLOAD_LIMITS.CMS_MEDIA.allowedMimeTypes],
+    });
+    for (const file of files) {
+      pipe.transform(file, { type: 'custom' } as any);
     }
 
     return this.mediaService.uploadMultiple(files, req.user.id, dto.folder);

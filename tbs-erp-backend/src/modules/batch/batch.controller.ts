@@ -19,6 +19,8 @@ import { RolesGuard } from '@common/guards/roles.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { Throttle } from '@nestjs/throttler';
+import { FileValidationPipe } from '@common/pipes/file-validation.pipe';
+import { FILE_UPLOAD_LIMITS } from '@common/constants/file-upload.constants';
 import { BatchJobType, BatchJobPayload } from './batch-job.types';
 import { BatchExportDto } from './dto/batch-export.dto';
 import { writeFile, mkdir } from 'fs/promises';
@@ -45,22 +47,15 @@ export class BatchController {
   })
   @UseInterceptors(FileInterceptor('file'))
   async importOrders(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(new FileValidationPipe({
+      maxSizeBytes: FILE_UPLOAD_LIMITS.BATCH_IMPORT.maxSizeBytes,
+      allowedMimeTypes: [...FILE_UPLOAD_LIMITS.BATCH_IMPORT.allowedMimeTypes],
+    }))
+    file: Express.Multer.File,
     @CurrentUser() user: ICurrentUser,
   ) {
     if (!file) {
       throw new BadRequestException('File is required');
-    }
-
-    const allowedMimes = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel',
-      'text/csv',
-    ];
-    if (!allowedMimes.includes(file.mimetype)) {
-      throw new BadRequestException(
-        'Only Excel (.xlsx, .xls) and CSV files are supported',
-      );
     }
 
     // Save to temp directory
