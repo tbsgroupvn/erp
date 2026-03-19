@@ -9,6 +9,7 @@ import { ApproverResolver } from './domain/approver-resolver';
 import { SlaTracker } from './domain/sla-tracker';
 import { ApprovalCompletedListener } from './listeners/approval-completed.listener';
 import { ApprovalSlaListener } from './listeners/approval-sla.listener';
+import { ApprovalEscalationListener } from './listeners/approval-escalation.listener';
 import { FlowDefinitionController } from './flow-definition/flow-definition.controller';
 import { FlowDefinitionService } from './flow-definition/flow-definition.service';
 import { FlowDefinitionRepository } from './flow-definition/flow-definition.repository';
@@ -53,6 +54,7 @@ import { ApprovalAnalyticsService } from './analytics/approval-analytics.service
     // Listeners
     ApprovalCompletedListener,
     ApprovalSlaListener,
+    ApprovalEscalationListener,
   ],
   exports: [ApprovalService, ApprovalGraphEngine, ApprovalAnalyticsService],
 })
