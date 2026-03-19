@@ -41,17 +41,30 @@ export class ContainerRepository {
     skip: number,
     take: number,
     orderBy: Prisma.ContainerOrderByWithRelationInput,
-  ): Promise<{ data: Container[]; total: number }> {
+  ): Promise<{ data: any[]; total: number }> {
     const [data, total] = await this.prisma.$transaction([
       this.prisma.container.findMany({
         where,
         skip,
         take,
         orderBy,
-        include: {
-          _count: {
-            select: { packages: true, orders: true },
-          },
+        select: {
+          id: true,
+          code: true,
+          status: true,
+          shippingRoute: true,
+          carrier: true,
+          totalPackages: true,
+          totalWeight: true,
+          fillRate: true,
+          maxCapacity: true,
+          estimatedDepartureAt: true,
+          estimatedArrivalAt: true,
+          actualDepartureAt: true,
+          actualArrivalAt: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: { select: { packages: true, orders: true } },
         },
       }),
       this.prisma.container.count({ where }),
@@ -115,17 +128,15 @@ export class ContainerRepository {
         data: { containerId },
       });
 
-      // Recalculate container totals
-      const packages = await tx.package.findMany({
+      // Recalculate container totals using aggregate — avoids loading all package rows
+      const agg = await tx.package.aggregate({
         where: { containerId },
-        select: { chargeableWeight: true },
+        _count: true,
+        _sum: { chargeableWeight: true },
       });
 
-      const totalPackages = packages.length;
-      const totalWeight = packages.reduce(
-        (sum, p) => sum + (p.chargeableWeight ? Number(p.chargeableWeight) : 0),
-        0,
-      );
+      const totalPackages = agg._count;
+      const totalWeight = agg._sum.chargeableWeight ? Number(agg._sum.chargeableWeight) : 0;
 
       // Get max capacity for fill rate calculation
       const container = await tx.container.findUniqueOrThrow({

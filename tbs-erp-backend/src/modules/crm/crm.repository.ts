@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@core/database/prisma.service';
-import { Customer, CustomerTier, Prisma } from '@prisma/client';
+import { AccountStatus, Customer, CustomerTier, Prisma } from '@prisma/client';
 import { CustomerQueryDto } from './dto/customer-query.dto';
 
 @Injectable()
@@ -128,16 +128,24 @@ export class CrmRepository {
   async findMany(
     query: CustomerQueryDto,
     scopeFilter: Record<string, any> = {},
-  ): Promise<{ data: Customer[]; total: number }> {
+  ): Promise<{ data: any[]; total: number }> {
     const where: Prisma.CustomerWhereInput = { ...scopeFilter };
 
-    if (query.search) {
+    if (query.search && query.search.length >= 3) {
+      // Long enough for trigram GIN index — use full contains scan across all text fields.
       where.OR = [
         { fullName: { contains: query.search, mode: 'insensitive' } },
         { companyName: { contains: query.search, mode: 'insensitive' } },
         { phone: { contains: query.search } },
         { email: { contains: query.search, mode: 'insensitive' } },
         { code: { contains: query.search, mode: 'insensitive' } },
+      ];
+    } else if (query.search) {
+      // Short query (< 3 chars): trigram indexes are not engaged.
+      // Fall back to B-tree prefix match on indexed low-cardinality fields only.
+      where.OR = [
+        { code: { startsWith: query.search, mode: 'insensitive' } },
+        { phone: { startsWith: query.search } },
       ];
     }
 
@@ -160,9 +168,24 @@ export class CrmRepository {
     const [data, total] = await Promise.all([
       this.prisma.customer.findMany({
         where,
-        include: {
-          contacts: true,
-          wallet: true,
+        select: {
+          id: true,
+          code: true,
+          fullName: true,
+          companyName: true,
+          phone: true,
+          email: true,
+          tier: true,
+          branch: true,
+          saleId: true,
+          isActive: true,
+          isBlocked: true,
+          totalOrders: true,
+          totalRevenue: true,
+          currentDebt: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: { select: { contacts: true } },
         },
         orderBy: query.orderBy,
         skip: query.skip,
@@ -204,5 +227,82 @@ export class CrmRepository {
         creditLimit: new Prisma.Decimal(creditLimit),
       },
     });
+  }
+
+  /**
+   * Batch-fetch outstanding and overdue debt totals for a list of customers.
+   *
+   * Uses a single `groupBy` aggregation instead of one query per customer,
+   * reducing N AR queries to 2 database round-trips (outstanding + overdue).
+   *
+   * @param customerIds - IDs of the customers to look up
+   * @returns Map keyed by customerId with `{ outstanding, overdue }` in numeric form
+   */
+  async getCustomerDebts(
+    customerIds: string[],
+  ): Promise<Map<string, { outstanding: number; overdue: number }>> {
+    if (customerIds.length === 0) {
+      return new Map();
+    }
+
+    // One aggregation for all open/partial/overdue balances per customer.
+    const [outstandingRows, overdueRows] = await Promise.all([
+      this.prisma.accountReceivable.groupBy({
+        by: ['customerId'],
+        where: {
+          customerId: { in: customerIds },
+          status: { in: [AccountStatus.OPEN, AccountStatus.PARTIAL, AccountStatus.OVERDUE] },
+        },
+        _sum: {
+          amount: true,
+          paidAmount: true,
+          nettedAmount: true,
+        },
+      }),
+      // Separate query for overdue-only bucket (status = OVERDUE).
+      this.prisma.accountReceivable.groupBy({
+        by: ['customerId'],
+        where: {
+          customerId: { in: customerIds },
+          status: AccountStatus.OVERDUE,
+        },
+        _sum: {
+          amount: true,
+          paidAmount: true,
+          nettedAmount: true,
+        },
+      }),
+    ]);
+
+    // Index overdue rows by customerId for O(1) lookup.
+    const overdueByCustomer = new Map<string, number>();
+    for (const row of overdueRows) {
+      const overdue =
+        (row._sum.amount?.toNumber() ?? 0) -
+        (row._sum.paidAmount?.toNumber() ?? 0) -
+        (row._sum.nettedAmount?.toNumber() ?? 0);
+      overdueByCustomer.set(row.customerId, Math.max(0, overdue));
+    }
+
+    const result = new Map<string, { outstanding: number; overdue: number }>();
+    for (const row of outstandingRows) {
+      const outstanding =
+        (row._sum.amount?.toNumber() ?? 0) -
+        (row._sum.paidAmount?.toNumber() ?? 0) -
+        (row._sum.nettedAmount?.toNumber() ?? 0);
+      result.set(row.customerId, {
+        outstanding: Math.max(0, outstanding),
+        overdue: overdueByCustomer.get(row.customerId) ?? 0,
+      });
+    }
+
+    // Ensure every requested customer is represented in the map (zero debt).
+    for (const id of customerIds) {
+      if (!result.has(id)) {
+        result.set(id, { outstanding: 0, overdue: 0 });
+      }
+    }
+
+    return result;
   }
 }
