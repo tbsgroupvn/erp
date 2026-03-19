@@ -30,8 +30,8 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 - [x] **DAT-01**: All multi-table write operations (order status change, cost allocation, deposit recording) use Prisma interactive transactions
 - [x] **DAT-02**: Service methods that emit events after writes do so inside the same transaction (or use outbox pattern)
 - [x] **DAT-03**: Each of the 9 FSMs has negative-path tests verifying that every invalid transition is rejected
-- [ ] **DAT-04**: Integration test exercises full order lifecycle from CONSULTING to COMPLETED, verifying deposit gate enforcement
-- [ ] **DAT-05**: Integration test exercises full container lifecycle from PLANNING to COMPLETED
+- [x] **DAT-04**: Integration test exercises full order lifecycle from CONSULTING to COMPLETED, verifying deposit gate enforcement
+- [x] **DAT-05**: Integration test exercises full container lifecycle from PLANNING to COMPLETED
 - [x] **DAT-06**: Application enables NestJS shutdown hooks with graceful BullMQ worker close and Prisma disconnect
 - [ ] **DAT-07**: Deposit gate enforces correct tier-based rates (NEW=100%, REGULAR=70%, VIP=50%, STRATEGIC=30%) and blocks purchase request if deposit insufficient
 - [ ] **DAT-08**: Anti-fraud checks BLOCK vouchers missing order code, on closed orders, missing docs, or wrong owner; FLAG when total cost > 90% revenue
@@ -100,8 +100,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | DAT-01 | Phase 3 | Complete |
 | DAT-02 | Phase 3 | Complete |
 | DAT-03 | Phase 6 | Complete |
-| DAT-04 | Phase 6 | Pending |
-| DAT-05 | Phase 6 | Pending |
+| DAT-04 | Phase 6 | Complete |
+| DAT-05 | Phase 6 | Complete |
 | DAT-06 | Phase 3 | Complete |
 | DAT-07 | Phase 7 | Pending |
 | DAT-08 | Phase 7 | Pending |
