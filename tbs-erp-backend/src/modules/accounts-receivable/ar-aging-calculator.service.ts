@@ -74,6 +74,7 @@ export class ARAgingCalculatorService {
         id: true,
         amount: true,
         paidAmount: true,
+        nettedAmount: true,
         dueDate: true,
       },
     });
@@ -101,7 +102,9 @@ export class ARAgingCalculatorService {
 
     // Process each receivable
     for (const ar of receivables) {
-      const outstanding = ar.amount.toNumber() - ar.paidAmount.toNumber();
+      // Subtract both paidAmount and nettedAmount (debt-netting offset) to get the true outstanding balance.
+      // This mirrors the calculation in auto-clear-ar.service.ts line 92.
+      const outstanding = ar.amount.toNumber() - ar.paidAmount.toNumber() - ar.nettedAmount.toNumber();
       if (outstanding <= 0) continue;
 
       aging.totalOutstanding += outstanding;
@@ -157,10 +160,15 @@ export class ARAgingCalculatorService {
   }
 
   /**
-   * Calculate aging for all customers (for daily snapshot)
+   * Calculate aging for all customers (for daily snapshot).
+   *
+   * Replaces the previous N+1 pattern (2 queries per customer) with 2 batch queries:
+   *   1. Fetch all customers with open receivables (including payment terms in one query).
+   *   2. Fetch all open/partial/overdue AR records for those customers in one query.
+   * Aging computation is then done entirely in-memory.
    */
   async calculateAllCustomersAging(asOfDate: Date = new Date()): Promise<CustomerAgingResult[]> {
-    // Get all customers with open receivables
+    // Batch query 1: load all customers with open receivables, including payment terms
     const customers = await this.prisma.customer.findMany({
       where: {
         receivables: {
@@ -171,18 +179,57 @@ export class ARAgingCalculatorService {
           },
         },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        paymentTermDays: true,
+        gracePeriodDays: true,
+        creditLimit: true,
+        currentDebt: true,
+      },
     });
+
+    if (customers.length === 0) {
+      return [];
+    }
 
     this.logger.log(
       `Calculating aging for ${customers.length} customers as of ${asOfDate.toISOString()}`,
     );
 
-    // Process each customer
+    const customerIds = customers.map((c) => c.id);
+
+    // Batch query 2: load all open AR records for those customers in one round-trip
+    const allReceivables = await this.prisma.accountReceivable.findMany({
+      where: {
+        customerId: { in: customerIds },
+        status: {
+          in: [ArStatus.OPEN, ArStatus.PARTIAL, ArStatus.OVERDUE],
+        },
+      },
+      select: {
+        id: true,
+        customerId: true,
+        amount: true,
+        paidAmount: true,
+        nettedAmount: true,
+        dueDate: true,
+      },
+    });
+
+    // Group receivables by customerId for O(1) lookup
+    const receivablesByCustomer = new Map<string, typeof allReceivables>();
+    for (const ar of allReceivables) {
+      const list = receivablesByCustomer.get(ar.customerId) ?? [];
+      list.push(ar);
+      receivablesByCustomer.set(ar.customerId, list);
+    }
+
+    // Compute aging in-memory — no additional DB queries
     const results: CustomerAgingResult[] = [];
     for (const customer of customers) {
       try {
-        const result = await this.calculateCustomerAging(customer.id, asOfDate);
+        const receivables = receivablesByCustomer.get(customer.id) ?? [];
+        const result = this.computeCustomerAging(customer, receivables, asOfDate);
         results.push(result);
       } catch (error) {
         this.logger.error(`Failed to calculate aging for customer ${customer.id}:`, error);
@@ -190,6 +237,98 @@ export class ARAgingCalculatorService {
     }
 
     return results;
+  }
+
+  /**
+   * Pure in-memory aging computation — no DB queries.
+   * Used by calculateAllCustomersAging after batch data load.
+   */
+  private computeCustomerAging(
+    customer: {
+      id: string;
+      gracePeriodDays: number;
+      creditLimit: Prisma.Decimal;
+      currentDebt: Prisma.Decimal;
+    },
+    receivables: Array<{
+      id: string;
+      amount: Prisma.Decimal;
+      paidAmount: Prisma.Decimal;
+      nettedAmount: Prisma.Decimal;
+      dueDate: Date;
+    }>,
+    asOfDate: Date,
+  ): CustomerAgingResult {
+    const aging: AgingBuckets = {
+      current: 0,
+      days1_30: 0,
+      days31_60: 0,
+      days61_90: 0,
+      days90Plus: 0,
+      totalOutstanding: 0,
+      totalOverdue: 0,
+    };
+
+    const counts: BucketCounts = {
+      current: 0,
+      days1_30: 0,
+      days31_60: 0,
+      days61_90: 0,
+      days90Plus: 0,
+    };
+
+    let maxOverdueDays = 0;
+
+    for (const ar of receivables) {
+      // Subtract both paidAmount and nettedAmount (debt-netting offset) to get the true outstanding balance.
+      // This mirrors the calculation in auto-clear-ar.service.ts line 92.
+      const outstanding = ar.amount.toNumber() - ar.paidAmount.toNumber() - ar.nettedAmount.toNumber();
+      if (outstanding <= 0) continue;
+
+      aging.totalOutstanding += outstanding;
+
+      const effectiveDueDate = new Date(ar.dueDate);
+      effectiveDueDate.setDate(effectiveDueDate.getDate() + customer.gracePeriodDays);
+
+      const daysOverdue = Math.floor(
+        (asOfDate.getTime() - effectiveDueDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      if (daysOverdue <= 0) {
+        aging.current += outstanding;
+        counts.current++;
+      } else {
+        aging.totalOverdue += outstanding;
+        maxOverdueDays = Math.max(maxOverdueDays, daysOverdue);
+
+        if (daysOverdue <= 30) {
+          aging.days1_30 += outstanding;
+          counts.days1_30++;
+        } else if (daysOverdue <= 60) {
+          aging.days31_60 += outstanding;
+          counts.days31_60++;
+        } else if (daysOverdue <= 90) {
+          aging.days61_90 += outstanding;
+          counts.days61_90++;
+        } else {
+          aging.days90Plus += outstanding;
+          counts.days90Plus++;
+        }
+      }
+    }
+
+    const riskLevel = this.calculateRiskLevel(aging);
+    const blockResult = this.shouldBlockCustomer(aging, customer);
+
+    return {
+      customerId: customer.id,
+      aging,
+      counts,
+      maxOverdueDays,
+      riskLevel,
+      shouldBlock: blockResult.shouldBlock,
+      blockReason: blockResult.reason,
+    };
   }
 
   /**

@@ -343,7 +343,10 @@ export class AccountsReceivableService {
           daysOverdue,
         };
 
-        // T-3: Approaching due date — alert Sale + Leader
+        // T-3: Approaching due date — alert Sale + Leader.
+        // Condition: daysUntilDue in [1, 3]. daysOverdue = -daysUntilDue, so daysOverdue in [-3, -1].
+        // This is MUTUALLY EXCLUSIVE with all overdue conditions below (which require daysOverdue >= 0),
+        // so a single AR record can never trigger both "approaching" and any overdue alert in the same run.
         if (daysUntilDue <= 3 && daysUntilDue > 0) {
           this.eventEmitter.emit('ar.aging.approaching', {
             ...basePayload,
