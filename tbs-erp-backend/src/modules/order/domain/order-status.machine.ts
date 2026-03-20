@@ -1,4 +1,6 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { DomainException } from '@common/exceptions/domain.exception';
+import { ErrorCode } from '@common/exceptions/error-codes';
 import { OrderStatus, ServiceType } from '@prisma/client';
 import { BaseStatusMachine } from '@common/domain/base-status-machine';
 import {
@@ -39,8 +41,11 @@ export class OrderStatusMachine extends BaseStatusMachine<OrderStatus> {
    * @returns true if the transition is valid
    */
   override validateTransition(from: OrderStatus, to: OrderStatus, serviceType?: ServiceType): boolean {
-    // Terminal statuses cannot transition
+    // Terminal statuses cannot transition, EXCEPT COMPLETED → SETTLEMENT (reopen by BGĐ)
     if (TERMINAL_STATUSES.includes(from)) {
+      if (from === OrderStatus.COMPLETED && to === OrderStatus.SETTLEMENT) {
+        return true;
+      }
       return false;
     }
 
@@ -83,7 +88,8 @@ export class OrderStatusMachine extends BaseStatusMachine<OrderStatus> {
    */
   override assertTransition(from: OrderStatus, to: OrderStatus, serviceType?: ServiceType): void {
     if (!this.validateTransition(from, to, serviceType)) {
-      throw new BadRequestException(
+      throw new DomainException(
+        ErrorCode.ORDER_INVALID_TRANSITION,
         `Invalid status transition from ${from} to ${to}` +
           (serviceType ? ` for service type ${serviceType}` : ''),
       );

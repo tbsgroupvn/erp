@@ -1,4 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
+import { DomainException } from '@common/exceptions/domain.exception';
+import { ErrorCode } from '@common/exceptions/error-codes';
 
 /**
  * Abstract base class for all Status Finite State Machines.
@@ -37,12 +38,13 @@ export abstract class BaseStatusMachine<TStatus extends string> {
    *
    * @param from - Current status
    * @param to - Target status
-   * @throws BadRequestException if the transition is not allowed
+   * @throws DomainException if the transition is not allowed
    */
   assertTransition(from: TStatus, to: TStatus): void {
     if (!this.validateTransition(from, to)) {
       const allowed = this.getNextStatuses(from);
-      throw new BadRequestException(
+      throw new DomainException(
+        ErrorCode.VALIDATION_ERROR,
         `Invalid status transition from ${from} to ${to}. ` +
           `Allowed transitions: ${allowed.join(', ') || 'none (terminal state)'}`,
       );

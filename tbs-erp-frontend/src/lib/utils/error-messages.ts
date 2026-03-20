@@ -107,6 +107,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   // ─── Batch Import ───
   BATCH_IMPORT_VALIDATION_ERROR:
     'D\u1eef li\u1ec7u nh\u1eadp kh\u00f4ng h\u1ee3p l\u1ec7',
+
+  // ─── Rate Limiting ───
+  RATE_LIMIT_EXCEEDED: 'Qu\u00e1 nhi\u1ec1u y\u00eau c\u1ea7u. Vui l\u00f2ng th\u1eed l\u1ea1i sau.',
+
+  // ─── File Upload ───
+  FILE_TOO_LARGE: 'File qu\u00e1 l\u1edbn. Vui l\u00f2ng ch\u1ecdn file nh\u1ecf h\u01a1n.',
+  FILE_TYPE_NOT_ALLOWED: 'Lo\u1ea1i file kh\u00f4ng \u0111\u01b0\u1ee3c ph\u00e9p t\u1ea3i l\u00ean.',
 };
 
 /**
