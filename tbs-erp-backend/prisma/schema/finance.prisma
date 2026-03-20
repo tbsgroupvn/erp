@@ -706,7 +706,7 @@ model BankWebhookTransaction {
   parsedCustomerCode  String?            @map("parsed_customer_code")
   matchedCustomerId   String?            @map("matched_customer_id")
   status              String             @default("PENDING") // PENDING, AUTO_CREDITED, FAILED, DUPLICATE
-  walletTransactionId String?            @map("wallet_transaction_id")
+  walletTransactionId String?            @unique @map("wallet_transaction_id")
   processedAt         DateTime?          @map("processed_at")
   errorMessage        String?            @map("error_message")
   rawPayload          Json?              @map("raw_payload")
