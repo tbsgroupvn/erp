@@ -6,7 +6,7 @@
 -- =============================================================================
 ALTER TABLE "payment_allocation_details"
   ADD CONSTRAINT "payment_allocation_details_ar_id_fkey"
-  FOREIGN KEY ("ar_id") REFERENCES "accounts_receivable"("id")
+  FOREIGN KEY ("ar_id") REFERENCES "account_receivables"("id")
   ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- =============================================================================
