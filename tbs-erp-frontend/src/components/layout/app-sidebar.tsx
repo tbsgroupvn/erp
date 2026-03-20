@@ -148,7 +148,6 @@ function getInitials(name: string): string {
 function getAllowedPaths(role: UserRole): string[] {
   const prefixes = ROLE_MENU_ACCESS[role];
   if (!prefixes) return ['/tong-quan'];
-  // Match NAV_GROUPS items whose href starts with any allowed prefix
   const paths: string[] = [];
   for (const group of NAV_GROUPS) {
     for (const item of group.items) {
@@ -202,220 +201,271 @@ export function AppSidebar() {
       {/* Mobile overlay backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
           aria-hidden="true"
           onClick={() => setOpen(false)}
         />
       )}
 
-    <aside
-      role="navigation"
-      aria-label="Menu chinh"
-      className={cn(
-        'flex h-screen flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300',
-        // Desktop: collapse/expand
-        'hidden lg:flex',
-        isCollapsed ? 'lg:w-[68px]' : 'lg:w-[280px]',
-        // Mobile: fixed overlay drawer
-        isOpen && 'fixed inset-y-0 left-0 z-50 flex w-[280px] lg:relative lg:z-auto'
-      )}
-    >
-      {/* Logo */}
-      <div className="flex h-16 items-center border-b px-4 bg-gradient-to-r from-primary/5 to-transparent">
-        <Link href="/tong-quan" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-bold text-sm shadow-md shadow-primary/20">
-            {(process.env.NEXT_PUBLIC_APP_TITLE || 'ERP')[0]}
-          </div>
-          {!isCollapsed && (
-            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-              {process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System'}
-            </span>
+      <aside
+        role="navigation"
+        aria-label="Menu chinh"
+        className={cn(
+          'flex h-screen flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ease-out',
+          // Right border — very subtle on dark sidebar
+          'border-r border-sidebar-border/40',
+          // Desktop: collapse/expand
+          'hidden lg:flex',
+          isCollapsed ? 'lg:w-[68px]' : 'lg:w-[272px]',
+          // Mobile: fixed overlay drawer
+          isOpen && 'fixed inset-y-0 left-0 z-50 flex w-[272px] lg:relative lg:z-auto'
+        )}
+      >
+        {/* ── Logo / Brand ─────────────────────────────── */}
+        <div
+          className={cn(
+            'flex h-16 items-center border-b border-sidebar-border/40',
+            isCollapsed ? 'justify-center px-0' : 'justify-between px-4'
           )}
-        </Link>
-      </div>
-
-      {/* Navigation */}
-      <ScrollArea className="flex-1 px-2 py-4">
-        <nav id="sidebar-nav" className="flex flex-col gap-1">
-          {NAV_GROUPS.map((group) => {
-            const filteredItems = group.items.filter(
-              (item) => allowedPaths.includes(item.href) && !item.tabOf
-            );
-
-            if (filteredItems.length === 0) return null;
-
-            if (isCollapsed) {
-              return (
-                <div key={group.label} className="flex flex-col gap-1 mb-2">
-                  {filteredItems.map((item) => {
-                    const isActive =
-                      pathname === item.href ||
-                      pathname.startsWith(item.href + '/');
-                    const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
-                    const showBadge =
-                      (item.href === '/phe-duyet' && pendingCount > 0) ||
-                      (item.href === '/tro-chuyen' && chatUnread > 0);
-
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        title={item.title}
-                        aria-current={isActive ? 'page' : undefined}
-                        aria-label={item.title}
-                        className={cn(
-                          'relative flex h-10 w-10 mx-auto items-center justify-center rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring',
-                          isActive
-                            ? 'bg-primary/10 text-primary font-medium shadow-sm'
-                            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                        )}
-                      >
-                        <Icon className="h-5 w-5" aria-hidden="true" />
-                        {showBadge && (
-                          <span
-                            className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
-                          >
-                            {item.href === '/tro-chuyen'
-                              ? chatUnread > 9 ? '9+' : chatUnread
-                              : pendingCount > 9 ? '9+' : pendingCount}
-                          </span>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </div>
-              );
-            }
-
-            return (
-              <Collapsible.Root
-                key={group.label}
-                open={openGroups[group.label]}
-                onOpenChange={() => toggleGroup(group.label)}
-                className="mb-1"
-              >
-                <Collapsible.Trigger asChild>
-                  <button
-                    className="flex w-full items-center justify-between rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-                    aria-expanded={openGroups[group.label]}
-                    aria-controls={`nav-group-${group.label}`}
-                  >
-                    <span>{group.label}</span>
-                    <ChevronDown
-                      className={cn(
-                        'h-3.5 w-3.5 transition-transform',
-                        openGroups[group.label] ? '' : '-rotate-90'
-                      )}
-                      aria-hidden="true"
-                    />
-                  </button>
-                </Collapsible.Trigger>
-
-                <Collapsible.Content
-                  id={`nav-group-${group.label}`}
-                  className="flex flex-col gap-0.5"
-                >
-                  {filteredItems.map((item) => {
-                    const isActive =
-                      pathname === item.href ||
-                      pathname.startsWith(item.href + '/');
-                    const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
-                    const showBadge =
-                      (item.href === '/phe-duyet' && pendingCount > 0) ||
-                      (item.href === '/tro-chuyen' && chatUnread > 0);
-
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? 'page' : undefined}
-                        className={cn(
-                          'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring',
-                          isActive
-                            ? 'bg-primary/10 text-primary font-medium sidebar-active-indicator'
-                            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                        )}
-                      >
-                        <Icon className={cn('h-4 w-4 shrink-0', isActive && 'text-primary')} aria-hidden="true" />
-                        <span className="flex-1">{item.title}</span>
-                        {showBadge && (
-                          <span
-                            className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-semibold text-white"
-                          >
-                            {item.href === '/tro-chuyen'
-                              ? chatUnread > 99 ? '99+' : chatUnread
-                              : pendingCount > 99 ? '99+' : pendingCount}
-                          </span>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </Collapsible.Content>
-              </Collapsible.Root>
-            );
-          })}
-        </nav>
-      </ScrollArea>
-
-      {/* User info (collapsed shows only avatar) */}
-      {user && (
-        <>
-          <Separator />
-          <div
-            className={cn(
-              'flex items-center gap-3 p-4',
-              isCollapsed && 'justify-center px-2'
-            )}
-          >
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="text-xs bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
-                {getInitials(user.fullName)}
-              </AvatarFallback>
-            </Avatar>
-            {!isCollapsed && (
-              <div className="flex-1 overflow-hidden">
-                <p className="truncate text-sm font-medium">
-                  {user.fullName}
+        >
+          {!isCollapsed && (
+            <Link
+              href="/tong-quan"
+              className="flex items-center gap-3 transition-opacity duration-200 hover:opacity-80"
+            >
+              {/* Logo mark */}
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm">
+                <span className="font-heading text-[11px] font-bold tracking-wide text-sidebar-primary-foreground">
+                  {(process.env.NEXT_PUBLIC_APP_TITLE || 'ERP')[0]}
+                </span>
+              </div>
+              {/* Brand text */}
+              <div className="leading-none">
+                <p className="font-heading text-[15px] font-semibold tracking-tight text-sidebar-foreground">
+                  {process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System'}
                 </p>
-                <p className="truncate text-xs text-sidebar-foreground/60">
-                  {roleLabel}
+                <p className="text-[10px] font-medium tracking-[0.08em] text-sidebar-foreground/40 uppercase mt-0.5">
+                  Enterprise
                 </p>
               </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Collapse / Expand button — desktop only */}
-      <Separator />
-      <div className="flex items-center justify-center p-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleCollapsed}
-          className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hidden lg:flex"
-          aria-label={isCollapsed ? 'Mo rong sidebar' : 'Thu gon sidebar'}
-          aria-expanded={!isCollapsed}
-          aria-controls="sidebar-nav"
-        >
-          {isCollapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
+            </Link>
           )}
-        </Button>
-        {/* Mobile close button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setOpen(false)}
-          className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground lg:hidden"
-          aria-label="Dong menu"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-      </div>
-    </aside>
+
+          {/* Collapsed: show logo mark only, centered */}
+          {isCollapsed && (
+            <Link
+              href="/tong-quan"
+              title={process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System'}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm transition-opacity duration-200 hover:opacity-80"
+            >
+              <span className="font-heading text-[11px] font-bold tracking-wide text-sidebar-primary-foreground">
+                {(process.env.NEXT_PUBLIC_APP_TITLE || 'ERP')[0]}
+              </span>
+            </Link>
+          )}
+        </div>
+
+        {/* ── Navigation ──────────────────────────────── */}
+        <ScrollArea className="flex-1 py-3">
+          <nav id="sidebar-nav" className="flex flex-col px-2">
+            {NAV_GROUPS.map((group) => {
+              const filteredItems = group.items.filter(
+                (item) => allowedPaths.includes(item.href) && !item.tabOf
+              );
+
+              if (filteredItems.length === 0) return null;
+
+              /* ── Collapsed state: icons only ── */
+              if (isCollapsed) {
+                return (
+                  <div key={group.label} className="flex flex-col items-center gap-0.5 mb-3">
+                    {/* Thin separator between groups */}
+                    <div className="mb-1 h-px w-8 bg-sidebar-border/30" />
+                    {filteredItems.map((item) => {
+                      const isActive =
+                        pathname === item.href ||
+                        pathname.startsWith(item.href + '/');
+                      const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
+                      const showBadge =
+                        (item.href === '/phe-duyet' && pendingCount > 0) ||
+                        (item.href === '/tro-chuyen' && chatUnread > 0);
+
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          title={item.title}
+                          aria-current={isActive ? 'page' : undefined}
+                          aria-label={item.title}
+                          className={cn(
+                            'relative flex h-9 w-9 mx-auto items-center justify-center rounded-md transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-sidebar-ring',
+                            isActive
+                              ? 'bg-sidebar-accent text-sidebar-primary'
+                              : 'text-sidebar-foreground/50 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                          )}
+                        >
+                          {/* Active left border indicator */}
+                          {isActive && (
+                            <span className="absolute -left-2 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-sidebar-primary" />
+                          )}
+                          <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                          {showBadge && (
+                            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white leading-none">
+                              {item.href === '/tro-chuyen'
+                                ? chatUnread > 9 ? '9+' : chatUnread
+                                : pendingCount > 9 ? '9+' : pendingCount}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              }
+
+              /* ── Expanded state: group + items ── */
+              return (
+                <Collapsible.Root
+                  key={group.label}
+                  open={openGroups[group.label]}
+                  onOpenChange={() => toggleGroup(group.label)}
+                  className="mb-1"
+                >
+                  <Collapsible.Trigger asChild>
+                    <button
+                      className="group flex w-full items-center justify-between rounded-sm px-2 py-1.5 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sidebar-ring"
+                      aria-expanded={openGroups[group.label]}
+                      aria-controls={`nav-group-${group.label}`}
+                    >
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-sidebar-foreground/40 group-hover:text-sidebar-foreground/60 transition-colors duration-200">
+                        {group.label}
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          'h-3 w-3 text-sidebar-foreground/30 transition-transform duration-200 group-hover:text-sidebar-foreground/50',
+                          openGroups[group.label] ? '' : '-rotate-90'
+                        )}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </Collapsible.Trigger>
+
+                  <Collapsible.Content
+                    id={`nav-group-${group.label}`}
+                    className="flex flex-col gap-0.5 pb-1"
+                  >
+                    {filteredItems.map((item) => {
+                      const isActive =
+                        pathname === item.href ||
+                        pathname.startsWith(item.href + '/');
+                      const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
+                      const showBadge =
+                        (item.href === '/phe-duyet' && pendingCount > 0) ||
+                        (item.href === '/tro-chuyen' && chatUnread > 0);
+
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={isActive ? 'page' : undefined}
+                          className={cn(
+                            'group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-sidebar-ring',
+                            isActive
+                              ? 'bg-sidebar-accent text-sidebar-foreground'
+                              : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                          )}
+                        >
+                          {/* Active left border accent */}
+                          {isActive && (
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-sidebar-primary" />
+                          )}
+                          <Icon
+                            className={cn(
+                              'h-[18px] w-[18px] shrink-0 transition-colors duration-200',
+                              isActive
+                                ? 'text-sidebar-primary'
+                                : 'text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70'
+                            )}
+                            aria-hidden="true"
+                          />
+                          <span className="flex-1 truncate">{item.title}</span>
+                          {showBadge && (
+                            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white leading-none">
+                              {item.href === '/tro-chuyen'
+                                ? chatUnread > 99 ? '99+' : chatUnread
+                                : pendingCount > 99 ? '99+' : pendingCount}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </Collapsible.Content>
+                </Collapsible.Root>
+              );
+            })}
+          </nav>
+        </ScrollArea>
+
+        {/* ── User footer ─────────────────────────────── */}
+        {user && (
+          <>
+            <div className="h-px bg-sidebar-border/40" />
+            <div
+              className={cn(
+                'flex items-center gap-3 px-3 py-3',
+                isCollapsed && 'justify-center px-0'
+              )}
+            >
+              <Avatar className="h-7 w-7 shrink-0">
+                <AvatarFallback className="text-[10px] font-semibold bg-sidebar-primary text-sidebar-primary-foreground">
+                  {getInitials(user.fullName)}
+                </AvatarFallback>
+              </Avatar>
+              {!isCollapsed && (
+                <div className="flex-1 overflow-hidden">
+                  <p className="truncate text-[13px] font-medium text-sidebar-foreground leading-tight">
+                    {user.fullName}
+                  </p>
+                  <p className="truncate text-[11px] text-sidebar-foreground/40 mt-0.5">
+                    {roleLabel}
+                  </p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── Collapse / Expand button ─────────────────── */}
+        <div className="h-px bg-sidebar-border/40" />
+        <div className="flex items-center justify-center py-2">
+          {/* Desktop collapse toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleCollapsed}
+            className="h-7 w-7 text-sidebar-foreground/30 hover:text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hidden lg:flex transition-colors duration-200"
+            aria-label={isCollapsed ? 'Mo rong sidebar' : 'Thu gon sidebar'}
+            aria-expanded={!isCollapsed}
+            aria-controls="sidebar-nav"
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronLeft className="h-3.5 w-3.5" />
+            )}
+          </Button>
+          {/* Mobile close button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setOpen(false)}
+            className="h-7 w-7 text-sidebar-foreground/30 hover:text-sidebar-foreground/70 hover:bg-sidebar-accent/60 lg:hidden transition-colors duration-200"
+            aria-label="Dong menu"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </aside>
     </>
   );
 }

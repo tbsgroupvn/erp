@@ -22,9 +22,10 @@ export function Breadcrumbs() {
     <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm">
       <Link
         href="/tong-quan"
-        className="text-muted-foreground hover:text-foreground transition-colors"
+        className="text-muted-foreground/60 hover:text-foreground transition-colors duration-200"
+        aria-label="Trang tong quan"
       >
-        <Home className="h-4 w-4" />
+        <Home className="h-3.5 w-3.5" />
       </Link>
 
       {segments.map((segment, index) => {
@@ -34,14 +35,16 @@ export function Breadcrumbs() {
 
         return (
           <div key={href} className="flex items-center gap-1">
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
             {isLast ? (
-              <span className="font-medium text-foreground">{label}</span>
+              <span className="text-[13px] font-medium text-foreground">
+                {label}
+              </span>
             ) : (
               <Link
                 href={href}
                 className={cn(
-                  'text-muted-foreground hover:text-foreground transition-colors'
+                  'text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-200'
                 )}
               >
                 {label}

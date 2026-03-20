@@ -44,12 +44,10 @@ export function Topbar({
     setEndingImpersonation(true);
     try {
       await apiClient.post('/auth/end-impersonation');
-      // Clear current auth and redirect to admin
       useAuthStore.getState().logout();
       router.push('/admin');
     } catch (error) {
       console.error('Failed to end impersonation:', error);
-      // Force redirect even on error
       useAuthStore.getState().logout();
       router.push('/admin');
     } finally {
@@ -75,7 +73,7 @@ export function Topbar({
             type="button"
             onClick={handleEndImpersonation}
             disabled={endingImpersonation}
-            className="inline-flex items-center rounded-md bg-white/20 px-3 py-1 text-xs font-semibold text-white hover:bg-white/30 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center rounded-md bg-white/20 px-3 py-1 text-xs font-semibold text-white hover:bg-white/30 disabled:opacity-50 transition-colors duration-200"
           >
             {endingImpersonation ? 'Đang kết thúc...' : 'Kết thúc'}
           </button>
@@ -84,16 +82,16 @@ export function Topbar({
 
       <header
         role="banner"
-        aria-label="Thanh công cụ"
-        className={`sticky ${isImpersonating ? 'top-[36px]' : 'top-0'} z-30 flex h-14 items-center justify-between border-b bg-background/80 backdrop-blur-md px-6`}
+        aria-label="Thanh cong cu"
+        className={`sticky ${isImpersonating ? 'top-[36px]' : 'top-0'} z-30 flex h-14 items-center justify-between border-b border-border/60 bg-card/80 backdrop-blur-md px-4 transition-colors duration-200`}
       >
-        {/* Left: Hamburger (mobile) + Breadcrumbs */}
-        <div className="flex items-center gap-2">
+        {/* Left: Mobile hamburger + Breadcrumbs */}
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={toggleMobile}
             aria-label="Mo menu"
-            className="flex lg:hidden h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            className="flex lg:hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors duration-200"
           >
             <Menu className="h-4 w-4" />
           </button>
@@ -101,26 +99,37 @@ export function Topbar({
         </div>
 
         {/* Right: Search + Notifications + User Menu */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          {/* Search button — compact, borderless on desktop, bordered on mobile */}
           <button
             type="button"
             onClick={openCommandPalette}
-            title="Tìm kiếm (Ctrl+K)"
-            aria-label="Mở tìm kiếm toàn hệ thống"
-            className="inline-flex items-center gap-2 h-9 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+            title="Tim kiem (Ctrl+K)"
+            aria-label="Mo tim kiem toan he thong"
+            className="inline-flex items-center gap-2 h-8 rounded-md px-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors duration-200"
           >
-            <Search className="h-4 w-4" />
-            <span className="hidden md:inline">Tìm kiếm...</span>
-            <kbd className="hidden md:inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+            <Search className="h-[15px] w-[15px]" />
+            <span className="hidden md:inline text-[13px]">Tim kiem...</span>
+            <kbd className="hidden md:inline-flex h-5 items-center gap-0.5 rounded border border-border/60 bg-muted/60 px-1.5 font-mono text-[10px] font-medium text-muted-foreground/70">
               Ctrl+K
             </kbd>
           </button>
+
+          {/* Thin divider */}
+          <div className="mx-1 h-5 w-px bg-border/60" />
+
+          {/* Notification bell */}
           <NotificationBell
             notifications={notifications}
             onMarkAsRead={onMarkAsRead}
             onMarkAllAsRead={onMarkAllAsRead}
             onNotificationClick={onNotificationClick}
           />
+
+          {/* Thin divider */}
+          <div className="mx-1 h-5 w-px bg-border/60" />
+
+          {/* User menu */}
           <UserMenu />
         </div>
       </header>
