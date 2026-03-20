@@ -6,76 +6,76 @@
 
 @layer base {
   :root {
-    /* Professional Blue Theme for ERP/Logistics */
-    --background: 210 100% 97%;
-    --foreground: 217 91% 20%;
+    /* Refined Executive Theme — TBS ERP */
+    --background: 220 14% 96%;
+    --foreground: 220 20% 14%;
     --card: 0 0% 100%;
-    --card-foreground: 217 91% 20%;
+    --card-foreground: 220 20% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 217 91% 20%;
-    --primary: 217 91% 60%;
+    --popover-foreground: 220 20% 14%;
+    --primary: 222 47% 31%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 217 91% 65%;
+    --secondary: 215 16% 47%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 217 33% 45%;
-    --accent: 24 95% 53%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 220 10% 46%;
+    --accent: 38 80% 55%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%;
+    --border: 220 13% 89%;
+    --input: 220 13% 89%;
+    --ring: 222 47% 31%;
     --radius: 0.5rem;
-    --sidebar-background: 220 60% 98%;
-    --sidebar-foreground: 217 33% 35%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 215 20% 75%;
+    --sidebar-primary: 38 80% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 91% 93%;
-    --sidebar-accent-foreground: 217 91% 20%;
-    --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 217 91% 60%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --sidebar-accent: 222 40% 18%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 222 30% 18%;
+    --sidebar-ring: 38 80% 55%;
+    --chart-1: 222 47% 31%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 38 80% 55%;
+    --chart-4: 350 75% 55%;
+    --chart-5: 263 50% 55%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --background: 222 47% 8%;
+    --foreground: 210 20% 95%;
+    --card: 222 35% 12%;
+    --card-foreground: 210 20% 95%;
+    --popover: 222 35% 12%;
+    --popover-foreground: 210 20% 95%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 222 30% 22%;
+    --secondary-foreground: 210 20% 95%;
+    --muted: 222 30% 16%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 38 80% 55%;
+    --accent-foreground: 222 47% 8%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 210 20% 95%;
+    --border: 222 20% 20%;
+    --input: 222 20% 20%;
+    --ring: 217 91% 60%;
     --radius: 0.5rem;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 217.2 91.2% 59.8%;
-    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 224.3 76.3% 48%;
-    --chart-1: 220 70% 50%;
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 215 20% 75%;
+    --sidebar-primary: 38 80% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 40% 18%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 222 30% 18%;
+    --sidebar-ring: 38 80% 55%;
+    --chart-1: 222 47% 31%;
     --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --chart-3: 38 80% 55%;
+    --chart-4: 350 75% 55%;
+    --chart-5: 263 50% 55%;
   }
 }
 
@@ -86,6 +86,7 @@
 
   body {
     @apply bg-background text-foreground font-sans;
+    line-height: 1.625;
   }
 
   h1,
@@ -95,6 +96,7 @@
   h5,
   h6 {
     @apply font-heading;
+    letter-spacing: -0.025em;
   }
 
   /* Enhanced focus indicators for accessibility */
@@ -189,29 +191,29 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
-  /* Colored left-border accent for stat cards */
+  /* Colored left-border accent for stat cards — Refined Executive palette */
   .stat-card-blue {
-    border-left: 4px solid hsl(217, 91%, 60%);
+    border-left: 4px solid hsl(222, 47%, 31%);
   }
 
   .stat-card-emerald {
-    border-left: 4px solid hsl(160, 84%, 39%);
+    border-left: 4px solid hsl(160, 60%, 45%);
   }
 
   .stat-card-amber {
-    border-left: 4px solid hsl(38, 92%, 50%);
+    border-left: 4px solid hsl(38, 80%, 55%);
   }
 
   .stat-card-rose {
-    border-left: 4px solid hsl(350, 89%, 60%);
+    border-left: 4px solid hsl(350, 75%, 55%);
   }
 
   .stat-card-violet {
-    border-left: 4px solid hsl(263, 70%, 50%);
+    border-left: 4px solid hsl(263, 50%, 55%);
   }
 
   .stat-card-cyan {
-    border-left: 4px solid hsl(192, 91%, 36%);
+    border-left: 4px solid hsl(215, 16%, 47%);
   }
 
   /* Section card with subtle header gradient */
@@ -274,7 +276,7 @@
   @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(8px);
+      transform: translateY(6px);
     }
 
     to {
@@ -284,13 +286,13 @@
   }
 
   .animate-fade-in {
-    animation: fadeIn 0.3s ease-out both;
+    animation: fadeIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   @keyframes slideUp {
     from {
       opacity: 0;
-      transform: translateY(12px);
+      transform: translateY(10px);
     }
 
     to {
@@ -300,13 +302,13 @@
   }
 
   .animate-slide-up {
-    animation: slideUp 0.4s ease-out both;
+    animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   @keyframes slideDown {
     from {
       opacity: 0;
-      transform: translateY(-8px);
+      transform: translateY(-6px);
     }
 
     to {
@@ -316,7 +318,24 @@
   }
 
   .animate-slide-down {
-    animation: slideDown 0.3s ease-out both;
+    animation: slideDown 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Subtle spring-like fade-in-up for dashboard cards */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.99);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   /* Stagger children — apply to parent, each child uses nth-child delay */
@@ -366,7 +385,7 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Scrollbar styling - dark mode aware */
+  /* Scrollbar styling - dark mode aware, matches executive palette */
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -382,5 +401,35 @@
 
   .scrollbar-thumb-sidebar-border::-webkit-scrollbar-thumb {
     @apply bg-sidebar-border;
+  }
+
+  /* ─── Glass card effect ─── */
+  .glass-card {
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .dark .glass-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* ─── Gold gradient for financial highlights ─── */
+  .gold-gradient {
+    background: linear-gradient(135deg, hsl(38 80% 55%), hsl(32 90% 48%));
+  }
+}
+
+/* Touch-friendly targets */
+@media (pointer: coarse) {
+  button, [role="button"], a, select, input, textarea {
+    touch-action: manipulation;
+    min-height: 44px;
+  }
+
+  input[type="checkbox"] {
+    min-width: 20px;
+    min-height: 20px;
   }
 }
