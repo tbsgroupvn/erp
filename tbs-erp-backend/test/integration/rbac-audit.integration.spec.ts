@@ -218,6 +218,109 @@ describe('RBAC Audit - Controller Decoration Coverage', () => {
   });
 
   it('every HTTP handler has explicit @Roles() or @Public() decorator', () => {
+    /**
+     * KNOWN_EXCEPTIONS: endpoints that intentionally rely on class-level
+     * @UseGuards(JwtAuthGuard, RolesGuard) for protection without listing an
+     * explicit @Roles() on each method.
+     *
+     * All entries here are authenticated + role-guarded at the controller level.
+     * Adding a NEW endpoint to this list requires a code-review justification
+     * comment explaining why per-method @Roles is not needed.
+     *
+     * To resolve a known exception properly: add @Roles(...) to each method
+     * and remove the entry from this list.
+     */
+    const KNOWN_EXCEPTIONS: Array<{ controller: string; method: string }> = [
+      // BatchController — class-level @UseGuards(JwtAuthGuard, RolesGuard)
+      { controller: 'BatchController', method: 'importOrders' },
+      { controller: 'BatchController', method: 'exportOrders' },
+      { controller: 'BatchController', method: 'exportARReport' },
+      { controller: 'BatchController', method: 'getJobStatus' },
+
+      // CodController — class-level @UseGuards(JwtAuthGuard, RolesGuard)
+      { controller: 'CodController', method: 'recordCODCollection' },
+      { controller: 'CodController', method: 'getDriverCollections' },
+      { controller: 'CodController', method: 'confirmRemittance' },
+      { controller: 'CodController', method: 'findAll' },
+      { controller: 'CodController', method: 'getReconciliation' },
+      { controller: 'CodController', method: 'flagShortage' },
+
+      // CommissionController — class-level @UseGuards(JwtAuthGuard, RolesGuard)
+      { controller: 'CommissionController', method: 'createRule' },
+      { controller: 'CommissionController', method: 'getRules' },
+      { controller: 'CommissionController', method: 'calculateCommission' },
+      { controller: 'CommissionController', method: 'getMyCommissions' },
+      { controller: 'CommissionController', method: 'getTeamCommissions' },
+      { controller: 'CommissionController', method: 'approveCommission' },
+      { controller: 'CommissionController', method: 'getMonthlyReport' },
+
+      // ContractController — class-level @UseGuards(JwtAuthGuard, RolesGuard, DataScopeGuard)
+      { controller: 'ContractController', method: 'findAll' },
+      { controller: 'ContractController', method: 'exportPdf' },
+      { controller: 'ContractController', method: 'findOne' },
+      { controller: 'ContractController', method: 'create' },
+      { controller: 'ContractController', method: 'update' },
+      { controller: 'ContractController', method: 'updateStatus' },
+      { controller: 'ContractController', method: 'delete' },
+
+      // InventoryController — class-level @UseGuards(JwtAuthGuard, RolesGuard)
+      { controller: 'InventoryController', method: 'createStockItem' },
+      { controller: 'InventoryController', method: 'recordMovement' },
+      { controller: 'InventoryController', method: 'getCurrentStock' },
+      { controller: 'InventoryController', method: 'getStockItem' },
+      { controller: 'InventoryController', method: 'getLowStockAlerts' },
+      { controller: 'InventoryController', method: 'getMovementHistory' },
+      { controller: 'InventoryController', method: 'doStocktake' },
+
+      // LostAndFoundController — class-level @UseGuards(JwtAuthGuard, RolesGuard)
+      { controller: 'LostAndFoundController', method: 'createLostItem' },
+      { controller: 'LostAndFoundController', method: 'findAll' },
+      { controller: 'LostAndFoundController', method: 'attemptMatch' },
+      { controller: 'LostAndFoundController', method: 'claimItem' },
+      { controller: 'LostAndFoundController', method: 'markForDisposal' },
+      { controller: 'LostAndFoundController', method: 'getStatistics' },
+
+      // OperationCostController — class-level @UseGuards(JwtAuthGuard, RolesGuard)
+      { controller: 'OperationCostController', method: 'recordCost' },
+      { controller: 'OperationCostController', method: 'findAll' },
+      { controller: 'OperationCostController', method: 'getCostSummary' },
+      { controller: 'OperationCostController', method: 'getContainerCosts' },
+      { controller: 'OperationCostController', method: 'allocateCosts' },
+      { controller: 'OperationCostController', method: 'getCostPerKg' },
+      { controller: 'OperationCostController', method: 'getVarianceReport' },
+      { controller: 'OperationCostController', method: 'getOrderCost' },
+
+      // MasterOrderController — class-level @UseGuards(JwtAuthGuard, RolesGuard, DataScopeGuard)
+      { controller: 'MasterOrderController', method: 'create' },
+      { controller: 'MasterOrderController', method: 'findAll' },
+      { controller: 'MasterOrderController', method: 'findById' },
+      { controller: 'MasterOrderController', method: 'addSubOrder' },
+
+      // ServiceFeeConfigController — class-level @UseGuards(JwtAuthGuard, RolesGuard, DataScopeGuard)
+      { controller: 'ServiceFeeConfigController', method: 'findAll' },
+      { controller: 'ServiceFeeConfigController', method: 'findOne' },
+      { controller: 'ServiceFeeConfigController', method: 'create' },
+      { controller: 'ServiceFeeConfigController', method: 'update' },
+      { controller: 'ServiceFeeConfigController', method: 'remove' },
+
+      // PurchaseController — class-level @UseGuards(JwtAuthGuard, RolesGuard)
+      { controller: 'PurchaseController', method: 'createPurchaseRequest' },
+      { controller: 'PurchaseController', method: 'approvePR' },
+      { controller: 'PurchaseController', method: 'convertToPO' },
+      { controller: 'PurchaseController', method: 'createPurchaseOrder' },
+      { controller: 'PurchaseController', method: 'recordReceipt' },
+      { controller: 'PurchaseController', method: 'findAll' },
+      { controller: 'PurchaseController', method: 'getVendorPurchases' },
+
+      // TrackingController — class-level @UseGuards(JwtAuthGuard, RolesGuard)
+      { controller: 'TrackingController', method: 'addTrackingEvent' },
+      { controller: 'TrackingController', method: 'getPackageTracking' },
+      { controller: 'TrackingController', method: 'getContainerTracking' },
+      { controller: 'TrackingController', method: 'syncExternalTracking' },
+      { controller: 'TrackingController', method: 'getCustomerTracking' },
+      { controller: 'TrackingController', method: 'estimateDelivery' },
+    ];
+
     const undecorated: string[] = [];
 
     for (const controllerClass of allControllers) {
@@ -260,21 +363,38 @@ describe('RBAC Audit - Controller Decoration Coverage', () => {
       }
     }
 
-    // Log undecorated endpoints for visibility (advisory, not blocking)
+    // Log undecorated endpoints for visibility
     if (undecorated.length > 0) {
       console.warn(
         `\n=== ENDPOINTS WITHOUT EXPLICIT @Roles() or @Public() ===\n` +
           `These endpoints rely on @UseGuards(JwtAuthGuard) for protection.\n` +
-          `Consider adding @Roles(...ALL_ROLES) for explicit documentation.\n\n` +
+          `Consider adding @Roles(...) for explicit documentation.\n\n` +
           undecorated.map((v) => `  - ${v}`).join('\n') +
           `\n\nTotal: ${undecorated.length}\n`,
       );
     }
 
-    // This is advisory -- endpoints with JwtAuthGuard are still protected
-    // Uncomment the line below to enforce strict @Roles/@Public on all endpoints:
-    // expect(undecorated).toEqual([]);
-    expect(true).toBe(true);
+    // Strict enforcement: any endpoint not in KNOWN_EXCEPTIONS must have
+    // an explicit @Roles() or @Public() decorator. This acts as a regression
+    // gate — adding a new undecorated endpoint will cause this test to fail.
+    const unexpectedUndecorated = undecorated.filter(
+      (ep) =>
+        !KNOWN_EXCEPTIONS.some(
+          (ex) => ep === `${ex.controller}.${ex.method}`,
+        ),
+    );
+
+    if (unexpectedUndecorated.length > 0) {
+      console.error(
+        `\n=== NEW UNDECORATED ENDPOINTS (not in KNOWN_EXCEPTIONS) ===\n` +
+          `Add @Roles(...) or @Public() to these handlers, or add them to\n` +
+          `KNOWN_EXCEPTIONS in rbac-audit.integration.spec.ts with a justification.\n\n` +
+          unexpectedUndecorated.map((v) => `  - ${v}`).join('\n') +
+          `\n\nTotal: ${unexpectedUndecorated.length}\n`,
+      );
+    }
+
+    expect(unexpectedUndecorated).toEqual([]);
   });
 
   it('audit report lists all controllers and their access level', () => {
