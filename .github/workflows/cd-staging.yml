@@ -1,0 +1,262 @@
+# ============================================================
+# TBS ERP — CD Staging Pipeline
+# Kích hoạt: merge vào nhánh develop
+#
+# Quy trình:
+#   1. Build & push Docker images lên GHCR (tag = sha ngắn + develop)
+#   2. Deploy lên máy chủ staging qua SSH
+#   3. Chạy prisma migrate deploy
+#   4. Health check sau deploy
+#   5. Thông báo Slack kết quả
+#
+# Secrets cần cấu hình trong GitHub:
+#   STAGING_HOST        — IP/hostname máy chủ staging
+#   STAGING_USER        — SSH user (vd: deploy)
+#   STAGING_SSH_KEY     — Private SSH key (RSA/ED25519)
+#   SLACK_WEBHOOK       — Slack Incoming Webhook URL (tuỳ chọn)
+#
+# Variables (GitHub Actions environment "staging"):
+#   STAGING_API_URL     — vd: https://staging-api.tbslogistics.com
+#   STAGING_APP_URL     — vd: https://staging.tbslogistics.com
+# ============================================================
+
+name: CD — Staging
+
+on:
+  push:
+    branches:
+      - develop
+
+# Mỗi lần chỉ chạy 1 deploy vào staging — hủy run cũ nếu có
+concurrency:
+  group: cd-staging
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20.x'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  # Đường dẫn project trên máy chủ staging
+  REMOTE_PROJECT_DIR: /var/www/tbs-erp
+
+jobs:
+  # ============================================================
+  # JOB 1: Build và push Docker images lên GHCR
+  # ============================================================
+  build-and-push:
+    name: 'Build & Push Docker Images'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      # Truyền image tag sang job deploy
+      image-tag: ${{ steps.vars.outputs.sha_short }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tính SHA ngắn (7 ký tự)
+        id: vars
+        run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Thiết lập Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- Backend ---
+      - name: Metadata Backend image
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+          tags: |
+            type=sha,prefix=
+            type=raw,value=develop
+            type=raw,value=staging-latest
+
+      - name: Build & Push Backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./tbs-erp-backend
+          dockerfile: ./tbs-erp-backend/Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          # Cache theo scope riêng để không conflict với CI job
+          cache-from: type=gha,scope=staging-backend
+          cache-to: type=gha,mode=max,scope=staging-backend
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+
+      # --- Frontend ---
+      - name: Metadata Frontend image
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+          tags: |
+            type=sha,prefix=
+            type=raw,value=develop
+            type=raw,value=staging-latest
+
+      - name: Build & Push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./tbs-erp-frontend
+          dockerfile: ./tbs-erp-frontend/Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha,scope=staging-frontend
+          cache-to: type=gha,mode=max,scope=staging-frontend
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.STAGING_API_URL }}/api/v1
+            NEXT_PUBLIC_APP_TITLE=TBS ERP (Staging)
+            NEXT_PUBLIC_COMPANY_NAME=TBS
+            NEXT_PUBLIC_COMPANY_FULL_NAME=TBS Group
+            NEXT_PUBLIC_DEMO_MODE=false
+
+  # ============================================================
+  # JOB 2: Deploy lên staging server
+  # Cần job build-and-push pass trước
+  # ============================================================
+  deploy-staging:
+    name: 'Deploy → Staging'
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    # Dùng GitHub environment "staging" để:
+    # - Lưu secrets riêng cho staging
+    # - Hiển thị URL deployment trong GitHub UI
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_APP_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # SSH vào máy chủ staging, pull image mới, restart services
+      - name: Deploy lên staging qua SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          # Truyền biến vào remote script
+          envs: GITHUB_SHA,IMAGE_TAG
+          script: |
+            set -euo pipefail
+
+            IMAGE_TAG="${GITHUB_SHA:0:7}"
+            PROJECT_DIR="/var/www/tbs-erp"
+
+            echo "==================================================="
+            echo "Deploying TBS ERP Staging — image tag: $IMAGE_TAG"
+            echo "==================================================="
+
+            cd "$PROJECT_DIR"
+
+            # Cập nhật .env staging với image tag mới
+            # (file .env.staging phải tồn tại trên server với đầy đủ secrets)
+            sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${IMAGE_TAG}/" .env.staging || \
+              echo "IMAGE_TAG=${IMAGE_TAG}" >> .env.staging
+
+            # Pull image mới từ GHCR
+            docker compose -f docker-compose.staging.yml \
+              --env-file .env.staging \
+              pull backend frontend
+
+            # Chạy migration trước khi restart app
+            # Dùng container tạm để chạy migrate — không restart production container
+            docker compose -f docker-compose.staging.yml \
+              --env-file .env.staging \
+              run --rm --no-deps \
+              -e DATABASE_URL \
+              -e DIRECT_DATABASE_URL \
+              backend npx prisma migrate deploy
+
+            # Restart backend và frontend với zero-downtime (recreate)
+            docker compose -f docker-compose.staging.yml \
+              --env-file .env.staging \
+              up -d --no-deps --force-recreate backend frontend
+
+            echo "Deploy hoàn tất — bắt đầu health check..."
+
+      # Health check từ runner (bên ngoài) — chờ tối đa 2 phút
+      - name: Health check sau deploy
+        run: |
+          echo "Chờ staging khởi động..."
+          sleep 20
+
+          STAGING_API="${{ vars.STAGING_API_URL }}"
+          MAX_RETRIES=12
+          WAIT_SECONDS=10
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Health check attempt $i/$MAX_RETRIES..."
+
+            # Kiểm tra backend /health/ready
+            if curl -sf --max-time 10 "${STAGING_API}/api/v1/health/ready" > /dev/null 2>&1; then
+              echo "Backend staging HEALTHY sau $i lần thử"
+              break
+            fi
+
+            if [ "$i" -eq "$MAX_RETRIES" ]; then
+              echo "FAIL: Backend staging không healthy sau ${MAX_RETRIES} lần thử"
+              exit 1
+            fi
+
+            sleep $WAIT_SECONDS
+          done
+
+          # Kiểm tra thêm /health endpoint (trả về DB + Redis status)
+          HEALTH_RESP=$(curl -sf --max-time 15 "${STAGING_API}/api/v1/health" || echo "FAILED")
+          echo "Health response: ${HEALTH_RESP}"
+
+          if [ "${HEALTH_RESP}" = "FAILED" ]; then
+            echo "FAIL: /health endpoint không phản hồi"
+            exit 1
+          fi
+
+          echo "=== Staging deploy thành công ==="
+
+      # Thông báo Slack khi deploy thành công
+      - name: Thông báo Slack — Deploy thành công
+        if: success() && secrets.SLACK_WEBHOOK != ''
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          fields: repo,message,commit,author,workflow,took
+          text: |
+            *Staging Deploy THANH CONG*
+            Branch: `develop`
+            Commit: `${{ github.sha }}`
+            Tag: `${{ needs.build-and-push.outputs.image-tag }}`
+            URL: ${{ vars.STAGING_APP_URL }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      # Thông báo Slack khi deploy thất bại
+      - name: Thông báo Slack — Deploy thất bại
+        if: failure() && secrets.SLACK_WEBHOOK != ''
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          fields: repo,message,commit,author,workflow,took
+          text: |
+            *Staging Deploy THAT BAI*
+            Branch: `develop`
+            Commit: `${{ github.sha }}`
+            Xem log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

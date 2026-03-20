@@ -1,0 +1,569 @@
+# ============================================================
+# TBS ERP — CD Production Pipeline
+# Kích hoạt: push tag dạng v* (ví dụ: v1.2.3, v2.0.0-rc1)
+#
+# Quy trình:
+#   1. Tạo GitHub Release draft từ tag
+#   2. Build & push Docker images lên GHCR (tag = version + latest)
+#   3. Chờ approval (GitHub Environment protection rule)
+#   4. Database migration (Prisma deploy)
+#   5. Deploy production qua SSH (rolling restart)
+#   6. Smoke tests sau deploy
+#   7. Theo dõi sức khoẻ 5 phút
+#   8. Auto-rollback nếu health check thất bại
+#   9. Tạo Sentry release + thông báo Slack
+#
+# Secrets cần cấu hình trong GitHub Environment "production":
+#   PRODUCTION_HOST       — IP/hostname máy chủ production
+#   PRODUCTION_USER       — SSH user
+#   PRODUCTION_SSH_KEY    — Private SSH key
+#   SENTRY_AUTH_TOKEN     — Token Sentry (tuỳ chọn)
+#   SENTRY_ORG            — Tên org Sentry
+#   SENTRY_PROJECT        — Tên project Sentry
+#   SLACK_WEBHOOK         — Slack Incoming Webhook URL
+#
+# Variables (GitHub Actions environment "production"):
+#   PRODUCTION_API_URL    — vd: https://api.nhaphangchinhngach.vn
+#   PRODUCTION_APP_URL    — vd: https://erp.nhaphangchinhngach.vn
+# ============================================================
+
+name: CD — Production
+
+on:
+  push:
+    # Chỉ chạy khi có tag version: v1.0.0, v1.2.3, v2.0.0-rc1, ...
+    tags:
+      - 'v*'
+
+# Mỗi lần chỉ chạy 1 deploy production — KHÔNG hủy run đang chạy
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20.x'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  REMOTE_PROJECT_DIR: /var/www/tbs-erp
+
+jobs:
+  # ============================================================
+  # JOB 1: Tạo GitHub Release (draft) từ tag
+  # Nếu CHANGELOG không có → release notes tự động từ commits
+  # ============================================================
+  create-release:
+    name: 'Tạo GitHub Release'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    outputs:
+      release-version: ${{ steps.get-version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Lấy version từ tag
+        id: get-version
+        run: |
+          # Loại bỏ prefix "v" — v1.2.3 → 1.2.3
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Deploying version: ${VERSION}"
+
+      # Tạo Release với auto-generated notes từ conventional commits
+      - name: Tạo GitHub Release (draft)
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          name: "TBS ERP v${{ steps.get-version.outputs.version }}"
+          body: |
+            ## TBS ERP Release v${{ steps.get-version.outputs.version }}
+
+            **Deployed:** ${{ github.event.head_commit.message }}
+
+            **Commit:** `${{ github.sha }}`
+
+            ### Huong dan deploy
+            Production deployment se duoc kich hoat sau khi release nay duoc approve.
+
+  # ============================================================
+  # JOB 2: Build và push Docker images với tag version
+  # Chạy song song với create-release
+  # ============================================================
+  build-and-push:
+    name: 'Build & Push Production Images'
+    runs-on: ubuntu-latest
+    needs: create-release
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image-tag: ${{ steps.vars.outputs.sha_short }}
+      version: ${{ steps.vars.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tính các biến image tag
+        id: vars
+        run: |
+          echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          # v1.2.3 → 1.2.3
+          echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Thiết lập Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- Backend production image ---
+      - name: Metadata Backend image
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+          tags: |
+            # Tag theo version semver: v1.2.3 → 1.2.3, 1.2, 1
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            # Tag SHA ngắn để traceability
+            type=sha,prefix=
+            # latest luôn trỏ đến production mới nhất
+            type=raw,value=latest
+
+      - name: Build & Push Backend production image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./tbs-erp-backend
+          dockerfile: ./tbs-erp-backend/Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha,scope=prod-backend
+          cache-to: type=gha,mode=max,scope=prod-backend
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+
+      # --- Frontend production image ---
+      - name: Metadata Frontend image
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build & Push Frontend production image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./tbs-erp-frontend
+          dockerfile: ./tbs-erp-frontend/Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha,scope=prod-frontend
+          cache-to: type=gha,mode=max,scope=prod-frontend
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.PRODUCTION_API_URL }}/api/v1
+            NEXT_PUBLIC_APP_TITLE=TBS ERP
+            NEXT_PUBLIC_COMPANY_NAME=TBS
+            NEXT_PUBLIC_COMPANY_FULL_NAME=TBS Group
+            NEXT_PUBLIC_DOMAIN=nhaphangchinhngach.vn
+            NEXT_PUBLIC_DEMO_MODE=false
+
+  # ============================================================
+  # JOB 3: Deploy Production (sau approval)
+  #
+  # Bước quan trọng: Job này gắn với GitHub Environment "production"
+  # → Cần reviewer approve trong GitHub UI trước khi chạy
+  # → Cấu hình tại: Settings → Environments → production → Required reviewers
+  # ============================================================
+  deploy-production:
+    name: 'Deploy → Production (Requires Approval)'
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    # Environment "production" kích hoạt protection rules
+    # (manual approval, deployment branch policies)
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_APP_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Thông báo Slack bắt đầu deploy
+      - name: Thông báo Slack — Bắt đầu deploy production
+        if: vars.SLACK_WEBHOOK != '' || secrets.SLACK_WEBHOOK != ''
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "*[PRODUCTION] Bat dau deploy TBS ERP v${{ needs.build-and-push.outputs.version }}*",
+              "attachments": [{
+                "color": "warning",
+                "fields": [
+                  {"title": "Version", "value": "v${{ needs.build-and-push.outputs.version }}", "short": true},
+                  {"title": "Image Tag", "value": "${{ needs.build-and-push.outputs.image-tag }}", "short": true},
+                  {"title": "Actor", "value": "${{ github.actor }}", "short": true},
+                  {"title": "Commit", "value": "${{ github.sha }}", "short": false}
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      # === BƯỚC CRITICAL: Database Migration ===
+      # Chạy migration trước khi deploy app mới
+      # Dùng container tạm — KHÔNG restart container đang chạy
+      - name: Database Migration (Prisma deploy)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          envs: GITHUB_SHA
+          script: |
+            set -euo pipefail
+
+            VERSION_TAG="${GITHUB_REF_NAME:-latest}"
+            PROJECT_DIR="/var/www/tbs-erp"
+
+            echo "=== Database Migration for v${VERSION_TAG} ==="
+            cd "$PROJECT_DIR"
+
+            # Tạo backup trước migration (quan trọng cho production!)
+            echo "Backup database truoc migration..."
+            docker compose -f docker-compose.yml \
+              --env-file .env.production \
+              exec -T postgres pg_dump \
+                -U "${POSTGRES_USER:-erp_user}" \
+                -d "${POSTGRES_DB:-erp_db}" \
+                -Fc \
+              > "/opt/tbs-backups/pre-deploy-$(date +%Y%m%d_%H%M%S).dump" || \
+              echo "WARN: Backup that bai — tiep tuc migrate"
+
+            # Chạy migration với image production mới
+            docker compose -f docker-compose.yml \
+              --env-file .env.production \
+              run --rm --no-deps \
+              backend npx prisma migrate deploy
+
+            echo "Migration hoan tat"
+
+      # === BƯỚC DEPLOY: Rolling restart ===
+      - name: Deploy production (rolling restart)
+        id: deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          envs: GITHUB_SHA
+          script: |
+            set -euo pipefail
+
+            IMAGE_TAG="${GITHUB_SHA:0:7}"
+            VERSION_TAG="${GITHUB_REF_NAME:-latest}"
+            PROJECT_DIR="/var/www/tbs-erp"
+
+            echo "==================================================="
+            echo "Deploying TBS ERP Production"
+            echo "Version: ${VERSION_TAG} | Tag: ${IMAGE_TAG}"
+            echo "==================================================="
+
+            cd "$PROJECT_DIR"
+
+            # Lưu version hiện tại để rollback nếu cần
+            CURRENT_TAG=$(docker compose -f docker-compose.yml \
+              --env-file .env.production \
+              images -q backend 2>/dev/null | head -1 || echo "unknown")
+            echo "${CURRENT_TAG}" > /opt/tbs-state/previous-image-tag.txt
+
+            # Cập nhật IMAGE_TAG trong .env.production
+            sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${IMAGE_TAG}/" .env.production || \
+              echo "IMAGE_TAG=${IMAGE_TAG}" >> .env.production
+
+            # Pull image mới từ GHCR
+            echo "Pulling image tag: ${IMAGE_TAG}..."
+            docker compose -f docker-compose.yml \
+              --env-file .env.production \
+              pull backend frontend
+
+            # Rolling restart: restart backend trước, frontend sau
+            # --no-deps: chỉ restart service chỉ định, không kéo deps
+            echo "Restarting backend..."
+            docker compose -f docker-compose.yml \
+              --env-file .env.production \
+              up -d --no-deps --force-recreate backend
+
+            # Chờ backend healthy trước khi restart frontend
+            echo "Cho backend khoi dong..."
+            sleep 15
+
+            # Kiểm tra backend local health trước khi restart frontend
+            BACKEND_HEALTHY=false
+            for i in $(seq 1 12); do
+              if docker compose -f docker-compose.yml \
+                --env-file .env.production \
+                exec -T backend wget -qO- http://localhost:3000/api/v1/health/live > /dev/null 2>&1; then
+                BACKEND_HEALTHY=true
+                echo "Backend healthy sau $i lan thu"
+                break
+              fi
+              echo "Cho backend... (lan $i/12)"
+              sleep 5
+            done
+
+            if [ "$BACKEND_HEALTHY" = "false" ]; then
+              echo "FAIL: Backend khong healthy sau khi restart!"
+              exit 1
+            fi
+
+            echo "Restarting frontend..."
+            docker compose -f docker-compose.yml \
+              --env-file .env.production \
+              up -d --no-deps --force-recreate frontend
+
+            echo "Deploy hoan tat — bat dau smoke tests"
+
+      # Smoke test từ runner (bên ngoài server)
+      - name: Smoke tests sau deploy
+        id: smoke-tests
+        run: |
+          echo "Chay smoke tests production..."
+          sleep 20
+
+          PROD_API="${{ vars.PRODUCTION_API_URL }}"
+          PROD_APP="${{ vars.PRODUCTION_APP_URL }}"
+          FAILURES=0
+
+          # 1. Backend /health/ready (retry 12 lần × 10 giây = 2 phút)
+          BACKEND_OK=false
+          for i in $(seq 1 12); do
+            if curl -sf --max-time 10 "${PROD_API}/api/v1/health/ready" > /dev/null 2>&1; then
+              echo "Backend production HEALTHY (lan $i)"
+              BACKEND_OK=true
+              break
+            fi
+            echo "Backend chua san sang... (lan $i/12)"
+            sleep 10
+          done
+
+          if [ "$BACKEND_OK" = "false" ]; then
+            echo "FAIL: Backend production khong healthy"
+            FAILURES=$((FAILURES + 1))
+          fi
+
+          # 2. Backend /health (chi tiet: DB, Redis, queues)
+          if ! curl -sf --max-time 15 "${PROD_API}/api/v1/health" > /dev/null 2>&1; then
+            echo "FAIL: /health endpoint khong phan hoi"
+            FAILURES=$((FAILURES + 1))
+          else
+            echo "OK: /health endpoint phan hoi"
+          fi
+
+          # 3. Frontend ERP
+          if ! curl -sf --max-time 15 "${PROD_APP}" -o /dev/null 2>&1; then
+            echo "FAIL: Frontend ERP khong truy cap duoc"
+            FAILURES=$((FAILURES + 1))
+          else
+            echo "OK: Frontend ERP accessiable"
+          fi
+
+          if [ $FAILURES -gt 0 ]; then
+            echo "FAIL: Smoke tests that bai voi $FAILURES loi"
+            exit 1
+          fi
+
+          echo "=== Tat ca smoke tests PASS ==="
+
+      # Auto-rollback nếu deploy hoặc smoke test thất bại
+      - name: AUTO-ROLLBACK khi deploy/smoke test that bai
+        if: failure()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            PROJECT_DIR="/var/www/tbs-erp"
+
+            echo "!!! PRODUCTION DEPLOY THAT BAI — Rollback tu dong !!!"
+            cd "$PROJECT_DIR"
+
+            # Lấy tag image trước đó
+            PREV_TAG=$(cat /opt/tbs-state/previous-image-tag.txt 2>/dev/null || echo "")
+
+            if [ -n "$PREV_TAG" ]; then
+              echo "Rollback ve image truoc: ${PREV_TAG}"
+              # Cập nhật lại .env với tag cũ
+              sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${PREV_TAG}/" .env.production
+
+              # Restart với image cũ
+              docker compose -f docker-compose.yml \
+                --env-file .env.production \
+                up -d --no-deps --force-recreate backend frontend
+
+              echo "Rollback backend + frontend hoan tat"
+
+              # Health check sau rollback
+              sleep 20
+              if curl -sf --max-time 20 "http://localhost:3000/api/v1/health/live" > /dev/null 2>&1; then
+                echo "Rollback thanh cong — service dang chay voi version cu"
+              else
+                echo "CRITICAL: Rollback cung that bai — can can thiep thu cong!"
+              fi
+            else
+              echo "WARN: Khong tim thay tag truoc — rollback bang docker compose restart"
+              docker compose -f docker-compose.yml \
+                --env-file .env.production \
+                restart backend frontend || true
+            fi
+
+      # Tạo Sentry release (theo dõi errors sau deploy)
+      - name: Tao Sentry Release
+        if: success() && secrets.SENTRY_AUTH_TOKEN != ''
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        with:
+          environment: production
+          version: ${{ needs.build-and-push.outputs.version }}
+
+  # ============================================================
+  # JOB 4: Theo dõi sức khoẻ 5 phút sau deploy
+  # ============================================================
+  post-deploy-monitoring:
+    name: 'Post-Deploy Health Monitor (5 min)'
+    runs-on: ubuntu-latest
+    needs: deploy-production
+
+    steps:
+      - name: Theo doi production 5 phut
+        run: |
+          echo "Bat dau theo doi production sau deploy..."
+
+          PROD_API="${{ vars.PRODUCTION_API_URL }}"
+          PROD_APP="${{ vars.PRODUCTION_APP_URL }}"
+          TOTAL_CHECKS=10
+          CHECK_INTERVAL=30
+          FAIL_COUNT=0
+
+          for i in $(seq 1 $TOTAL_CHECKS); do
+            echo "--- Kiem tra $i/$TOTAL_CHECKS ($(date)) ---"
+
+            # Backend readiness
+            if ! curl -sf --max-time 10 "${PROD_API}/api/v1/health/ready" > /dev/null 2>&1; then
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+              echo "WARN: Backend health that bai (tong that bai: $FAIL_COUNT)"
+            else
+              echo "OK: Backend"
+            fi
+
+            # Frontend (kiem tra moi 2 lan)
+            if [ $((i % 2)) -eq 0 ]; then
+              if ! curl -sf --max-time 10 "${PROD_APP}" -o /dev/null 2>&1; then
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+                echo "WARN: Frontend khong truy cap duoc (tong: $FAIL_COUNT)"
+              else
+                echo "OK: Frontend"
+              fi
+            fi
+
+            # Nguong 3 lan that bai → bao dong
+            if [ $FAIL_COUNT -ge 3 ]; then
+              echo "FAIL: Qua nhieu that bai ($FAIL_COUNT) trong giai doan monitoring!"
+              exit 1
+            fi
+
+            # Khong sleep sau lan kiem tra cuoi
+            if [ "$i" -lt "$TOTAL_CHECKS" ]; then
+              sleep $CHECK_INTERVAL
+            fi
+          done
+
+          echo "=== 5 phut monitoring PASS ($FAIL_COUNT/$TOTAL_CHECKS that bai) ==="
+
+      # Auto-rollback nếu monitoring thất bại
+      - name: AUTO-ROLLBACK sau post-deploy monitoring that bai
+        if: failure()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            PROJECT_DIR="/var/www/tbs-erp"
+            echo "Post-deploy monitoring that bai — Rollback!"
+            cd "$PROJECT_DIR"
+
+            PREV_TAG=$(cat /opt/tbs-state/previous-image-tag.txt 2>/dev/null || echo "")
+            if [ -n "$PREV_TAG" ]; then
+              sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${PREV_TAG}/" .env.production
+              docker compose -f docker-compose.yml \
+                --env-file .env.production \
+                up -d --no-deps --force-recreate backend frontend
+              echo "Rollback ve ${PREV_TAG} hoan tat"
+            fi
+
+      # Publish GitHub Release (từ draft → published) sau khi monitoring pass
+      - name: Publish GitHub Release
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          name: "TBS ERP ${{ github.ref_name }}"
+
+      # Thông báo Slack — kết quả cuối cùng
+      - name: Thong bao Slack — Deploy production thanh cong
+        if: success() && secrets.SLACK_WEBHOOK != ''
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          fields: repo,message,commit,author,workflow,took
+          text: |
+            *[PRODUCTION] Deploy TBS ERP THANH CONG*
+            Version: `${{ github.ref_name }}`
+            URL: ${{ vars.PRODUCTION_APP_URL }}
+            5-phut monitoring: PASS
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Thong bao Slack — Deploy production that bai
+        if: failure() && secrets.SLACK_WEBHOOK != ''
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          fields: repo,message,commit,author,workflow,took
+          text: |
+            *[PRODUCTION] Deploy TBS ERP THAT BAI hoac MONITORING CANH BAO*
+            Version: `${{ github.ref_name }}`
+            Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            ---
+            Kiem tra ngay va xem xet rollback thu cong neu can!
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

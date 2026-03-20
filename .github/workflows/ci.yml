@@ -1,0 +1,500 @@
+# ============================================================
+# TBS ERP — CI Pipeline
+# Kích hoạt khi push hoặc mở PR vào bất kỳ nhánh nào.
+#
+# Sơ đồ job (chạy song song tối đa):
+#
+#   lint-backend  ─┐
+#   lint-frontend  ├─► unit-tests-backend  ─┐
+#   typecheck-be   │   unit-tests-frontend  ├─► integration-tests ─┐
+#   typecheck-fe  ─┘                        │                       ├─► docker-build
+#                                           └─► security-scan    ─┘
+#
+# Tất cả job trước phải xanh thì docker-build mới chạy.
+# ============================================================
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main, develop, staging]
+
+# Hủy run cũ trên cùng nhánh (trừ main) để tiết kiệm runner phút
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  NODE_VERSION: '20.x'
+  # Registry GHCR — dùng cho docker-build job
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+# ============================================================
+# JOB 1A: Lint Backend (ESLint)
+# ============================================================
+jobs:
+  lint-backend:
+    name: 'Lint — Backend (ESLint)'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cài Node.js với npm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tbs-erp-backend/package-lock.json
+
+      - name: Cài dependencies backend
+        working-directory: tbs-erp-backend
+        run: npm ci
+
+      # Prisma generate cần thiết vì ESLint import các type từ @prisma/client
+      - name: Generate Prisma Client
+        working-directory: tbs-erp-backend
+        run: npx prisma generate
+
+      - name: Chạy ESLint backend
+        working-directory: tbs-erp-backend
+        # --max-warnings 0 để fail nếu có warning — dùng || true nếu muốn mềm hơn
+        run: npm run lint -- --max-warnings=0
+
+  # ============================================================
+  # JOB 1B: Lint Frontend (Next.js ESLint)
+  # ============================================================
+  lint-frontend:
+    name: 'Lint — Frontend (next lint)'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cài Node.js với npm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tbs-erp-frontend/package-lock.json
+
+      - name: Cài dependencies frontend
+        working-directory: tbs-erp-frontend
+        run: npm ci
+
+      - name: Chạy ESLint frontend (next lint)
+        working-directory: tbs-erp-frontend
+        run: npm run lint
+
+  # ============================================================
+  # JOB 1C: Type Check Backend (tsc --noEmit)
+  # ============================================================
+  typecheck-backend:
+    name: 'Type Check — Backend'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tbs-erp-backend/package-lock.json
+
+      - name: Cài dependencies backend
+        working-directory: tbs-erp-backend
+        run: npm ci
+
+      - name: Generate Prisma Client (cần để tsc thấy types)
+        working-directory: tbs-erp-backend
+        run: npx prisma generate
+
+      - name: Kiểm tra kiểu TypeScript backend
+        working-directory: tbs-erp-backend
+        run: npx tsc --noEmit
+
+  # ============================================================
+  # JOB 1D: Type Check Frontend (tsc --noEmit)
+  # ============================================================
+  typecheck-frontend:
+    name: 'Type Check — Frontend'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tbs-erp-frontend/package-lock.json
+
+      - name: Cài dependencies frontend
+        working-directory: tbs-erp-frontend
+        run: npm ci
+
+      - name: Kiểm tra kiểu TypeScript frontend
+        working-directory: tbs-erp-frontend
+        run: npx tsc --noEmit
+
+  # ============================================================
+  # JOB 2A: Unit Tests Backend (Jest)
+  # Chạy sau khi lint + typecheck backend pass
+  # ============================================================
+  unit-tests-backend:
+    name: 'Unit Tests — Backend (Jest)'
+    runs-on: ubuntu-latest
+    needs: [lint-backend, typecheck-backend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tbs-erp-backend/package-lock.json
+
+      - name: Cài dependencies backend
+        working-directory: tbs-erp-backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: tbs-erp-backend
+        run: npx prisma generate
+
+      - name: Chạy unit tests (không coverage để tăng tốc)
+        working-directory: tbs-erp-backend
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ci-unit-test-jwt-secret-not-production
+          JWT_REFRESH_SECRET: ci-unit-test-refresh-secret-not-production
+          FIELD_ENCRYPTION_KEY: ci-test-field-enc-key-32chars!!!
+          TWO_FA_ENCRYPTION_KEY: ci-test-2fa-enc-key-32chars!!!!
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+        run: |
+          # --no-coverage: unit tests tidak perlu coverage di CI (cepat)
+          # --forceExit: cegah hang akibat koneksi terbuka
+          npm test -- --no-coverage --forceExit --maxWorkers=2
+
+  # ============================================================
+  # JOB 2B: Unit Tests Frontend (Vitest)
+  # ============================================================
+  unit-tests-frontend:
+    name: 'Unit Tests — Frontend (Vitest)'
+    runs-on: ubuntu-latest
+    needs: [lint-frontend, typecheck-frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tbs-erp-frontend/package-lock.json
+
+      - name: Cài dependencies frontend
+        working-directory: tbs-erp-frontend
+        run: npm ci
+
+      - name: Chạy unit tests frontend (Vitest)
+        working-directory: tbs-erp-frontend
+        # vitest run: chạy một lần rồi thoát (không watch mode)
+        run: npm run test:run
+
+  # ============================================================
+  # JOB 3: Integration Tests
+  # Cần PostgreSQL 16 + Redis 7 thực sự — không dùng mock
+  # Chạy sau khi unit tests backend pass
+  # ============================================================
+  integration-tests:
+    name: 'Integration Tests (PostgreSQL + Redis)'
+    runs-on: ubuntu-latest
+    needs: [unit-tests-backend]
+
+    # Dịch vụ ngoài được khởi động TRƯỚC khi job steps chạy
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_password_secure_123
+          POSTGRES_DB: tbs_erp_ci_test
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d tbs_erp_ci_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 15s
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        # Redis không có password để đơn giản hóa CI
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 10s
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tbs-erp-backend/package-lock.json
+
+      - name: Cài dependencies backend
+        working-directory: tbs-erp-backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: tbs-erp-backend
+        env:
+          DATABASE_URL: postgresql://ci_user:ci_password_secure_123@localhost:5432/tbs_erp_ci_test
+        run: npx prisma generate
+
+      # Prisma schema nằm ở prisma/schema/ (multi-file schema)
+      - name: Chạy database migrations
+        working-directory: tbs-erp-backend
+        env:
+          DATABASE_URL: postgresql://ci_user:ci_password_secure_123@localhost:5432/tbs_erp_ci_test
+          DIRECT_DATABASE_URL: postgresql://ci_user:ci_password_secure_123@localhost:5432/tbs_erp_ci_test
+        run: npx prisma migrate deploy
+
+      - name: Chạy integration tests
+        working-directory: tbs-erp-backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://ci_user:ci_password_secure_123@localhost:5432/tbs_erp_ci_test
+          DIRECT_DATABASE_URL: postgresql://ci_user:ci_password_secure_123@localhost:5432/tbs_erp_ci_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          REDIS_PASSWORD: ''
+          JWT_SECRET: ci-integration-jwt-secret-not-for-production
+          JWT_REFRESH_SECRET: ci-integration-refresh-secret-not-for-production
+          JWT_EXPIRES_IN: 15m
+          JWT_REFRESH_EXPIRES_IN: 7d
+          FIELD_ENCRYPTION_KEY: ci-test-field-enc-key-32chars!!!
+          FIELD_ENCRYPTION_KEY_VERSION: v1
+          TWO_FA_ENCRYPTION_KEY: ci-test-2fa-enc-key-32chars!!!!
+          TWO_FA_ENCRYPTION_SALT: ci-test-salt-value-16ch
+          RATE_LIMIT_TTL: 60
+          RATE_LIMIT_MAX: 9999
+          LOG_LEVEL: error
+        # --runInBand: chạy tuần tự vì tests dùng chung DB — tránh race condition
+        # --forceExit: thoát ngay khi xong, không chờ kết nối đóng
+        run: npm run test:integration -- --runInBand --forceExit
+
+  # ============================================================
+  # JOB 4: Build Backend (nest build)
+  # Xác nhận build production không bị lỗi
+  # ============================================================
+  build-backend:
+    name: 'Build — Backend (nest build)'
+    runs-on: ubuntu-latest
+    needs: [unit-tests-backend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tbs-erp-backend/package-lock.json
+
+      - name: Cài dependencies backend
+        working-directory: tbs-erp-backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: tbs-erp-backend
+        run: npx prisma generate
+
+      - name: Build NestJS backend
+        working-directory: tbs-erp-backend
+        run: npm run build
+
+      # Lưu dist/ để docker-build job tái sử dụng (tuỳ chọn)
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-dist
+          path: tbs-erp-backend/dist/
+          retention-days: 1
+
+  # ============================================================
+  # JOB 5: Build Frontend (next build)
+  # NEXT_PUBLIC_API_URL dùng giá trị placeholder — chỉ kiểm tra build thành công
+  # ============================================================
+  build-frontend:
+    name: 'Build — Frontend (next build)'
+    runs-on: ubuntu-latest
+    needs: [unit-tests-frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tbs-erp-frontend/package-lock.json
+
+      - name: Cài dependencies frontend
+        working-directory: tbs-erp-frontend
+        run: npm ci
+
+      - name: Build Next.js frontend
+        working-directory: tbs-erp-frontend
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
+          # Placeholder — build CI không cần API thật
+          NEXT_PUBLIC_API_URL: https://api.example.com/api/v1
+          NEXT_PUBLIC_APP_TITLE: TBS ERP
+          NEXT_PUBLIC_COMPANY_NAME: TBS
+          NEXT_PUBLIC_COMPANY_FULL_NAME: TBS Group
+        run: npm run build
+
+  # ============================================================
+  # JOB 6: Docker Build (backend + frontend)
+  # Chỉ chạy khi tất cả jobs trên pass
+  # Dùng GitHub Actions cache để tăng tốc build lần sau
+  # ============================================================
+  docker-build:
+    name: 'Docker Build (backend + frontend)'
+    runs-on: ubuntu-latest
+    needs:
+      - integration-tests
+      - build-backend
+      - build-frontend
+      - security-scan
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tính SHA ngắn cho image tag
+        id: vars
+        run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      # Bật BuildKit multi-platform (dùng QEMU nếu cần cross-compile)
+      - name: Thiết lập Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Đăng nhập GHCR chỉ khi push (không cần cho PR)
+      - name: Đăng nhập GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- Backend Docker image ---
+      - name: Metadata Backend image
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=ref,event=pr
+
+      - name: Build (và push nếu push event) Backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./tbs-erp-backend
+          dockerfile: ./tbs-erp-backend/Dockerfile
+          # push=true chỉ khi là push event (không push khi PR)
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          # Dùng GitHub Actions cache (type=gha) — nhanh nhất với GHCR
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+
+      # --- Frontend Docker image ---
+      - name: Metadata Frontend image
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=ref,event=pr
+
+      - name: Build (và push nếu push event) Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./tbs-erp-frontend
+          dockerfile: ./tbs-erp-frontend/Dockerfile
+          target: production
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://api.example.com/api/v1
+            NEXT_PUBLIC_APP_TITLE=TBS ERP
+            NEXT_PUBLIC_COMPANY_NAME=TBS
+            NEXT_PUBLIC_COMPANY_FULL_NAME=TBS Group
+
+  # ============================================================
+  # JOB 7: Security Scan (npm audit)
+  # Chạy song song với integration-tests để tiết kiệm thời gian
+  # ============================================================
+  security-scan:
+    name: 'Security Scan (npm audit)'
+    runs-on: ubuntu-latest
+    needs: [unit-tests-backend, unit-tests-frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # --- npm audit backend ---
+      - name: npm audit Backend
+        working-directory: tbs-erp-backend
+        # --ignore-scripts: không chạy postinstall (an toàn hơn trong CI scan)
+        # --audit-level=high: chỉ fail khi có lỗ hổng HIGH hoặc CRITICAL
+        # || true: không block pipeline — chỉ báo cáo
+        run: |
+          npm ci --ignore-scripts
+          echo "=== Backend dependency audit ==="
+          npm audit --production --audit-level=high || true
+
+      # --- npm audit frontend ---
+      - name: npm audit Frontend
+        working-directory: tbs-erp-frontend
+        run: |
+          npm ci --ignore-scripts
+          echo "=== Frontend dependency audit ==="
+          npm audit --production --audit-level=high || true
+
+      # --- Trivy filesystem scan (SAST-lite, không cần Trivy server) ---
+      - name: Trivy filesystem vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          # Chỉ báo cáo CRITICAL và HIGH — không fail pipeline ở CI
+          severity: CRITICAL,HIGH
+          exit-code: '0'
