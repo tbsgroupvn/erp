@@ -45,9 +45,14 @@ export class ExchangeRateGLService {
   /**
    * KT-3: Record realized exchange rate gain/loss when a payment is received.
    *
-   * Calculates the difference between payment rate and booking rate:
-   * - Positive difference (gain) -> credit account 515 (financial income)
-   * - Negative difference (loss) -> debit account 635 (financial expense)
+   * For AR (customer owes TBS), the gain/loss direction is:
+   *   paymentRate > bookingRate => customer pays MORE VND => GAIN for TBS
+   *     GAIN: Debit 131 (AR side), Credit 515 (FX income)
+   *   paymentRate < bookingRate => customer pays LESS VND => LOSS for TBS
+   *     LOSS: Debit 635 (FX expense), Credit 131 (AR side)
+   *
+   * The Dr 131 on gain / Cr 131 on loss reconciles the AR balance with
+   * the collection entry, which clears 131 at the payment rate (VAS Circular 200).
    *
    * Creates a JournalEntry with 2 lines to record the realized gain/loss.
    */
@@ -75,6 +80,7 @@ export class ExchangeRateGLService {
       throw new NotFoundException(`Account receivable with ID ${arId} not found`);
     }
 
+    // For AR: positive difference (paymentRate > bookingRate) = customer pays more VND = GAIN
     const difference = (paymentRate - bookingRate) * paymentAmount;
 
     if (Math.abs(difference) < 0.01) {
@@ -99,16 +105,17 @@ export class ExchangeRateGLService {
     }
 
     const absDifference = Math.abs(difference);
+    // For AR: paymentRate > bookingRate => difference > 0 => GAIN (we receive more VND)
     const isGain = difference > 0;
 
     const lines = isGain
       ? [
-          // Gain: debit AR (131), credit financial income (515)
+          // GAIN: Debit 131 (AR side — reconciles AR to payment-rate collection entry), Credit 515 (FX income)
           {
             accountCode: this.AR_ACCOUNT,
             debit: absDifference,
             credit: 0,
-            description: `Exchange rate gain on AR ${ar.code} — ${currency}`,
+            description: `FX gain on AR ${ar.code} — ${currency} @ ${paymentRate} vs booked ${bookingRate}`,
           },
           {
             accountCode: this.GAIN_ACCOUNT,
@@ -118,7 +125,7 @@ export class ExchangeRateGLService {
           },
         ]
       : [
-          // Loss: debit financial expense (635), credit AR (131)
+          // LOSS: Debit 635 (FX expense), Credit 131 (AR side — reduces AR for the shortfall)
           {
             accountCode: this.LOSS_ACCOUNT,
             debit: absDifference,
@@ -129,7 +136,7 @@ export class ExchangeRateGLService {
             accountCode: this.AR_ACCOUNT,
             debit: 0,
             credit: absDifference,
-            description: `Exchange rate loss on AR ${ar.code} — ${currency}`,
+            description: `FX loss on AR ${ar.code} — ${currency} @ ${paymentRate} vs booked ${bookingRate}`,
           },
         ];
 
@@ -291,8 +298,24 @@ export class ExchangeRateGLService {
    * KT-3: Revalue all open foreign currency AR/AP at month-end.
    *
    * Finds all open AR/AP records with currency != VND, calculates
-   * unrealized gain/loss at the current rate vs booking rate, and
-   * creates a summary JournalEntry.
+   * unrealized gain/loss at the current rate vs the rate at which
+   * each record was booked, and creates a summary JournalEntry.
+   *
+   * LIMITATION: The AccountReceivable and AccountPayable models do not
+   * store the original booking exchange rate. This method approximates
+   * the unrealized gain/loss as:
+   *   AR unrealized gain  = outstandingForeignAR * currentRate  (positive when rate rises)
+   *   AP unrealized loss  = outstandingForeignAP * currentRate  (positive when rate rises)
+   *   net = arGain - apLoss
+   * The result is a NET position gain/loss relative to the current rate level,
+   * NOT a precise delta from individual booking rates. For full accuracy, add an
+   * `exchangeRateAtBooking` field to AccountReceivable and AccountPayable and
+   * replace the approximate calculation below with:
+   *   outstanding * (currentRate - bookingRate)
+   *
+   * Journal entry accounts follow VAS Circular 200:
+   *   Net gain (AR > AP after revaluation): Debit 131 (AR), Credit 515 (FX income)
+   *   Net loss (AP > AR after revaluation): Debit 635 (FX expense), Credit 331 (AP)
    */
   async revalueForeignCurrency(
     year: number,
@@ -341,36 +364,6 @@ export class ExchangeRateGLService {
       },
     });
 
-    // Calculate total unrealized gain/loss
-    let totalUnrealizedAR = 0;
-    const arDetails: string[] = [];
-
-    for (const ar of openAR) {
-      const outstanding = Number(ar.amount) - Number(ar.paidAmount || 0);
-      // Unrealized difference: outstanding * (currentRate - bookingRate)
-      // Assume the original booking rate was used to record the VND amount
-      // so the unrealized diff is approximated as outstanding * currentRate - original VND value
-      // For simplification, we compute based on currentRate applied to the outstanding foreign amount
-      const revaluedVND = outstanding * currentRate;
-      // The difference contributes to gain/loss
-      totalUnrealizedAR += revaluedVND;
-      arDetails.push(`AR ${ar.code}: ${outstanding} ${ar.currency}`);
-    }
-
-    let totalUnrealizedAP = 0;
-    const apDetails: string[] = [];
-
-    for (const ap of openAP) {
-      const outstanding = Number(ap.amount) - Number(ap.paidAmount || 0);
-      const revaluedVND = outstanding * currentRate;
-      totalUnrealizedAP += revaluedVND;
-      apDetails.push(`AP ${ap.code}: ${outstanding} ${ap.currency}`);
-    }
-
-    // Net unrealized: AR gain if current rate higher, AP loss if current rate higher
-    // Simplified: net difference from revaluation
-    const netUnrealized = totalUnrealizedAR - totalUnrealizedAP;
-
     if (openAR.length === 0 && openAP.length === 0) {
       this.logger.log(
         `No open foreign currency AR/AP found for period ${year}-${String(month).padStart(2, '0')}`,
@@ -383,19 +376,52 @@ export class ExchangeRateGLService {
       };
     }
 
-    const now = new Date(year, month - 1, 28); // Use a date within the period
+    // Approximate unrealized gain/loss at current rate.
+    // NOTE: Without a stored booking rate, we cannot compute the true delta.
+    // See LIMITATION note in the JSDoc above.
+    let totalOutstandingAR = 0;
+    const arDetails: string[] = [];
+
+    for (const ar of openAR) {
+      const outstanding = Number(ar.amount) - Number(ar.paidAmount || 0);
+      // Unrealized AR gain at current rate = outstanding foreign * currentRate
+      // (Gain because rising rates increase what customers owe in VND terms)
+      totalOutstandingAR += outstanding * currentRate;
+      arDetails.push(`AR ${ar.code}: ${outstanding} ${ar.currency}`);
+    }
+
+    let totalOutstandingAP = 0;
+    const apDetails: string[] = [];
+
+    for (const ap of openAP) {
+      const outstanding = Number(ap.amount) - Number(ap.paidAmount || 0);
+      // Unrealized AP loss at current rate = outstanding foreign * currentRate
+      // (Loss because rising rates increase what TBS owes in VND terms)
+      totalOutstandingAP += outstanding * currentRate;
+      apDetails.push(`AP ${ap.code}: ${outstanding} ${ap.currency}`);
+    }
+
+    // Net unrealized: AR revaluation gain minus AP revaluation loss.
+    // Positive = net gain (AR exposure > AP exposure at current rate).
+    // Negative = net loss (AP exposure > AR exposure at current rate).
+    const netUnrealized = totalOutstandingAR - totalOutstandingAP;
+
+    const now = new Date(year, month - 1, 28); // Last working day of the period
     const code = await this.generateEntryCode(now);
 
     const isGain = netUnrealized > 0;
     const absAmount = Math.abs(netUnrealized);
 
+    // VAS Circular 200 accounts for unrealized FX revaluation:
+    //   Net gain: Debit 131 (AR — unrealized receivable gain), Credit 515 (FX income)
+    //   Net loss: Debit 635 (FX expense), Credit 331 (AP — unrealized payable loss)
     const lines = isGain
       ? [
           {
             accountCode: this.AR_ACCOUNT,
             debit: absAmount,
             credit: 0,
-            description: `Unrealized FX revaluation gain — ${openAR.length} AR, ${openAP.length} AP items`,
+            description: `Unrealized FX revaluation gain — ${openAR.length} AR item(s), rate ${currentRate}`,
           },
           {
             accountCode: this.GAIN_ACCOUNT,
@@ -415,7 +441,7 @@ export class ExchangeRateGLService {
             accountCode: this.AP_ACCOUNT,
             debit: 0,
             credit: absAmount,
-            description: `Unrealized FX revaluation loss — ${openAR.length} AR, ${openAP.length} AP items`,
+            description: `Unrealized FX revaluation loss — ${openAP.length} AP item(s), rate ${currentRate}`,
           },
         ];
 
