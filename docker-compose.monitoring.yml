@@ -1,0 +1,175 @@
+# ============================================
+# TBS ERP - Monitoring Stack
+# Prometheus + Grafana + node/pg/redis exporters
+#
+# Usage (dev):
+#   docker compose -f docker-compose.monitoring.yml up -d
+#
+# Prerequisites:
+#   The dev stack must be running first:
+#   .\start.ps1   (or: docker compose -p tbs-dev -f docker-compose.dev.yml up -d)
+#
+# Ports:
+#   Prometheus : http://localhost:9090
+#   Grafana    : http://localhost:3003  (admin / admin)
+#
+# The monitoring services join the 'tbs-dev_tbs_dev' external network so
+# Prometheus can reach the backend, postgres, and redis containers by their
+# service names (backend, postgres, redis).
+# ============================================
+
+services:
+  # ============================================
+  # METRICS STORE - Prometheus
+  # ============================================
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: tbs_dev_prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    ports:
+      - '${PROMETHEUS_PORT:-9090}:9090'
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9090/-/healthy']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - tbs_dev
+
+  # ============================================
+  # DASHBOARDS - Grafana
+  # ============================================
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: tbs_dev_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      # Allow Grafana to load dashboards from /var/lib/grafana/dashboards
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/tbs-erp-dashboard.json
+    volumes:
+      # Provisioning: datasources + dashboard providers (Grafana scans subdirectories)
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      # Pre-built dashboards mounted read-only; edits are saved to grafana_data volume
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - '${GRAFANA_PORT:-3003}:3000'
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/api/health']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - tbs_dev
+
+  # ============================================
+  # EXPORTER - Node / Host OS metrics
+  # Exposes CPU, memory, disk, network via :9100
+  # ============================================
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: tbs_dev_node_exporter
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.disable-defaults'
+      - '--collector.cpu'
+      - '--collector.meminfo'
+      - '--collector.diskstats'
+      - '--collector.filesystem'
+      - '--collector.loadavg'
+      - '--collector.netdev'
+      - '--collector.stat'
+      - '--collector.time'
+      - '--collector.uname'
+    volumes:
+      - /:/host:ro,rslave
+    expose:
+      - '9100'
+    networks:
+      - tbs_dev
+
+  # ============================================
+  # EXPORTER - PostgreSQL metrics via :9187
+  # Connects directly to postgres (not through PgBouncer)
+  # ============================================
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: tbs_dev_pg_exporter
+    restart: unless-stopped
+    environment:
+      # Direct connection — bypasses PgBouncer (required for pg_stat_* queries)
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-tbs_user}:${POSTGRES_PASSWORD:-tbs_password}@postgres:5432/${POSTGRES_DB:-tbs_erp}?sslmode=disable"
+      PG_EXPORTER_DISABLE_SETTINGS_METRICS: 'false'
+      PG_EXPORTER_AUTO_DISCOVER_DATABASES: 'false'
+    expose:
+      - '9187'
+    depends_on:
+      - prometheus
+    networks:
+      - tbs_dev
+
+  # ============================================
+  # EXPORTER - Redis metrics via :9121
+  # ============================================
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.58.0
+    container_name: tbs_dev_redis_exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-dev_redis_pass}"
+      REDIS_EXPORTER_LOG_FORMAT: json
+    expose:
+      - '9121'
+    depends_on:
+      - prometheus
+    networks:
+      - tbs_dev
+
+# ============================================
+# NETWORK - attach to the dev stack network
+#
+# Docker Compose generates network names as:
+#   {project_name}_{network_key}
+# The dev stack is started with project name 'tbs-dev'
+# (see start.ps1: $PROJECT_NAME = 'tbs-dev') and
+# declares network key 'tbs_dev', producing:
+#   tbs-dev_tbs_dev
+#
+# If you start the dev stack without --project-name,
+# Docker uses the directory name instead.
+# Check actual name with: docker network ls
+# ============================================
+networks:
+  tbs_dev:
+    external: true
+    name: tbs-dev_tbs_dev
+
+# ============================================
+# VOLUMES - persistent storage for time-series data
+# ============================================
+volumes:
+  prometheus_data:
+    name: tbs_dev_prometheus_data
+  grafana_data:
+    name: tbs_dev_grafana_data

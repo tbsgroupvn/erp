@@ -1,0 +1,19 @@
+# ============================================
+# TBS ERP - Grafana Datasource Provisioning
+# Grafana scans provisioning/datasources/ on startup
+# ============================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: '15s'
+      httpMethod: POST
+      exemplarTraceIdDestinations: []
