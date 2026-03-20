@@ -12,6 +12,7 @@ export interface VoucherValidationInput {
   costType: string;
   attachments: string[];
   createdBy: string;
+  createdByRole?: string;
   createdAt?: Date;
 }
 
@@ -78,6 +79,35 @@ export class PaymentVoucherValidator {
   async validate(input: VoucherValidationInput): Promise<VoucherValidationResult> {
     const blockReasons: string[] = [];
     const flagReasons: string[] = [];
+
+    // Validate RECEIPT voucher ownership
+    if (input.type === 'RECEIPT' && input.orderId) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: input.orderId },
+        select: { saleId: true, code: true },
+      });
+
+      if (order) {
+        const isOwner = order.saleId === input.createdBy;
+        const isFinanceRole =
+          input.createdByRole &&
+          ['CHIEF_ACCOUNTANT', 'CFO', 'ACCOUNTANT', 'ACCOUNTANT_AR'].includes(
+            input.createdByRole,
+          );
+
+        if (!isOwner && !isFinanceRole) {
+          return {
+            isValid: false,
+            isBlocked: true,
+            isFlagged: false,
+            blockReasons: [
+              `Phiếu thu cho đơn ${order.code} chỉ có thể tạo bởi Sale phụ trách hoặc Kế toán.`,
+            ],
+            flagReasons: [],
+          };
+        }
+      }
+    }
 
     // Only apply anti-fraud checks to PAYMENT type (chi)
     if (input.type !== 'PAYMENT') {
@@ -147,7 +177,9 @@ export class PaymentVoucherValidator {
       }
     }
 
-    // 4. No attachments
+    // 4. No attachments — ALL payment vouchers require at least one supporting document.
+    // This is the single authoritative attachment rule: it applies regardless of amount,
+    // so no amount-based threshold check is needed anywhere else in the call stack.
     if (!input.attachments || input.attachments.length === 0) {
       blockReasons.push(
         'Missing attachments: Payment voucher requires at least one supporting document',

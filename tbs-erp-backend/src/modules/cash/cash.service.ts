@@ -97,10 +97,9 @@ export class CashService {
       });
     }
 
-    // D6: Mandatory attachments for vouchers > 10M VND
-    if (dto.amount > 10_000_000 && (!dto.attachments || dto.attachments.length === 0)) {
-      throw new BadRequestException('Phiếu chi/thu trên 10 triệu VND bắt buộc đính kèm chứng từ');
-    }
+    // NOTE: Attachment enforcement is handled entirely by PaymentVoucherValidator (block check #4).
+    // The validator already blocks ALL payment vouchers without attachments, regardless of amount.
+    // A separate per-amount threshold check here would be redundant dead code.
 
     // Layer 2B: Closed period enforcement — check voucher date
     await this.enforceOpenAccountingPeriod();

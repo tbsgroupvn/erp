@@ -86,8 +86,15 @@ export class CommissionCalculatorService {
       return null;
     }
 
-    // Calculate commission amount (never negative), rounded to avoid floating-point drift
-    const commissionAmount = Math.max(0, Math.round(netProfit * Number(rule.rate) * 100) / 100);
+    // Calculate commission amount (never negative).
+    // rule.rate is a Prisma Decimal (4 decimal places, e.g. 0.0250).
+    // Number() converts it explicitly to a JS float before multiplication.
+    // The final Math.round(...*100)/100 guarantees the result is
+    // quantised to 2 decimal places (đồng precision for VND).
+    const commissionAmount = Math.max(
+      0,
+      Math.round(netProfit * Number(rule.rate) * 100) / 100,
+    );
 
     this.logger.log(
       `Commission rule applied: ${order.serviceType} profit ${netProfit} → rate ${Number(rule.rate) * 100}% → amount ${commissionAmount}`,
