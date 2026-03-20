@@ -191,38 +191,13 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
-  /* Colored left-border accent for stat cards — Refined Executive palette */
-  .stat-card-blue {
-    border-left: 4px solid hsl(222, 47%, 31%);
-  }
-
-  .stat-card-emerald {
-    border-left: 4px solid hsl(160, 60%, 45%);
-  }
-
-  .stat-card-amber {
-    border-left: 4px solid hsl(38, 80%, 55%);
-  }
-
-  .stat-card-rose {
-    border-left: 4px solid hsl(350, 75%, 55%);
-  }
-
-  .stat-card-violet {
-    border-left: 4px solid hsl(263, 50%, 55%);
-  }
-
-  .stat-card-cyan {
-    border-left: 4px solid hsl(215, 16%, 47%);
-  }
-
-  /* Section card with subtle header gradient */
+  /* Section card — legacy utility kept for external consumers */
   .section-card {
-    @apply rounded-xl border bg-card shadow-sm overflow-hidden;
+    @apply rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden;
   }
 
   .section-card-header {
-    @apply px-6 py-4 border-b bg-gradient-to-r from-muted/60 to-transparent;
+    @apply px-5 py-3.5 border-b border-border/50;
   }
 
   /* Active sidebar indicator */

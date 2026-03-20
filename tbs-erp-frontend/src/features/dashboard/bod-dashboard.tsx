@@ -23,19 +23,6 @@ import {
   Calendar,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-} from 'recharts';
 
 // Lazy-load chart components — recharts is a large bundle (~500 kB) and uses
 // browser-only APIs (ResizeObserver, SVG), so ssr: false is required.
@@ -149,21 +136,81 @@ function formatCompact(n: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Section wrapper
+// Section wrapper — clean card with minimal header
 // ---------------------------------------------------------------------------
 
 function Section({ title, href, children }: { title: string; href?: string; children: ReactNode }) {
   return (
-    <div className="section-card">
-      <div className="section-card-header flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground/80">{title}</h3>
+    <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50">
+        <h3 className="text-sm font-semibold text-foreground font-heading">{title}</h3>
         {href && (
-          <Link href={href} className="text-xs text-primary hover:underline flex items-center gap-1">
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+          >
             Chi tiết <ArrowRight className="h-3 w-3" />
           </Link>
         )}
       </div>
-      <div className="p-4 sm:p-6">{children}</div>
+      <div className="p-5">{children}</div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Metric row — compact label/value pair used inside section bodies
+// ---------------------------------------------------------------------------
+
+function MetricRow({
+  label,
+  value,
+  valueClass,
+}: {
+  label: string;
+  value: string | number;
+  valueClass?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between py-1.5 text-sm border-b border-border/30 last:border-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={cn('font-semibold tabular-nums', valueClass ?? 'text-foreground')}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Alert item — used in the alerts section
+// ---------------------------------------------------------------------------
+
+function AlertItem({
+  icon: Icon,
+  iconClass,
+  borderClass,
+  bgClass,
+  title,
+  titleClass,
+  description,
+  descClass,
+}: {
+  icon: typeof AlertTriangle;
+  iconClass: string;
+  borderClass: string;
+  bgClass: string;
+  title: string;
+  titleClass: string;
+  description: string;
+  descClass: string;
+}) {
+  return (
+    <div className={cn('flex items-start gap-3 p-3 rounded-lg border', borderClass, bgClass)}>
+      <Icon className={cn('h-4 w-4 shrink-0 mt-0.5', iconClass)} />
+      <div className="min-w-0">
+        <p className={cn('text-xs font-semibold', titleClass)}>{title}</p>
+        <p className={cn('text-xs mt-0.5 leading-snug', descClass)}>{description}</p>
+      </div>
     </div>
   );
 }
@@ -221,20 +268,22 @@ export function BodDashboard() {
   const { data: cashFlow } = useCashFlowForecast({ days: 30 });
 
   return (
-    <div className="space-y-6">
-      {/* Period Filter + Refresh */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 rounded-lg border bg-background p-1 w-fit">
+    <div className="space-y-5">
+
+      {/* ========== TOOLBAR: Period Filter + Refresh ========== */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Period pill group */}
+        <div className="flex gap-0.5 rounded-lg border border-border/60 bg-muted/40 p-1 w-fit">
           {PERIOD_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               type="button"
               onClick={() => handlePeriodChange(opt.value)}
               className={cn(
-                'px-3 py-1.5 rounded-md text-sm transition-colors',
+                'px-3 py-1 rounded-md text-xs font-medium transition-all duration-150',
                 period === opt.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-accent',
+                  ? 'bg-card text-foreground shadow-sm border border-border/60'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-card/60',
               )}
             >
               {opt.label}
@@ -244,35 +293,35 @@ export function BodDashboard() {
 
         {/* Custom date inputs */}
         {period === 'custom' && (
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
             <input
               type="date"
               value={customFrom}
               onChange={(e) => setCustomFrom(e.target.value)}
-              className="h-8 rounded-md border bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-7 rounded-md border border-border/60 bg-card px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
             />
-            <span className="text-muted-foreground text-sm">-</span>
+            <span className="text-muted-foreground text-xs">-</span>
             <input
               type="date"
               value={customTo}
               onChange={(e) => setCustomTo(e.target.value)}
-              className="h-8 rounded-md border bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-7 rounded-md border border-border/60 bg-card px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         )}
 
         {/* Manual refresh + timestamp */}
         <div className="flex items-center gap-2 ml-auto">
-          <span className="text-xs text-muted-foreground">
-            Cập nhật lúc {lastRefresh.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            {lastRefresh.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </span>
           <button
             type="button"
             onClick={handleRefresh}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm text-muted-foreground hover:bg-muted transition-colors"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border/60 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className="h-3.5 w-3.5" />
             Làm mới
           </button>
         </div>
@@ -317,42 +366,43 @@ export function BodDashboard() {
       </div>
 
       {/* ========== ROW 2: Sales Pipeline + SLA ========== */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Sales Pipeline */}
         <div className="lg:col-span-2">
           <Section title="Sales Pipeline" href="/don-hang">
             {pipeline ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
                   {[
-                    { label: 'Tư vấn', value: pipeline.pipeline.consulting, color: 'text-blue-600', href: '/don-hang?status=CONSULTING' },
-                    { label: 'Báo giá', value: pipeline.pipeline.quotation, color: 'text-cyan-600', href: '/bao-gia' },
-                    { label: 'Chờ cọc', value: pipeline.pipeline.pendingDeposit, color: 'text-amber-600', href: '/don-hang?status=PENDING_DEPOSIT' },
-                    { label: 'Mua hàng', value: pipeline.pipeline.sourcing, color: 'text-indigo-600', href: '/don-hang?status=SOURCING' },
-                    { label: 'Kho TQ', value: pipeline.pipeline.warehouseCN, color: 'text-violet-600', href: '/kho-trung-quoc' },
-                    { label: 'Vận chuyển', value: pipeline.pipeline.inTransit, color: 'text-emerald-600', href: '/container' },
-                    { label: 'Kho VN', value: pipeline.pipeline.warehouseVN, color: 'text-orange-600', href: '/kho-viet-nam' },
-                    { label: 'Đang giao', value: pipeline.pipeline.delivering, color: 'text-rose-600', href: '/giao-hang' },
-                    { label: 'Quyết toán', value: pipeline.pipeline.settlement, color: 'text-teal-600', href: '/don-hang?status=SETTLEMENT' },
-                    { label: 'Hoàn thành', value: pipeline.pipeline.completed, color: 'text-green-600', href: '/don-hang?status=COMPLETED' },
+                    { label: 'Tư vấn', value: pipeline.pipeline.consulting, color: 'text-blue-600 dark:text-blue-400', dot: 'bg-blue-500', href: '/don-hang?status=CONSULTING' },
+                    { label: 'Báo giá', value: pipeline.pipeline.quotation, color: 'text-cyan-600 dark:text-cyan-400', dot: 'bg-cyan-500', href: '/bao-gia' },
+                    { label: 'Chờ cọc', value: pipeline.pipeline.pendingDeposit, color: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500', href: '/don-hang?status=PENDING_DEPOSIT' },
+                    { label: 'Mua hàng', value: pipeline.pipeline.sourcing, color: 'text-indigo-600 dark:text-indigo-400', dot: 'bg-indigo-500', href: '/don-hang?status=SOURCING' },
+                    { label: 'Kho TQ', value: pipeline.pipeline.warehouseCN, color: 'text-violet-600 dark:text-violet-400', dot: 'bg-violet-500', href: '/kho-trung-quoc' },
+                    { label: 'Vận chuyển', value: pipeline.pipeline.inTransit, color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500', href: '/container' },
+                    { label: 'Kho VN', value: pipeline.pipeline.warehouseVN, color: 'text-orange-600 dark:text-orange-400', dot: 'bg-orange-500', href: '/kho-viet-nam' },
+                    { label: 'Đang giao', value: pipeline.pipeline.delivering, color: 'text-rose-600 dark:text-rose-400', dot: 'bg-rose-500', href: '/giao-hang' },
+                    { label: 'Quyết toán', value: pipeline.pipeline.settlement, color: 'text-teal-600 dark:text-teal-400', dot: 'bg-teal-500', href: '/don-hang?status=SETTLEMENT' },
+                    { label: 'Hoàn thành', value: pipeline.pipeline.completed, color: 'text-green-600 dark:text-green-400', dot: 'bg-green-500', href: '/don-hang?status=COMPLETED' },
                   ].map((s) => (
                     <Link
                       key={s.label}
                       href={s.href}
-                      className="text-center p-3 rounded-lg bg-muted/50 hover:bg-muted hover:shadow-sm transition-all group"
+                      className="group flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border/40 bg-muted/30 hover:bg-muted/70 hover:border-border/70 transition-all"
                     >
-                      <p className={cn('text-2xl font-bold group-hover:scale-110 transition-transform', s.color)}>{s.value}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+                      <div className={cn('h-1.5 w-1.5 rounded-full', s.dot)} />
+                      <p className={cn('text-xl font-bold tabular-nums font-heading leading-none', s.color)}>{s.value}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight text-center">{s.label}</p>
                     </Link>
                   ))}
                 </div>
-                <div className="flex items-center justify-between pt-3 border-t text-sm">
-                  <span className="text-muted-foreground">
-                    Tổng đơn đang xử lý: <strong className="text-foreground">{pipeline.pipeline.totalActive}</strong>
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-border/50 text-xs text-muted-foreground">
+                  <span>
+                    Đang xử lý: <strong className="text-foreground font-semibold">{pipeline.pipeline.totalActive}</strong>
                   </span>
-                  <span className="text-muted-foreground">
-                    Chờ cọc: <strong className="text-amber-600">{formatCurrency(pipeline.pendingDeposits.totalDepositRequired)}</strong>
-                    {' '}({pipeline.pendingDeposits.count} đơn)
+                  <span>
+                    Chờ cọc: <strong className="text-amber-600 dark:text-amber-400 font-semibold">{formatCurrency(pipeline.pendingDeposits.totalDepositRequired)}</strong>
+                    <span className="ml-1 text-muted-foreground">({pipeline.pendingDeposits.count} đơn)</span>
                   </span>
                 </div>
               </div>
@@ -366,35 +416,47 @@ export function BodDashboard() {
         <Section title="SLA & Tuân thủ" href="/don-hang">
           {sla ? (
             <div className="space-y-4">
-              <div className="text-center">
-                <p className={cn(
-                  'text-4xl font-bold',
-                  sla.complianceRate >= 95 ? 'text-green-600' :
-                  sla.complianceRate >= 85 ? 'text-amber-600' : 'text-red-600'
+              {/* Compliance rate — hero metric */}
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className={cn(
+                    'text-4xl font-bold font-heading tabular-nums leading-none',
+                    sla.complianceRate >= 95 ? 'text-emerald-600 dark:text-emerald-400' :
+                    sla.complianceRate >= 85 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+                  )}>
+                    {sla.complianceRate.toFixed(1)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Tỉ lệ tuân thủ SLA</p>
+                </div>
+                <div className={cn(
+                  'h-12 w-12 rounded-full flex items-center justify-center text-white text-xs font-bold',
+                  sla.complianceRate >= 95 ? 'bg-emerald-500' :
+                  sla.complianceRate >= 85 ? 'bg-amber-500' : 'bg-red-500'
                 )}>
-                  {sla.complianceRate.toFixed(1)}%
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">Tỉ lệ tuân thủ SLA</p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-3 rounded-lg bg-muted/50">
-                  <p className="text-lg font-bold">{sla.totalActiveOrders}</p>
-                  <p className="text-xs text-muted-foreground">Đơn đang xử lý</p>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-red-50">
-                  <p className="text-lg font-bold text-red-600">{sla.slaBreaches}</p>
-                  <p className="text-xs text-muted-foreground">Vi phạm SLA</p>
+                  <Shield className="h-5 w-5" />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-3 rounded-lg border border-border/40 bg-muted/30 text-center">
+                  <p className="text-lg font-bold font-heading tabular-nums">{sla.totalActiveOrders}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Đơn đang xử lý</p>
+                </div>
+                <div className="p-3 rounded-lg border border-red-200/60 bg-red-50/50 dark:bg-red-950/20 text-center">
+                  <p className="text-lg font-bold font-heading tabular-nums text-red-600 dark:text-red-400">{sla.slaBreaches}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Vi phạm SLA</p>
+                </div>
+              </div>
+
               {sla.breachedOrders.length > 0 && (
-                <div className="space-y-1.5 pt-2 border-t">
-                  <p className="text-xs font-medium text-red-600">Đơn vi phạm:</p>
+                <div className="space-y-1 pt-3 border-t border-border/50">
+                  <p className="text-[10px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider mb-2">Đơn vi phạm:</p>
                   {sla.breachedOrders.slice(0, 5).map((o) => (
-                    <div key={o.id} className="flex items-center justify-between text-xs">
+                    <div key={o.id} className="flex items-center justify-between text-xs py-1">
                       <Link href={`/don-hang/${o.id}`} className="text-primary hover:underline font-medium">
                         {o.code}
                       </Link>
-                      <span className="text-muted-foreground">{o.daysSinceUpdate} ngày</span>
+                      <span className="text-muted-foreground tabular-nums">{o.daysSinceUpdate} ngày</span>
                     </div>
                   ))}
                 </div>
@@ -407,89 +469,110 @@ export function BodDashboard() {
       </div>
 
       {/* ========== ROW 3: Finance Overview ========== */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* AR / AP */}
         <Section title="Tài chính - Công nợ" href="/tai-chinh/cong-no-phai-thu">
           {finance ? (
-            <div className="grid grid-cols-2 gap-6">
-              {/* AR */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium">Phải thu (AR)</span>
+            <>
+              <div className="grid grid-cols-2 gap-5">
+                {/* AR */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <div className="h-2 w-2 rounded-full bg-blue-500" />
+                    <span className="text-xs font-semibold text-foreground">Phải thu (AR)</span>
+                  </div>
+                  <p className="text-xl font-bold font-heading tabular-nums mb-3">
+                    {formatCurrency(finance.accountsReceivable.totalOutstanding)}
+                  </p>
+                  <div className="space-y-0.5">
+                    <MetricRow
+                      label="Quá hạn"
+                      value={formatCurrency(finance.accountsReceivable.overdueAmount)}
+                      valueClass="text-red-600 dark:text-red-400"
+                    />
+                    <MetricRow
+                      label="Hóa đơn mở"
+                      value={finance.accountsReceivable.openCount}
+                    />
+                    <MetricRow
+                      label="Quá hạn (HĐ)"
+                      value={finance.accountsReceivable.overdueCount}
+                      valueClass="text-red-600 dark:text-red-400"
+                    />
+                  </div>
                 </div>
-                <p className="text-xl font-bold">{formatCurrency(finance.accountsReceivable.totalOutstanding)}</p>
-                <div className="space-y-1.5 text-xs text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Quá hạn:</span>
-                    <span className="font-medium text-red-600">{formatCurrency(finance.accountsReceivable.overdueAmount)}</span>
+                {/* AP */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <div className="h-2 w-2 rounded-full bg-rose-500" />
+                    <span className="text-xs font-semibold text-foreground">Phải trả (AP)</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Số hóa đơn mở:</span>
-                    <span className="font-medium text-foreground">{finance.accountsReceivable.openCount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Quá hạn:</span>
-                    <span className="font-medium text-red-600">{finance.accountsReceivable.overdueCount}</span>
+                  <p className="text-xl font-bold font-heading tabular-nums mb-3">
+                    {formatCurrency(finance.accountsPayable.totalOutstanding)}
+                  </p>
+                  <div className="space-y-0.5">
+                    <MetricRow
+                      label="Quá hạn"
+                      value={formatCurrency(finance.accountsPayable.overdueAmount)}
+                      valueClass="text-red-600 dark:text-red-400"
+                    />
+                    <MetricRow
+                      label="Hóa đơn mở"
+                      value={finance.accountsPayable.openCount}
+                    />
+                    <MetricRow
+                      label="Quá hạn (HĐ)"
+                      value={finance.accountsPayable.overdueCount}
+                      valueClass="text-red-600 dark:text-red-400"
+                    />
                   </div>
                 </div>
               </div>
-              {/* AP */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <TrendingDown className="h-4 w-4 text-rose-600" />
-                  <span className="text-sm font-medium">Phải trả (AP)</span>
+
+              {/* Cash Flow Summary */}
+              <div className="mt-4 pt-4 border-t border-border/50">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <Activity className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="text-xs font-semibold text-foreground">Dòng tiền tháng</span>
                 </div>
-                <p className="text-xl font-bold">{formatCurrency(finance.accountsPayable.totalOutstanding)}</p>
-                <div className="space-y-1.5 text-xs text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Quá hạn:</span>
-                    <span className="font-medium text-red-600">{formatCurrency(finance.accountsPayable.overdueAmount)}</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-2.5 rounded-lg bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/50 text-center">
+                    <p className="text-sm font-bold font-heading tabular-nums text-emerald-700 dark:text-emerald-400">
+                      {formatCompact(finance.cashFlow.monthlyInflow)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Thu ({finance.cashFlow.inflowCount})</p>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Số hóa đơn mở:</span>
-                    <span className="font-medium text-foreground">{finance.accountsPayable.openCount}</span>
+                  <div className="p-2.5 rounded-lg bg-red-50/80 dark:bg-red-950/30 border border-red-200/50 text-center">
+                    <p className="text-sm font-bold font-heading tabular-nums text-red-700 dark:text-red-400">
+                      {formatCompact(finance.cashFlow.monthlyOutflow)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Chi ({finance.cashFlow.outflowCount})</p>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Quá hạn:</span>
-                    <span className="font-medium text-red-600">{finance.accountsPayable.overdueCount}</span>
+                  <div className={cn(
+                    'p-2.5 rounded-lg border text-center',
+                    finance.cashFlow.netFlow >= 0
+                      ? 'bg-blue-50/80 dark:bg-blue-950/30 border-blue-200/50'
+                      : 'bg-orange-50/80 dark:bg-orange-950/30 border-orange-200/50'
+                  )}>
+                    <p className={cn(
+                      'text-sm font-bold font-heading tabular-nums',
+                      finance.cashFlow.netFlow >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-orange-700 dark:text-orange-400'
+                    )}>
+                      {formatCompact(finance.cashFlow.netFlow)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Ròng</p>
                   </div>
                 </div>
+                {finance.pendingVouchers > 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2.5 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {finance.pendingVouchers} phiếu thu/chi chờ duyệt
+                  </p>
+                )}
               </div>
-            </div>
+            </>
           ) : (
             <p className="text-sm text-muted-foreground">Đang tải...</p>
-          )}
-          {/* Cash Flow Summary */}
-          {finance && (
-            <div className="mt-4 pt-4 border-t">
-              <div className="flex items-center gap-2 mb-3">
-                <Activity className="h-4 w-4 text-emerald-600" />
-                <span className="text-sm font-medium">Dòng tiền tháng</span>
-              </div>
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-2 rounded-lg bg-green-50">
-                  <p className="text-sm font-bold text-green-700">{formatCompact(finance.cashFlow.monthlyInflow)}</p>
-                  <p className="text-xs text-muted-foreground">Thu ({finance.cashFlow.inflowCount})</p>
-                </div>
-                <div className="p-2 rounded-lg bg-red-50">
-                  <p className="text-sm font-bold text-red-700">{formatCompact(finance.cashFlow.monthlyOutflow)}</p>
-                  <p className="text-xs text-muted-foreground">Chi ({finance.cashFlow.outflowCount})</p>
-                </div>
-                <div className={cn('p-2 rounded-lg', finance.cashFlow.netFlow >= 0 ? 'bg-blue-50' : 'bg-orange-50')}>
-                  <p className={cn('text-sm font-bold', finance.cashFlow.netFlow >= 0 ? 'text-blue-700' : 'text-orange-700')}>
-                    {formatCompact(finance.cashFlow.netFlow)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Ròng</p>
-                </div>
-              </div>
-              {finance.pendingVouchers > 0 && (
-                <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {finance.pendingVouchers} phiếu thu/chi chờ duyệt
-                </p>
-              )}
-            </div>
           )}
         </Section>
 
@@ -515,30 +598,33 @@ export function BodDashboard() {
       </div>
 
       {/* ========== ROW 4: Warehouse Pipeline + Order Stats ========== */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Warehouse Pipeline */}
         <div className="lg:col-span-2">
           <Section title="Pipeline Kho hàng" href="/kho-trung-quoc">
             {warehouse ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
                   {PIPELINE_STAGES.map((stage, i) => {
                     const count = warehouse[stage.key as keyof typeof warehouse] as number ?? 0;
                     return (
-                      <div key={stage.key} className="flex items-center gap-2 shrink-0">
-                        {i > 0 && <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />}
-                        <Link href={stage.href} className="text-center min-w-[72px] p-2 rounded-lg bg-muted/50 hover:bg-muted hover:shadow-sm transition-all group">
-                          <div className={cn('h-1.5 rounded-full mx-auto mb-1.5 w-8', stage.color)} />
-                          <p className="text-lg font-bold group-hover:scale-110 transition-transform">{count}</p>
+                      <div key={stage.key} className="flex items-center gap-1.5 shrink-0">
+                        {i > 0 && <ArrowRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
+                        <Link
+                          href={stage.href}
+                          className="group flex flex-col items-center gap-1 min-w-[68px] p-2.5 rounded-lg border border-border/40 bg-muted/30 hover:bg-muted/70 hover:border-border/70 transition-all text-center"
+                        >
+                          <div className={cn('h-1 rounded-full w-6', stage.color)} />
+                          <p className="text-lg font-bold font-heading tabular-nums leading-tight">{count}</p>
                           <p className="text-[10px] text-muted-foreground leading-tight">{stage.label}</p>
                         </Link>
                       </div>
                     );
                   })}
                 </div>
-                <div className="flex items-center justify-between text-sm pt-2 border-t">
-                  <span className="text-muted-foreground">
-                    Tổng kiện trong pipeline: <strong className="text-foreground">{warehouse.pipeline?.total ?? 0}</strong>
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t border-border/50">
+                  <span>
+                    Tổng kiện: <strong className="text-foreground font-semibold">{warehouse.pipeline?.total ?? 0}</strong>
                   </span>
                 </div>
               </div>
@@ -552,30 +638,14 @@ export function BodDashboard() {
         <Section title="Phân bố trạng thái đơn">
           {orderStats && orderStats.byStatus.length > 0 ? (
             <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={orderStats.byStatus
-                      .filter((s) => s.count > 0)
-                      .map((s) => ({
-                        name: ORDER_STATUS_LABELS[s.status as OrderStatus] || s.status,
-                        value: s.count,
-                      }))}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    dataKey="value"
-                    paddingAngle={2}
-                  >
-                    {orderStats.byStatus.filter((s) => s.count > 0).map((_, idx) => (
-                      <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Legend verticalAlign="bottom" height={36} iconSize={8} wrapperStyle={{ fontSize: 10 }} />
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <OrderStatusPieChart
+                data={orderStats.byStatus
+                  .filter((s) => s.count > 0)
+                  .map((s) => ({
+                    name: ORDER_STATUS_LABELS[s.status as OrderStatus] || s.status,
+                    value: s.count,
+                  }))}
+              />
             </div>
           ) : (
             <div className="h-[250px] flex items-center justify-center text-sm text-muted-foreground">
@@ -583,61 +653,49 @@ export function BodDashboard() {
             </div>
           )}
           {orderStats && (
-            <div className="flex justify-between text-xs text-muted-foreground pt-2 border-t mt-2">
-              <span>Đơn đang xử lý: <strong className="text-foreground">{orderStats.activeOrders}</strong></span>
-              <span>Chờ cọc: <strong className="text-amber-600">{orderStats.pendingDeposit}</strong></span>
+            <div className="flex justify-between text-xs text-muted-foreground pt-3 border-t border-border/50 mt-2">
+              <span>Đang xử lý: <strong className="text-foreground font-semibold">{orderStats.activeOrders}</strong></span>
+              <span>Chờ cọc: <strong className="text-amber-600 dark:text-amber-400 font-semibold">{orderStats.pendingDeposit}</strong></span>
             </div>
           )}
         </Section>
       </div>
 
       {/* ========== ROW 5: Margin by Route + Cash Flow Forecast ========== */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Margin by Route */}
         <Section title="Biên lợi nhuận theo tuyến" href="/bao-cao/tai-chinh">
           {margins && margins.routes.length > 0 ? (
-            <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={margins.routes.map((r) => ({
-                  route: r.route,
-                  revenue: r.revenue,
-                  cost: r.cost,
-                  margin: r.marginPercent,
-                }))}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="route" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={(v) => formatCompact(v)} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(value: number, name: string) =>
-                    name === 'margin'
-                      ? `${value.toFixed(1)}%`
-                      : formatCurrency(value)
-                  } />
-                  <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="revenue" name="Doanh thu" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="cost" name="Chi phí" fill="#f87171" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <>
+              <div className="h-[250px]">
+                <MarginBarChart
+                  data={margins.routes.map((r) => ({
+                    route: r.route,
+                    revenue: r.revenue,
+                    cost: r.cost,
+                    margin: r.marginPercent,
+                  }))}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border/50 mt-2">
+                {margins.routes.map((r) => (
+                  <div key={r.route} className="text-center p-2 rounded-lg border border-border/40 bg-muted/30">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">{r.route}</p>
+                    <p className={cn(
+                      'text-sm font-bold font-heading tabular-nums',
+                      r.marginPercent >= 20 ? 'text-emerald-600 dark:text-emerald-400' :
+                      r.marginPercent >= 10 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+                    )}>
+                      {r.marginPercent.toFixed(1)}%
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{r.orderCount} đơn</p>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <div className="h-[250px] flex items-center justify-center text-sm text-muted-foreground">
               Đang tải...
-            </div>
-          )}
-          {margins && margins.routes.length > 0 && (
-            <div className="grid grid-cols-3 gap-2 pt-3 border-t mt-2">
-              {margins.routes.map((r) => (
-                <div key={r.route} className="text-center p-2 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">{r.route}</p>
-                  <p className={cn(
-                    'text-sm font-bold',
-                    r.marginPercent >= 20 ? 'text-green-600' :
-                    r.marginPercent >= 10 ? 'text-amber-600' : 'text-red-600'
-                  )}>
-                    {r.marginPercent.toFixed(1)}%
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">{r.orderCount} đơn</p>
-                </div>
-              ))}
             </div>
           )}
         </Section>
@@ -647,37 +705,41 @@ export function BodDashboard() {
           {cashFlow && cashFlow.weeks.length > 0 ? (
             <>
               <div className="h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={cashFlow.weeks.map((w) => ({
+                <CashFlowBarChart
+                  data={cashFlow.weeks.map((w) => ({
                     week: w.weekStart.slice(5),
                     inflow: w.inflow,
                     outflow: -w.outflow,
                     net: w.netPosition,
-                  }))}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="week" tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={(v) => formatCompact(Math.abs(v))} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(value: number) => formatCurrency(Math.abs(value))} />
-                    <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="inflow" name="Thu" fill="#22c55e" radius={[4, 4, 0, 0]} stackId="flow" />
-                    <Bar dataKey="outflow" name="Chi" fill="#ef4444" radius={[0, 0, 4, 4]} stackId="flow" />
-                  </BarChart>
-                </ResponsiveContainer>
+                  }))}
+                />
               </div>
-              <div className="grid grid-cols-3 gap-3 text-center pt-3 border-t mt-2">
-                <div className="p-2 rounded-lg bg-green-50">
-                  <p className="text-sm font-bold text-green-700">{formatCompact(cashFlow.summary.totalInflow)}</p>
-                  <p className="text-xs text-muted-foreground">Tổng thu</p>
+              <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border/50 mt-2">
+                <div className="p-2.5 rounded-lg bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/50 text-center">
+                  <p className="text-sm font-bold font-heading tabular-nums text-emerald-700 dark:text-emerald-400">
+                    {formatCompact(cashFlow.summary.totalInflow)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Tổng thu</p>
                 </div>
-                <div className="p-2 rounded-lg bg-red-50">
-                  <p className="text-sm font-bold text-red-700">{formatCompact(cashFlow.summary.totalOutflow)}</p>
-                  <p className="text-xs text-muted-foreground">Tổng chi</p>
+                <div className="p-2.5 rounded-lg bg-red-50/80 dark:bg-red-950/30 border border-red-200/50 text-center">
+                  <p className="text-sm font-bold font-heading tabular-nums text-red-700 dark:text-red-400">
+                    {formatCompact(cashFlow.summary.totalOutflow)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Tổng chi</p>
                 </div>
-                <div className={cn('p-2 rounded-lg', cashFlow.summary.netPosition >= 0 ? 'bg-blue-50' : 'bg-orange-50')}>
-                  <p className={cn('text-sm font-bold', cashFlow.summary.netPosition >= 0 ? 'text-blue-700' : 'text-orange-700')}>
+                <div className={cn(
+                  'p-2.5 rounded-lg border text-center',
+                  cashFlow.summary.netPosition >= 0
+                    ? 'bg-blue-50/80 dark:bg-blue-950/30 border-blue-200/50'
+                    : 'bg-orange-50/80 dark:bg-orange-950/30 border-orange-200/50'
+                )}>
+                  <p className={cn(
+                    'text-sm font-bold font-heading tabular-nums',
+                    cashFlow.summary.netPosition >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-orange-700 dark:text-orange-400'
+                  )}>
                     {formatCompact(cashFlow.summary.netPosition)}
                   </p>
-                  <p className="text-xs text-muted-foreground">Ròng</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Ròng</p>
                 </div>
               </div>
             </>
@@ -689,36 +751,34 @@ export function BodDashboard() {
         </Section>
       </div>
 
-      {/* ========== ROW 6: HR + Overdue AR ========== */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* ========== ROW 6: HR + Alerts ========== */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* HR Stats */}
         <Section title="Nhân sự" href="/nhan-su">
           {hr ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-3 rounded-lg bg-blue-50">
-                  <Users className="h-5 w-5 text-blue-600 mx-auto mb-1" />
-                  <p className="text-xl font-bold">{hr.totalEmployees}</p>
-                  <p className="text-xs text-muted-foreground">Tổng NV</p>
+              <div className="grid grid-cols-3 gap-2.5">
+                <div className="p-3 rounded-lg border border-blue-200/60 bg-blue-50/60 dark:bg-blue-950/20 text-center">
+                  <p className="text-xl font-bold font-heading tabular-nums text-blue-700 dark:text-blue-400">{hr.totalEmployees}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Tổng NV</p>
                 </div>
-                <div className="p-3 rounded-lg bg-green-50">
-                  <p className="text-xl font-bold text-green-700">+{hr.newHires}</p>
-                  <p className="text-xs text-muted-foreground">Mới tuyển</p>
+                <div className="p-3 rounded-lg border border-emerald-200/60 bg-emerald-50/60 dark:bg-emerald-950/20 text-center">
+                  <p className="text-xl font-bold font-heading tabular-nums text-emerald-700 dark:text-emerald-400">+{hr.newHires}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Mới tuyển</p>
                 </div>
-                <div className="p-3 rounded-lg bg-red-50">
-                  <p className="text-xl font-bold text-red-700">-{hr.resigned}</p>
-                  <p className="text-xs text-muted-foreground">Nghỉ việc</p>
+                <div className="p-3 rounded-lg border border-red-200/60 bg-red-50/60 dark:bg-red-950/20 text-center">
+                  <p className="text-xl font-bold font-heading tabular-nums text-red-700 dark:text-red-400">-{hr.resigned}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Nghỉ việc</p>
                 </div>
               </div>
               {hr.byDepartment.length > 0 && (
-                <div className="space-y-1.5 pt-3 border-t">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Theo phòng ban:</p>
-                  {hr.byDepartment.map((dept) => (
-                    <div key={dept.department} className="flex items-center justify-between text-sm">
-                      <span>{dept.department}</span>
-                      <span className="font-medium">{dept.count}</span>
-                    </div>
-                  ))}
+                <div className="pt-3 border-t border-border/50">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Theo phòng ban</p>
+                  <div className="space-y-0.5">
+                    {hr.byDepartment.map((dept) => (
+                      <MetricRow key={dept.department} label={dept.department} value={dept.count} />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -727,81 +787,80 @@ export function BodDashboard() {
           )}
         </Section>
 
-        {/* Overdue AR + Pipeline Alerts */}
+        {/* Alerts */}
         <Section title="Cảnh báo quan trọng">
-          <div className="space-y-4">
-            {/* Overdue AR from pipeline */}
+          <div className="space-y-2.5">
             {pipeline && pipeline.overdueAR.count > 0 && (
-              <div className="flex items-start gap-3 p-3 rounded-lg border border-red-200 bg-red-50/50">
-                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">Công nợ quá hạn</p>
-                  <p className="text-xs text-red-600 mt-0.5">
-                    {pipeline.overdueAR.count} khách hàng - Tổng: {formatCurrency(pipeline.overdueAR.totalOutstanding)}
-                  </p>
-                </div>
-              </div>
+              <AlertItem
+                icon={AlertTriangle}
+                iconClass="text-red-500"
+                borderClass="border-red-200/60"
+                bgClass="bg-red-50/50 dark:bg-red-950/20"
+                title="Công nợ quá hạn"
+                titleClass="text-red-800 dark:text-red-300"
+                description={`${pipeline.overdueAR.count} khách hàng — Tổng: ${formatCurrency(pipeline.overdueAR.totalOutstanding)}`}
+                descClass="text-red-600 dark:text-red-400"
+              />
             )}
 
-            {/* VN arrivals needing notification */}
             {pipeline && pipeline.vnArrivalsNeedingNotification > 0 && (
-              <div className="flex items-start gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50/50">
-                <Package className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-amber-800">Hàng đến kho VN</p>
-                  <p className="text-xs text-amber-600 mt-0.5">
-                    {pipeline.vnArrivalsNeedingNotification} kiện cần thông báo khách
-                  </p>
-                </div>
-              </div>
+              <AlertItem
+                icon={Package}
+                iconClass="text-amber-500"
+                borderClass="border-amber-200/60"
+                bgClass="bg-amber-50/50 dark:bg-amber-950/20"
+                title="Hàng đến kho VN"
+                titleClass="text-amber-800 dark:text-amber-300"
+                description={`${pipeline.vnArrivalsNeedingNotification} kiện cần thông báo khách`}
+                descClass="text-amber-600 dark:text-amber-400"
+              />
             )}
 
-            {/* SLA breaches */}
             {sla && sla.slaBreaches > 0 && (
-              <div className="flex items-start gap-3 p-3 rounded-lg border border-orange-200 bg-orange-50/50">
-                <Shield className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-orange-800">Vi phạm SLA</p>
-                  <p className="text-xs text-orange-600 mt-0.5">
-                    {sla.slaBreaches} đơn hàng vượt thời gian xử lý cho phép
-                  </p>
-                </div>
-              </div>
+              <AlertItem
+                icon={Shield}
+                iconClass="text-orange-500"
+                borderClass="border-orange-200/60"
+                bgClass="bg-orange-50/50 dark:bg-orange-950/20"
+                title="Vi phạm SLA"
+                titleClass="text-orange-800 dark:text-orange-300"
+                description={`${sla.slaBreaches} đơn hàng vượt thời gian xử lý cho phép`}
+                descClass="text-orange-600 dark:text-orange-400"
+              />
             )}
 
-            {/* Pending deposits */}
             {pipeline && pipeline.pendingDeposits.count > 0 && (
-              <div className="flex items-start gap-3 p-3 rounded-lg border border-blue-200 bg-blue-50/50">
-                <Wallet className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-blue-800">Chờ đặt cọc</p>
-                  <p className="text-xs text-blue-600 mt-0.5">
-                    {pipeline.pendingDeposits.count} đơn - Tổng cọc: {formatCurrency(pipeline.pendingDeposits.totalDepositRequired)}
-                  </p>
-                </div>
-              </div>
+              <AlertItem
+                icon={Wallet}
+                iconClass="text-blue-500"
+                borderClass="border-blue-200/60"
+                bgClass="bg-blue-50/50 dark:bg-blue-950/20"
+                title="Chờ đặt cọc"
+                titleClass="text-blue-800 dark:text-blue-300"
+                description={`${pipeline.pendingDeposits.count} đơn — Tổng cọc: ${formatCurrency(pipeline.pendingDeposits.totalDepositRequired)}`}
+                descClass="text-blue-600 dark:text-blue-400"
+              />
             )}
 
-            {/* Pending vouchers */}
             {finance && finance.pendingVouchers > 0 && (
-              <div className="flex items-start gap-3 p-3 rounded-lg border border-violet-200 bg-violet-50/50">
-                <Clock className="h-5 w-5 text-violet-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-violet-800">Phiếu chờ duyệt</p>
-                  <p className="text-xs text-violet-600 mt-0.5">
-                    {finance.pendingVouchers} phiếu thu/chi cần phê duyệt
-                  </p>
-                </div>
-              </div>
+              <AlertItem
+                icon={Clock}
+                iconClass="text-violet-500"
+                borderClass="border-violet-200/60"
+                bgClass="bg-violet-50/50 dark:bg-violet-950/20"
+                title="Phiếu chờ duyệt"
+                titleClass="text-violet-800 dark:text-violet-300"
+                description={`${finance.pendingVouchers} phiếu thu/chi cần phê duyệt`}
+                descClass="text-violet-600 dark:text-violet-400"
+              />
             )}
 
-            {/* No alerts */}
             {(!pipeline || (pipeline.overdueAR.count === 0 && pipeline.vnArrivalsNeedingNotification === 0 && pipeline.pendingDeposits.count === 0)) &&
              (!sla || sla.slaBreaches === 0) &&
              (!finance || finance.pendingVouchers === 0) && (
-              <div className="flex items-center gap-3 p-3 text-sm">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <span className="text-muted-foreground">Không có cảnh báo nào</span>
+              <div className="flex items-center gap-2.5 p-3 rounded-lg border border-emerald-200/60 bg-emerald-50/40 dark:bg-emerald-950/20">
+                <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="text-xs text-muted-foreground">Không có cảnh báo nào</span>
               </div>
             )}
           </div>
@@ -811,12 +870,15 @@ export function BodDashboard() {
       {/* ========== ROW 7: Order by Service Type ========== */}
       {orderStats && orderStats.byServiceType.length > 0 && (
         <Section title="Đơn hàng theo loại dịch vụ" href="/don-hang">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
             {orderStats.byServiceType.map((item) => (
-              <div key={item.serviceType} className="text-center p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                <p className="text-xl font-bold">{item.count}</p>
-                <p className="text-xs text-muted-foreground mt-1">{item.serviceType}</p>
-                <p className="text-[10px] text-muted-foreground">{formatCompact(item.totalAmount)}</p>
+              <div
+                key={item.serviceType}
+                className="text-center p-3 rounded-lg border border-border/40 bg-muted/30 hover:bg-muted/60 transition-colors"
+              >
+                <p className="text-xl font-bold font-heading tabular-nums">{item.count}</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-tight">{item.serviceType}</p>
+                <p className="text-[10px] text-muted-foreground/70 mt-0.5 tabular-nums">{formatCompact(item.totalAmount)}</p>
               </div>
             ))}
           </div>
