@@ -18,8 +18,9 @@ model AccountReceivable {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  customer      Customer @relation(fields: [customerId], references: [id])
-  order         Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  customer          Customer                   @relation(fields: [customerId], references: [id])
+  order             Order?                     @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  paymentDetails    PaymentAllocationDetail[]  @relation("ARPaymentDetails")
 
   @@index([customerId])
   @@index([customerId, status])
@@ -27,6 +28,8 @@ model AccountReceivable {
   @@index([dueDate, status])
   @@index([orderId])
   @@index([createdAt])
+  @@index([status, dueDate], map: "idx_ar_status_due_date")
+  @@index([status, createdAt], map: "idx_ar_status_created")
   @@map("account_receivables")
 }
 
@@ -51,6 +54,8 @@ model AccountPayable {
   @@index([vendorId, status])
   @@index([dueDate])
   @@index([createdAt])
+  @@index([status, dueDate], map: "idx_ap_status_due_date")
+  @@index([status, createdAt], map: "idx_ap_status_created")
   @@map("account_payables")
 }
 
@@ -95,6 +100,7 @@ model PaymentVoucher {
   @@index([status, amount])
   @@index([createdAt])
   @@index([type, createdAt])
+  @@index([status, createdAt], map: "idx_payment_vouchers_status_created")
   @@map("payment_vouchers")
 }
 
@@ -109,6 +115,7 @@ model CashTransaction {
   note          String?
   createdBy     String        @map("created_by")
   createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime?     @updatedAt @map("updated_at")
 
   @@index([createdAt])
   @@index([voucherId])
@@ -142,6 +149,9 @@ model Invoice {
   @@index([status])
   @@index([createdBy])
   @@index([createdAt])
+  @@index([orderId, status], map: "idx_invoices_order_status")
+  @@index([customerId, status], map: "idx_invoices_customer_status")
+  @@index([status, createdAt], map: "idx_invoices_status_created")
   @@map("invoices")
 }
 
@@ -155,7 +165,8 @@ model ExchangeRate {
   setBy       String?  @map("set_by")
   approvedBy  String?  @map("approved_by")
   isManual    Boolean  @default(false) @map("is_manual")
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
 
   @@unique([from, to, date])
   @@map("exchange_rates")
@@ -193,8 +204,9 @@ model ChartOfAccount {
   parentCode  String?
   level       Int      @default(1)
   isActive    Boolean  @default(true)
+  createdBy   String?  @map("created_by")
   entries     JournalEntryLine[]
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("chart_of_accounts")
 }
@@ -214,6 +226,7 @@ model JournalEntry {
 
   @@index([periodYear, periodMonth])
   @@index([date])
+  @@index([isPosted, periodYear, periodMonth], map: "idx_journal_entries_posted_period")
   @@map("journal_entries")
 }
 
@@ -268,7 +281,8 @@ model CommissionRecord {
   clawbackComplaintId String?   @map("clawback_complaint_id")
   clawbackAt          DateTime? @map("clawback_at")
 
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
 
   @@unique([orderId])
   @@index([saleId])
@@ -385,8 +399,9 @@ model CODRecord {
   shortage    Decimal   @default(0) @db.Decimal(18, 2)
   notes       String?
   photoUrl    String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdBy   String?   @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   delivery    Delivery  @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
   driver      Driver?   @relation(fields: [driverId], references: [id], onDelete: SetNull)
@@ -478,6 +493,7 @@ model PaymentAllocationDetail {
   createdAt       DateTime            @default(now()) @map("created_at")
 
   allocation      PaymentAllocation   @relation(fields: [allocationId], references: [id], onDelete: Cascade)
+  ar              AccountReceivable?  @relation("ARPaymentDetails", fields: [arId], references: [id], onDelete: SetNull)
 
   @@index([allocationId])
   @@index([arId])
@@ -663,9 +679,14 @@ model UnallocatedFundClaim {
   createdAt           DateTime       @default(now()) @map("created_at")
   updatedAt           DateTime       @updatedAt @map("updated_at")
 
+  targetOrder         Order?         @relation("OrderUnallocatedClaims", fields: [targetOrderId], references: [id], onDelete: SetNull)
+  targetContract      Contract?      @relation("ContractUnallocatedClaims", fields: [targetContractId], references: [id], onDelete: SetNull)
+
   @@index([customerId])
   @@index([status])
   @@index([claimedBySaleId])
+  @@index([targetOrderId])
+  @@index([targetContractId])
   @@map("unallocated_fund_claims")
 }
 
@@ -674,25 +695,30 @@ model UnallocatedFundClaim {
 // ============================================
 
 model BankWebhookTransaction {
-  id                  String    @id @default(cuid())
-  provider            String                           // CASSO, PAYOS, MANUAL
-  bankTraceId         String    @unique @map("bank_trace_id")
-  amount              Decimal   @db.Decimal(18, 2)
+  id                  String             @id @default(cuid())
+  provider            String                                  // CASSO, PAYOS, MANUAL
+  bankTraceId         String             @unique @map("bank_trace_id")
+  amount              Decimal            @db.Decimal(18, 2)
   description         String
-  bankCode            String?   @map("bank_code")
-  accountNumber       String?   @map("account_number")
-  transactionDate     DateTime  @map("transaction_date")
-  parsedCustomerCode  String?   @map("parsed_customer_code")
-  matchedCustomerId   String?   @map("matched_customer_id")
-  status              String    @default("PENDING")    // PENDING, AUTO_CREDITED, FAILED, DUPLICATE
-  walletTransactionId String?   @map("wallet_transaction_id")
-  processedAt         DateTime? @map("processed_at")
-  errorMessage        String?   @map("error_message")
-  rawPayload          Json?     @map("raw_payload")
-  createdAt           DateTime  @default(now()) @map("created_at")
+  bankCode            String?            @map("bank_code")
+  accountNumber       String?            @map("account_number")
+  transactionDate     DateTime           @map("transaction_date")
+  parsedCustomerCode  String?            @map("parsed_customer_code")
+  matchedCustomerId   String?            @map("matched_customer_id")
+  status              String             @default("PENDING") // PENDING, AUTO_CREDITED, FAILED, DUPLICATE
+  walletTransactionId String?            @map("wallet_transaction_id")
+  processedAt         DateTime?          @map("processed_at")
+  errorMessage        String?            @map("error_message")
+  rawPayload          Json?              @map("raw_payload")
+  createdAt           DateTime           @default(now()) @map("created_at")
+
+  matchedCustomer     Customer?          @relation("CustomerBankWebhooks", fields: [matchedCustomerId], references: [id], onDelete: SetNull)
+  walletTransaction   WalletTransaction? @relation("WalletTxBankWebhook", fields: [walletTransactionId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([parsedCustomerCode])
+  @@index([matchedCustomerId])
+  @@index([walletTransactionId])
   @@index([createdAt])
   @@map("bank_webhook_transactions")
 }

@@ -56,11 +56,16 @@ model Customer {
   agingSnapshots  ARAgingSnapshot[]
   interactionNotes CustomerInteractionNote[]
   returnRequests  ReturnRequest[]
-  analytics       CustomerAnalytics?
-  priceOverrides  CustomerPriceOverride[]
+  analytics         CustomerAnalytics?
+  priceOverrides    CustomerPriceOverride[]
+  bankWebhooks      BankWebhookTransaction[] @relation("CustomerBankWebhooks")
 
   @@index([saleId])
   @@index([tier])
+  @@index([saleId, isActive], map: "idx_customers_sale_active")
+  @@index([tier, isActive], map: "idx_customers_tier_active")
+  @@index([phone], map: "idx_customers_phone")
+  @@index([isActive, createdAt], map: "idx_customers_active_created")
   @@map("customers")
 }
 
@@ -108,6 +113,7 @@ model WalletTransaction {
   createdAt       DateTime @default(now()) @map("created_at")
 
   wallet          Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  bankWebhook     BankWebhookTransaction? @relation("WalletTxBankWebhook")
 
   @@index([walletId, createdAt])
   @@index([allocationType, allocationId])

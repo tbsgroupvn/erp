@@ -21,6 +21,8 @@ model MasterOrder {
   @@index([saleId])
   @@index([overallStatus])
   @@index([createdAt])
+  @@index([customerId, overallStatus], map: "idx_master_orders_customer_status")
+  @@index([saleId, overallStatus], map: "idx_master_orders_sale_status")
   @@map("master_orders")
 }
 
@@ -93,9 +95,10 @@ model Order {
   mhhIssues       MHHIssue[]
   extraCharges    OrderExtraCharge[]
   returnRequests  ReturnRequest[]
-  costAdjustments CostAdjustment[]
-  assignments     OrderAssignment[]
-  handoffs        OrderHandoff[]
+  costAdjustments   CostAdjustment[]
+  assignments       OrderAssignment[]
+  handoffs          OrderHandoff[]
+  unallocatedClaims UnallocatedFundClaim[] @relation("OrderUnallocatedClaims")
 
   @@index([customerId])
   @@index([saleId])
@@ -109,6 +112,9 @@ model Order {
   @@index([completedAt])
   @@index([status, createdAt])
   @@index([status, createdAt, saleId])
+  @@index([customerId, status], map: "idx_orders_customer_status")
+  @@index([serviceType, status], map: "idx_orders_service_type_status")
+  @@index([branch, createdAt], map: "idx_orders_branch_created_at")
   @@map("orders")
 }
 
@@ -147,6 +153,7 @@ model OrderItem {
 
   @@index([orderId])
   @@index([deletedAt])
+  @@index([orderId, deletedAt], map: "idx_order_items_order_deleted")
   @@map("order_items")
 }
 
@@ -174,6 +181,7 @@ model OrderExtraCharge {
   @@index([orderId])
   @@index([status])
   @@index([createdBy])
+  @@index([orderId, status], map: "idx_extra_charges_order_status")
   @@map("order_extra_charges")
 }
 
@@ -257,9 +265,10 @@ model Contract {
   parent          Contract?       @relation("ContractAppendixes", fields: [parentId], references: [id], onDelete: SetNull)
   appendixes      Contract[]      @relation("ContractAppendixes")
   quotation       Quotation?      @relation(fields: [quotationId], references: [id], onDelete: SetNull)
-  orders          Order[]
-  allocations     PaymentAllocation[]
-  paymentVouchers PaymentVoucher[]
+  orders              Order[]
+  allocations         PaymentAllocation[]
+  paymentVouchers     PaymentVoucher[]
+  unallocatedClaims   UnallocatedFundClaim[] @relation("ContractUnallocatedClaims")
 
   @@index([customerId])
   @@index([saleId])
@@ -268,6 +277,9 @@ model Contract {
   @@index([quotationId])
   @@index([createdBy])
   @@index([deletedAt])
+  @@index([customerId, status], map: "idx_contracts_customer_status")
+  @@index([saleId, status], map: "idx_contracts_sale_status")
+  @@index([status, effectiveDate], map: "idx_contracts_status_effective")
   @@map("contracts")
 }
 
@@ -343,6 +355,8 @@ model Quotation {
   @@index([createdBy])
   @@index([parentQuotationId])
   @@index([quoteMode])
+  @@index([customerId, status], map: "idx_quotations_customer_status")
+  @@index([status, createdAt], map: "idx_quotations_status_created")
   @@map("quotations")
 }
 
