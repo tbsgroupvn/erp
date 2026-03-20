@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in-progress
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-03-19T17:59:24Z"
-last_activity: 2026-03-19 -- Completed Plan 09-01 (Order Module Unit Tests)
+status: complete
+stopped_at: Completed 09-02-PLAN.md -- Milestone complete
+last_updated: "2026-03-20T00:38:16Z"
+last_activity: 2026-03-20 -- Completed Plan 09-02 (Auth/GL Tests + Phase 4-5 Regression Specs) -- MILESTONE COMPLETE
 progress:
   total_phases: 9
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 24
-  completed_plans: 23
-  percent: 96
+  completed_plans: 24
+  percent: 100
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** The order lifecycle (17+ statuses across 9 FSMs) must be bulletproof — no state can be skipped, no unauthorized role can mutate data, and no query can bottleneck under production load.
-**Current focus:** Phase 9: Test Suite Completion (IN PROGRESS)
+**Current focus:** Milestone COMPLETE -- all 9 phases, 24 plans executed
 
 ## Current Position
 
 Phase: 9 of 9 (Test Suite Completion)
-Plan: 1 of 2 in current phase (09-01 complete)
-Status: Phase 9 In Progress
-Last activity: 2026-03-19 -- Completed Plan 09-01 (Order Module Unit Tests)
+Plan: 2 of 2 in current phase (all complete)
+Status: MILESTONE COMPLETE
+Last activity: 2026-03-20 -- Completed Plan 09-02 (Auth/GL Tests + Phase 4-5 Regression Specs)
 
-Progress: [█████████░] 96%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
+- Total plans completed: 24
 - Average duration: 6min
-- Total execution time: 1.64 hours
+- Total execution time: 1.67 hours
 
 **By Phase:**
 
@@ -51,10 +51,10 @@ Progress: [█████████░] 96%
 | 06-fsm-verification | 2/2 | 12min | 6min |
 | 07-business-rule-enforcement | 3/3 | 10min | 3min |
 | 08-query-performance-optimization | 2/2 | 6min | 3min |
-| 09-test-suite-completion | 1/2 | 5min | 5min |
+| 09-test-suite-completion | 2/2 | 7min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 07-03 (3min), 08-01 (4min), 08-02 (2min), 09-01 (5min)
+- Last 5 plans: 08-01 (4min), 08-02 (2min), 09-01 (5min), 09-02 (2min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -68,6 +68,7 @@ Progress: [█████████░] 96%
 | Phase 08 P01 | 4min | 2 tasks | 4 files |
 | Phase 08 P02 | 2min | 2 tasks | 0 files |
 | Phase 09 P01 | 5min | 2 tasks | 3 files |
+| Phase 09 P02 | 2min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,9 @@ Recent decisions affecting current work:
 - [09-01]: NestJS TestingModule pattern with mock useValue providers matching existing deposit-gate.service.spec.ts convention
 - [09-01]: TransactionalEmitter collector verified via mockReturnValue pattern -- emit and flush assertions on the collector object
 - [09-01]: Union return type in cancelOrder handled via (result as any) cast for TypeScript narrowing in test assertions
+- [09-02]: Object.create(CustomThrottlerGuard.prototype) to test overridden methods without ThrottlerGuard constructor DI
+- [09-02]: createEncryptedSecret() helper replicates AuthService constructor PBKDF2 key derivation for test TOTP secrets
+- [09-02]: bcrypt.compare/hash mocked via jest.spyOn for refreshToken rotation tests
 
 ### Pending Todos
 
@@ -146,6 +150,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T17:59:24Z
-Stopped at: Completed 09-01-PLAN.md
-Resume file: .planning/phases/09-test-suite-completion/09-02-PLAN.md
+Last session: 2026-03-20T00:38:16Z
+Stopped at: Completed 09-02-PLAN.md -- MILESTONE COMPLETE
+Resume file: N/A -- all plans complete

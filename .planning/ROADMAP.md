@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: FSM Verification** - Negative-path tests for all 9 FSMs, full order and container lifecycle integration tests (completed 2026-03-19)
 - [x] **Phase 7: Business Rule Enforcement** - Deposit gate, anti-fraud checks, AR aging auto-block, COD enforcement, and approval escalation (completed 2026-03-19)
 - [ ] **Phase 8: Query Performance Optimization** - Select projections, database indexes, structured logging, and slow query detection
-- [ ] **Phase 9: Test Suite Completion** - Service-level unit tests for Order, Auth, and GeneralLedger plus regression test coverage for all hardening changes
+- [x] **Phase 9: Test Suite Completion** - Service-level unit tests for Order, Auth, and GeneralLedger plus regression test coverage for all hardening changes (completed 2026-03-20)
 
 ## Phase Details
 
@@ -176,4 +176,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. FSM Verification | 2/2 | Complete   | 2026-03-19 |
 | 7. Business Rule Enforcement | 3/3 | Complete   | 2026-03-19 |
 | 8. Query Performance Optimization | 0/2 | Not started | - |
-| 9. Test Suite Completion | 0/2 | Not started | - |
+| 9. Test Suite Completion | 2/2 | Complete | 2026-03-20 |
