@@ -14,7 +14,7 @@ export interface FileValidationOptions {
   /** Maximum allowed file size in bytes */
   maxSizeBytes: number;
   /** Whitelist of allowed MIME types */
-  allowedMimeTypes: string[];
+  allowedMimeTypes: readonly string[];
 }
 
 /**

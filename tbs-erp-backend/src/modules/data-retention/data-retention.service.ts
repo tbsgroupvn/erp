@@ -180,7 +180,7 @@ export class DataRetentionService {
         await tx.auditLogArchive.createMany({
           data: oldLogs.map((log) => ({
             id: log.id,
-            userId: log.userId,
+            userId: log.userId ?? undefined,
             action: log.action,
             entity: log.entity,
             entityId: log.entityId,

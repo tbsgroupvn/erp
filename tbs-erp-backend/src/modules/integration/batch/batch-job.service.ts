@@ -206,7 +206,7 @@ export class BatchJobService {
       this.eventEmitter.emit('batch.job.completed', { jobId, type: job.type });
       this.logger.log(`Batch job ${jobId} completed`);
     } catch (error) {
-      if (error instanceof DomainException && error.getResponse()?.['message'] === 'Job cancelled') return;
+      if (error instanceof DomainException && (error.getResponse() as Record<string, unknown>)?.['message'] === 'Job cancelled') return;
 
       await this.prisma.batchJob.update({
         where: { id: jobId },
