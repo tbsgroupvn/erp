@@ -59,7 +59,7 @@ services:
   # CONNECTION POOLER — PgBouncer (production)
   # ============================================
   pgbouncer:
-    image: edoburu/pgbouncer:1.22.0
+    image: edoburu/pgbouncer:latest
     container_name: ${COMPOSE_PROJECT_NAME:-erp}_pgbouncer
     restart: unless-stopped
     volumes:
