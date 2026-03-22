@@ -427,11 +427,11 @@ function GoogleMap() {
   const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.google && mapRef.current) {
+    if (typeof window !== 'undefined' && (window as any).google && mapRef.current) {
       // Default location: Hanoi, Vietnam
       const location = { lat: 21.028511, lng: 105.804817 };
 
-      const map = new window.google.maps.Map(mapRef.current, {
+      const map = new (window as any).google.maps.Map(mapRef.current, {
         center: location,
         zoom: 15,
         mapTypeControl: true,
@@ -440,7 +440,7 @@ function GoogleMap() {
       });
 
       // Add info window
-      const infoWindow = new window.google.maps.InfoWindow({
+      const infoWindow = new (window as any).google.maps.InfoWindow({
         content: `
           <div style="padding: 10px;">
             <h3 style="font-weight: bold; margin-bottom: 5px;">TBS Logistics</h3>
@@ -451,7 +451,7 @@ function GoogleMap() {
         `,
       });
 
-      const marker = new window.google.maps.Marker({
+      const marker = new (window as any).google.maps.Marker({
         position: location,
         map,
         title: 'TBS Logistics',
