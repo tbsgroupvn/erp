@@ -88,13 +88,13 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     socket.on('connect', () => {
       setState({ isConnected: true, error: null, socket });
       // Expose globally so chat hooks (useChatWebSocket) can access the socket
-      globalThis.__wsSocket = socket;
+      (globalThis as any).__wsSocket = socket;
       onConnect?.();
     });
 
     socket.on('disconnect', (reason) => {
       setState((prev) => ({ ...prev, isConnected: false }));
-      globalThis.__wsSocket = null;
+      (globalThis as any).__wsSocket = null;
       onDisconnect?.(reason);
     });
 

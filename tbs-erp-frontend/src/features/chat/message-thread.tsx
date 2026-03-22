@@ -61,7 +61,7 @@ export function MessageThread({ conversation }: MessageThreadProps) {
 
   // Listen for typing events
   React.useEffect(() => {
-    const socket = globalThis.__wsSocket;
+    const socket = (globalThis as any).__wsSocket;
     if (!socket) return;
 
     const timers = new Map<string, ReturnType<typeof setTimeout>>();

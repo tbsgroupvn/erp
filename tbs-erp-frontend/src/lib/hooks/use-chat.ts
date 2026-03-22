@@ -150,7 +150,7 @@ export function useReactToMessage() {
  */
 export function useChatWebSocket(conversationId: string | null) {
   const qc = useQueryClient();
-  const socket = globalThis.__wsSocket ?? undefined;
+  const socket = (globalThis as any).__wsSocket ?? undefined;
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -252,7 +252,7 @@ export function useChatWebSocket(conversationId: string | null) {
 export function useChatTyping(conversationId: string | null) {
   const userId = useAuthStore((s) => s.user?.id);
   const typingUsers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const socket = globalThis.__wsSocket ?? undefined;
+  const socket = (globalThis as any).__wsSocket ?? undefined;
 
   useEffect(() => {
     if (!socket || !conversationId) return;
