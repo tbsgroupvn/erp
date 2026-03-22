@@ -19,6 +19,7 @@ export function useAgingSummary(date?: string) {
   return useQuery({
     queryKey: arAgingKeys.summary(date),
     queryFn: () => arAgingApi.getSummary(date),
+    staleTime: 5 * 60 * 1000, // aging summary — 5 min
   });
 }
 
@@ -29,6 +30,7 @@ export function useAgingTrends(days: number = 30) {
   return useQuery({
     queryKey: arAgingKeys.trends(days),
     queryFn: () => arAgingApi.getTrends(days),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -40,6 +42,7 @@ export function useCustomerAging(customerId: string, enabled: boolean = true) {
     queryKey: arAgingKeys.customerAging(customerId),
     queryFn: () => arAgingApi.getCustomerAging(customerId),
     enabled: !!customerId && enabled,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -65,5 +68,6 @@ export function useHighRiskCustomers() {
   return useQuery({
     queryKey: arAgingKeys.highRisk(),
     queryFn: () => arAgingApi.getHighRiskCustomers(),
+    staleTime: 5 * 60 * 1000,
   });
 }

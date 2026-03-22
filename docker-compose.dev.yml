@@ -59,6 +59,29 @@ services:
       - tbs_dev
 
   # ============================================
+  # CONNECTION POOLER — PgBouncer (dev)
+  # ============================================
+  pgbouncer:
+    image: edoburu/pgbouncer:1.22.0
+    container_name: tbs_dev_pgbouncer
+    restart: unless-stopped
+    ports:
+      - '${PGBOUNCER_PORT:-6432}:6432'
+    volumes:
+      - ./tbs-erp-backend/config/pgbouncer-dev.ini:/etc/pgbouncer/pgbouncer.ini:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-h', 'localhost', '-p', '6432', '-U', '${POSTGRES_USER:-tbs_user}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - tbs_dev
+
+  # ============================================
   # BACKEND — NestJS API
   # ============================================
   backend:
@@ -75,7 +98,10 @@ services:
       NODE_ENV: development
       APP_ENV: development
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-tbs_user}:${POSTGRES_PASSWORD:-tbs_password}@postgres:5432/${POSTGRES_DB:-tbs_erp}
+      # Routes runtime queries through PgBouncer (transaction pooling).
+      # ?pgbouncer=true disables Prisma prepared statements, required for transaction mode.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tbs_user}:${POSTGRES_PASSWORD:-tbs_password}@pgbouncer:6432/${POSTGRES_DB:-tbs_erp}?pgbouncer=true
+      # Direct connection bypasses PgBouncer — used by Prisma migrate & Prisma Studio.
       DIRECT_DATABASE_URL: postgresql://${POSTGRES_USER:-tbs_user}:${POSTGRES_PASSWORD:-tbs_password}@postgres:5432/${POSTGRES_DB:-tbs_erp}
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -101,7 +127,7 @@ services:
       STORAGE_PATH: ./uploads
       SEED_EMAIL_DOMAIN: nhaphangchinhngach.vn
     depends_on:
-      postgres:
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -127,6 +153,10 @@ services:
       target: production
       args:
         NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+        NEXT_PUBLIC_APP_TITLE: TBS ERP
+        NEXT_PUBLIC_COMPANY_NAME: TBS
+        NEXT_PUBLIC_COMPANY_FULL_NAME: TBS Group
+        NEXT_PUBLIC_APP_DESCRIPTION: TBS Enterprise Resource Planning
     container_name: tbs_dev_frontend
     restart: unless-stopped
     ports:

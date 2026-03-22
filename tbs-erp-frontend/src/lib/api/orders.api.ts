@@ -55,6 +55,12 @@ export const ordersApi = {
     apiClient
       .post<BaseResponse<Order>>(`/orders/${id}/cancel`, { reason })
       .then((r) => r.data.data),
+
+  /** POST /orders/:id/reopen */
+  reopen: (id: string, reason: string) =>
+    apiClient
+      .post<BaseResponse<Order>>(`/orders/${id}/reopen`, { reason })
+      .then((r) => r.data.data),
 };
 
 export const masterOrdersApi = {

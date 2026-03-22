@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useMemo, type ElementType } from 'react';
+import dynamic from 'next/dynamic';
 import { Plus, LayoutGrid, BarChart3, List } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable } from '@/components/shared/data-table';
 import { TaskFilters } from '@/features/tasks/task-filters';
 import { taskColumns } from '@/features/tasks/task-table-columns';
-import { KanbanBoard } from '@/features/tasks/kanban-board';
-import { GanttChart } from '@/features/tasks/gantt-chart';
 import { TaskDetailSheet } from '@/features/tasks/task-detail-sheet';
 import { TaskForm } from '@/features/tasks/task-form';
 import { WorkloadStats } from '@/features/tasks/workload-stats';
@@ -15,6 +14,16 @@ import { useTasks, useMyTasks } from '@/lib/hooks/use-tasks';
 import { cn } from '@/lib/utils/cn';
 import type { TaskQueryParams } from '@/lib/types';
 import type { Task } from '@/lib/types';
+
+// Lazy-load heavy view components (dnd-kit ~40KB, gantt rendering)
+const KanbanBoard = dynamic(
+  () => import('@/features/tasks/kanban-board').then((m) => m.KanbanBoard),
+  { ssr: false, loading: () => <div className="h-96 animate-pulse bg-muted rounded" /> },
+);
+const GanttChart = dynamic(
+  () => import('@/features/tasks/gantt-chart').then((m) => m.GanttChart),
+  { ssr: false, loading: () => <div className="h-64 animate-pulse bg-muted rounded" /> },
+);
 
 // ---------------------------------------------------------------------------
 // View mode

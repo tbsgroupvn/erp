@@ -9,8 +9,9 @@ import { ArrowLeft, Loader2, Search, X } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
+import { CustomerPicker } from '@/components/shared/customer-picker';
+import type { CustomerPickerValue } from '@/components/shared/customer-picker';
 import { useCreateComplaint } from '@/lib/hooks/use-complaints';
-import { useCustomers } from '@/lib/hooks/use-customers';
 import { useMasterOrders } from '@/lib/hooks/use-orders';
 import { ComplaintType, ComplaintSeverity } from '@/lib/types';
 import type { Customer, MasterOrder } from '@/lib/types';
@@ -47,12 +48,8 @@ export default function TaoMoiKhieuNaiPage() {
     },
   });
 
-  // Customer picker
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState('');
+  // Customer state
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-  const customerDropdownRef = useRef<HTMLDivElement>(null);
 
   // Order picker
   const [orderSearch, setOrderSearch] = useState('');
@@ -64,18 +61,9 @@ export default function TaoMoiKhieuNaiPage() {
   const customerId = watch('customerId');
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedCustomerSearch(customerSearch), 300);
-    return () => clearTimeout(timer);
-  }, [customerSearch]);
-
-  useEffect(() => {
     const timer = setTimeout(() => setDebouncedOrderSearch(orderSearch), 300);
     return () => clearTimeout(timer);
   }, [orderSearch]);
-
-  const { data: customersData, isLoading: isLoadingCustomers } = useCustomers(
-    debouncedCustomerSearch ? { search: debouncedCustomerSearch, limit: 10 } : { limit: 10 }
-  );
 
   const { data: ordersData, isLoading: isLoadingOrders } = useMasterOrders(
     customerId
@@ -89,9 +77,6 @@ export default function TaoMoiKhieuNaiPage() {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target as Node)) {
-        setShowCustomerDropdown(false);
-      }
       if (orderDropdownRef.current && !orderDropdownRef.current.contains(event.target as Node)) {
         setShowOrderDropdown(false);
       }
@@ -100,17 +85,20 @@ export default function TaoMoiKhieuNaiPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelectCustomer = useCallback(
-    (customer: Customer) => {
-      setSelectedCustomer(customer);
-      setValue('customerId', customer.id, { shouldValidate: true });
-      setCustomerSearch('');
-      setShowCustomerDropdown(false);
+  const handleCustomerChange = useCallback(
+    (customer: CustomerPickerValue | null) => {
+      if (customer) {
+        setSelectedCustomer(customer as unknown as Customer);
+        setValue('customerId', customer.id, { shouldValidate: true });
+      } else {
+        setSelectedCustomer(null);
+        setValue('customerId', '', { shouldValidate: true });
+      }
       // Clear order selection when customer changes
       setSelectedOrder(null);
       setValue('orderId', '');
     },
-    [setValue]
+    [setValue],
   );
 
   const handleSelectOrder = useCallback(
@@ -148,83 +136,24 @@ export default function TaoMoiKhieuNaiPage() {
         <div className="rounded-lg border bg-card p-6 space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Customer Picker */}
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Khách hàng *</p>
-              <div className="relative" ref={customerDropdownRef}>
-                {selectedCustomer ? (
-                  <div className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm">
-                    <span>
-                      {selectedCustomer.fullName}{' '}
-                      <span className="text-muted-foreground">({selectedCustomer.code})</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedCustomer(null);
-                        setValue('customerId', '', { shouldValidate: true });
-                        setSelectedOrder(null);
-                        setValue('orderId', '');
-                        setShowCustomerDropdown(true);
-                      }}
-                      className="ml-2 text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Tìm khách hàng..."
-                      value={customerSearch}
-                      onChange={(e) => {
-                        setCustomerSearch(e.target.value);
-                        setShowCustomerDropdown(true);
-                      }}
-                      onFocus={() => setShowCustomerDropdown(true)}
-                      className="flex h-10 w-full rounded-md border bg-background pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </>
-                )}
-                <input type="hidden" {...register('customerId')} />
-                {showCustomerDropdown && !selectedCustomer && (
-                  <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg max-h-60 overflow-auto">
-                    {isLoadingCustomers ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : customersData?.data && customersData.data.length > 0 ? (
-                      <ul className="py-1">
-                        {customersData.data.map((customer) => (
-                          <li key={customer.id}>
-                            <button
-                              type="button"
-                              onClick={() => handleSelectCustomer(customer)}
-                              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-accent"
-                            >
-                              <div>
-                                <div className="font-medium">{customer.fullName}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {customer.code} - {customer.phone}
-                                </div>
-                              </div>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="py-4 text-center text-sm text-muted-foreground">
-                        {customerSearch ? 'Không tìm thấy' : 'Nhập để tìm'}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              {errors.customerId && (
-                <p className="text-xs text-destructive">{errors.customerId.message}</p>
-              )}
-            </div>
+            <CustomerPicker
+              value={selectedCustomer?.id ?? null}
+              onChange={handleCustomerChange}
+              error={errors.customerId?.message as string}
+              selectedCustomer={
+                selectedCustomer
+                  ? {
+                      id: selectedCustomer.id,
+                      code: selectedCustomer.code,
+                      fullName: selectedCustomer.fullName,
+                      companyName: selectedCustomer.companyName,
+                      phone: selectedCustomer.phone,
+                    }
+                  : null
+              }
+              label="Kh\u00e1ch h\u00e0ng *"
+              placeholder="T\u00ecm kh\u00e1ch h\u00e0ng..."
+            />
 
             {/* Order Picker */}
             <div className="space-y-2">

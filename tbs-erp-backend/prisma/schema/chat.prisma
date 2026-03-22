@@ -30,6 +30,7 @@ model ChatConversation {
   @@index([createdBy])
   @@index([type])
   @@index([referenceType, referenceId])
+  @@index([updatedAt], map: "idx_chat_conversations_updated_at")
   @@map("chat_conversations")
 }
 

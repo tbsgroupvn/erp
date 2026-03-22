@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Filter,
   Download,
@@ -28,20 +29,17 @@ import {
   ChevronUp,
   Loader2,
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  Legend,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from 'recharts';
 import { toast } from 'sonner';
+
+// Lazy-load recharts — ~110KB, only needed when charts render
+const RechartsAgingChart = dynamic(
+  () => import('./SalesDashboardAgingChart'),
+  { ssr: false, loading: () => <div className="h-[250px] animate-pulse bg-muted rounded" /> },
+);
+const RechartsCommissionChart = dynamic(
+  () => import('./SalesDashboardCommissionChart'),
+  { ssr: false, loading: () => <div className="h-[250px] animate-pulse bg-muted rounded" /> },
+);
 import { useOrders } from '@/lib/hooks/use-orders';
 import type { Order as ApiOrder } from '@/lib/types';
 
@@ -470,22 +468,7 @@ export const SalesDashboard: React.FC = () => {
             <h3 className="mb-4 text-lg font-medium text-slate-900">
               Phân tích tuổi nợ
             </h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={agingBuckets}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="range" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip
-                  formatter={(value: number) => formatCurrency(value)}
-                  contentStyle={{ fontSize: 12 }}
-                />
-                <Bar dataKey="amount" radius={[8, 8, 0, 0]}>
-                  {agingBuckets.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <RechartsAgingChart agingBuckets={agingBuckets} formatCurrency={formatCurrency} />
             <div className="mt-4 grid grid-cols-3 gap-4 text-center text-sm">
               {agingBuckets.map((bucket, idx) => (
                 <div key={idx}>
@@ -501,26 +484,7 @@ export const SalesDashboard: React.FC = () => {
             <h3 className="mb-4 text-lg font-medium text-slate-900">
               Tổng hợp hoa hồng
             </h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={commissionSummary}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={(entry) => `${formatCurrency(entry.value)}`}
-                  labelLine={false}
-                >
-                  {commissionSummary.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
-              </PieChart>
-            </ResponsiveContainer>
+            <RechartsCommissionChart commissionSummary={commissionSummary} formatCurrency={formatCurrency} />
             <div className="mt-4 flex justify-center gap-6 text-sm">
               {commissionSummary.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-2">

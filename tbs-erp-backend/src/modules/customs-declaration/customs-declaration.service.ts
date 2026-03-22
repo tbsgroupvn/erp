@@ -233,22 +233,24 @@ export class CustomsDeclarationService {
         },
       });
 
-      // Create source item junction records for each line
-      for (let i = 0; i < decl.lines.length; i++) {
-        const line = decl.lines[i];
-        const input = lineInputs[i];
-        if (input) {
-          await tx.customsLineSourceItem.create({
-            data: {
-              lineId: line.id,
-              orderItemId: input.orderItem.id,
-              orderId: input.orderId,
-              packageId: input.packageIds[0] ?? null,
-              contributedQuantity: input.orderItem.quantity,
-              contributedValue: input.orderItem.totalPrice,
-            },
-          });
-        }
+      // Create all source item junction records in a single batch query (avoids N+1)
+      const sourceItemsData = decl.lines
+        .map((line, i) => {
+          const input = lineInputs[i];
+          if (!input) return null;
+          return {
+            lineId: line.id,
+            orderItemId: input.orderItem.id,
+            orderId: input.orderId,
+            packageId: input.packageIds[0] ?? null,
+            contributedQuantity: input.orderItem.quantity,
+            contributedValue: input.orderItem.totalPrice,
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null);
+
+      if (sourceItemsData.length > 0) {
+        await tx.customsLineSourceItem.createMany({ data: sourceItemsData });
       }
 
       return decl;

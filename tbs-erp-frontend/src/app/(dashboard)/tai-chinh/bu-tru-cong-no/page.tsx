@@ -14,7 +14,8 @@ import {
   useExecuteDebtNetting,
 } from '@/lib/hooks/use-debt-netting';
 import { formatCurrency, formatDate } from '@/lib/utils/format';
-import { ApprovalStatus } from '@/lib/types/enums';
+import { ApprovalStatus, UserRole } from '@/lib/types/enums';
+import { RoleGuard } from '@/components/shared/role-guard';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { DebtNetting } from '@/lib/types/finance.types';
 
@@ -156,6 +157,16 @@ export default function BuTruCongNoPage() {
   ];
 
   return (
+    <RoleGuard
+      allowedRoles={[
+        UserRole.CHIEF_ACCOUNTANT,
+        UserRole.ACCOUNTANT,
+        UserRole.ACCOUNTANT_AR,
+        UserRole.CFO,
+        UserRole.CEO,
+        UserRole.COO,
+      ]}
+    >
     <div>
       <PageHeader
         title="Bù trừ công nợ"
@@ -262,5 +273,6 @@ export default function BuTruCongNoPage() {
         />
       </div>
     </div>
+    </RoleGuard>
   );
 }

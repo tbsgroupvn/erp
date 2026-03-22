@@ -3,6 +3,15 @@ import { PrismaService } from '@core/database/prisma.service';
 import { CreateJournalEntryDto } from './dto/create-journal-entry.dto';
 import { GeneralLedgerQueryDto } from './dto/general-ledger-query.dto';
 
+// Raw row returned by the trial-balance JOIN query
+interface TrialBalanceRaw {
+  account_code: string;
+  account_name: string;
+  account_type: string;
+  total_debit: string | null;
+  total_credit: string | null;
+}
+
 @Injectable()
 export class GeneralLedgerService {
   private readonly logger = new Logger(GeneralLedgerService.name);
@@ -158,48 +167,54 @@ export class GeneralLedgerService {
   /**
    * Computes trial balance as of a specific date.
    * Sums debits and credits per account.
+   *
+   * Optimization: merged the previous 2-query pattern (groupBy on lines +
+   * separate chartOfAccount lookup) into a single $queryRaw with an INNER JOIN
+   * so the account name/type is fetched in the same round-trip.
    */
   async getTrialBalance(asOfDate: string) {
+    const t0 = Date.now();
     const endDate = new Date(asOfDate);
     endDate.setHours(23, 59, 59, 999);
 
-    const result = await this.prisma.journalEntryLine.groupBy({
-      by: ['accountCode'],
-      _sum: {
-        debit: true,
-        credit: true,
-      },
-      where: {
-        entry: {
-          date: { lte: endDate },
-          isPosted: true,
-        },
-      },
-    });
+    // Single query: aggregate lines with account metadata via JOIN.
+    // Only posted entries on or before the requested date are considered.
+    const rows = await this.prisma.$queryRaw<TrialBalanceRaw[]>`
+      SELECT
+        jel.account_code                          AS account_code,
+        coa.name                                  AS account_name,
+        coa.type                                  AS account_type,
+        SUM(jel.debit)                            AS total_debit,
+        SUM(jel.credit)                           AS total_credit
+      FROM journal_entry_lines jel
+      INNER JOIN journal_entries je
+        ON je.id = jel.entry_id
+        AND je.is_posted = TRUE
+        AND je.date <= ${endDate}
+      INNER JOIN chart_of_accounts coa
+        ON coa.code = jel.account_code
+      GROUP BY jel.account_code, coa.name, coa.type
+      ORDER BY jel.account_code ASC
+    `;
 
-    // Enrich with account info
-    const accountCodes = result.map((r) => r.accountCode);
-    const accounts = await this.prisma.chartOfAccount.findMany({
-      where: { code: { in: accountCodes } },
-    });
+    this.logger.debug(`getTrialBalance (${asOfDate}) completed in ${Date.now() - t0}ms (1 query)`);
 
-    const accountMap = new Map(accounts.map((a) => [a.code, a]));
-
-    const trialBalance = result.map((r) => {
-      const account = accountMap.get(r.accountCode);
+    const trialBalance = rows.map((r) => {
+      const totalDebit  = parseFloat(r.total_debit  ?? '0');
+      const totalCredit = parseFloat(r.total_credit ?? '0');
       return {
-        accountCode: r.accountCode,
-        accountName: account?.name ?? 'Unknown',
-        accountType: account?.type ?? 'Unknown',
-        totalDebit: Number(r._sum.debit ?? 0),
-        totalCredit: Number(r._sum.credit ?? 0),
-        balance: Number(r._sum.debit ?? 0) - Number(r._sum.credit ?? 0),
+        accountCode: r.account_code,
+        accountName: r.account_name,
+        accountType: r.account_type,
+        totalDebit,
+        totalCredit,
+        balance: totalDebit - totalCredit,
       };
     });
 
     const totals = trialBalance.reduce(
       (acc, row) => ({
-        totalDebit: acc.totalDebit + row.totalDebit,
+        totalDebit:  acc.totalDebit  + row.totalDebit,
         totalCredit: acc.totalCredit + row.totalCredit,
       }),
       { totalDebit: 0, totalCredit: 0 },

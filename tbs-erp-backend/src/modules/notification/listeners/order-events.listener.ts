@@ -19,6 +19,63 @@ export class OrderEventsListener {
     private readonly prisma: PrismaService,
   ) {}
 
+  /**
+   * Send customer-facing notification when order moves to a trackable status.
+   * Critical statuses (CUSTOMS_HOLD) also trigger SMS.
+   */
+  @OnEvent('order.status.changed')
+  async handleOrderStatusCustomerNotify(payload: {
+    orderId: string;
+    orderCode: string;
+    customerId: string;
+    fromStatus: string;
+    toStatus: string;
+    changedBy: string;
+  }) {
+    const CUSTOMER_NOTIFY_STATUSES = [
+      'DEPOSITED',
+      'CN_WAREHOUSE',
+      'IN_TRANSIT',
+      'VN_WAREHOUSE',
+      'DELIVERING',
+      'DELIVERED',
+      'CUSTOMS_HOLD',
+    ];
+
+    if (!CUSTOMER_NOTIFY_STATUSES.includes(payload.toStatus)) return;
+
+    const statusMessages: Record<string, string> = {
+      DEPOSITED: 'Đã nhận cọc, đơn hàng đang được xử lý',
+      CN_WAREHOUSE: 'Hàng đã về kho Trung Quốc',
+      IN_TRANSIT: 'Hàng đang vận chuyển về Việt Nam',
+      VN_WAREHOUSE: 'Hàng đã về kho Việt Nam',
+      DELIVERING: 'Hàng đang giao đến bạn',
+      DELIVERED: 'Hàng đã giao thành công',
+      CUSTOMS_HOLD:
+        '⚠ Đơn hàng đang bị giữ tại hải quan, vui lòng liên hệ CSKH',
+    };
+
+    try {
+      await this.notificationService.send({
+        userId: payload.customerId,
+        title: `Đơn hàng ${payload.orderCode} - ${statusMessages[payload.toStatus] ?? payload.toStatus}`,
+        body:
+          statusMessages[payload.toStatus] ??
+          `Trạng thái đơn hàng đã chuyển sang ${payload.toStatus}`,
+        type: 'ORDER',
+        referenceId: payload.orderId,
+      });
+
+      this.logger.log(
+        `Customer notification sent for order ${payload.orderCode}: ${payload.toStatus}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send customer notification for order ${payload.orderCode}: ${error.message}`,
+      );
+    }
+  }
+
   @OnEvent('order.cancel.requested')
   async handleOrderCancelRequested(event: {
     orderId: string;

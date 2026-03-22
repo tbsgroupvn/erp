@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,21 +13,6 @@ import {
   Users,
   AlertTriangle
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  Legend,
-} from 'recharts';
 import { useAgingSummary, useAgingTrends, useHighRiskCustomers } from '@/lib/hooks/use-ar-aging';
 import { formatCurrency } from '@/lib/utils/format';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +24,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+
+// Lazy-load recharts-based chart components (~110KB)
+const AgingBarChart = dynamic(
+  () => import('./aging-charts').then((m) => m.AgingBarChart),
+  { ssr: false, loading: () => <div className="h-[300px] animate-pulse bg-muted rounded" /> },
+);
+const AgingPieChart = dynamic(
+  () => import('./aging-charts').then((m) => m.AgingPieChart),
+  { ssr: false, loading: () => <div className="h-[300px] animate-pulse bg-muted rounded" /> },
+);
+const AgingTrendLineChart = dynamic(
+  () => import('./aging-charts').then((m) => m.AgingTrendLineChart),
+  { ssr: false, loading: () => <div className="h-[300px] animate-pulse bg-muted rounded" /> },
+);
 
 const COLORS = {
   current: '#10B981',
@@ -187,27 +187,7 @@ export default function ARAgingDashboardPage() {
             {summaryLoading ? (
               <Skeleton className="h-[300px] w-full" />
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={bucketData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="name"
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value) => formatCurrency(value as number)}
-                    labelStyle={{ color: '#000' }}
-                  />
-                  <Bar dataKey="value">
-                    {bucketData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <AgingBarChart data={bucketData} />
             )}
           </CardContent>
         </Card>
@@ -222,26 +202,7 @@ export default function ARAgingDashboardPage() {
             {summaryLoading ? (
               <Skeleton className="h-[300px] w-full" />
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={bucketData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    dataKey="value"
-                    label={({ name, percent }) =>
-                      `${name}: ${(percent * 100).toFixed(0)}%`
-                    }
-                  >
-                    {bucketData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                </PieChart>
-              </ResponsiveContainer>
+              <AgingPieChart data={bucketData} />
             )}
           </CardContent>
         </Card>
@@ -257,27 +218,13 @@ export default function ARAgingDashboardPage() {
           {trendsLoading ? (
             <Skeleton className="h-[300px] w-full" />
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="Chưa đến hạn"
-                  stroke={COLORS.current}
-                  strokeWidth={2}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="Quá hạn"
-                  stroke={COLORS.days61_90}
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <AgingTrendLineChart
+              data={trendData}
+              currentColor={COLORS.current}
+              overdueColor={COLORS.days61_90}
+              currentKey="Chưa đến hạn"
+              overdueKey="Quá hạn"
+            />
           )}
         </CardContent>
       </Card>

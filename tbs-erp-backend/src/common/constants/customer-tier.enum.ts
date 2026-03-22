@@ -35,7 +35,7 @@ export const TIER_REVENUE_THRESHOLDS: Record<CustomerTier, number> = {
  */
 export const TIER_ORDER_THRESHOLDS: Record<CustomerTier, number> = {
   [CustomerTier.NEW]: 0,
-  [CustomerTier.REGULAR]: 3,
+  [CustomerTier.REGULAR]: 10,
   [CustomerTier.VIP]: 20,
   [CustomerTier.STRATEGIC]: 50,
 };

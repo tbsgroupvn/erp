@@ -31,6 +31,7 @@ model VideoRoom {
   @@index([hostId])
   @@index([status])
   @@index([conversationId])
+  @@index([status, scheduledAt], map: "idx_video_rooms_status_scheduled")
   @@map("video_rooms")
 }
 

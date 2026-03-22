@@ -147,9 +147,15 @@ export class SLAMonitorService {
     const slaStatuses: OrderStatus[] = [
       OrderStatus.CONSULTING,
       OrderStatus.QUOTATION,
+      OrderStatus.PENDING_DEPOSIT,
+      OrderStatus.SOURCING,
       OrderStatus.WAREHOUSE_CN,
+      OrderStatus.PACKING,
+      OrderStatus.IN_TRANSIT,
+      OrderStatus.CUSTOMS,
       OrderStatus.WAREHOUSE_VN,
       OrderStatus.DELIVERING,
+      OrderStatus.SETTLEMENT,
     ];
 
     const orders = await this.prisma.order.findMany({
@@ -184,14 +190,38 @@ export class SLAMonitorService {
           limitMinutes = slaConfig.quotationHours * 60;
           slaType = 'QUOTATION_TURNAROUND';
           break;
+        case OrderStatus.PENDING_DEPOSIT:
+          limitMinutes = slaConfig.pendingDepositDays * 24 * 60;
+          slaType = 'PENDING_DEPOSIT';
+          break;
+        case OrderStatus.SOURCING:
+          limitMinutes = slaConfig.sourcingDays * 24 * 60;
+          slaType = 'SOURCING';
+          break;
         case OrderStatus.WAREHOUSE_CN:
         case OrderStatus.WAREHOUSE_VN:
           limitMinutes = slaConfig.warehouseReceiptHours * 60;
           slaType = 'WAREHOUSE_RECEIPT';
           break;
+        case OrderStatus.PACKING:
+          limitMinutes = slaConfig.packingHours * 60;
+          slaType = 'PACKING';
+          break;
+        case OrderStatus.IN_TRANSIT:
+          limitMinutes = slaConfig.inTransitDays * 24 * 60;
+          slaType = 'IN_TRANSIT';
+          break;
+        case OrderStatus.CUSTOMS:
+          limitMinutes = slaConfig.customsDays * 24 * 60;
+          slaType = 'CUSTOMS';
+          break;
         case OrderStatus.DELIVERING:
           limitMinutes = slaConfig.deliveryDays * 24 * 60;
           slaType = 'DELIVERY';
+          break;
+        case OrderStatus.SETTLEMENT:
+          limitMinutes = slaConfig.settlementDays * 24 * 60;
+          slaType = 'SETTLEMENT';
           break;
       }
 
@@ -253,6 +283,59 @@ export class SLAMonitorService {
   }
 
   /**
+   * Cron job: Auto-cancel orders stuck in PENDING_DEPOSIT for more than N days.
+   * Runs every 6 hours. Threshold configured via business.deposit.autoCancelDays (default 3).
+   */
+  @Cron('0 */6 * * *')
+  async autoCancelPendingDeposit(): Promise<void> {
+    const autoCancelDays = this.configService.get<number>('business.deposit.autoCancelDays', 3);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - autoCancelDays);
+
+    // Find orders in PENDING_DEPOSIT whose last status change was before the cutoff
+    const staleOrders = await this.prisma.order.findMany({
+      where: {
+        status: OrderStatus.PENDING_DEPOSIT,
+      },
+      select: {
+        id: true,
+        code: true,
+        saleId: true,
+        customerId: true,
+        statusHistory: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { createdAt: true },
+        },
+      },
+    });
+
+    // Filter: only orders whose LATEST status change is before cutoff
+    const overdueOrders = staleOrders.filter((o) => {
+      const lastChange = o.statusHistory[0]?.createdAt;
+      return lastChange && lastChange < cutoff;
+    });
+
+    if (overdueOrders.length === 0) {
+      return;
+    }
+
+    this.logger.warn(
+      `Auto-cancel: found ${overdueOrders.length} order(s) in PENDING_DEPOSIT > ${autoCancelDays} days`,
+    );
+
+    for (const order of overdueOrders) {
+      this.eventEmitter.emit('order.auto_cancel', {
+        orderId: order.id,
+        orderCode: order.code,
+        reason: `Tự động hủy: quá ${autoCancelDays} ngày chờ cọc không thanh toán`,
+        saleId: order.saleId,
+        customerId: order.customerId,
+      });
+    }
+  }
+
+  /**
    * Get SLA configuration values from business config.
    */
   private getSLAConfig() {
@@ -261,11 +344,17 @@ export class SLAMonitorService {
       saleContactHours: this.configService.get<number>('business.sla.saleContactHours', 2),
       quotationHours: this.configService.get<number>('business.sla.quotationHours', 4),
       approvalHours: this.configService.get<number>('business.sla.approvalHours', 2),
+      pendingDepositDays: this.configService.get<number>('business.sla.pendingDepositDays', 3),
+      sourcingDays: this.configService.get<number>('business.sla.sourcingDays', 7),
       warehouseReceiptHours: this.configService.get<number>(
         'business.sla.warehouseReceiptHours',
         24,
       ),
+      packingHours: this.configService.get<number>('business.sla.packingHours', 48),
+      inTransitDays: this.configService.get<number>('business.sla.inTransitDays', 15),
+      customsDays: this.configService.get<number>('business.sla.customsDays', 5),
       deliveryDays: this.configService.get<number>('business.sla.deliveryDays', 3),
+      settlementDays: this.configService.get<number>('business.sla.settlementDays', 7),
     };
   }
 }

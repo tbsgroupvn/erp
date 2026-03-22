@@ -9,6 +9,7 @@ import { ArrowLeft, Loader2, Check, BookTemplate } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
+import { FormErrorSummary } from '@/components/shared/form-error-summary';
 import { InfoTooltip } from '@/components/shared/info-tooltip';
 import { MHHPriceCalculator } from '@/features/orders/mhh-price-calculator';
 import { useCreateMasterOrder } from '@/lib/hooks/use-orders';
@@ -109,6 +110,7 @@ function TaoMoiDonHangContent() {
     formState: { errors },
     watch,
     setValue,
+    setError,
     trigger,
     reset,
   } = useForm<CreateMasterOrderForm>({
@@ -278,19 +280,23 @@ function TaoMoiDonHangContent() {
         draft.clearDraft();
         reset();
         setSelectedCustomer(null);
-        toast.success('Tạo đơn hàng thành công');
+        toast.success('T\u1ea1o \u0111\u01a1n h\u00e0ng th\u00e0nh c\u00f4ng');
         router.push('/don-hang');
       },
-      onError: (err: Error & { response?: { data?: { message?: string } } }) => {
-        toast.error(err.response?.data?.message || 'Lỗi tạo đơn hàng');
+      onError: (err: Error & { response?: { data?: { message?: string; errors?: Record<string, string> } } }) => {
+        const apiErrors = err.response?.data?.errors;
+        if (apiErrors && typeof apiErrors === 'object') {
+          Object.entries(apiErrors).forEach(([field, message]) => {
+            setError(field as keyof CreateMasterOrderForm, {
+              message: message as string,
+            });
+          });
+        } else {
+          toast.error(err.response?.data?.message || 'L\u1ed7i t\u1ea1o \u0111\u01a1n h\u00e0ng');
+        }
       },
     });
   };
-
-  const watchedSubOrders = watch('subOrders');
-  const watchedBranch = watch('branch');
-  const watchedNote = watch('note');
-  const watchedCustomerId = watch('customerId');
 
   const { user } = useAuthStore();
   const EXEC_ROLES: string[] = ['CEO', 'COO', 'CFO', 'DIRECTOR_OPERATIONS'];
@@ -399,6 +405,9 @@ function TaoMoiDonHangContent() {
         }}
         className="space-y-6"
       >
+        {/* Error summary — visible across all steps */}
+        <FormErrorSummary errors={errors} />
+
         {/* Step 1: General Info */}
         {step === 0 && (
           <GeneralInfoStep
@@ -425,7 +434,6 @@ function TaoMoiDonHangContent() {
             control={control}
             register={register}
             errors={errors}
-            watchedSubOrders={watchedSubOrders ?? []}
             quickMode={quickMode}
             selectedCustomer={selectedCustomer}
             onBack={() => setStep(0)}
@@ -440,10 +448,7 @@ function TaoMoiDonHangContent() {
         {step === 2 && (
           <ConfirmationStep
             selectedCustomer={selectedCustomer}
-            watchedCustomerId={watchedCustomerId}
-            watchedBranch={watchedBranch}
-            watchedNote={watchedNote}
-            watchedSubOrders={watchedSubOrders ?? []}
+            control={control}
             isPending={createMasterOrder.isPending}
             onBack={() => setStep(1)}
           />

@@ -28,6 +28,25 @@ export interface Customer {
   createdAt: string;
   updatedAt: string;
 
+  // Payment terms & grace period
+  paymentTermDays?: number;
+  gracePeriodDays?: number;
+  gracePeriodUntil?: string;
+  overdueInterestRate?: number;
+
+  // Block status
+  isBlocked?: boolean;
+  blockReason?: string;
+  blockedAt?: string;
+
+  // Temporary overdraft
+  tempOverdraftLimit?: number;
+  tempOverdraftExpiry?: string;
+  tempOverdraftApprovedBy?: string;
+
+  // Exchange rate
+  exchangeRateMode?: string;
+
   // Nested relations (optionally populated)
   contacts?: Contact[];
   wallet?: Wallet | null;

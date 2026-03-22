@@ -120,9 +120,9 @@ export default function LoginPage() {
           className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-primary-foreground text-xl font-bold"
           aria-hidden="true"
         >
-          {(process.env.NEXT_PUBLIC_COMPANY_NAME || 'ERP').substring(0, 3)}
+          {(process.env.NEXT_PUBLIC_COMPANY_NAME || 'TBS').substring(0, 3)}
         </div>
-        <h1 className="mt-4 text-2xl font-bold">{process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System'}</h1>
+        <h1 className="mt-4 text-2xl font-bold">{process.env.NEXT_PUBLIC_APP_TITLE || 'TBS ERP'}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Đăng nhập để tiếp tục
         </p>

@@ -49,4 +49,21 @@ export const FILE_UPLOAD_LIMITS = {
       'text/csv',
     ],
   },
+  CARRIER_RECON: {
+    maxSizeBytes: 10 * 1024 * 1024, // 10MB
+    allowedMimeTypes: [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'text/csv',
+    ],
+  },
+  BANK_STATEMENT: {
+    maxSizeBytes: 10 * 1024 * 1024, // 10MB
+    allowedMimeTypes: [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'text/csv',
+      'text/plain', // MT940 format
+    ],
+  },
 } as const;

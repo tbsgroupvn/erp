@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useFieldArray } from 'react-hook-form';
 import { Plus, Trash2, X, ClipboardPaste } from 'lucide-react';
 import { toast } from 'sonner';
@@ -14,7 +14,7 @@ export interface SubOrderItemsProps {
   quickMode?: boolean;
 }
 
-export function SubOrderItems({
+export const SubOrderItems = memo(function SubOrderItems({
   control,
   register,
   errors,
@@ -237,4 +237,4 @@ export function SubOrderItems({
       )}
     </div>
   );
-}
+});

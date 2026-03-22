@@ -256,6 +256,10 @@ export {
   useRemoveExpenseItem,
 } from './use-expenses';
 
+// Session
+export { useIdleTimeout } from './use-idle-timeout';
+export type { UseIdleTimeoutReturn } from './use-idle-timeout';
+
 // Utilities
 export { useDebounce } from './use-debounce';
 export { usePagination } from './use-pagination';

@@ -101,6 +101,9 @@ model CustomsDeclaration {
   @@index([channel])
   @@index([createdBy])
   @@index([createdAt])
+  @@index([containerId, status], map: "idx_customs_declarations_container_status")
+  @@index([status, createdAt], map: "idx_customs_declarations_status_created")
+  @@index([status, channel], map: "idx_customs_declarations_status_channel")
   @@map("customs_declarations")
 }
 

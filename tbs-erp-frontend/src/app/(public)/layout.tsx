@@ -10,9 +10,9 @@ import { ServiceWorkerRegistration } from '@/components/shared/sw-registration';
 
 const inter = Inter({ subsets: ['latin', 'vietnamese'] });
 
-const companyName = process.env.NEXT_PUBLIC_COMPANY_NAME || 'My ERP';
-const appTitle = process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System';
-const appDescription = process.env.NEXT_PUBLIC_APP_DESCRIPTION || 'Enterprise Resource Planning System';
+const companyName = process.env.NEXT_PUBLIC_COMPANY_NAME || 'TBS';
+const appTitle = process.env.NEXT_PUBLIC_APP_TITLE || 'TBS ERP';
+const appDescription = process.env.NEXT_PUBLIC_APP_DESCRIPTION || 'TBS Enterprise Resource Planning';
 const domain = process.env.NEXT_PUBLIC_DOMAIN || 'localhost';
 const baseUrl = domain === 'localhost' ? 'http://localhost:3000' : `https://${domain}`;
 const twitterHandle = process.env.NEXT_PUBLIC_TWITTER_HANDLE || '';

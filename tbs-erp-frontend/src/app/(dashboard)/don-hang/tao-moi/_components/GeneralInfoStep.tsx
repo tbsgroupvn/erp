@@ -1,14 +1,15 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
-import { Search, Loader2, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
 import type { UseFormRegister, UseFormSetValue, FieldErrors } from 'react-hook-form';
+import { AlertCircle } from 'lucide-react';
 import type { Customer } from '@/lib/types';
 import { Branch } from '@/lib/types';
 import { BRANCH_LABELS } from '@/lib/utils/constants';
 import { formatCurrency } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/cn';
-import { useCustomers } from '@/lib/hooks/use-customers';
+import { CustomerPicker } from '@/components/shared/customer-picker';
+import type { CustomerPickerValue } from '@/components/shared/customer-picker';
 import { QuickCustomerDialog } from './QuickCustomerDialog';
 
 interface CreateMasterOrderForm {
@@ -27,7 +28,7 @@ export interface GeneralInfoStepProps {
   onNext: () => void;
 }
 
-export function GeneralInfoStep({
+export const GeneralInfoStep = React.memo(function GeneralInfoStep({
   register,
   errors,
   setValue,
@@ -35,35 +36,16 @@ export function GeneralInfoStep({
   onSelectCustomer,
   onNext,
 }: GeneralInfoStepProps) {
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
   const [showQuickAddDialog, setShowQuickAddDialog] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(customerSearch), 300);
-    return () => clearTimeout(timer);
-  }, [customerSearch]);
-
-  const { data: customersData, isLoading: isLoadingCustomers } = useCustomers(
-    debouncedSearch ? { search: debouncedSearch, limit: 10 } : { limit: 10 },
-  );
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
-      }
+  const handleCustomerChange = (customer: CustomerPickerValue | null) => {
+    if (customer) {
+      onSelectCustomer(customer as unknown as Customer);
+      setValue('customerId', customer.id, { shouldValidate: true });
+    } else {
+      onSelectCustomer(null as unknown as Customer);
+      setValue('customerId', '', { shouldValidate: true });
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleSelectCustomer = (customer: Customer) => {
-    onSelectCustomer(customer);
-    setCustomerSearch('');
-    setShowDropdown(false);
   };
 
   const usagePercent =
@@ -95,98 +77,39 @@ export function GeneralInfoStep({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* Customer Picker */}
         <div className="space-y-2">
-          <p className="text-sm font-medium">Khách hàng *</p>
-          <div className="relative" ref={dropdownRef}>
-            {selectedCustomer ? (
-              <div className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm">
-                <span>
-                  {selectedCustomer.fullName}{' '}
-                  <span className="text-muted-foreground">({selectedCustomer.code})</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setValue('customerId', '', { shouldValidate: true });
-                    onSelectCustomer(null as unknown as Customer);
-                    setShowDropdown(true);
-                  }}
-                  className="ml-2 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Thay đổi
-                </button>
-              </div>
-            ) : (
-              <>
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Tìm khách hàng theo tên, mã, SĐT..."
-                  value={customerSearch}
-                  onChange={(e) => { setCustomerSearch(e.target.value); setShowDropdown(true); }}
-                  onFocus={() => setShowDropdown(true)}
-                  className="flex h-10 w-full rounded-md border bg-background pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </>
-            )}
-            <input type="hidden" {...register('customerId')} />
-            {showDropdown && !selectedCustomer && (
-              <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
-                {isLoadingCustomers ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    <span className="ml-2 text-sm text-muted-foreground">Đang tìm...</span>
-                  </div>
-                ) : customersData?.data && customersData.data.length > 0 ? (
-                  <ul className="max-h-60 overflow-auto py-1">
-                    {customersData.data.map((customer) => (
-                      <li key={customer.id}>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectCustomer(customer)}
-                          className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-accent"
-                        >
-                          <div>
-                            <div className="font-medium">{customer.fullName}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {customer.code}
-                              {customer.phone && ` - ${customer.phone}`}
-                              {customer.companyName && ` - ${customer.companyName}`}
-                            </div>
-                          </div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="py-4 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
-                    <span>{customerSearch ? 'Không tìm thấy khách hàng' : 'Nhập để tìm khách hàng'}</span>
-                  </div>
-                )}
-                
-                {/* Luôn chèn thêm Nút Tạo Nhanh Khách Cũ dưới cùng của Dropdown */}
-                <div className="border-t p-2">
-                   <button
-                     type="button"
-                     onClick={() => {
-                       setShowDropdown(false);
-                       setShowQuickAddDialog(true);
-                     }}
-                     className="flex w-full items-center justify-center gap-2 rounded-md bg-secondary/50 px-3 py-2 text-sm font-medium text-primary hover:bg-secondary transition-colors"
-                   >
-                     <span>+ Thêm mới khách hàng &quot;{customerSearch}&quot;</span>
-                   </button>
-                </div>
-              </div>
-            )}
-          </div>
-          {errors.customerId && (
-            <p className="text-xs text-destructive">{errors.customerId.message as string}</p>
+          <CustomerPicker
+            value={selectedCustomer?.id ?? null}
+            onChange={handleCustomerChange}
+            error={errors.customerId?.message as string}
+            selectedCustomer={
+              selectedCustomer
+                ? {
+                    id: selectedCustomer.id,
+                    code: selectedCustomer.code,
+                    fullName: selectedCustomer.fullName,
+                    companyName: selectedCustomer.companyName,
+                    phone: selectedCustomer.phone,
+                  }
+                : null
+            }
+            label="Kh\u00e1ch h\u00e0ng *"
+            placeholder="T\u00ecm kh\u00e1ch h\u00e0ng theo t\u00ean, m\u00e3, S\u0110T..."
+          />
+          <input type="hidden" {...register('customerId')} />
+          {!selectedCustomer && (
+            <button
+              type="button"
+              onClick={() => setShowQuickAddDialog(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-secondary/50 px-3 py-2 text-sm font-medium text-primary hover:bg-secondary transition-colors"
+            >
+              <span>+ Th\u00eam m\u1edbi kh\u00e1ch h\u00e0ng</span>
+            </button>
           )}
         </div>
 
         {/* Branch */}
         <div className="space-y-2">
-          <p className="text-sm font-medium">Chi nhánh *</p>
+          <p className="text-sm font-medium">Chi nh\u00e1nh *</p>
           <select
             {...register('branch')}
             className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -204,18 +127,18 @@ export function GeneralInfoStep({
           <div className="flex items-start gap-2">
             <AlertCircle className={cn('h-5 w-5 mt-0.5', creditIconClass)} />
             <div className="flex-1">
-              <p className="text-sm font-medium">Thông tin tín dụng</p>
+              <p className="text-sm font-medium">Th\u00f4ng tin t\u00edn d\u1ee5ng</p>
               <div className="mt-2 grid grid-cols-3 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Công nợ hiện tại</p>
+                  <p className="text-muted-foreground">C\u00f4ng n\u1ee3 hi\u1ec7n t\u1ea1i</p>
                   <p className="font-semibold">{formatCurrency(selectedCustomer.currentDebt)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Hạn mức tín dụng</p>
+                  <p className="text-muted-foreground">H\u1ea1n m\u1ee9c t\u00edn d\u1ee5ng</p>
                   <p className="font-semibold">{formatCurrency(selectedCustomer.creditLimit)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">% Sử dụng</p>
+                  <p className="text-muted-foreground">% S\u1eed d\u1ee5ng</p>
                   <p className={cn('font-semibold', usagePercent >= 80 ? usageTextClass : '')}>
                     {selectedCustomer.creditLimit > 0
                       ? `${usagePercent.toFixed(1)}%`
@@ -226,8 +149,8 @@ export function GeneralInfoStep({
               {selectedCustomer.creditLimit > 0 && usagePercent >= 80 && (
                 <p className={cn('mt-2 text-xs', usageTextClass)}>
                   {usagePercent >= 100
-                    ? '⚠️ Khách hàng đã vượt hạn mức tín dụng!'
-                    : '⚠️ Khách hàng sắp đạt hạn mức tín dụng!'}
+                    ? '\u26a0\ufe0f Kh\u00e1ch h\u00e0ng \u0111\u00e3 v\u01b0\u1ee3t h\u1ea1n m\u1ee9c t\u00edn d\u1ee5ng!'
+                    : '\u26a0\ufe0f Kh\u00e1ch h\u00e0ng s\u1eafp \u0111\u1ea1t h\u1ea1n m\u1ee9c t\u00edn d\u1ee5ng!'}
                 </p>
               )}
             </div>
@@ -237,11 +160,11 @@ export function GeneralInfoStep({
 
       {/* Note */}
       <div className="space-y-2">
-        <p className="text-sm font-medium">Ghi chú đơn tổng</p>
+        <p className="text-sm font-medium">Ghi ch\u00fa \u0111\u01a1n t\u1ed5ng</p>
         <textarea
           {...register('note')}
           rows={2}
-          placeholder="Ghi chú cho đơn tổng..."
+          placeholder="Ghi ch\u00fa cho \u0111\u01a1n t\u1ed5ng..."
           className="flex w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
@@ -252,20 +175,26 @@ export function GeneralInfoStep({
           onClick={onNext}
           className="rounded-md bg-primary px-6 py-3 sm:px-4 sm:py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 touch-manipulation min-h-[44px]"
         >
-          Tiếp tục
+          Ti\u1ebfp t\u1ee5c
         </button>
       </div>
 
       {showQuickAddDialog && (
         <QuickCustomerDialog
-          initialPhone={customerSearch || ''}
+          initialPhone=""
           onClose={() => setShowQuickAddDialog(false)}
           onCustomerCreated={(newCustomer) => {
             setShowQuickAddDialog(false);
-            handleSelectCustomer(newCustomer);
+            handleCustomerChange({
+              id: newCustomer.id,
+              code: newCustomer.code,
+              fullName: newCustomer.fullName,
+              companyName: newCustomer.companyName,
+              phone: newCustomer.phone,
+            });
           }}
         />
       )}
     </div>
   );
-}
+});

@@ -1,9 +1,19 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
-import { DocumentEntityType, Prisma } from '@prisma/client';
+import { DocumentEntityType, Prisma, UserRole } from '@prisma/client';
+import { DataScopeFilter } from '@common/guards/data-scope.guard';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { DocumentQueryDto } from './dto/document-query.dto';
+
+/** Roles whose holders may delete any document regardless of ownership. */
+const DOCUMENT_DELETE_MANAGER_ROLES = new Set<UserRole>([
+  UserRole.CEO,
+  UserRole.COO,
+  UserRole.CFO,
+  UserRole.DIRECTOR_OPERATIONS,
+  UserRole.WAREHOUSE_MANAGER,
+]);
 
 @Injectable()
 export class DocumentService {
@@ -53,10 +63,30 @@ export class DocumentService {
   }
 
   /**
-   * Lists documents with pagination and filters.
+   * Lists documents with pagination, filters, and data-scope isolation.
+   *
+   * Data-scope rules:
+   * - Global roles (isGlobal: true) see all documents.
+   * - SALE role (saleId set): see only documents they uploaded themselves.
+   * - Branch-scoped roles (branch set, no saleId): see all documents — the
+   *   Document model has no branch column, so the branch restriction cannot be
+   *   applied at this layer. The entityId-based filters on the query (e.g.
+   *   filtering by a specific order or customer) serve as the practical scope
+   *   boundary for these roles.
+   * - Denied scope: returns an empty result set immediately.
    */
-  async findAll(query: DocumentQueryDto) {
+  async findAll(query: DocumentQueryDto, dataScope?: DataScopeFilter) {
+    // Deny access early without hitting the database
+    if (dataScope?.denied) {
+      return { data: [], total: 0, page: query.page, limit: query.limit };
+    }
+
     const where: Prisma.DocumentWhereInput = { isDeleted: false };
+
+    // For SALE role: restrict to documents the user uploaded themselves
+    if (dataScope && !dataScope.isGlobal && dataScope.saleId) {
+      where.uploadedBy = dataScope.saleId;
+    }
 
     if (query.entityType) where.entityType = query.entityType as DocumentEntityType;
     if (query.entityId) where.entityId = query.entityId;
@@ -127,6 +157,12 @@ export class DocumentService {
   /**
    * Soft deletes a document and schedules file cleanup.
    *
+   * Authorization rules enforced here (defense-in-depth after controller @Roles):
+   * - Management roles (CEO, COO, CFO, DIRECTOR_OPERATIONS, WAREHOUSE_MANAGER)
+   *   can delete any document.
+   * - All other authenticated roles can only delete documents they uploaded
+   *   themselves (uploadedBy === userId).
+   *
    * The 'document.deleted' event is emitted for downstream listeners to handle
    * actual storage cleanup (e.g., S3 object deletion). A background job should
    * periodically scan for soft-deleted documents older than a retention period
@@ -136,8 +172,17 @@ export class DocumentService {
    * documents that have been soft-deleted for longer than the retention period
    * (e.g., 30 days). Until then, the event listener handles immediate cleanup.
    */
-  async delete(id: string, userId: string) {
+  async delete(id: string, userId: string, userRole: UserRole) {
     const document = await this.findById(id);
+
+    const isManager = DOCUMENT_DELETE_MANAGER_ROLES.has(userRole);
+    const isOwner = document.uploadedBy === userId;
+
+    if (!isManager && !isOwner) {
+      throw new ForbiddenException(
+        'You can only delete documents you uploaded. Management roles may delete any document.',
+      );
+    }
 
     await this.prisma.document.update({
       where: { id },

@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { z } from 'zod';
 import {
@@ -13,6 +12,16 @@ import type {
   CreateSubOrderDto,
   CreateOrderItemDto,
 } from '@/lib/types';
+
+// xlsx is ~400KB — loaded lazily only when actually parsing/exporting Excel files
+type XLSXModule = typeof import('xlsx');
+let _xlsx: XLSXModule | null = null;
+async function getXLSX(): Promise<XLSXModule> {
+  if (!_xlsx) {
+    _xlsx = await import('xlsx');
+  }
+  return _xlsx;
+}
 
 // ============================================
 // TYPES
@@ -145,7 +154,8 @@ export const excelRowSchema = z.object({
 // PARSE EXCEL FILE
 // ============================================
 
-export function parseExcelFile(buffer: ArrayBuffer): ExcelOrderRow[] {
+export async function parseExcelFile(buffer: ArrayBuffer): Promise<ExcelOrderRow[]> {
+  const XLSX = await getXLSX();
   const workbook = XLSX.read(buffer, { type: 'array' });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) return [];
@@ -292,7 +302,8 @@ export function toCreateMasterOrderDto(
 // DOWNLOAD TEMPLATE
 // ============================================
 
-export function downloadTemplate(): void {
+export async function downloadTemplate(): Promise<void> {
+  const XLSX = await getXLSX();
   const sampleData = [
     {
       maKhachHang: 'KH001',

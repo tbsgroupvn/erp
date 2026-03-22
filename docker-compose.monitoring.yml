@@ -61,6 +61,12 @@ services:
       GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
       # Allow Grafana to load dashboards from /var/lib/grafana/dashboards
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/tbs-erp-dashboard.json
+      # Passed to grafana/provisioning/datasources.yml via $__env{ELASTIC_PASSWORD}
+      # so the Elasticsearch datasource can authenticate. Must match the password
+      # set on the Elasticsearch container (ELASTIC_PASSWORD).
+      # SECURITY: Set ELASTIC_PASSWORD in your .env file before starting the monitoring stack.
+      # See .env.example for the required variables.
+      ELASTIC_PASSWORD: "${ELASTIC_PASSWORD:?Set ELASTIC_PASSWORD in .env}"
     volumes:
       # Provisioning: datasources + dashboard providers (Grafana scans subdirectories)
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -137,7 +143,9 @@ services:
     restart: unless-stopped
     environment:
       REDIS_ADDR: "redis://redis:6379"
-      REDIS_PASSWORD: "${REDIS_PASSWORD:-dev_redis_pass}"
+      # SECURITY: Set REDIS_PASSWORD in your .env file before starting the monitoring stack.
+      # See .env.example for the required variables.
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}"
       REDIS_EXPORTER_LOG_FORMAT: json
     expose:
       - '9121'

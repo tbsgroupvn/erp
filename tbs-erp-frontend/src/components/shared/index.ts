@@ -37,5 +37,13 @@ export { PageSkeleton, ChartSkeleton, StatCardsSkeleton } from './loading-skelet
 // Enhanced page loading skeletons
 export { TableSkeleton, DetailSkeleton, CardGridSkeleton, ListPageSkeleton } from './page-loading';
 
+// Form helpers
+export { FormErrorSummary } from './form-error-summary';
+export { FormSkeleton } from './form-skeleton';
+
 // Breadcrumb
 export { Breadcrumb } from './breadcrumb';
+
+// Reusable pickers
+export { CustomerPicker } from './customer-picker';
+export type { CustomerPickerProps, CustomerPickerValue } from './customer-picker';

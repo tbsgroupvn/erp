@@ -56,6 +56,33 @@ services:
       - app_network
 
   # ============================================
+  # CONNECTION POOLER — PgBouncer (production)
+  # ============================================
+  pgbouncer:
+    image: edoburu/pgbouncer:1.22.0
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_pgbouncer
+    restart: unless-stopped
+    volumes:
+      - ./tbs-erp-backend/config/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./tbs-erp-backend/config/pgbouncer-userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-h', 'localhost', '-p', '6432', '-U', '${POSTGRES_USER:-erp_user}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - app_network
+
+  # ============================================
   # BACKEND - NestJS API
   # ============================================
   backend:
@@ -68,7 +95,13 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erp_db}
+      # Routes runtime queries through PgBouncer (transaction pooling).
+      # ?pgbouncer=true disables Prisma prepared statements, required for transaction mode.
+      # NOTE: the path segment "tbs_erp" is the PgBouncer logical DB name from pgbouncer.ini
+      #       [databases] section. PgBouncer maps it to the real dbname on the server.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@pgbouncer:6432/tbs_erp?pgbouncer=true
+      # Direct connection bypasses PgBouncer — used by Prisma migrate.
+      DIRECT_DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erp_db}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -98,13 +131,28 @@ services:
       BULLMQ_REDIS_HOST: redis
       BULLMQ_REDIS_PORT: 6379
       BULLMQ_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # Database connection pool
+      # Pool size = num_cores * 2 + disk_spindles. Default 20 for 50-70 concurrent users.
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-20}
+      # Queue worker concurrency (jobs processed in parallel per queue)
+      ORDER_QUEUE_CONCURRENCY: ${ORDER_QUEUE_CONCURRENCY:-3}
+      NOTIFICATION_QUEUE_CONCURRENCY: ${NOTIFICATION_QUEUE_CONCURRENCY:-5}
+      FINANCE_QUEUE_CONCURRENCY: ${FINANCE_QUEUE_CONCURRENCY:-2}
+      WAREHOUSE_QUEUE_CONCURRENCY: ${WAREHOUSE_QUEUE_CONCURRENCY:-3}
+      INTEGRATION_QUEUE_CONCURRENCY: ${INTEGRATION_QUEUE_CONCURRENCY:-2}
+      # Queue rate limiting (max jobs per duration window across all queues)
+      QUEUE_RATE_LIMIT_MAX: ${QUEUE_RATE_LIMIT_MAX:-100}
+      QUEUE_RATE_LIMIT_DURATION_MS: ${QUEUE_RATE_LIMIT_DURATION_MS:-10000}
+      # Queue stalled job recovery
+      QUEUE_STALLED_INTERVAL_MS: ${QUEUE_STALLED_INTERVAL_MS:-30000}
+      QUEUE_MAX_STALLED_COUNT: ${QUEUE_MAX_STALLED_COUNT:-2}
     deploy:
       resources:
         limits:
           cpus: '2'
           memory: 2G
     depends_on:
-      postgres:
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy

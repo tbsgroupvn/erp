@@ -1,25 +1,23 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, TrendingUp } from 'lucide-react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  BarChart,
-  Bar,
-  Cell,
-} from 'recharts';
 import { useCustomerAging, useCustomerAgingTrend } from '@/lib/hooks/use-ar-aging';
 import { formatCurrency } from '@/lib/utils/format';
+
+// Lazy-load recharts-based chart components
+const AgingDistributionChart = dynamic(
+  () => import('./CustomerAgingCharts').then((m) => m.AgingDistributionChart),
+  { ssr: false, loading: () => <div className="h-[300px] animate-pulse bg-muted rounded" /> },
+);
+const AgingTrendChart = dynamic(
+  () => import('./CustomerAgingCharts').then((m) => m.AgingTrendChart),
+  { ssr: false, loading: () => <div className="h-[300px] animate-pulse bg-muted rounded" /> },
+);
 
 interface CustomerAgingDetailProps {
   customerId: string;
@@ -147,28 +145,7 @@ export function CustomerAgingDetail({ customerId }: CustomerAgingDetailProps) {
           <CardDescription>Số lượng và giá trị công nợ theo từng nhóm</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={bucketData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-              <YAxis />
-              <Tooltip
-                formatter={(value, name) => {
-                  if (name === 'value') {
-                    return formatCurrency(value as number);
-                  }
-                  return value;
-                }}
-                labelStyle={{ color: '#000' }}
-              />
-              <Legend />
-              <Bar dataKey="value" name="Giá trị">
-                {bucketData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <AgingDistributionChart data={bucketData} />
 
           {/* Bucket Summary Table */}
           <div className="mt-4 space-y-2">
@@ -208,27 +185,13 @@ export function CustomerAgingDetail({ customerId }: CustomerAgingDetailProps) {
           {trendLoading ? (
             <Skeleton className="h-[300px] w-full" />
           ) : trendData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="Chưa đến hạn"
-                  stroke={COLORS.current}
-                  strokeWidth={2}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="Quá hạn"
-                  stroke={COLORS.days61_90}
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <AgingTrendChart
+              data={trendData}
+              currentColor={COLORS.current}
+              overdueColor={COLORS.days61_90}
+              currentKey="Chưa đến hạn"
+              overdueKey="Quá hạn"
+            />
           ) : (
             <Alert>
               <AlertDescription>

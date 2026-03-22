@@ -163,6 +163,7 @@ model Lead {
   @@index([assignedTo])
   @@index([status])
   @@index([createdBy])
+  @@index([status, assignedTo], map: "idx_leads_status_assigned")
   @@map("leads")
 }
 

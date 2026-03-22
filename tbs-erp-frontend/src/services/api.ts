@@ -14,7 +14,7 @@ import axios, { AxiosError } from 'axios';
 // CONFIGURATION
 // ============================================
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -26,13 +26,29 @@ const api = axios.create({
 });
 
 // ============================================
-// REQUEST INTERCEPTOR (Auth Token)
+// REQUEST INTERCEPTOR (Auth Token + CSRF)
 // ============================================
 
 api.interceptors.request.use(
   (config) => {
-    // Access token is managed by the Zustand auth store via the main API client.
-    // This legacy client relies on withCredentials for cookie-based auth.
+    if (typeof window !== 'undefined') {
+      // Attach Bearer token from the Zustand auth store.
+      // The backend CsrfGuard skips Origin/Referer validation when a valid
+      // Bearer token is present (Bearer tokens are not auto-sent by browsers,
+      // so they are inherently CSRF-safe). Without this header, cookie-based
+      // mutation requests (POST/PUT/PATCH/DELETE) could be blocked by the
+      // CsrfGuard when the browser omits Origin/Referer headers.
+      try {
+        // Dynamic import to avoid circular dependency issues at module init
+        const { useAuthStore } = require('@/lib/stores/auth-store');
+        const { accessToken } = useAuthStore.getState();
+        if (accessToken) {
+          config.headers.Authorization = `Bearer ${accessToken}`;
+        }
+      } catch {
+        // Auth store not available (e.g. during SSR bootstrap) — proceed without token
+      }
+    }
     return config;
   },
   (error) => {

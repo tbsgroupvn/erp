@@ -68,7 +68,7 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-dev_redis_pass}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
@@ -350,6 +350,11 @@ services:
       - '${KIBANA_PORT:-5601}:5601'
     environment:
       ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+      ELASTICSEARCH_USERNAME: kibana_system
+      # The var must be defined so kibana.yml does not receive an empty string
+      # that triggers a Kibana startup error.
+      # SECURITY: Set ELASTICSEARCH_PASSWORD in your .env file before deploying.
+      ELASTICSEARCH_PASSWORD: "${ELASTICSEARCH_PASSWORD:?Set ELASTICSEARCH_PASSWORD in .env}"
     volumes:
       - ./monitoring/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
     depends_on:

@@ -20,6 +20,8 @@ import { DateRangeDto } from '@common/dto/date-range.dto';
 import { AccountingService } from './accounting.service';
 import { FinancialStatementDto } from './dto/financial-statement.dto';
 import { SyncChartOfAccountsDto } from './dto/sync-coa.dto';
+import { FileValidationPipe } from '@common/pipes/file-validation.pipe';
+import { FILE_UPLOAD_LIMITS } from '@common/constants/file-upload.constants';
 
 @ApiTags('Integration - Accounting (MISA/Fast)')
 @ApiBearerAuth()
@@ -98,7 +100,7 @@ export class AccountingController {
   @Post('import-bank-statements')
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 imports per minute
   @Roles('CEO', 'CFO', 'ACCOUNTANT' as any)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: FILE_UPLOAD_LIMITS.BANK_STATEMENT.maxSizeBytes } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Import bank statements from file',
@@ -120,7 +122,8 @@ export class AccountingController {
     },
   })
   async importBankStatements(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(new FileValidationPipe(FILE_UPLOAD_LIMITS.BANK_STATEMENT))
+    file: Express.Multer.File,
     @Body('bankCode') bankCode: string,
     @CurrentUser('id') userId: string,
   ) {

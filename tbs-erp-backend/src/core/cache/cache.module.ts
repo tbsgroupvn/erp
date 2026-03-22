@@ -20,6 +20,15 @@ export const CACHE_KEY_PREFIX = 'tbs-erp';
         const redisHost = configService.get<string>('REDIS_HOST', 'localhost');
         const redisPort = configService.get<number>('REDIS_PORT', 6379);
         const redisPassword = configService.get<string>('REDIS_PASSWORD');
+        const appEnv = configService.get<string>('APP_ENV', 'development');
+
+        // MC-01 fix: Warn if Redis has no password in production/staging
+        if (!redisPassword && ['production', 'staging'].includes(appEnv)) {
+          new Logger('CacheModule').error(
+            'REDIS_PASSWORD is not set in a production/staging environment! ' +
+            'Redis is accessible without authentication. Set REDIS_PASSWORD immediately.',
+          );
+        }
 
         // Try to connect to Redis, fallback to in-memory if unavailable
         try {

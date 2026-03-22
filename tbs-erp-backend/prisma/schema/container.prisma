@@ -92,5 +92,7 @@ model Container {
   @@index([estimatedArrivalAt])
   @@index([containerNumber])
   @@index([blNumber])
+  @@index([status, createdAt], map: "idx_containers_status_created")
+  @@index([shippingRoute, status], map: "idx_containers_route_status")
   @@map("containers")
 }

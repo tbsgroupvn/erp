@@ -30,6 +30,8 @@ describe('AuthService', () => {
   let jwtService: JwtService;
   let smsService: SmsService;
 
+  const MOCK_USER_PASSWORD = 'Test123!@#'; // nosec: test-only password constant, never used in production
+
   // Mock user data
   const mockUser = {
     id: 'user-123',
@@ -56,7 +58,7 @@ describe('AuthService', () => {
 
   beforeAll(async () => {
     // Hash a password for testing
-    mockUser.passwordHash = await bcrypt.hash('Test123!@#', 10);
+    mockUser.passwordHash = await bcrypt.hash(MOCK_USER_PASSWORD, 10);
   });
 
   beforeEach(async () => {
@@ -155,7 +157,7 @@ describe('AuthService', () => {
       jest.spyOn(prismaService.session, 'create').mockResolvedValue({
         id: 'session-123',
         userId: mockUser.id,
-        refreshToken: 'hashed-refresh-token',
+        refreshToken: 'hashed-refresh-token', // nosec: test mock value
         userAgent: 'test-agent',
         ipAddress: '127.0.0.1',
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -165,7 +167,7 @@ describe('AuthService', () => {
       // Act
       const result = await service.login(
         'test@example.com',
-        'Test123!@#',
+        MOCK_USER_PASSWORD,
         'test-agent',
         '127.0.0.1',
       );
@@ -197,7 +199,7 @@ describe('AuthService', () => {
       // Act
       const result = await service.login(
         'test@example.com',
-        'Test123!@#',
+        MOCK_USER_PASSWORD,
         'test-agent',
         '127.0.0.1',
       );
@@ -219,7 +221,7 @@ describe('AuthService', () => {
 
       // Act & Assert
       await expect(
-        service.login('wrong@example.com', 'Test123!@#', 'test-agent', '127.0.0.1'),
+        service.login('wrong@example.com', MOCK_USER_PASSWORD, 'test-agent', '127.0.0.1'),
       ).rejects.toThrow(UnauthorizedException);
     });
 
@@ -240,7 +242,7 @@ describe('AuthService', () => {
 
       // Act & Assert
       await expect(
-        service.login('test@example.com', 'Test123!@#', 'test-agent', '127.0.0.1'),
+        service.login('test@example.com', MOCK_USER_PASSWORD, 'test-agent', '127.0.0.1'),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -251,7 +253,7 @@ describe('AuthService', () => {
       jest.spyOn(prismaService.session, 'create').mockResolvedValue({
         id: 'session-123',
         userId: mockUser.id,
-        refreshToken: 'hashed-refresh-token',
+        refreshToken: 'hashed-refresh-token', // nosec: test mock value
         userAgent: 'test-agent',
         ipAddress: '127.0.0.1',
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -259,7 +261,7 @@ describe('AuthService', () => {
       } as any);
 
       // Act
-      await service.login('test@example.com', 'Test123!@#', 'test-agent', '127.0.0.1');
+      await service.login('test@example.com', MOCK_USER_PASSWORD, 'test-agent', '127.0.0.1');
 
       // Assert
       expect(prismaService.user.update).toHaveBeenCalledWith({
@@ -473,7 +475,7 @@ describe('AuthService', () => {
       jest.spyOn(prismaService.session, 'create').mockResolvedValue({
         id: 'session-123',
         userId: mockUser.id,
-        refreshToken: 'hashed-refresh-token',
+        refreshToken: 'hashed-refresh-token', // nosec: test mock value
         userAgent: 'test-agent',
         ipAddress: '127.0.0.1',
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -526,7 +528,7 @@ describe('AuthService', () => {
     const mockSession = {
       id: 'session-123',
       userId: 'user-123',
-      refreshToken: 'hashed-refresh-token',
+      refreshToken: 'hashed-refresh-token', // nosec: test mock value
       userAgent: 'test-agent',
       ipAddress: '127.0.0.1',
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -541,7 +543,7 @@ describe('AuthService', () => {
       // Arrange
       jest.spyOn(prismaService.session, 'findUnique').mockResolvedValue(mockSession as any);
       jest.spyOn(bcrypt, 'compare' as any).mockResolvedValue(true);
-      jest.spyOn(bcrypt, 'hash' as any).mockResolvedValue('new-hashed-refresh-token');
+      jest.spyOn(bcrypt, 'hash' as any).mockResolvedValue('new-hashed-refresh-token'); // nosec: test mock value
       jest.spyOn(prismaService.session, 'update').mockResolvedValue(mockSession as any);
 
       // Act
@@ -555,7 +557,7 @@ describe('AuthService', () => {
         expect.objectContaining({
           where: { id: 'session-123' },
           data: expect.objectContaining({
-            refreshToken: 'new-hashed-refresh-token',
+            refreshToken: 'new-hashed-refresh-token', // nosec: test mock value
           }),
         }),
       );

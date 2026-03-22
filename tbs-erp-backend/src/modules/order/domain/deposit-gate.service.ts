@@ -138,9 +138,8 @@ export class DepositGateService {
     serviceType: ServiceType,
     customerDepositRate?: number,
   ): DepositRequirement {
-    // VCT (pure shipping) typically doesn't require upfront deposit
-    // unless the customer is NEW tier
-    if (serviceType === ServiceType.VCT && customerTier !== CustomerTier.NEW) {
+    // VCT (pure shipping) does not require deposit — skip GĐ 3 entirely
+    if (serviceType === ServiceType.VCT) {
       return {
         required: false,
         depositRate: 0,

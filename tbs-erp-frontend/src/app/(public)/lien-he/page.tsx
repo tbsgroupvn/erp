@@ -1,57 +1,26 @@
-'use client';
-
-declare global {
-  // eslint-disable-next-line no-var
-  interface Window { google?: Record<string, any>; }
-}
-
-import { Phone, Mail, MapPin, Clock, Send } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { Phone, Mail, MapPin, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useState } from 'react';
-import { toast } from 'sonner';
 import { Breadcrumbs } from '@/app/(public)/components/breadcrumbs';
+import { ContactForm } from './_components/contact-form';
 
-const contactFormSchema = z.object({
-  fullName: z.string().min(2, 'Họ tên phải có ít nhất 2 ký tự'),
-  phone: z
-    .string()
-    .min(10, 'Số điện thoại phải có ít nhất 10 số')
-    .regex(/^[0-9+\-\s()]+$/, 'Số điện thoại không hợp lệ'),
-  email: z.string().email('Email không hợp lệ'),
-  company: z.string().optional(),
-  service: z.string().min(1, 'Vui lòng chọn dịch vụ'),
-  message: z.string().min(10, 'Nội dung phải có ít nhất 10 ký tự'),
-});
-
-type ContactFormData = z.infer<typeof contactFormSchema>;
-
-const services = [
-  { value: 'van-chuyen', label: 'Vận chuyển hàng hóa' },
-  { value: 'mua-hang', label: 'Mua hàng hộ' },
-  { value: 'uy-thac-xnk', label: 'Ủy thác xuất nhập khẩu' },
-  { value: 'lcl-chinh-ngach', label: 'LCL chính ngạch' },
-  { value: 'tu-van', label: 'Tư vấn chung' },
-];
+export const metadata: Metadata = {
+  title: 'Li\u00ean h\u1ec7 v\u1edbi ch\u00fang t\u00f4i',
+  description:
+    'Li\u00ean h\u1ec7 \u0111\u1ec3 \u0111\u01b0\u1ee3c t\u01b0 v\u1ea5n v\u00e0 h\u1ed7 tr\u1ee3 v\u1ec1 d\u1ecbch v\u1ee5 v\u1eadn chuy\u1ec3n, mua h\u00e0ng h\u1ed9, \u1ee7y th\u00e1c xu\u1ea5t nh\u1eadp kh\u1ea9u t\u1eeb Trung Qu\u1ed1c v\u1ec1 Vi\u1ec7t Nam.',
+  openGraph: {
+    title: 'Li\u00ean h\u1ec7 v\u1edbi ch\u00fang t\u00f4i',
+    description:
+      'Li\u00ean h\u1ec7 \u0111\u1ec3 \u0111\u01b0\u1ee3c t\u01b0 v\u1ea5n v\u00e0 h\u1ed7 tr\u1ee3 v\u1ec1 d\u1ecbch v\u1ee5 v\u1eadn chuy\u1ec3n, mua h\u00e0ng h\u1ed9, \u1ee7y th\u00e1c xu\u1ea5t nh\u1eadp kh\u1ea9u t\u1eeb Trung Qu\u1ed1c v\u1ec1 Vi\u1ec7t Nam.',
+  },
+};
 
 const contactInfo = [
   {
     icon: Phone,
-    title: 'Điện thoại',
+    title: '\u0110i\u1ec7n tho\u1ea1i',
     content: process.env.NEXT_PUBLIC_COMPANY_PHONE || '0123 456 789',
     subContent: 'Hotline 24/7',
   },
@@ -63,76 +32,39 @@ const contactInfo = [
   },
   {
     icon: MapPin,
-    title: 'Địa chỉ',
-    content: process.env.NEXT_PUBLIC_COMPANY_ADDRESS || 'Đang cập nhật',
+    title: '\u0110\u1ecba ch\u1ec9',
+    content: process.env.NEXT_PUBLIC_COMPANY_ADDRESS || '\u0110ang c\u1eadp nh\u1eadt',
     subContent: '',
   },
   {
     icon: Clock,
-    title: 'Giờ làm việc',
-    content: 'Thứ 2 - Thứ 6: 8:00 - 18:00',
-    subContent: 'Thứ 7: 8:00 - 12:00',
+    title: 'Gi\u1edd l\u00e0m vi\u1ec7c',
+    content: 'Th\u1ee9 2 - Th\u1ee9 6: 8:00 - 18:00',
+    subContent: 'Th\u1ee9 7: 8:00 - 12:00',
   },
 ];
 
+function GoogleMap() {
+  const lat = process.env.NEXT_PUBLIC_LATITUDE || '21.028511';
+  const lng = process.env.NEXT_PUBLIC_LONGITUDE || '105.804817';
+
+  return (
+    <div className="h-96 w-full rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+      <iframe
+        title="V\u1ecb tr\u00ed c\u00f4ng ty"
+        width="100%"
+        height="100%"
+        style={{ border: 0 }}
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+        src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(lng) - 0.01}%2C${Number(lat) - 0.005}%2C${Number(lng) + 0.01}%2C${Number(lat) + 0.005}&layer=mapnik&marker=${lat}%2C${lng}`}
+      />
+    </div>
+  );
+}
+
 export default function ContactPage() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const breadcrumbItems = [
-    { label: 'Lien he' }
-  ];
-
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors },
-  } = useForm<ContactFormData>({
-    resolver: zodResolver(contactFormSchema),
-    defaultValues: {
-      fullName: '',
-      phone: '',
-      email: '',
-      company: '',
-      service: '',
-      message: '',
-    },
-  });
-
-  const onSubmit = async (data: ContactFormData) => {
-    setIsSubmitting(true);
-
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${apiUrl}/public/leads`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error('Không thể gửi yêu cầu. Vui lòng thử lại sau.');
-      }
-
-      toast.success('Gửi thành công!', {
-        description: 'Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất.',
-      });
-
-      reset();
-    } catch (error) {
-      toast.error('Có lỗi xảy ra!', {
-        description:
-          error instanceof Error
-            ? error.message
-            : 'Không thể gửi yêu cầu. Vui lòng thử lại sau.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const breadcrumbItems = [{ label: 'Lien he' }];
 
   return (
     <div className="min-h-screen">
@@ -144,10 +76,10 @@ export default function ContactPage() {
               <Breadcrumbs items={breadcrumbItems} />
             </div>
             <div className="text-center">
-              <h1 className="text-4xl md:text-5xl font-bold mb-6">Liên hệ với chúng tôi</h1>
+              <h1 className="text-4xl md:text-5xl font-bold mb-6">Li\u00ean h\u1ec7 v\u1edbi ch\u00fang t\u00f4i</h1>
               <p className="text-lg text-muted-foreground">
-                Hãy để lại thông tin, chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất để tư
-                vấn và hỗ trợ.
+                H\u00e3y \u0111\u1ec3 l\u1ea1i th\u00f4ng tin, ch\u00fang t\u00f4i s\u1ebd li\u00ean h\u1ec7 v\u1edbi b\u1ea1n trong th\u1eddi gian s\u1edbm nh\u1ea5t \u0111\u1ec3 t\u01b0
+                v\u1ea5n v\u00e0 h\u1ed7 tr\u1ee3.
               </p>
             </div>
           </div>
@@ -178,185 +110,60 @@ export default function ContactPage() {
               })}
             </div>
 
-            {/* Contact Form */}
+            {/* Contact Form + Additional Info */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-              {/* Form */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-2xl">Gửi yêu cầu</CardTitle>
-                  <p className="text-muted-foreground">
-                    Điền thông tin vào form dưới đây để gửi yêu cầu tư vấn
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName">
-                        Họ và tên <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="fullName"
-                        placeholder="Nguyễn Văn A"
-                        {...register('fullName')}
-                        className={errors.fullName ? 'border-destructive' : ''}
-                      />
-                      {errors.fullName && (
-                        <p className="text-sm text-destructive">{errors.fullName.message}</p>
-                      )}
-                    </div>
+              {/* Form (Client Component) */}
+              <ContactForm />
 
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">
-                        Số điện thoại <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="0912345678"
-                        {...register('phone')}
-                        className={errors.phone ? 'border-destructive' : ''}
-                      />
-                      {errors.phone && (
-                        <p className="text-sm text-destructive">{errors.phone.message}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="email">
-                        Email <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="example@email.com"
-                        {...register('email')}
-                        className={errors.email ? 'border-destructive' : ''}
-                      />
-                      {errors.email && (
-                        <p className="text-sm text-destructive">{errors.email.message}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="company">Công ty (không bắt buộc)</Label>
-                      <Input
-                        id="company"
-                        placeholder="Tên công ty của bạn"
-                        {...register('company')}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="service">
-                        Dịch vụ quan tâm <span className="text-destructive">*</span>
-                      </Label>
-                      <Controller
-                        name="service"
-                        control={control}
-                        render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger
-                              className={errors.service ? 'border-destructive' : ''}
-                            >
-                              <SelectValue placeholder="Chọn dịch vụ" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {services.map((service) => (
-                                <SelectItem key={service.value} value={service.value}>
-                                  {service.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errors.service && (
-                        <p className="text-sm text-destructive">{errors.service.message}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="message">
-                        Nội dung <span className="text-destructive">*</span>
-                      </Label>
-                      <Textarea
-                        id="message"
-                        placeholder="Nhập nội dung yêu cầu của bạn..."
-                        rows={5}
-                        {...register('message')}
-                        className={errors.message ? 'border-destructive' : ''}
-                      />
-                      {errors.message && (
-                        <p className="text-sm text-destructive">{errors.message.message}</p>
-                      )}
-                    </div>
-
-                    <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
-                      {isSubmitting ? (
-                        <>
-                          <span className="animate-spin mr-2">⏳</span>
-                          Đang gửi...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="mr-2 w-4 h-4" />
-                          Gửi yêu cầu
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-
-              {/* Additional Info */}
+              {/* Additional Info (static, server-rendered) */}
               <div className="space-y-8">
                 <Card className="bg-gradient-to-br from-primary/5 to-primary/10">
                   <CardHeader>
-                    <CardTitle>Tại sao chọn TBS Logistics?</CardTitle>
+                    <CardTitle>T\u1ea1i sao ch\u1ecdn TBS Logistics?</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-3">
                       <li className="flex items-start gap-3">
                         <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-primary text-xs">✓</span>
+                          <span className="text-primary text-xs">{'\u2713'}</span>
                         </div>
                         <div>
-                          <p className="font-semibold">Hơn 10 năm kinh nghiệm</p>
+                          <p className="font-semibold">H\u01a1n 10 n\u0103m kinh nghi\u1ec7m</p>
                           <p className="text-sm text-muted-foreground">
-                            Đội ngũ chuyên gia giàu kinh nghiệm
+                            \u0110\u1ed9i ng\u0169 chuy\u00ean gia gi\u00e0u kinh nghi\u1ec7m
                           </p>
                         </div>
                       </li>
                       <li className="flex items-start gap-3">
                         <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-primary text-xs">✓</span>
+                          <span className="text-primary text-xs">{'\u2713'}</span>
                         </div>
                         <div>
-                          <p className="font-semibold">Giá cả cạnh tranh</p>
+                          <p className="font-semibold">Gi\u00e1 c\u1ea3 c\u1ea1nh tranh</p>
                           <p className="text-sm text-muted-foreground">
-                            Chi phí tối ưu, minh bạch
+                            Chi ph\u00ed t\u1ed1i \u01b0u, minh b\u1ea1ch
                           </p>
                         </div>
                       </li>
                       <li className="flex items-start gap-3">
                         <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-primary text-xs">✓</span>
+                          <span className="text-primary text-xs">{'\u2713'}</span>
                         </div>
                         <div>
-                          <p className="font-semibold">Hỗ trợ 24/7</p>
+                          <p className="font-semibold">H\u1ed7 tr\u1ee3 24/7</p>
                           <p className="text-sm text-muted-foreground">
-                            Luôn sẵn sàng hỗ trợ bạn
+                            Lu\u00f4n s\u1eb5n s\u00e0ng h\u1ed7 tr\u1ee3 b\u1ea1n
                           </p>
                         </div>
                       </li>
                       <li className="flex items-start gap-3">
                         <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-primary text-xs">✓</span>
+                          <span className="text-primary text-xs">{'\u2713'}</span>
                         </div>
                         <div>
-                          <p className="font-semibold">Đảm bảo an toàn</p>
+                          <p className="font-semibold">\u0110\u1ea3m b\u1ea3o an to\u00e0n</p>
                           <p className="text-sm text-muted-foreground">
-                            Bảo hiểm hàng hóa toàn diện
+                            B\u1ea3o hi\u1ec3m h\u00e0ng h\u00f3a to\u00e0n di\u1ec7n
                           </p>
                         </div>
                       </li>
@@ -366,7 +173,7 @@ export default function ContactPage() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Thông tin liên hệ nhanh</CardTitle>
+                    <CardTitle>Th\u00f4ng tin li\u00ean h\u1ec7 nhanh</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
@@ -386,15 +193,15 @@ export default function ContactPage() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Câu hỏi thường gặp</CardTitle>
+                    <CardTitle>C\u00e2u h\u1ecfi th\u01b0\u1eddng g\u1eb7p</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Bạn có thắc mắc? Xem các câu hỏi thường gặp hoặc liên hệ trực tiếp với
-                      chúng tôi để được hỗ trợ nhanh nhất.
+                      B\u1ea1n c\u00f3 th\u1eafc m\u1eafc? Xem c\u00e1c c\u00e2u h\u1ecfi th\u01b0\u1eddng g\u1eb7p ho\u1eb7c li\u00ean h\u1ec7 tr\u1ef1c ti\u1ebfp v\u1edbi
+                      ch\u00fang t\u00f4i \u0111\u1ec3 \u0111\u01b0\u1ee3c h\u1ed7 tr\u1ee3 nhanh nh\u1ea5t.
                     </p>
-                    <Button variant="outline" className="w-full">
-                      Xem FAQ
+                    <Button variant="outline" className="w-full" asChild>
+                      <Link href="/hoi-dap">Xem FAQ</Link>
                     </Button>
                   </CardContent>
                 </Card>
@@ -408,31 +215,11 @@ export default function ContactPage() {
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
-            <h2 className="text-3xl font-bold text-center mb-12">Vị trí của chúng tôi</h2>
+            <h2 className="text-3xl font-bold text-center mb-12">V\u1ecb tr\u00ed c\u1ee7a ch\u00fang t\u00f4i</h2>
             <GoogleMap />
           </div>
         </div>
       </section>
-    </div>
-  );
-}
-
-function GoogleMap() {
-  // OpenStreetMap embed — works in China (Google Maps is blocked by GFW)
-  const lat = process.env.NEXT_PUBLIC_LATITUDE || '21.028511';
-  const lng = process.env.NEXT_PUBLIC_LONGITUDE || '105.804817';
-
-  return (
-    <div className="h-96 w-full rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-      <iframe
-        title="Vị trí công ty"
-        width="100%"
-        height="100%"
-        style={{ border: 0 }}
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(lng) - 0.01}%2C${Number(lat) - 0.005}%2C${Number(lng) + 0.01}%2C${Number(lat) + 0.005}&layer=mapnik&marker=${lat}%2C${lng}`}
-      />
     </div>
   );
 }

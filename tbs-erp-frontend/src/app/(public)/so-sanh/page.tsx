@@ -1,28 +1,9 @@
-'use client';
-
-import { useState, useEffect } from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Check, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Breadcrumbs } from '@/app/(public)/components/breadcrumbs';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
-
-interface ServiceFeeConfigItem {
-  serviceType: string;
-  name: string;
-  customerTier: string | null;
-  feePercent: string | number;
-  minFeeAmount: string | number | null;
-  maxFeeAmount: string | number | null;
-  minOrderValue: string | number | null;
-  maxOrderValue: string | number | null;
-  minQuantity: number | null;
-  productCategory: string | null;
-  priority: number;
-  note: string | null;
-}
+import { ServiceComparison } from './_components/comparison-client';
 
 const shippingMethods = [
   {
@@ -90,140 +71,19 @@ const shippingMethods = [
   },
 ];
 
-interface ServiceComparisonItem {
-  code: string;
-  name: string;
-  description: string;
-  baseFee: string;
-  serviceFee: string;
-  features: { name: string; included: boolean }[];
-  isPopular?: boolean;
-}
-
-const FALLBACK_SERVICES: ServiceComparisonItem[] = [
-  {
-    code: 'VCT',
-    name: 'Vận chuyển thuần',
-    description: 'Chỉ vận chuyển hàng có sẵn',
-    baseFee: '35,000đ/kg',
-    serviceFee: '100,000đ',
-    features: [
-      { name: 'Vận chuyển hàng hóa', included: true },
-      { name: 'Mua hàng hộ', included: false },
-      { name: 'Khai báo hải quan', included: false },
-      { name: 'Đóng gói', included: true },
-      { name: 'Bảo hiểm cơ bản', included: true },
-      { name: 'Tư vấn khai báo', included: false },
-    ],
+export const metadata: Metadata = {
+  title: 'So sánh dịch vụ - TBS Logistics',
+  description:
+    'So sánh các phương thức vận chuyển và gói dịch vụ của TBS Logistics. Đường biển, đường bộ, đường hàng không - chọn giải pháp phù hợp nhất.',
+  openGraph: {
+    title: 'So sánh dịch vụ - TBS Logistics',
+    description:
+      'So sánh phương thức vận chuyển và gói dịch vụ vận chuyển hàng Trung Quốc - Việt Nam.',
   },
-  {
-    code: 'MHH',
-    name: 'Mua hàng hộ',
-    description: 'Order hàng + vận chuyển',
-    baseFee: '40,000đ/kg',
-    serviceFee: '150,000đ',
-    features: [
-      { name: 'Vận chuyển hàng hóa', included: true },
-      { name: 'Mua hàng hộ', included: true },
-      { name: 'Khai báo hải quan', included: false },
-      { name: 'Đóng gói', included: true },
-      { name: 'Bảo hiểm cơ bản', included: true },
-      { name: 'Tư vấn khai báo', included: false },
-    ],
-  },
-  {
-    code: 'UTXNK',
-    name: 'Ủy thác XNK',
-    description: 'Dịch vụ toàn diện',
-    baseFee: '45,000đ/kg',
-    serviceFee: '200,000đ',
-    features: [
-      { name: 'Vận chuyển hàng hóa', included: true },
-      { name: 'Mua hàng hộ', included: true },
-      { name: 'Khai báo hải quan', included: true },
-      { name: 'Đóng gói', included: true },
-      { name: 'Bảo hiểm cơ bản', included: true },
-      { name: 'Tư vấn khai báo', included: true },
-    ],
-    isPopular: true,
-  },
-  {
-    code: 'LCLCN',
-    name: 'LCL chính ngạch',
-    description: 'Hàng lẻ chính ngạch',
-    baseFee: '50,000đ/kg',
-    serviceFee: '250,000đ',
-    features: [
-      { name: 'Vận chuyển hàng hóa', included: true },
-      { name: 'Mua hàng hộ', included: true },
-      { name: 'Khai báo hải quan', included: true },
-      { name: 'Đóng gói', included: true },
-      { name: 'Bảo hiểm cơ bản', included: true },
-      { name: 'Tư vấn khai báo', included: true },
-    ],
-  },
-];
-
-function formatVND(value: number): string {
-  return new Intl.NumberFormat('vi-VN').format(value) + 'đ';
-}
-
-/**
- * Merge backend service fee configs into the comparison service list.
- * Updates baseFee (from feePercent) and serviceFee (from minFeeAmount) for each matching serviceType.
- */
-function mergeApiIntoServices(
-  configs: ServiceFeeConfigItem[],
-  fallback: ServiceComparisonItem[],
-): ServiceComparisonItem[] {
-  // Use general configs (no specific customerTier)
-  const generalConfigs = configs.filter((c) => c.customerTier === null);
-  const configMap = new Map<string, ServiceFeeConfigItem>();
-  for (const cfg of generalConfigs) {
-    // Keep highest priority per serviceType
-    const existing = configMap.get(cfg.serviceType);
-    if (!existing || cfg.priority > existing.priority) {
-      configMap.set(cfg.serviceType, cfg);
-    }
-  }
-
-  return fallback.map((svc) => {
-    const cfg = configMap.get(svc.code);
-    if (!cfg) return svc;
-
-    const minFee = cfg.minFeeAmount != null ? Number(cfg.minFeeAmount) : null;
-    const feePercent = Number(cfg.feePercent);
-
-    return {
-      ...svc,
-      serviceFee: minFee != null ? formatVND(minFee) : svc.serviceFee,
-      baseFee: feePercent > 0 ? `${feePercent}%` : svc.baseFee,
-    };
-  });
-}
+};
 
 export default function ComparisonPage() {
   const breadcrumbItems = [{ label: 'So sánh dịch vụ' }];
-  const [services, setServices] = useState<ServiceComparisonItem[]>(FALLBACK_SERVICES);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchServiceFees() {
-      try {
-        const res = await fetch(`${API_BASE_URL}/public/service-fees`);
-        if (!res.ok) return;
-        const json = await res.json();
-        const configs: ServiceFeeConfigItem[] = json.data;
-        if (!cancelled && Array.isArray(configs) && configs.length > 0) {
-          setServices(mergeApiIntoServices(configs, FALLBACK_SERVICES));
-        }
-      } catch {
-        // Silently fall back to hardcoded values
-      }
-    }
-    fetchServiceFees();
-    return () => { cancelled = true; };
-  }, []);
 
   return (
     <div className="min-h-screen">
@@ -247,7 +107,7 @@ export default function ComparisonPage() {
         </div>
       </section>
 
-      {/* Shipping Methods Comparison */}
+      {/* Shipping Methods Comparison — Static Server-rendered */}
       <section className="py-16">
         <div className="container mx-auto px-4">
           <div className="max-w-7xl mx-auto">
@@ -267,49 +127,29 @@ export default function ComparisonPage() {
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex justify-between py-2 border-b">
-                        <span className="text-sm text-muted-foreground">
-                          Giá cả:
-                        </span>
-                        <span className="font-semibold text-sm">
-                          {method.priceRange}
-                        </span>
+                        <span className="text-sm text-muted-foreground">Giá cả:</span>
+                        <span className="font-semibold text-sm">{method.priceRange}</span>
                       </div>
                       <div className="flex justify-between py-2 border-b">
-                        <span className="text-sm text-muted-foreground">
-                          Thời gian:
-                        </span>
-                        <span className="font-semibold text-sm">
-                          {method.transitTime}
-                        </span>
+                        <span className="text-sm text-muted-foreground">Thời gian:</span>
+                        <span className="font-semibold text-sm">{method.transitTime}</span>
                       </div>
                       <div className="flex justify-between py-2 border-b">
-                        <span className="text-sm text-muted-foreground">
-                          Độ tin cậy:
-                        </span>
-                        <span className="font-semibold text-sm">
-                          {method.reliability}
-                        </span>
+                        <span className="text-sm text-muted-foreground">Độ tin cậy:</span>
+                        <span className="font-semibold text-sm">{method.reliability}</span>
                       </div>
                       <div className="flex justify-between py-2 border-b">
-                        <span className="text-sm text-muted-foreground">
-                          Hiệu quả chi phí:
-                        </span>
-                        <span className="font-semibold text-sm">
-                          {method.costEfficiency}
-                        </span>
+                        <span className="text-sm text-muted-foreground">Hiệu quả chi phí:</span>
+                        <span className="font-semibold text-sm">{method.costEfficiency}</span>
                       </div>
                       <div className="flex justify-between py-2 border-b">
-                        <span className="text-sm text-muted-foreground">
-                          Tốc độ:
-                        </span>
+                        <span className="text-sm text-muted-foreground">Tốc độ:</span>
                         <span className="font-semibold text-sm">{method.speed}</span>
                       </div>
                     </div>
 
                     <div>
-                      <h4 className="font-semibold text-sm mb-2 text-green-600">
-                        Ưu điểm:
-                      </h4>
+                      <h4 className="font-semibold text-sm mb-2 text-green-600">Ưu điểm:</h4>
                       <ul className="space-y-1">
                         {method.pros.map((pro, index) => (
                           <li key={index} className="flex items-start gap-2 text-sm">
@@ -321,9 +161,7 @@ export default function ComparisonPage() {
                     </div>
 
                     <div>
-                      <h4 className="font-semibold text-sm mb-2 text-red-600">
-                        Nhược điểm:
-                      </h4>
+                      <h4 className="font-semibold text-sm mb-2 text-red-600">Nhược điểm:</h4>
                       <ul className="space-y-1">
                         {method.cons.map((con, index) => (
                           <li key={index} className="flex items-start gap-2 text-sm">
@@ -348,71 +186,14 @@ export default function ComparisonPage() {
         </div>
       </section>
 
-      {/* Services Comparison */}
+      {/* Services Comparison — Client Component (fetches dynamic pricing) */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="max-w-7xl mx-auto">
             <h2 className="text-3xl font-bold text-center mb-12">
               So sánh gói dịch vụ
             </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {services.map((service) => (
-                <Card
-                  key={service.code}
-                  className={
-                    service.isPopular
-                      ? 'border-2 border-blue-500 shadow-lg relative'
-                      : 'hover:shadow-lg transition-shadow'
-                  }
-                >
-                  {service.isPopular && (
-                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                      <Badge className="bg-blue-600">Phổ biến nhất</Badge>
-                    </div>
-                  )}
-                  <CardHeader>
-                    <div className="text-center">
-                      <Badge variant="outline" className="mb-3">
-                        {service.code}
-                      </Badge>
-                      <CardTitle className="text-xl mb-2">
-                        {service.name}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {service.description}
-                      </p>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="text-center py-4 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-600">
-                        {service.baseFee}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Phí dịch vụ: {service.serviceFee}
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      {service.features.map((feature, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between"
-                        >
-                          <span className="text-sm">{feature.name}</span>
-                          {feature.included ? (
-                            <Check className="h-5 w-5 text-green-600" />
-                          ) : (
-                            <X className="h-5 w-5 text-gray-300" />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <ServiceComparison />
           </div>
         </div>
       </section>

@@ -48,7 +48,7 @@ export class AccountsReceivableRepository {
     return `TBS-AR-${String(nextNumber).padStart(6, '0')}`;
   }
 
-  async create(data: Prisma.AccountReceivableUncheckedCreateInput): Promise<AccountReceivable> {
+  async create(data: Prisma.AccountReceivableUncheckedCreateInput): Promise<AccountReceivable> { // nosec: Prisma ORM type, not a credential
     return this.prisma.accountReceivable.create({ data });
   }
 

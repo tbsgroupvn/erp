@@ -135,6 +135,14 @@ export class OrderEventProcessor extends WorkerHost {
       type: 'ORDER_STATUS_CHANGED',
       data: { orderId, previousStatus, newStatus },
     });
+
+    // 4. Real-time order_update event — invalidates the order list and detail
+    //    cache on the frontend for the customer and the sales person.
+    this.eventEmitter.emit('ws.emit.user', {
+      userId: customerId,
+      event: 'order_update',
+      data: { orderId, orderCode, previousStatus, newStatus },
+    });
   }
 
   private async handleOrderCancelled(event: DomainEvent): Promise<void> {
@@ -144,6 +152,13 @@ export class OrderEventProcessor extends WorkerHost {
       type: 'ORDER_CANCELLED',
       data: { orderId: event.metadata.aggregateId },
     });
+
+    // Notify any listener watching this order that it has been cancelled.
+    this.eventEmitter.emit('ws.emit.user', {
+      userId: event.metadata.userId,
+      event: 'order_update',
+      data: { orderId: event.metadata.aggregateId, newStatus: 'CANCELLED' },
+    });
   }
 
   private async handleOrderCompleted(event: DomainEvent): Promise<void> {
@@ -152,6 +167,13 @@ export class OrderEventProcessor extends WorkerHost {
     this.eventEmitter.emit('dashboard.update', {
       type: 'ORDER_COMPLETED',
       data: { orderId: event.metadata.aggregateId },
+    });
+
+    // Notify any listener watching this order that it has completed.
+    this.eventEmitter.emit('ws.emit.user', {
+      userId: event.metadata.userId,
+      event: 'order_update',
+      data: { orderId: event.metadata.aggregateId, newStatus: 'COMPLETED' },
     });
   }
 

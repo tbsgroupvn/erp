@@ -2,11 +2,11 @@
 // This allows self-hosted deployments to customize the app without code changes.
 
 export const branding = {
-  companyName: process.env.NEXT_PUBLIC_COMPANY_NAME || 'My ERP',
-  companyFullName: process.env.NEXT_PUBLIC_COMPANY_FULL_NAME || 'My ERP Company',
+  companyName: process.env.NEXT_PUBLIC_COMPANY_NAME || 'TBS',
+  companyFullName: process.env.NEXT_PUBLIC_COMPANY_FULL_NAME || 'TBS Group',
   domain: process.env.NEXT_PUBLIC_DOMAIN || 'localhost',
-  appTitle: process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System',
-  appDescription: process.env.NEXT_PUBLIC_APP_DESCRIPTION || 'Enterprise Resource Planning System',
+  appTitle: process.env.NEXT_PUBLIC_APP_TITLE || 'TBS ERP',
+  appDescription: process.env.NEXT_PUBLIC_APP_DESCRIPTION || 'TBS Enterprise Resource Planning',
   supportEmail: process.env.NEXT_PUBLIC_COMPANY_EMAIL || '',
   supportEmailFallback: process.env.NEXT_PUBLIC_COMPANY_SUPPORT_EMAIL || '',
   supportPhone: process.env.NEXT_PUBLIC_COMPANY_PHONE || '',
@@ -25,6 +25,7 @@ export const branding = {
 
   // Auth cookie name
   authCookie: process.env.NEXT_PUBLIC_AUTH_COOKIE || 'erp-auth',
+  roleCookie: process.env.NEXT_PUBLIC_ROLE_COOKIE || 'erp-role',
   authStorageName: process.env.NEXT_PUBLIC_AUTH_STORAGE_NAME || 'erp-auth-storage',
 
   // Demo mode

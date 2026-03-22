@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { CommissionController } from './commission.controller';
 import { CommissionService } from './commission.service';
 import { CommissionCalculatorService } from './services/commission-calculator.service';
@@ -8,6 +9,7 @@ import { OrderClawbackListener } from './listeners/order-clawback.listener';
 import { OrderAmountAdjustedListener } from './listeners/order-amount-adjusted.listener';
 
 @Module({
+  imports: [ConfigModule],
   controllers: [CommissionController],
   providers: [
     CommissionService,

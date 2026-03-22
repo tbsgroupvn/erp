@@ -64,6 +64,8 @@ export class BullBoardAuthMiddleware implements NestMiddleware {
       { name: 'finance-events' },
       { name: 'warehouse-events' },
       { name: 'integration-events' },
+      { name: 'report-jobs' },
+      { name: 'batch-jobs' },
     ),
   ],
   providers: [BullBoardAuthMiddleware],
@@ -77,6 +79,8 @@ export class BullBoardModule implements NestModule {
     @InjectQueue('finance-events') private readonly financeQueue: Queue,
     @InjectQueue('warehouse-events') private readonly warehouseQueue: Queue,
     @InjectQueue('integration-events') private readonly integrationQueue: Queue,
+    @InjectQueue('report-jobs') private readonly reportQueue: Queue,
+    @InjectQueue('batch-jobs') private readonly batchQueue: Queue,
   ) {}
 
   configure(consumer: MiddlewareConsumer) {
@@ -90,6 +94,8 @@ export class BullBoardModule implements NestModule {
         new BullMQAdapter(this.financeQueue) as any,
         new BullMQAdapter(this.warehouseQueue) as any,
         new BullMQAdapter(this.integrationQueue) as any,
+        new BullMQAdapter(this.reportQueue) as any,
+        new BullMQAdapter(this.batchQueue) as any,
       ],
       serverAdapter,
     });

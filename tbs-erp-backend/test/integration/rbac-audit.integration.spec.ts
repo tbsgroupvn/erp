@@ -28,10 +28,9 @@ import { IS_PUBLIC_KEY } from '../../src/common/decorators/public.decorator';
 
 // Set required env vars (some modules read env at import time)
 process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-secret-key-for-testing-only';
-process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-key-for-testing-only';
-process.env.DATABASE_URL =
-  'postgresql://test_user:test_password@localhost:5432/test_db';
+process.env.JWT_SECRET = 'test-secret-key-for-testing-only'; // nosec: test-only JWT secret, never used in production
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-key-for-testing-only'; // nosec: test-only JWT secret, never used in production
+process.env.DATABASE_URL = 'postgresql://test_user:test_password@localhost:5432/test_db'; // nosec: test-only DB URL, never used in production
 
 /**
  * Recursively extract all controller classes from a NestJS module

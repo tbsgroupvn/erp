@@ -58,6 +58,7 @@ model Package {
   qcInspections     QCInspection[]
   deliveryPackages  DeliveryPackage[]
   weightAuditLogs   WeightAuditLog[]
+  mhhIssues         MHHIssue[] @relation("MHHIssuePackage")
 
   @@index([orderId])
   @@index([orderId, warehouseCNStatus])
@@ -68,6 +69,9 @@ model Package {
   @@index([warehouseCNStatus, createdAt])
   @@index([warehouseVNStatus])
   @@index([storageLocationId])
+  @@index([containerId, warehouseVNStatus], map: "idx_packages_container_vn_status")
+  @@index([warehouseVNStatus, createdAt], map: "idx_packages_vn_status_created")
+  @@index([isHighRisk, warehouseCNStatus], map: "idx_packages_high_risk_cn")
   @@map("packages")
 }
 
@@ -101,6 +105,7 @@ model WeightAuditLog {
 
   @@index([packageId])
   @@index([performedBy])
+  @@index([packageId, createdAt], map: "idx_weight_audit_package_created")
   @@map("weight_audit_logs")
 }
 
@@ -120,6 +125,7 @@ model LostAndFound {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@index([trackingNumber])
+  @@index([warehouse, status], map: "idx_lost_and_found_warehouse_status")
   @@map("lost_and_found")
 }
 
@@ -314,5 +320,7 @@ model QCInspection {
   @@index([status])
   @@index([createdBy])
   @@index([createdAt])
+  @@index([orderId, status], map: "idx_qc_inspections_order_status")
+  @@index([status, createdAt], map: "idx_qc_inspections_status_created")
   @@map("qc_inspections")
 }

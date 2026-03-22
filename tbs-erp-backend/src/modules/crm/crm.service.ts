@@ -1,10 +1,12 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Customer, CustomerTier, UserRole } from '@prisma/client';
 import { CrmRepository } from './crm.repository';
 import { CustomerTierService } from './domain/customer-tier.service';
 import { WalletService } from './domain/wallet.service';
 import { DataScopeService } from '@core/rbac/data-scope.service';
+import { CacheService } from '@core/cache/cache.service';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
@@ -13,6 +15,47 @@ import { PaginatedResponse } from '@common/dto/base-response.dto';
 
 /** Roles that auto-assign saleId to themselves when creating customers. */
 const SALE_ROLES: UserRole[] = [UserRole.SALE, UserRole.SALES_LEADER];
+
+/** Cache TTLs in milliseconds */
+const CACHE_TTL = {
+  /** Customer profile: 10 minutes — changes only on explicit update */
+  PROFILE: 600_000,
+  /** Customer list page: 5 minutes — tolerable eventual consistency */
+  LIST: 300_000,
+  /** Wallet balance: 30 seconds — high-frequency write path */
+  BALANCE: 30_000,
+  /** Credit limit: 5 minutes — infrequent manual changes */
+  CREDIT: 300_000,
+  /** Tier statistics aggregation: 15 minutes — heavy query, low churn */
+  TIER_STATS: 900_000,
+} as const;
+
+/**
+ * Generates a stable, short MD5 hex hash from a query-params object.
+ * Undefined/null/"" values are omitted so that default params produce the
+ * same cache key regardless of whether they were explicitly sent.
+ * Key sorting guarantees param-order independence.
+ */
+function hashQueryParams(params: Record<string, unknown>): string {
+  const stable = Object.keys(params)
+    .sort()
+    .reduce<Record<string, unknown>>((acc, k) => {
+      if (params[k] !== undefined && params[k] !== null && params[k] !== '') {
+        acc[k] = params[k];
+      }
+      return acc;
+    }, {});
+  return createHash('md5').update(JSON.stringify(stable)).digest('hex').slice(0, 16);
+}
+
+/** Build canonical cache keys for the customer domain. */
+export const CRM_CACHE_KEYS = {
+  profile: (id: string) => `customer:profile:${id}`,
+  list: (queryHash: string) => `customer:list:${queryHash}`,
+  balance: (id: string) => `customer:balance:${id}`,
+  credit: (id: string) => `customer:credit:${id}`,
+  tierStats: () => `customer:tier-stats`,
+} as const;
 
 @Injectable()
 export class CrmService {
@@ -24,6 +67,7 @@ export class CrmService {
     private readonly walletService: WalletService,
     private readonly dataScopeService: DataScopeService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly cacheService: CacheService,
   ) { }
 
   /**
@@ -57,6 +101,9 @@ export class CrmService {
 
     this.eventEmitter.emit('customer.created', { customer });
     this.logger.log(`Customer created: ${customer.code}`);
+
+    // Invalidate all list pages — a new customer renders every cached list stale.
+    await this.cacheService.invalidateByPrefix('customer:list:');
 
     // Re-fetch to include wallet in response
     return this.crmRepository.findById(customer.id) as Promise<Customer>;
@@ -96,6 +143,9 @@ export class CrmService {
 
     this.eventEmitter.emit('customer.created', { customer });
     this.logger.log(`Quick customer created: ${customer.code}`);
+
+    // Invalidate all list pages — a new customer renders every cached list stale.
+    await this.cacheService.invalidateByPrefix('customer:list:');
 
     return this.crmRepository.findById(customer.id) as Promise<Customer>;
   }
@@ -142,19 +192,41 @@ export class CrmService {
       changes: dto,
     });
 
+    // Invalidate profile, credit, and list caches — any field change can affect them.
+    await Promise.all([
+      this.cacheService.invalidate(CRM_CACHE_KEYS.profile(id)),
+      this.cacheService.invalidate(CRM_CACHE_KEYS.credit(id)),
+      this.cacheService.invalidateByPrefix('customer:list:'),
+    ]);
+
     return updated;
   }
 
   /**
    * Get a single customer by ID with data-scope enforcement.
+   * Result is cached under `customer:profile:{id}` for CACHE_TTL.PROFILE ms.
+   * Scope enforcement is always performed against the (possibly cached) record;
+   * the cache is user-agnostic so we never cache a forbidden record — we only
+   * cache the raw DB payload and re-run the scope check each time.
    */
   async getCustomer(id: string, user?: ICurrentUser): Promise<Customer> {
-    const customer = await this.crmRepository.findById(id);
+    // Attempt to serve the profile from cache first (scope-independent raw record).
+    const profileKey = CRM_CACHE_KEYS.profile(id);
+    let customer = await this.cacheService.get<Customer>(profileKey) ?? null;
+
+    if (!customer) {
+      customer = await this.crmRepository.findById(id);
+      if (customer) {
+        await this.cacheService.set(profileKey, customer, CACHE_TTL.PROFILE);
+      }
+    }
+
     if (!customer) {
       throw new NotFoundException(`Customer ${id} not found`);
     }
 
-    // Enforce data scope: verify the caller has access to this customer
+    // Enforce data scope: verify the caller has access to this customer.
+    // This check must always run — it is not cached.
     if (user) {
       const scopeFilter = await this.dataScopeService.getDataScopeFilter(
         { userId: user.id, role: user.role, branch: user.branch },
@@ -173,17 +245,58 @@ export class CrmService {
 
   /**
    * List customers with pagination, filters, and data-scope enforcement.
+   * Results are cached under `customer:list:{hash}` for CACHE_TTL.LIST ms.
+   * The cache key incorporates both the query params and the user scope so
+   * that different callers with different data-scopes never share a page.
+   *
+   * Cache key uses a 16-char MD5 hex hash instead of raw JSON.stringify to
+   * keep Redis key lengths predictable and avoid extremely long keys when the
+   * scope filter carries many predicates.
    */
   async listCustomers(query: CustomerQueryDto, user?: ICurrentUser): Promise<PaginatedResponse<Customer>> {
-    let scopeFilter = {};
+    let scopeFilter: Record<string, unknown> = {};
     if (user) {
       scopeFilter = await this.dataScopeService.getDataScopeFilter(
         { userId: user.id, role: user.role, branch: user.branch },
         'customer',
       );
     }
+
+    // Build a stable, length-bounded hash that uniquely identifies this
+    // query + scope combination.  Scope fields are inlined so that two users
+    // with different scopes always get different cache entries.
+    const cacheKey = CRM_CACHE_KEYS.list(
+      hashQueryParams({ ...query, ...scopeFilter }),
+    );
+
+    const cached = await this.cacheService.get<PaginatedResponse<Customer>>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const { data, total } = await this.crmRepository.findMany(query, scopeFilter);
-    return PaginatedResponse.paginate(data, total, query.page, query.limit);
+
+    // Batch-fetch outstanding debt for all customers on this page in 2 DB
+    // round-trips instead of one query per customer.
+    const customerIds = data.map((c) => c.id);
+    const debtMap = await this.crmRepository.getCustomerDebts(customerIds);
+
+    // Attach debt summary to each customer object without mutating the DB
+    // model type — we cast to any to stay within the existing response shape
+    // (the frontend already reads these fields when present).
+    const enriched = data.map((customer) => {
+      const debt = debtMap.get(customer.id);
+      if (!debt) return customer;
+      return Object.assign(Object.create(Object.getPrototypeOf(customer)), customer, {
+        outstandingDebt: debt.outstanding,
+        overdueDebt: debt.overdue,
+      });
+    });
+
+    const result = PaginatedResponse.paginate(enriched as Customer[], total, query.page, query.limit);
+
+    await this.cacheService.set(cacheKey, result, CACHE_TTL.LIST);
+    return result;
   }
 
   /**
@@ -191,6 +304,7 @@ export class CrmService {
    * Called after order.completed events.
    */
   async updateTier(customerId: string): Promise<Customer> {
+    // Always fetch from DB — tier evaluation must see current totalOrders/totalRevenue.
     const customer = await this.crmRepository.findById(customerId);
     if (!customer) {
       throw new NotFoundException(`Customer ${customerId} not found`);
@@ -220,6 +334,13 @@ export class CrmService {
         `Customer ${customerId} tier upgraded: ${evaluation.currentTier} -> ${evaluation.recommendedTier}`,
       );
 
+      // Tier change affects profile, credit limit, and the global tier-stats aggregation.
+      await Promise.all([
+        this.cacheService.invalidate(CRM_CACHE_KEYS.profile(customerId)),
+        this.cacheService.invalidate(CRM_CACHE_KEYS.credit(customerId)),
+        this.cacheService.invalidate(CRM_CACHE_KEYS.tierStats()),
+      ]);
+
       return updated;
     }
 
@@ -228,17 +349,30 @@ export class CrmService {
 
   /**
    * Get wallet balance for a customer.
+   * Result is cached under `customer:balance:{id}` for CACHE_TTL.BALANCE ms
+   * (30 s) because wallet balance changes with every payment operation.
    */
   async getWalletBalance(customerId: string) {
     const customer = await this.crmRepository.findById(customerId);
     if (!customer) {
       throw new NotFoundException(`Customer ${customerId} not found`);
     }
-    return this.walletService.getBalance(customerId);
+
+    const balanceKey = CRM_CACHE_KEYS.balance(customerId);
+    const cached = await this.cacheService.get<{ balance: number; currency: string; walletId: string }>(balanceKey);
+    if (cached) {
+      return cached;
+    }
+
+    const balance = await this.walletService.getBalance(customerId);
+    await this.cacheService.set(balanceKey, balance, CACHE_TTL.BALANCE);
+    return balance;
   }
 
   /**
    * Top up a customer's wallet.
+   * Invalidates the balance cache immediately after the DB write so that the
+   * next read reflects the new balance without waiting for TTL expiry.
    */
   async topupWallet(customerId: string, amount: number, reference?: string, note?: string, bankTraceId?: string) {
     const customer = await this.crmRepository.findById(customerId);
@@ -259,13 +393,22 @@ export class CrmService {
       transactionId: result.transaction.id,
     });
 
+    // Invalidate stale balance cache — new balance is now in the DB.
+    await this.cacheService.invalidate(CRM_CACHE_KEYS.balance(customerId));
+
     return result;
   }
 
   /**
    * Deduct from a customer's wallet.
+   * Invalidates the balance cache so the next read reflects the reduced balance.
    */
   async deductWallet(customerId: string, amount: number, reference?: string, note?: string) {
-    return this.walletService.deduct(customerId, amount, reference, note);
+    const result = await this.walletService.deduct(customerId, amount, reference, note);
+
+    // Invalidate stale balance cache — balance was decremented in the DB.
+    await this.cacheService.invalidate(CRM_CACHE_KEYS.balance(customerId));
+
+    return result;
   }
 }

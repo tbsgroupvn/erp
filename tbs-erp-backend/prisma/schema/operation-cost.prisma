@@ -21,6 +21,7 @@ model OperationCost {
   @@index([costType])
   @@index([createdBy])
   @@index([createdAt])
+  @@index([containerId, costType], map: "idx_operation_costs_container_type")
   @@map("operation_costs")
 }
 
@@ -37,5 +38,6 @@ model CostAllocation {
 
   @@index([orderId])
   @@index([containerId])
+  @@index([containerId, orderId], map: "idx_cost_allocations_container_order")
   @@map("cost_allocations")
 }

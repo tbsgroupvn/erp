@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
+import { CacheService } from '@core/cache/cache.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export interface PackagePackedEvent {
@@ -25,7 +26,10 @@ export interface PackageRemovedFromContainerEvent {
 export class PackageEventListener {
   private readonly logger = new Logger(PackageEventListener.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   /**
    * When a package is packed at Warehouse CN, log it for consolidation planning.
@@ -83,6 +87,14 @@ export class PackageEventListener {
           fillRate,
         },
       });
+
+      // Invalidate all container caches that reflect package membership / totals
+      await Promise.all([
+        this.cacheService.del(`container:detail:${event.containerId}`),
+        this.cacheService.del(`container:packages:${event.containerId}`),
+        this.cacheService.del(`container:weight-recon:${event.containerId}`),
+        this.cacheService.invalidateByPrefix('container:list:'),
+      ]);
 
       this.logger.log(
         `Container ${event.containerId} recalculated: ${totalPackages} packages, ${totalWeightDecimal}kg, ${fillRate}% full`,

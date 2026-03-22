@@ -41,7 +41,6 @@ export class MediaService {
       'image/png',
       'image/gif',
       'image/webp',
-      'image/svg+xml',
       'image/bmp',
       'image/tiff',
       'image/x-icon',
@@ -83,15 +82,6 @@ export class MediaService {
     // Detect actual file type from magic numbers
     const detectedType = await fileTypeFromBuffer(buffer);
 
-    // Special handling for SVG (text-based, no magic number)
-    if (declaredMimeType === 'image/svg+xml') {
-      const content = buffer.toString('utf-8', 0, 100);
-      if (!content.includes('<svg') && !content.includes('<?xml')) {
-        throw new BadRequestException('File signature validation failed: Not a valid SVG file');
-      }
-      return; // SVG is valid
-    }
-
     // Validate detected type matches declared type
     if (!detectedType) {
       throw new BadRequestException(
@@ -127,7 +117,7 @@ export class MediaService {
     const type = this.getMediaType(file.mimetype);
 
     // Process images
-    if (type === MediaType.IMAGE && file.mimetype !== 'image/svg+xml') {
+    if (type === MediaType.IMAGE) {
       try {
         const image = sharp(file.path);
         const metadata = await image.metadata();
@@ -148,19 +138,6 @@ export class MediaService {
         thumbnailUrl = `/uploads/thumbnails/${thumbnailFilename}`;
       } catch (error) {
         this.logger.error('Image processing error:', error);
-      }
-    }
-
-    // For SVG, get dimensions from file
-    if (file.mimetype === 'image/svg+xml') {
-      try {
-        const svgContent = await fs.readFile(file.path, 'utf-8');
-        const widthMatch = svgContent.match(/width="(\d+)"/);
-        const heightMatch = svgContent.match(/height="(\d+)"/);
-        width = widthMatch ? parseInt(widthMatch[1]) : null;
-        height = heightMatch ? parseInt(heightMatch[1]) : null;
-      } catch (error) {
-        this.logger.error('SVG processing error:', error);
       }
     }
 

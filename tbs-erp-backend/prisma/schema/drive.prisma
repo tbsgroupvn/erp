@@ -52,6 +52,7 @@ model DriveFile {
   @@index([folderId])
   @@index([uploadedBy])
   @@index([name])
+  @@index([folderId, mimeType], map: "idx_drive_files_folder_mime")
   @@map("drive_files")
 }
 

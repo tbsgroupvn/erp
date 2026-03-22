@@ -34,6 +34,7 @@ model Vehicle {
 
   @@index([status])
   @@index([branch])
+  @@index([branch, status], map: "idx_vehicles_branch_status")
   @@map("vehicles")
 }
 
@@ -60,6 +61,7 @@ model Driver {
 
   @@index([status])
   @@index([branch])
+  @@index([branch, status], map: "idx_drivers_branch_status")
   @@map("drivers")
 }
 

@@ -64,5 +64,7 @@ model AutomationExecution {
   durationMs  Int?           @map("duration_ms")
 
   @@index([ruleId])
+  @@index([ruleId, executedAt], map: "idx_automation_executions_rule_time")
+  @@index([status, executedAt], map: "idx_automation_executions_status_time")
   @@map("automation_executions")
 }

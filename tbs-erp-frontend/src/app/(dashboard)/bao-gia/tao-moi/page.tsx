@@ -7,10 +7,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Plus, Trash2, Loader2, Search, ExternalLink, ClipboardPaste, LayoutTemplate, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Loader2, ExternalLink, ClipboardPaste, LayoutTemplate, X } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
+import { FormSkeleton } from '@/components/shared/form-skeleton';
+import { CustomerPicker } from '@/components/shared/customer-picker';
+import type { CustomerPickerValue } from '@/components/shared/customer-picker';
 import {
   useCreateQuotation,
   useUpdateQuotation,
@@ -18,7 +21,6 @@ import {
   useQuotationTemplates,
   useRecentItemsForCustomer,
 } from '@/lib/hooks/use-quotations';
-import { apiClient } from '@/lib/api/client';
 import { ServiceType, ShippingRoute, Branch } from '@/lib/types';
 import type { QuotationTemplate, RecentQuotationItem, Quotation, QuotationItem, CreateQuotationItemDto } from '@/lib/types';
 import { SERVICE_TYPE_LABELS, SHIPPING_ROUTE_LABELS, BRANCH_LABELS } from '@/lib/utils/constants';
@@ -55,14 +57,7 @@ const createQuotationSchema = z.object({
 
 type CreateQuotationForm = z.infer<typeof createQuotationSchema>;
 
-interface CustomerOption {
-  id: string;
-  code: string;
-  fullName: string;
-  companyName?: string;
-  phone?: string;
-  tier?: string;
-}
+type CustomerOption = CustomerPickerValue;
 
 const RECENT_CUSTOMERS_KEY = 'recent-quotation-customers';
 const MAX_RECENT_CUSTOMERS = 5;
@@ -99,7 +94,7 @@ function TaoMoiBaoGiaContent() {
   const searchParams = useSearchParams();
   const editId = searchParams.get('editId');
   const isEditMode = !!editId;
-  const { data: editQuotation } = useQuotation(editId || '');
+  const { data: editQuotation, isLoading: isLoadingEdit } = useQuotation(editId || '');
   const createQuotation = useCreateQuotation();
   const updateQuotation = useUpdateQuotation();
 
@@ -107,12 +102,8 @@ function TaoMoiBaoGiaContent() {
   const { data: templates } = useQuotationTemplates();
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
-  // Customer search state
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>([]);
+  // Customer state
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerOption | null>(null);
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-  const [searchingCustomer, setSearchingCustomer] = useState(false);
   const [recentCustomers, setRecentCustomers] = useState<CustomerOption[]>([]);
 
   // Batch paste modal
@@ -194,37 +185,19 @@ function TaoMoiBaoGiaContent() {
   const taxAmount = afterDiscount * taxRate;
   const total = afterDiscount + taxAmount;
 
-  // Debounced customer search
-  const searchCustomers = useCallback(async (query: string) => {
-    if (query.length < 1) {
-      setCustomerOptions([]);
-      return;
-    }
-    setSearchingCustomer(true);
-    try {
-      const res = await apiClient.get('/customers', { params: { search: query, limit: 10 } });
-      const data = res.data?.data || res.data?.items || [];
-      setCustomerOptions(Array.isArray(data) ? data : []);
-    } catch {
-      setCustomerOptions([]);
-    } finally {
-      setSearchingCustomer(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (customerSearch) searchCustomers(customerSearch);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [customerSearch, searchCustomers]);
-
-  const selectCustomer = (customer: CustomerOption) => {
-    setSelectedCustomer(customer);
-    setValue('customerId', customer.id);
-    setShowCustomerDropdown(false);
-    setCustomerSearch('');
-  };
+  const handleCustomerChange = useCallback(
+    (customer: CustomerPickerValue | null) => {
+      if (customer) {
+        const c = customer as CustomerOption;
+        setSelectedCustomer(c);
+        setValue('customerId', c.id);
+      } else {
+        setSelectedCustomer(null);
+        setValue('customerId', '');
+      }
+    },
+    [setValue],
+  );
 
   // Apply template
   const handleApplyTemplate = () => {
@@ -340,6 +313,11 @@ function TaoMoiBaoGiaContent() {
     }
   };
 
+  // Show skeleton while loading edit data to avoid empty form flash
+  if (isEditMode && isLoadingEdit) {
+    return <FormSkeleton fields={6} />;
+  }
+
   return (
     <div>
       <div className="flex items-center gap-4 mb-6">
@@ -391,90 +369,31 @@ function TaoMoiBaoGiaContent() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Customer Picker */}
             <div className="space-y-2 sm:col-span-2">
-              <p className="text-sm font-medium">Khách hàng *</p>
-              {selectedCustomer ? (
-                <div className="flex items-center gap-3 rounded-md border bg-accent/30 p-3">
-                  <div className="flex-1">
-                    <p className="font-medium">{selectedCustomer.fullName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedCustomer.code}
-                      {selectedCustomer.companyName && ` — ${selectedCustomer.companyName}`}
-                      {selectedCustomer.phone && ` — ${selectedCustomer.phone}`}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedCustomer(null); setValue('customerId', ''); }}
-                    className="text-xs text-destructive hover:underline"
-                  >
-                    Đổi
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {/* Recent customers chips */}
-                  {recentCustomers.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      <span className="text-xs text-muted-foreground leading-6">Gần đây:</span>
-                      {recentCustomers.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => selectCustomer(c)}
-                          className="inline-flex items-center rounded-full border bg-background px-2.5 py-0.5 text-xs hover:bg-accent transition-colors"
-                        >
-                          {c.fullName}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <div className="relative">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <input
-                        type="text"
-                        value={customerSearch}
-                        onChange={(e) => {
-                          setCustomerSearch(e.target.value);
-                          setShowCustomerDropdown(true);
-                        }}
-                        onFocus={() => customerSearch && setShowCustomerDropdown(true)}
-                        placeholder="Tìm theo tên, mã, SĐT khách hàng..."
-                        className="flex h-10 w-full rounded-md border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      {searchingCustomer && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
-                    </div>
-                    {showCustomerDropdown && customerOptions.length > 0 && (
-                      <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md max-h-60 overflow-y-auto">
-                        {customerOptions.map((c) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => selectCustomer(c)}
-                            className="flex w-full items-start gap-3 px-3 py-2 text-left text-sm hover:bg-accent"
-                          >
-                            <div>
-                              <p className="font-medium">{c.fullName}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {c.code}
-                                {c.companyName && ` — ${c.companyName}`}
-                                {c.tier && ` (${c.tier})`}
-                              </p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {showCustomerDropdown && customerSearch && !searchingCustomer && customerOptions.length === 0 && (
-                      <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover p-3 text-sm text-muted-foreground shadow-md">
-                        Không tìm thấy khách hàng
-                      </div>
-                    )}
-                  </div>
+              {/* Recent customers chips */}
+              {!selectedCustomer && recentCustomers.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  <span className="text-xs text-muted-foreground leading-6">G\u1ea7n \u0111\u00e2y:</span>
+                  {recentCustomers.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => handleCustomerChange(c)}
+                      className="inline-flex items-center rounded-full border bg-background px-2.5 py-0.5 text-xs hover:bg-accent transition-colors"
+                    >
+                      {c.fullName}
+                    </button>
+                  ))}
                 </div>
               )}
+              <CustomerPicker
+                value={selectedCustomer?.id ?? null}
+                onChange={handleCustomerChange}
+                error={errors.customerId?.message as string}
+                selectedCustomer={selectedCustomer}
+                label="Kh\u00e1ch h\u00e0ng *"
+                placeholder="T\u00ecm theo t\u00ean, m\u00e3, S\u0110T kh\u00e1ch h\u00e0ng..."
+              />
               <input type="hidden" {...register('customerId')} />
-              {errors.customerId && <p className="text-xs text-destructive">{errors.customerId.message}</p>}
             </div>
 
             <div className="space-y-2">

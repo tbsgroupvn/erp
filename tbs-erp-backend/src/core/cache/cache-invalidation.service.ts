@@ -36,36 +36,93 @@ export class CacheInvalidationService {
       'dashboard:overview:',
       'orders:list:',
       'orders:active-counts',
+      'order:stats:',
     ]);
   }
 
   @OnEvent('order.status.changed')
-  async onOrderStatusChanged(): Promise<void> {
-    await this.invalidate('order.status.changed', [
+  async onOrderStatusChanged(event: { orderId?: string }): Promise<void> {
+    const prefixes: string[] = [
       'dashboard:overview:',
       'orders:list:',
       'orders:active-counts',
       'dashboard:warehouse:',
-    ]);
+      'order:stats:',
+    ];
+
+    // Also invalidate the specific order's detail and 360-view caches
+    if (event?.orderId) {
+      prefixes.push(`order:detail:${event.orderId}`);
+      prefixes.push(`order:360:${event.orderId}`);
+    } else {
+      // No orderId in event — fall back to invalidating all detail caches
+      prefixes.push('order:detail:');
+      prefixes.push('order:360:');
+    }
+
+    await this.invalidate('order.status.changed', prefixes);
+  }
+
+  @OnEvent('order.updated')
+  async onOrderUpdated(event: { orderId?: string }): Promise<void> {
+    const prefixes: string[] = ['orders:list:', 'order:stats:'];
+
+    if (event?.orderId) {
+      prefixes.push(`order:detail:${event.orderId}`);
+      prefixes.push(`order:360:${event.orderId}`);
+    } else {
+      prefixes.push('order:detail:');
+      prefixes.push('order:360:');
+    }
+
+    await this.invalidate('order.updated', prefixes);
   }
 
   @OnEvent('order.completed')
-  async onOrderCompleted(): Promise<void> {
-    await this.invalidate('order.completed', [
+  async onOrderCompleted(event: { orderId?: string }): Promise<void> {
+    const prefixes: string[] = [
       'dashboard:overview:',
       'orders:list:',
       'orders:active-counts',
       'dashboard:finance:',
-    ]);
+      'order:stats:',
+    ];
+
+    if (event?.orderId) {
+      prefixes.push(`order:detail:${event.orderId}`);
+      prefixes.push(`order:360:${event.orderId}`);
+    }
+
+    await this.invalidate('order.completed', prefixes);
   }
 
   @OnEvent('order.cancelled')
-  async onOrderCancelled(): Promise<void> {
-    await this.invalidate('order.cancelled', [
+  async onOrderCancelled(event: { orderId?: string }): Promise<void> {
+    const prefixes: string[] = [
       'dashboard:overview:',
       'orders:list:',
       'orders:active-counts',
-    ]);
+      'order:stats:',
+    ];
+
+    if (event?.orderId) {
+      prefixes.push(`order:detail:${event.orderId}`);
+      prefixes.push(`order:360:${event.orderId}`);
+    }
+
+    await this.invalidate('order.cancelled', prefixes);
+  }
+
+  @OnEvent('order.amount.adjusted')
+  async onOrderAmountAdjusted(event: { orderId?: string }): Promise<void> {
+    const prefixes: string[] = ['orders:list:', 'order:stats:', 'dashboard:finance:'];
+
+    if (event?.orderId) {
+      prefixes.push(`order:detail:${event.orderId}`);
+      prefixes.push(`order:360:${event.orderId}`);
+    }
+
+    await this.invalidate('order.amount.adjusted', prefixes);
   }
 
   // ─── Finance Events ───
@@ -167,20 +224,31 @@ export class CacheInvalidationService {
   // ─── Internal Helper ───
 
   /**
-   * Invalidate cache keys matching the given prefixes.
+   * Invalidate cache entries by a mix of exact keys and prefix patterns.
+   *
+   * Convention:
+   *   - Keys ending with `:` are treated as prefix patterns → `delByPrefix()`
+   *   - All other strings are treated as exact keys → `del()`
+   *
    * Logs the event and records metrics.
    */
-  private async invalidate(eventName: string, prefixes: string[]): Promise<void> {
+  private async invalidate(eventName: string, keys: string[]): Promise<void> {
     const start = performance.now();
 
     try {
-      await Promise.all(prefixes.map((prefix) => this.cacheService.delByPrefix(prefix)));
+      await Promise.all(
+        keys.map((key) =>
+          key.endsWith(':')
+            ? this.cacheService.delByPrefix(key)
+            : this.cacheService.del(key),
+        ),
+      );
 
       const duration = performance.now() - start;
 
       this.logger.debug(
         `Cache invalidated for event "${eventName}" ` +
-          `(${prefixes.length} prefixes) in ${duration.toFixed(0)}ms`,
+          `(${keys.length} entries) in ${duration.toFixed(0)}ms`,
       );
 
       // Record invalidation metric

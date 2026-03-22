@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CommissionCalculatorService } from '../services/commission-calculator.service';
@@ -26,6 +27,7 @@ export class OrderCompletedListener {
     private readonly prisma: PrismaService,
     private readonly commissionCalculator: CommissionCalculatorService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly configService: ConfigService,
   ) {}
 
   @OnEvent('order.status.changed')
@@ -108,6 +110,36 @@ export class OrderCompletedListener {
       this.logger.log(
         `Commission PENDING created for order ${event.code}: revenue=${result.revenue}, cost=${result.cost}, profit=${result.profit}, commission=${result.amount}`,
       );
+
+      // Auto-approve commissions below threshold
+      const autoApproveThreshold = this.configService.get<number>(
+        'business.commission.autoApproveThreshold',
+        1_000_000,
+      );
+
+      if (result.amount < autoApproveThreshold) {
+        await this.prisma.commissionRecord.update({
+          where: { id: commission.id },
+          data: {
+            status: 'APPROVED',
+            approvedBy: 'SYSTEM',
+            approvedAt: new Date(),
+          },
+        });
+
+        this.logger.log(
+          `Commission auto-approved for order ${event.code}: ${result.amount} < ${autoApproveThreshold}`,
+        );
+
+        this.eventEmitter.emit('commission.auto_approved', {
+          commissionId: commission.id,
+          orderId: order.id,
+          orderCode: event.code,
+          saleId: order.saleId,
+          commissionAmount: result.amount,
+        });
+        return;
+      }
 
       // Emit commission.pending event for notification
       this.eventEmitter.emit('commission.pending', {

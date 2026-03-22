@@ -5,6 +5,34 @@ import { ContainerStatus, OrderStatus, Prisma } from '@prisma/client';
 import { DashboardQueryDto } from './dto/dashboard-query.dto';
 import { DrillDownQueryDto } from './dto/drill-down.dto';
 
+// ---------------------------------------------------------------------------
+// Raw query result types for finance stats
+// ---------------------------------------------------------------------------
+
+interface ArStatsRaw {
+  open_count: bigint;
+  open_amount: string | null;
+  open_paid: string | null;
+  overdue_count: bigint;
+  overdue_amount: string | null;
+  overdue_paid: string | null;
+}
+
+interface ApStatsRaw {
+  open_count: bigint;
+  open_amount: string | null;
+  open_paid: string | null;
+  overdue_count: bigint;
+  overdue_amount: string | null;
+  overdue_paid: string | null;
+}
+
+interface CashStatsRaw {
+  type: string;
+  total_amount: string | null;
+  tx_count: bigint;
+}
+
 /** Cache TTL for dashboard queries (5 minutes in milliseconds). */
 const DASHBOARD_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -155,6 +183,10 @@ export class DashboardService {
   /**
    * Get finance statistics: AR/AP totals, overdue amounts, cash flow.
    * Results are cached for 5 minutes to reduce database load.
+   *
+   * Optimization: collapsed 7 separate aggregate queries into 3 queries using
+   * SQL FILTER clauses (AR, AP, cash) plus 1 count for pending vouchers = 4 total
+   * instead of the previous 7.
    */
   async getFinanceStats(query: DashboardQueryDto) {
     const cacheKey = this.getDashboardCacheKey('financeStats', query);
@@ -162,96 +194,120 @@ export class DashboardService {
     return this.cacheService.getOrSet(
       cacheKey,
       async () => {
+        const t0 = Date.now();
         const branchFilter = query.branch;
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        const [arOpen, arOverdue, apOpen, apOverdue, cashIn, cashOut, pendingVouchers] =
-          await Promise.all([
-            this.prisma.accountReceivable.aggregate({
-              where: {
-                status: { in: ['OPEN', 'PARTIAL'] },
-                ...(branchFilter ? { order: { branch: branchFilter } } : {}),
-              },
-              _sum: { amount: true, paidAmount: true },
-              _count: true,
-            }),
-            this.prisma.accountReceivable.aggregate({
-              where: {
-                status: { in: ['OPEN', 'PARTIAL'] },
-                dueDate: { lt: new Date() },
-                ...(branchFilter ? { order: { branch: branchFilter } } : {}),
-              },
-              _sum: { amount: true, paidAmount: true },
-              _count: true,
-            }),
-            this.prisma.accountPayable.aggregate({
-              where: { status: { in: ['OPEN', 'PARTIAL'] } },
-              _sum: { amount: true, paidAmount: true },
-              _count: true,
-            }),
-            this.prisma.accountPayable.aggregate({
-              where: {
-                status: { in: ['OPEN', 'PARTIAL'] },
-                dueDate: { lt: new Date() },
-              },
-              _sum: { amount: true, paidAmount: true },
-              _count: true,
-            }),
-            this.prisma.cashTransaction.aggregate({
-              where: {
-                type: 'IN',
-                createdAt: {
-                  gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-                },
-              },
-              _sum: { amount: true },
-              _count: true,
-            }),
-            this.prisma.cashTransaction.aggregate({
-              where: {
-                type: 'OUT',
-                createdAt: {
-                  gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-                },
-              },
-              _sum: { amount: true },
-              _count: true,
-            }),
-            this.prisma.paymentVoucher.count({
-              where: {
-                status: 'PENDING',
-                ...(branchFilter ? { order: { branch: branchFilter } } : {}),
-              },
-            }),
-          ]);
+        // ------------------------------------------------------------------
+        // Query 1: AR stats — open count/amounts + overdue count/amounts in 1
+        // query using FILTER (WHERE ...) aggregates.
+        // Branch filter is applied via a JOIN to the orders table when set.
+        // ------------------------------------------------------------------
+        const arRows = branchFilter
+          ? await this.prisma.$queryRaw<ArStatsRaw[]>`
+              SELECT
+                COUNT(*) FILTER (WHERE ar.status IN ('OPEN', 'PARTIAL'))                                      AS open_count,
+                SUM(ar.amount)      FILTER (WHERE ar.status IN ('OPEN', 'PARTIAL'))                           AS open_amount,
+                SUM(ar.paid_amount) FILTER (WHERE ar.status IN ('OPEN', 'PARTIAL'))                           AS open_paid,
+                COUNT(*) FILTER (WHERE ar.status IN ('OPEN', 'PARTIAL') AND ar.due_date < ${now})             AS overdue_count,
+                SUM(ar.amount)      FILTER (WHERE ar.status IN ('OPEN', 'PARTIAL') AND ar.due_date < ${now})  AS overdue_amount,
+                SUM(ar.paid_amount) FILTER (WHERE ar.status IN ('OPEN', 'PARTIAL') AND ar.due_date < ${now})  AS overdue_paid
+              FROM account_receivables ar
+              INNER JOIN orders o ON o.id = ar.order_id
+              WHERE o.branch = ${branchFilter}
+            `
+          : await this.prisma.$queryRaw<ArStatsRaw[]>`
+              SELECT
+                COUNT(*) FILTER (WHERE status IN ('OPEN', 'PARTIAL'))                                      AS open_count,
+                SUM(amount)       FILTER (WHERE status IN ('OPEN', 'PARTIAL'))                             AS open_amount,
+                SUM(paid_amount)  FILTER (WHERE status IN ('OPEN', 'PARTIAL'))                             AS open_paid,
+                COUNT(*) FILTER (WHERE status IN ('OPEN', 'PARTIAL') AND due_date < ${now})                AS overdue_count,
+                SUM(amount)       FILTER (WHERE status IN ('OPEN', 'PARTIAL') AND due_date < ${now})       AS overdue_amount,
+                SUM(paid_amount)  FILTER (WHERE status IN ('OPEN', 'PARTIAL') AND due_date < ${now})       AS overdue_paid
+              FROM account_receivables
+            `;
+
+        // ------------------------------------------------------------------
+        // Query 2: AP stats — same FILTER pattern, no branch filter on AP
+        // (AP is vendor-side and not branch-scoped in the current schema)
+        // ------------------------------------------------------------------
+        const apRows = await this.prisma.$queryRaw<ApStatsRaw[]>`
+          SELECT
+            COUNT(*) FILTER (WHERE status IN ('OPEN', 'PARTIAL'))                                     AS open_count,
+            SUM(amount)      FILTER (WHERE status IN ('OPEN', 'PARTIAL'))                             AS open_amount,
+            SUM(paid_amount) FILTER (WHERE status IN ('OPEN', 'PARTIAL'))                             AS open_paid,
+            COUNT(*) FILTER (WHERE status IN ('OPEN', 'PARTIAL') AND due_date < ${now})               AS overdue_count,
+            SUM(amount)      FILTER (WHERE status IN ('OPEN', 'PARTIAL') AND due_date < ${now})       AS overdue_amount,
+            SUM(paid_amount) FILTER (WHERE status IN ('OPEN', 'PARTIAL') AND due_date < ${now})       AS overdue_paid
+          FROM account_payables
+        `;
+
+        // ------------------------------------------------------------------
+        // Query 3: Cash stats — single groupBy on type (IN/OUT) for the
+        // current month. Returns at most 2 rows instead of 2 aggregates.
+        // ------------------------------------------------------------------
+        const cashRows = await this.prisma.$queryRaw<CashStatsRaw[]>`
+          SELECT
+            type,
+            SUM(amount) AS total_amount,
+            COUNT(*)    AS tx_count
+          FROM cash_transactions
+          WHERE created_at >= ${monthStart}
+          GROUP BY type
+        `;
+
+        // ------------------------------------------------------------------
+        // Query 4: pending voucher count (simple COUNT, no aggregation needed)
+        // ------------------------------------------------------------------
+        const pendingVouchers = await this.prisma.paymentVoucher.count({
+          where: {
+            status: 'PENDING',
+            ...(branchFilter ? { order: { branch: branchFilter } } : {}),
+          },
+        });
+
+        // ------------------------------------------------------------------
+        // Materialise results
+        // ------------------------------------------------------------------
+        const ar = arRows[0] ?? ({} as ArStatsRaw);
+        const ap = apRows[0] ?? ({} as ApStatsRaw);
 
         const arOutstanding =
-          (arOpen._sum.amount?.toNumber() ?? 0) - (arOpen._sum.paidAmount?.toNumber() ?? 0);
+          parseFloat(ar.open_amount ?? '0') - parseFloat(ar.open_paid ?? '0');
         const arOverdueAmount =
-          (arOverdue._sum.amount?.toNumber() ?? 0) - (arOverdue._sum.paidAmount?.toNumber() ?? 0);
+          parseFloat(ar.overdue_amount ?? '0') - parseFloat(ar.overdue_paid ?? '0');
         const apOutstanding =
-          (apOpen._sum.amount?.toNumber() ?? 0) - (apOpen._sum.paidAmount?.toNumber() ?? 0);
+          parseFloat(ap.open_amount ?? '0') - parseFloat(ap.open_paid ?? '0');
         const apOverdueAmount =
-          (apOverdue._sum.amount?.toNumber() ?? 0) - (apOverdue._sum.paidAmount?.toNumber() ?? 0);
+          parseFloat(ap.overdue_amount ?? '0') - parseFloat(ap.overdue_paid ?? '0');
+
+        const cashIn  = cashRows.find((r) => r.type === 'IN');
+        const cashOut = cashRows.find((r) => r.type === 'OUT');
+        const monthlyInflow  = parseFloat(cashIn?.total_amount  ?? '0');
+        const monthlyOutflow = parseFloat(cashOut?.total_amount ?? '0');
+
+        this.logger.debug(`getFinanceStats completed in ${Date.now() - t0}ms (4 queries)`);
 
         return {
           accountsReceivable: {
             totalOutstanding: arOutstanding,
             overdueAmount: arOverdueAmount,
-            openCount: arOpen._count,
-            overdueCount: arOverdue._count,
+            openCount: Number(ar.open_count ?? 0n),
+            overdueCount: Number(ar.overdue_count ?? 0n),
           },
           accountsPayable: {
             totalOutstanding: apOutstanding,
             overdueAmount: apOverdueAmount,
-            openCount: apOpen._count,
-            overdueCount: apOverdue._count,
+            openCount: Number(ap.open_count ?? 0n),
+            overdueCount: Number(ap.overdue_count ?? 0n),
           },
           cashFlow: {
-            monthlyInflow: cashIn._sum.amount?.toNumber() ?? 0,
-            monthlyOutflow: cashOut._sum.amount?.toNumber() ?? 0,
-            netFlow: (cashIn._sum.amount?.toNumber() ?? 0) - (cashOut._sum.amount?.toNumber() ?? 0),
-            inflowCount: cashIn._count,
-            outflowCount: cashOut._count,
+            monthlyInflow,
+            monthlyOutflow,
+            netFlow: monthlyInflow - monthlyOutflow,
+            inflowCount: Number(cashIn?.tx_count ?? 0n),
+            outflowCount: Number(cashOut?.tx_count ?? 0n),
           },
           pendingVouchers,
         };

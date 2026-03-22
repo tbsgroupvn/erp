@@ -215,6 +215,19 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     }
   }, [token, connect, disconnect]);
 
+  // ─── Reconnect when browser comes back online ───
+
+  useEffect(() => {
+    const handleOnline = () => {
+      const socket = socketRef.current;
+      if (socket && !socket.connected) {
+        socket.connect();
+      }
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
   return {
     isConnected: state.isConnected,
     error: state.error,

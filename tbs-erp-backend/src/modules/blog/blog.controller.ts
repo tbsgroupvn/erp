@@ -31,6 +31,8 @@ import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { Public } from '@common/decorators/public.decorator';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
+import { FileValidationPipe } from '@common/pipes/file-validation.pipe';
+import { FILE_UPLOAD_LIMITS } from '@common/constants/file-upload.constants';
 import { BlogService } from './blog.service';
 import { CreateBlogPostDto } from './dto/create-blog-post.dto';
 import { UpdateBlogPostDto } from './dto/update-blog-post.dto';
@@ -144,7 +146,7 @@ export class BlogController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CEO, UserRole.COO, UserRole.MARKETING_STAFF)
   @ApiBearerAuth()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: FILE_UPLOAD_LIMITS.IMAGE.maxSizeBytes } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Upload cover image',
@@ -153,19 +155,12 @@ export class BlogController {
   @ApiResponse({ status: 201, description: 'Image uploaded successfully' })
   @ApiResponse({ status: 400, description: 'Invalid file type or size' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async uploadCover(@UploadedFile() file: Express.Multer.File) {
+  async uploadCover(
+    @UploadedFile(new FileValidationPipe(FILE_UPLOAD_LIMITS.IMAGE))
+    file: Express.Multer.File,
+  ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
-    }
-
-    // Basic validation
-    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException('Only image files are allowed (jpg, jpeg, png, gif, webp)');
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      throw new BadRequestException('File size must not exceed 5MB');
     }
 
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);

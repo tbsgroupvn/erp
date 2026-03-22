@@ -256,6 +256,7 @@ function MeasurePackageForm({
               <Input
                 id={`weight-${packageId}`}
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 placeholder="0.00"
                 {...register('actualWeight', { valueAsNumber: true })}
@@ -271,6 +272,7 @@ function MeasurePackageForm({
               <Input
                 id={`length-${packageId}`}
                 type="number"
+                inputMode="decimal"
                 step="0.1"
                 placeholder="0.0"
                 {...register('length', { valueAsNumber: true })}
@@ -286,6 +288,7 @@ function MeasurePackageForm({
               <Input
                 id={`width-${packageId}`}
                 type="number"
+                inputMode="decimal"
                 step="0.1"
                 placeholder="0.0"
                 {...register('width', { valueAsNumber: true })}
@@ -301,6 +304,7 @@ function MeasurePackageForm({
               <Input
                 id={`height-${packageId}`}
                 type="number"
+                inputMode="decimal"
                 step="0.1"
                 placeholder="0.0"
                 {...register('height', { valueAsNumber: true })}
@@ -367,6 +371,7 @@ function PackageRowActions({ pkg }: { pkg: Package }) {
           <Button
             variant="ghost"
             size="sm"
+            className="min-h-[44px] min-w-[44px]"
             onClick={() => setShowMeasureForm((prev) => !prev)}
             title="Cân / Đo"
           >
@@ -378,6 +383,7 @@ function PackageRowActions({ pkg }: { pkg: Package }) {
           <Button
             variant="outline"
             size="sm"
+            className="min-h-[44px] min-w-[44px]"
             onClick={handleStatusAdvance}
             disabled={updateStatusMutation.isPending}
           >

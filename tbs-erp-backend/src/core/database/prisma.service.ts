@@ -13,7 +13,10 @@ import { DomainException, ErrorCode } from '@common/exceptions';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { EncryptionService } from '@core/encryption/encryption.service';
-import { createPrismaEncryptionExtension } from '@core/encryption/prisma-encryption.extension';
+import {
+  createPrismaEncryptionExtension,
+  ENCRYPTED_FIELDS,
+} from '@core/encryption/prisma-encryption.extension';
 
 /**
  * Extended PrismaService with performance monitoring.
@@ -30,16 +33,8 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
 
-  /** Extended Prisma client with field-level encryption. Use for queries requiring PII decryption. */
+  /** Extended Prisma client with field-level encryption applied. Stored to enable model patching. */
   private _encryptedClient: ReturnType<typeof PrismaClient.prototype.$extends> | null = null;
-
-  /**
-   * Returns the encryption-extended Prisma client.
-   * Falls back to `this` if encryption is disabled.
-   */
-  get encrypted(): PrismaClient {
-    return (this._encryptedClient ?? this) as PrismaClient;
-  }
 
   constructor(
     private readonly configService: ConfigService,
@@ -162,12 +157,36 @@ export class PrismaService
           await this.$connect();
           this.logger.log('Database connection established.');
 
-          // CF-01 fix: Activate field-level encryption extension
+          // CF-01 fix: Activate field-level encryption by patching PII model accessors on `this`.
+          //
+          // Prisma's $extends() returns a NEW object — it does not mutate the original PrismaClient.
+          // Storing the result in _encryptedClient and expecting callers to use `prisma.encrypted`
+          // is fragile: every service would need updating. Instead, we copy the extended client's
+          // model-level delegate objects back onto `this` for each PII-bearing model, so that
+          // existing code like `this.prisma.customer.findMany(...)` automatically goes through
+          // the encryption/decryption hooks without any changes to service code.
+          //
+          // Affected models (defined in ENCRYPTED_FIELDS): User, Employee, Customer, Vendor.
           if (this.encryptionService?.isEnabled()) {
             this._encryptedClient = this.$extends(
               createPrismaEncryptionExtension(this.encryptionService),
             );
-            this.logger.log('Field-level encryption extension activated for PII fields.');
+
+            // Patch each PII model accessor on `this` to use the encrypted client's delegate.
+            // PrismaClient stores model delegates as lowercase properties (e.g. `customer`, `user`).
+            const piiModelNames = Object.keys(ENCRYPTED_FIELDS);
+            for (const modelName of piiModelNames) {
+              const lowerName = modelName.charAt(0).toLowerCase() + modelName.slice(1);
+              const encryptedDelegate = (this._encryptedClient as any)[lowerName];
+              if (encryptedDelegate) {
+                (this as any)[lowerName] = encryptedDelegate;
+              }
+            }
+
+            this.logger.log(
+              `Field-level encryption activated. PII model accessors patched: ` +
+                `[${piiModelNames.map((m) => m.charAt(0).toLowerCase() + m.slice(1)).join(', ')}].`,
+            );
           } else {
             this.logger.warn(
               'Field-level encryption is DISABLED. PII fields will be stored in plaintext. ' +

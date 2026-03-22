@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { OrderStatus } from '@prisma/client';
 import { OrderStatusService } from '../order-status.service';
 
 export interface WarehousePackageReceivedEvent {
@@ -75,6 +76,29 @@ export class WarehouseUpdatedListener {
     } catch (error) {
       this.logger.error(
         `Failed to recalculate weights for order ${event.orderId}: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * P2-3: When all packages for an order are delivered,
+   * transition the order from DELIVERING → SETTLEMENT.
+   */
+  @OnEvent('order.all.delivered')
+  async handleAllDelivered(event: { orderId: string; completedAt: Date }): Promise<void> {
+    this.logger.log(`All packages delivered for order ${event.orderId}. Transitioning to SETTLEMENT.`);
+
+    try {
+      await this.orderStatusService.changeStatus(
+        event.orderId,
+        OrderStatus.SETTLEMENT,
+        'SYSTEM',
+        'Tự động chuyển quyết toán: tất cả kiện hàng đã giao',
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to transition order ${event.orderId} to SETTLEMENT: ${error.message}`,
         error.stack,
       );
     }

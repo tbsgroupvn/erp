@@ -49,6 +49,7 @@ model CompanyPost {
   @@index([status, publishedAt])
   @@index([category])
   @@index([isPinned])
+  @@index([status, category], map: "idx_company_posts_status_category")
   @@map("company_posts")
 }
 

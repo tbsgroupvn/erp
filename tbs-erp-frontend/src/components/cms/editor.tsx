@@ -4,7 +4,10 @@ import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
 import 'react-quill/dist/quill.snow.css';
 
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+const ReactQuill = dynamic(() => import('react-quill'), {
+  ssr: false,
+  loading: () => <div className="h-96 animate-pulse bg-muted rounded" />,
+});
 
 interface EditorProps {
   value: string;

@@ -113,7 +113,7 @@ const TRANSITION_MAP: Record<OrderStatus, OrderStatus[]> = {
   [OrderStatus.WAREHOUSE_VN]: [OrderStatus.DELIVERING, OrderStatus.ON_HOLD, OrderStatus.ISSUE, OrderStatus.RETURNED],
   [OrderStatus.DELIVERING]: [OrderStatus.SETTLEMENT, OrderStatus.ON_HOLD, OrderStatus.ISSUE, OrderStatus.RETURNED],
   [OrderStatus.SETTLEMENT]: [OrderStatus.COMPLETED, OrderStatus.ON_HOLD, OrderStatus.ISSUE, OrderStatus.RETURNED],
-  [OrderStatus.COMPLETED]: [],
+  [OrderStatus.COMPLETED]: [OrderStatus.SETTLEMENT],
   [OrderStatus.CANCELLED]: [],
   [OrderStatus.RETURNED]: [],
   [OrderStatus.ON_HOLD]: [

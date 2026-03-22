@@ -50,5 +50,9 @@ model Complaint {
   @@index([handlerId])
   @@index([createdBy])
   @@index([createdAt])
+  @@index([customerId, status], map: "idx_complaints_customer_status")
+  @@index([status, severity], map: "idx_complaints_status_severity")
+  @@index([status, createdAt], map: "idx_complaints_status_created")
+  @@index([handlerId, status], map: "idx_complaints_handler_status")
   @@map("complaints")
 }

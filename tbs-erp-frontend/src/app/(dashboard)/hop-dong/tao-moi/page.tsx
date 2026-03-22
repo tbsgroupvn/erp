@@ -11,6 +11,8 @@ import { ArrowLeft, Loader2, Search, X } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
+import { CustomerPicker } from '@/components/shared/customer-picker';
+import type { CustomerPickerValue } from '@/components/shared/customer-picker';
 import { useCreateContract } from '@/lib/hooks/use-contracts';
 import { apiClient } from '@/lib/api/client';
 import { ContractType, Currency } from '@/lib/types';
@@ -21,12 +23,6 @@ import { formatCurrency } from '@/lib/utils/format';
 // Transform empty string to undefined for optional fields
 const emptyToUndefined = z.literal('').transform(() => undefined);
 const optionalString = z.string().min(1).or(emptyToUndefined).optional();
-const optionalNumber = z.union([
-  z.coerce.number().min(0, 'Không được âm'),
-  z.literal('').transform(() => undefined),
-  z.literal(0).transform(() => undefined),
-]).optional();
-
 // --- Schema ---
 const createContractSchema = z
   .object({
@@ -83,12 +79,8 @@ export default function TaoHopDongPage() {
   const createContract = useCreateContract();
   const user = useAuthStore((s) => s.user);
 
-  // Customer search
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>([]);
+  // Customer state
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerOption | null>(null);
-  const [searchingCustomer, setSearchingCustomer] = useState(false);
-  const customerDebounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Parent contract search (for APPENDIX)
   const [parentOptions, setParentOptions] = useState<ParentContractOption[]>([]);
@@ -123,36 +115,6 @@ export default function TaoHopDongPage() {
       setValue('saleId', user.id);
     }
   }, [user?.id, setValue]);
-
-  // --- Customer search with debounce ---
-  const searchCustomers = useCallback((query: string) => {
-    if (customerDebounceRef.current) clearTimeout(customerDebounceRef.current);
-    if (query.length < 2) {
-      setCustomerOptions([]);
-      return;
-    }
-    customerDebounceRef.current = setTimeout(async () => {
-      setSearchingCustomer(true);
-      try {
-        const res = await apiClient.get('/customers', {
-          params: { search: query, limit: 10 },
-        });
-        const customers = res.data?.data ?? [];
-        setCustomerOptions(
-          customers.map((c: any) => ({
-            id: c.id,
-            code: c.code,
-            fullName: c.fullName,
-            companyName: c.companyName,
-          })),
-        );
-      } catch {
-        setCustomerOptions([]);
-      } finally {
-        setSearchingCustomer(false);
-      }
-    }, 300);
-  }, []);
 
   // --- Parent contract search with debounce ---
   const searchParentContracts = useCallback(
@@ -196,24 +158,28 @@ export default function TaoHopDongPage() {
     }
   }, [contractType, selectedCustomer, searchParentContracts]);
 
-  const selectCustomer = (customer: CustomerOption) => {
-    setSelectedCustomer(customer);
-    setValue('customerId', customer.id);
-    setCustomerSearch('');
-    setCustomerOptions([]);
-    // Reset parent when customer changes
-    setSelectedParent(null);
-    setValue('parentId', undefined);
-    setParentOptions([]);
-  };
-
-  const clearCustomer = () => {
-    setSelectedCustomer(null);
-    setValue('customerId', '');
-    setSelectedParent(null);
-    setValue('parentId', undefined);
-    setParentOptions([]);
-  };
+  const handleCustomerChange = useCallback(
+    (customer: CustomerPickerValue | null) => {
+      if (customer) {
+        const c: CustomerOption = {
+          id: customer.id,
+          code: customer.code,
+          fullName: customer.fullName,
+          companyName: customer.companyName ?? undefined,
+        };
+        setSelectedCustomer(c);
+        setValue('customerId', c.id);
+      } else {
+        setSelectedCustomer(null);
+        setValue('customerId', '');
+      }
+      // Reset parent when customer changes
+      setSelectedParent(null);
+      setValue('parentId', undefined);
+      setParentOptions([]);
+    },
+    [setValue],
+  );
 
   const selectParent = (parent: ParentContractOption) => {
     setSelectedParent(parent);
@@ -239,11 +205,7 @@ export default function TaoHopDongPage() {
 
     createContract.mutate(payload as any, {
       onSuccess: (result: any) => {
-        router.push(`/hop-dong/${result.id}`);
-      },
-      onError: (err: any) => {
-        const msg = err?.response?.data?.message;
-        if (msg) toast.error(msg);
+        router.push(`/hop-dong/${result?.id ?? ''}`);
       },
     });
   };
@@ -280,67 +242,14 @@ export default function TaoHopDongPage() {
         </div>
 
         {/* Customer Search */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">
-            Khách hàng <span className="text-destructive">*</span>
-          </label>
-          {selectedCustomer ? (
-            <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2.5">
-              <span className="inline-flex items-center rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                {selectedCustomer.code}
-              </span>
-              <span className="text-sm font-medium">{selectedCustomer.fullName}</span>
-              {selectedCustomer.companyName && (
-                <span className="text-xs text-muted-foreground">({selectedCustomer.companyName})</span>
-              )}
-              <button
-                type="button"
-                onClick={clearCustomer}
-                className="ml-auto rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={customerSearch}
-                onChange={(e) => {
-                  setCustomerSearch(e.target.value);
-                  searchCustomers(e.target.value);
-                }}
-                placeholder="Tìm khách hàng (mã, tên, công ty)..."
-                className="flex h-10 w-full rounded-md border bg-background pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              {searchingCustomer && (
-                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-              )}
-              {customerOptions.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md max-h-48 overflow-y-auto">
-                  {customerOptions.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => selectCustomer(c)}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent text-left"
-                    >
-                      <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">
-                        {c.code}
-                      </span>
-                      <span>{c.fullName}</span>
-                      {c.companyName && (
-                        <span className="text-xs text-muted-foreground">({c.companyName})</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          {errors.customerId && <p className="text-xs text-destructive">{errors.customerId.message}</p>}
-        </div>
+        <CustomerPicker
+          value={selectedCustomer?.id ?? null}
+          onChange={handleCustomerChange}
+          error={errors.customerId?.message as string}
+          selectedCustomer={selectedCustomer as CustomerPickerValue | null}
+          label="Kh\u00e1ch h\u00e0ng *"
+          placeholder="T\u00ecm kh\u00e1ch h\u00e0ng (m\u00e3, t\u00ean, c\u00f4ng ty)..."
+        />
 
         {/* Parent Contract (only for APPENDIX) */}
         {contractType === ContractType.APPENDIX && (

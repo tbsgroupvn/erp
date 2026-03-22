@@ -24,6 +24,9 @@ model SupportTicket {
   @@index([status])
   @@index([createdBy])
   @@index([createdAt])
+  @@index([customerId, status], map: "idx_support_tickets_customer_status")
+  @@index([status, createdAt], map: "idx_support_tickets_status_created")
+  @@index([status, priority], map: "idx_support_tickets_status_priority")
   @@map("support_tickets")
 }
 

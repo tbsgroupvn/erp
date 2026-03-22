@@ -60,6 +60,7 @@ export class CustomsDeclarationRepository {
 
   /**
    * Find all declarations with pagination and filters.
+   * Uses relationLoadStrategy: "join" to avoid extra round-trips for container relation.
    */
   async findAll(
     where: Prisma.CustomsDeclarationWhereInput,
@@ -69,6 +70,7 @@ export class CustomsDeclarationRepository {
   ) {
     const [data, total] = await this.prisma.$transaction([
       this.prisma.customsDeclaration.findMany({
+        relationLoadStrategy: 'join',
         where,
         skip,
         take,
@@ -93,9 +95,11 @@ export class CustomsDeclarationRepository {
 
   /**
    * Find a declaration by ID with full relations.
+   * Uses relationLoadStrategy: "join" to avoid N+1 on nested line relations.
    */
   async findById(id: string) {
     return this.prisma.customsDeclaration.findUnique({
+      relationLoadStrategy: 'join',
       where: { id },
       include: {
         container: {

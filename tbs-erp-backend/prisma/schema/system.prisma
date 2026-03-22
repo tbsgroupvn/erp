@@ -188,6 +188,8 @@ model Approval {
   @@index([status, createdAt])
   @@index([referenceId])
   @@index([flowDefinitionId])
+  @@index([referenceId, type], map: "idx_approvals_reference_type")
+  @@index([status, type, createdAt], map: "idx_approvals_status_type_created")
   @@map("approvals")
 }
 
@@ -345,6 +347,8 @@ model Notification {
   @@index([userId, createdAt])
   @@index([type])
   @@index([createdAt])
+  @@index([userId, isRead, createdAt], map: "idx_notifications_user_read_created")
+  @@index([userId, type, isRead], map: "idx_notifications_user_type_read")
   @@map("notifications")
 }
 
@@ -641,3 +645,21 @@ model ResponseTemplate {
   @@index([category])
   @@map("response_templates")
 }
+
+// ============================================
+// GENERATED REPORT — Scheduled report output cache
+// ============================================
+
+model GeneratedReport {
+  id          String   @id @default(uuid())
+  type        String   // DAILY_REVENUE, DAILY_CONTAINER_TRACKING, WEEKLY_AR_AGING, MONTHLY_COMMISSION
+  date        DateTime @db.Date
+  data        Json
+  filePath    String?
+  generatedAt DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([type, date])
+  @@map("generated_reports")
+}
+

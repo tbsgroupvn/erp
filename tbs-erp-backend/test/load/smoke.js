@@ -27,6 +27,8 @@ export const options = {
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 const API_URL = `${BASE_URL}/api/v1`;
+// nosec: test-only credential — override via TEST_ADMIN_PASSWORD env var in CI
+const TEST_ADMIN_PASSWORD = __ENV.TEST_ADMIN_PASSWORD || 'Admin@123456';
 
 export default function () {
   let authToken;
@@ -36,7 +38,7 @@ export default function () {
       `${API_URL}/auth/login`,
       JSON.stringify({
         email: 'admin@tbslogistics.com',
-        password: 'Admin@123456',
+        password: TEST_ADMIN_PASSWORD,
       }),
       { headers: { 'Content-Type': 'application/json' } },
     );

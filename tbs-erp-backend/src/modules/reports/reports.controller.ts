@@ -1,6 +1,8 @@
 import {
+  Body,
   Controller,
   Get,
+  Post,
   Query,
   Res,
   UseGuards,
@@ -15,8 +17,15 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
+import { CurrentUser } from '@common/decorators/current-user.decorator';
+import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { ReportsService } from './reports.service';
+import { ReportSchedulerService } from './report-scheduler.service';
+import { ReportJobType } from './report-job.types';
 
 type ExportFormat = 'csv' | 'html';
 
@@ -26,10 +35,13 @@ function resolveFormat(raw?: string): ExportFormat {
 
 @ApiTags('Reports')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('reports')
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(
+    private readonly reportsService: ReportsService,
+    private readonly reportSchedulerService: ReportSchedulerService,
+  ) {}
 
   /**
    * GET /reports/orders/export?format=csv&from=2026-01-01&to=2026-03-31&status=COMPLETED
@@ -112,6 +124,25 @@ export class ReportsController {
     const fmt = resolveFormat(format);
     const content = await this.reportsService.exportPayroll({ month, year }, fmt);
     this.sendExport(res, content, fmt, `bang-luong-${month}-${year}`);
+  }
+
+  /**
+   * POST /reports/trigger — manually trigger a scheduled report.
+   */
+  @Post('trigger')
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.CFO)
+  @ApiOperation({ summary: 'Tao bao cao theo yeu cau (manual trigger)' })
+  @ApiResponse({ status: 201, description: 'Report job queued' })
+  async triggerReport(
+    @Body() dto: { reportType: string; date: string; format?: string },
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    return this.reportSchedulerService.triggerReport({
+      reportType: dto.reportType as ReportJobType,
+      date: dto.date,
+      format: (dto.format as 'CSV' | 'HTML') ?? 'HTML',
+      requestedBy: user.id,
+    });
   }
 
   // -----------------------------------------------------------------------

@@ -124,7 +124,7 @@ export default function AboutPage() {
       <BreadcrumbSchema items={breadcrumbItems} />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema).replace(/</g, '\\u003c') }}
       />
 
       {/* Hero Section */}

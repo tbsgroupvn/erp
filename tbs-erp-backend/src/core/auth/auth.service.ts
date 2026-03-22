@@ -173,6 +173,22 @@ export class AuthService {
   private static readonly LOCK_WINDOW_MS = 900 * 1000;
 
   /**
+   * Progressive delay applied after each failed login attempt to slow brute-force
+   * attacks before the hard lock kicks in.
+   * Attempt 1 → 1 s, 2 → 2 s, 3 → 4 s, 4 → 8 s, 5+ → 16 s (capped).
+   */
+  private static readonly MAX_DELAY_MS = 16_000;
+
+  private loginDelay(failCount: number): Promise<void> {
+    if (failCount <= 0) return Promise.resolve();
+    const delayMs = Math.min(
+      Math.pow(2, failCount - 1) * 1000,
+      AuthService.MAX_DELAY_MS,
+    );
+    return new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  /**
    * Build the Redis key that tracks failed login attempts for a given IP.
    * Key format: `login:fail:<ip>`
    */
@@ -278,6 +294,9 @@ export class AuthService {
         `Failed login attempt for email "${email}" from IP ${ip} ` +
         `(${newCount}/${AuthService.MAX_FAILED_ATTEMPTS}, ${remaining} remaining)`,
       );
+      // Progressive delay: 1s → 2s → 4s → 8s → 16s per successive failure.
+      // Applied before throwing so the client waits even if they retry immediately.
+      await this.loginDelay(newCount);
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -1207,11 +1226,17 @@ export class AuthService {
    */
   private sanitizeUser(user: Omit<User, 'passwordHash'>): Record<string, any> {
     const sensitiveFields = new Set([
+      'passwordHash',
       'resetToken',
       'resetTokenExpiry',
       'twoFactorSecret',
       'twoFactorBackupCodes',
-      'passwordHash',
+      // 2FA status flags — must not be exposed in login response
+      'is2FAEnabled',
+      'phoneNumber',
+      'preferredTwoFactorMethod',
+      // saleCode is replaced with hasSaleCode boolean below
+      'saleCode',
     ]);
     const safe: Record<string, any> = {};
     for (const [key, value] of Object.entries(user)) {
@@ -1219,6 +1244,8 @@ export class AuthService {
         safe[key] = value;
       }
     }
+    // Expose only the boolean derived from saleCode — never the raw code itself
+    safe['hasSaleCode'] = !!( user as any).saleCode;
     return safe;
   }
 

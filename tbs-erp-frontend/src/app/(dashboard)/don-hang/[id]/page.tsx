@@ -8,7 +8,9 @@ import { useQuery } from '@tanstack/react-query';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { LoadingOverlay } from '@/components/shared/loading-overlay';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { useChangeOrderStatus, useCancelOrder } from '@/lib/hooks/use-orders';
+import { useChangeOrderStatus, useCancelOrder, useReopenOrder } from '@/lib/hooks/use-orders';
+import { useAuthStore } from '@/lib/stores/auth-store';
+import { UserRole } from '@/lib/types/enums';
 import { useOpenContainers, useAddPackages } from '@/lib/hooks/use-containers';
 import { SupplierOrderSection } from '@/features/orders/supplier-order-section';
 import { MHHIssueSection } from '@/features/orders/mhh-issue-section';
@@ -433,21 +435,30 @@ function ContainerSelector({
 // Sub-order detail panel (used inside the Goods tab for status management)
 // ---------------------------------------------------------------------------
 
+const REOPEN_ALLOWED_ROLES: UserRole[] = [UserRole.CEO, UserRole.COO, UserRole.SALES_DIRECTOR];
+
 function SubOrderDetailPanel({
   subOrder,
   masterOrder,
   changeStatus,
   cancelOrder,
+  reopenOrder,
 }: {
   subOrder: Order;
   masterOrder: any;
   changeStatus: ReturnType<typeof useChangeOrderStatus>;
   cancelOrder: ReturnType<typeof useCancelOrder>;
+  reopenOrder: ReturnType<typeof useReopenOrder>;
 }) {
   const [cancellingSubOrderId, setCancellingSubOrderId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [changingStatus, setChangingStatus] = useState<{ subOrderId: string; nextStatus: OrderStatus; currentCode: string } | null>(null);
   const [statusChangeNote, setStatusChangeNote] = useState('');
+  const [reopeningSubOrderId, setReopeningSubOrderId] = useState<string | null>(null);
+  const [reopenReason, setReopenReason] = useState('');
+
+  const currentUser = useAuthStore((s) => s.user);
+  const canReopen = !!currentUser && REOPEN_ALLOWED_ROLES.includes(currentUser.role as UserRole);
 
   const subStatus = subOrder.status as OrderStatus;
 
@@ -476,6 +487,62 @@ function SubOrderDetailPanel({
             <XCircle className="h-3.5 w-3.5" />
             Hủy đơn
           </button>
+        </div>
+      )}
+
+      {/* Reopen button — only for COMPLETED orders and allowed roles */}
+      {subStatus === OrderStatusEnum.COMPLETED && canReopen && (
+        <div className="flex items-center gap-2 pb-2 border-b">
+          <button
+            type="button"
+            onClick={() => setReopeningSubOrderId(subOrder.id)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50"
+          >
+            <ArrowRightCircle className="h-3.5 w-3.5" />
+            Mở lại đơn
+          </button>
+        </div>
+      )}
+
+      {/* Reopen dialog */}
+      {reopeningSubOrderId === subOrder.id && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 space-y-3">
+          <p className="text-sm font-medium text-amber-800">Xác nhận mở lại đơn {subOrder.code}?</p>
+          <textarea
+            value={reopenReason}
+            onChange={(e) => setReopenReason(e.target.value)}
+            placeholder="Nhập lý do mở lại đơn hàng (tối thiểu 10 ký tự)..."
+            className="w-full rounded-md border px-3 py-2 text-sm bg-white"
+            rows={2}
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (reopenReason.trim().length < 10) return;
+                reopenOrder.mutate(
+                  { id: subOrder.id, reason: reopenReason },
+                  {
+                    onSuccess: () => {
+                      setReopeningSubOrderId(null);
+                      setReopenReason('');
+                    },
+                  }
+                );
+              }}
+              disabled={reopenReason.trim().length < 10 || reopenOrder.isPending}
+              className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              {reopenOrder.isPending ? 'Đang xử lý...' : 'Xác nhận mở lại'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setReopeningSubOrderId(null); setReopenReason(''); }}
+              className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+            >
+              Đóng
+            </button>
+          </div>
         </div>
       )}
 
@@ -649,6 +716,7 @@ export default function MasterOrderDetailPage() {
   const { data: masterOrder, isLoading, isError } = useOrder360(id);
   const changeStatus = useChangeOrderStatus();
   const cancelOrder = useCancelOrder();
+  const reopenOrder = useReopenOrder();
   const [expandedSubOrder, setExpandedSubOrder] = useState<string | null>(null);
 
   if (isLoading) return <LoadingOverlay className="h-[60vh]" />;
@@ -778,6 +846,7 @@ export default function MasterOrderDetailPage() {
                         masterOrder={masterOrder}
                         changeStatus={changeStatus}
                         cancelOrder={cancelOrder}
+                        reopenOrder={reopenOrder}
                       />
                     </div>
                   )}

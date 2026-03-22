@@ -361,6 +361,7 @@ export default function PackageDetailPage({
                       <Button
                         variant="outline"
                         size="sm"
+                        className="min-h-[44px] min-w-[44px]"
                         onClick={() => setShowMeasureForm(true)}
                       >
                         <Scale className="mr-1 h-3 w-3" />
@@ -395,6 +396,7 @@ export default function PackageDetailPage({
                     <Input
                       id="actualWeight"
                       type="number"
+                      inputMode="decimal"
                       step="0.01"
                       placeholder="0.00"
                       value={measureForm.actualWeight}
@@ -417,6 +419,7 @@ export default function PackageDetailPage({
                     <Input
                       id="length"
                       type="number"
+                      inputMode="decimal"
                       step="0.1"
                       placeholder="0"
                       value={measureForm.length}
@@ -439,6 +442,7 @@ export default function PackageDetailPage({
                     <Input
                       id="width"
                       type="number"
+                      inputMode="decimal"
                       step="0.1"
                       placeholder="0"
                       value={measureForm.width}
@@ -461,6 +465,7 @@ export default function PackageDetailPage({
                     <Input
                       id="height"
                       type="number"
+                      inputMode="decimal"
                       step="0.1"
                       placeholder="0"
                       value={measureForm.height}

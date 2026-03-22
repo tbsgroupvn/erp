@@ -13,6 +13,8 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
+import { UserRole } from '@prisma/client';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
@@ -28,6 +30,7 @@ export class DebtNettingController {
   constructor(private readonly debtNettingService: DebtNettingService) {}
 
   @Get('opportunities')
+  @Roles(UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.CFO)
   @ApiOperation({
     summary: 'Find netting opportunities',
     description: 'Finds counterparties with both AR and AP balances that can be netted.',
@@ -39,6 +42,7 @@ export class DebtNettingController {
   }
 
   @Post()
+  @Roles(UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT, UserRole.CFO)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create netting request',
@@ -55,6 +59,7 @@ export class DebtNettingController {
   }
 
   @Patch(':id/approve')
+  @Roles(UserRole.CHIEF_ACCOUNTANT, UserRole.CFO)
   @ApiOperation({
     summary: 'Approve netting request',
     description: 'CFO/Chief Accountant approves the netting request.',
@@ -67,6 +72,7 @@ export class DebtNettingController {
   }
 
   @Post(':id/execute')
+  @Roles(UserRole.CHIEF_ACCOUNTANT, UserRole.CFO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Execute netting',
@@ -81,6 +87,7 @@ export class DebtNettingController {
   }
 
   @Get()
+  @Roles(UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.CFO)
   @ApiOperation({
     summary: 'List netting requests',
     description: 'Returns paginated netting requests with filters.',
@@ -92,6 +99,7 @@ export class DebtNettingController {
   }
 
   @Get('history/:counterpartyId')
+  @Roles(UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.CFO)
   @ApiOperation({
     summary: 'Get netting history for counterparty',
     description: 'Returns all netting requests for a specific counterparty.',

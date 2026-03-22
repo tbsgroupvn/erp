@@ -1,8 +1,9 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
+import { DataScopeGuard } from '@common/guards/data-scope.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiPaginated } from '@common/decorators/api-paginated.decorator';
@@ -22,9 +23,21 @@ import { UpdateLeadDto } from './dto/update-lead.dto';
 import { CreateInteractionNoteDto } from './dto/create-interaction-note.dto';
 import { CreateCustomerQuickDto } from './dto/create-customer-quick.dto';
 
+/**
+ * Roles that can manage any customer regardless of ownership.
+ * SALE role is NOT included — SALE users may only modify customers assigned to them.
+ */
+const CUSTOMER_MANAGEMENT_ROLES: UserRole[] = [
+  UserRole.CEO,
+  UserRole.COO,
+  UserRole.SALES_DIRECTOR,
+  UserRole.SALES_LEADER,
+  UserRole.CSKH,
+];
+
 @ApiTags('CRM - Customers')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, DataScopeGuard)
 @Controller('customers')
 export class CrmController {
   constructor(
@@ -184,7 +197,24 @@ export class CrmController {
   @Roles(UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CSKH, UserRole.CEO, UserRole.COO)
   @ApiOperation({ summary: 'Update a customer' })
   @ApiParam({ name: 'id', description: 'Customer ID' })
-  async update(@Param('id') id: string, @Body() dto: UpdateCustomerDto) {
+  async update(@Param('id') id: string, @Body() dto: UpdateCustomerDto, @CurrentUser() user: ICurrentUser) {
+    // Ownership enforcement: getCustomer enforces DataScope via DataScopeService.
+    // For SALE role this means the customer must have saleId === user.id — any other
+    // customer ID returns ForbiddenException before we reach the update path.
+    const existing = await this.crmService.getCustomer(id, user);
+
+    // Additional IDOR safeguard for SALE: even if the scope check above passes
+    // (e.g. SALES_LEADER scope that includes the customer), a plain SALE user
+    // must own the record directly.
+    if (user.role === UserRole.SALE && existing.saleId !== user.id) {
+      throw new ForbiddenException('Bạn chỉ có thể cập nhật khách hàng do mình quản lý');
+    }
+
+    // Prevent SALE from silently reassigning ownership to another user.
+    if (!CUSTOMER_MANAGEMENT_ROLES.includes(user.role) && dto.saleId !== undefined && dto.saleId !== user.id) {
+      throw new ForbiddenException('Bạn không có quyền chuyển khách hàng cho người khác');
+    }
+
     const customer = await this.crmService.updateCustomer(id, dto);
     return BaseResponse.ok(customer, 'Customer updated successfully');
   }
@@ -228,13 +258,16 @@ export class CrmController {
   async addInteractionNote(
     @Param('id') customerId: string,
     @Body() dto: CreateInteractionNoteDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: ICurrentUser,
   ) {
+    // Verify caller has data-scope access to this customer before writing a note.
+    await this.crmService.getCustomer(customerId, user);
+
     const note = await this.interactionNoteService.create(
       customerId,
       dto.content,
       dto.channel ?? 'OTHER',
-      userId,
+      user.id,
     );
     return BaseResponse.ok(note);
   }
@@ -243,7 +276,10 @@ export class CrmController {
   @Roles(UserRole.CEO, UserRole.COO, UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CSKH, UserRole.CFO, UserRole.DIRECTOR_OPERATIONS)
   @ApiOperation({ summary: 'Get customer interaction notes' })
   @ApiParam({ name: 'id', description: 'Customer ID' })
-  async getInteractionNotes(@Param('id') customerId: string) {
+  async getInteractionNotes(@Param('id') customerId: string, @CurrentUser() user: ICurrentUser) {
+    // Verify caller has data-scope access to this customer before returning notes.
+    await this.crmService.getCustomer(customerId, user);
+
     const notes = await this.interactionNoteService.findByCustomer(customerId);
     return BaseResponse.ok(notes);
   }
@@ -254,7 +290,10 @@ export class CrmController {
   @Roles(UserRole.CEO, UserRole.COO, UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CSKH, UserRole.CFO, UserRole.DIRECTOR_OPERATIONS)
   @ApiOperation({ summary: 'Get aggregated customer support view' })
   @ApiParam({ name: 'id', description: 'Customer ID' })
-  async getSupportView(@Param('id') customerId: string) {
+  async getSupportView(@Param('id') customerId: string, @CurrentUser() user: ICurrentUser) {
+    // Verify caller has data-scope access to this customer before returning support view.
+    await this.crmService.getCustomer(customerId, user);
+
     const data = await this.customerSupportViewService.getSupportView(customerId);
     return BaseResponse.ok(data);
   }
@@ -284,7 +323,10 @@ export class CrmController {
       'Neu chua co du lieu analytics, he thong tu dong tinh toan va luu ket qua.',
   })
   @ApiParam({ name: 'id', description: 'ID cua khach hang' })
-  async getCustomerAnalytics(@Param('id') customerId: string) {
+  async getCustomerAnalytics(@Param('id') customerId: string, @CurrentUser() user: ICurrentUser) {
+    // Verify caller has data-scope access to this customer before returning analytics.
+    await this.crmService.getCustomer(customerId, user);
+
     // Thu lay tu DB truoc — tranh tinh lai khong can thiet
     const existing = await this.customerAnalyticsService.findByCustomer(customerId);
     if (existing) {

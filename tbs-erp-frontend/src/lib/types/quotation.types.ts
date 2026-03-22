@@ -37,6 +37,18 @@ export interface Quotation {
   rejectedAt?: string;
   convertedOrderId?: string;
   parentQuotationId?: string;
+  quoteMode?: string;
+  rateCardId?: string;
+  totalProductAmount?: number;
+  serviceFeePercent?: number;
+  serviceFeeAmount?: number;
+  shippingAmount?: number;
+  surchargeAmount?: number;
+  cbm?: number;
+  kg?: number;
+  chargeableWeight?: number;
+  exchangeRateSnapshot?: number;
+  pricingSnapshot?: Record<string, unknown>;
   contracts?: {
     id: string;
     code: string;
@@ -59,6 +71,13 @@ export interface QuotationItem {
   currency?: string;
   totalPrice: number;
   note?: string;
+  productDescription?: string;
+  productImageUrl?: string;
+  sourceUrl?: string;
+  vendorId?: string;
+  vendorName?: string;
+  unit?: string;
+  sortOrder?: number;
 }
 
 export interface CreateQuotationDto {

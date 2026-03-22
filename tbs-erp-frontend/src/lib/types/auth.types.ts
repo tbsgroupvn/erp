@@ -22,6 +22,7 @@ export interface UserProfile {
   id: string;
   email: string;
   fullName: string;
+  phone?: string;
   role: UserRole;
   branch: Branch | null;
   leaderId: string | null;

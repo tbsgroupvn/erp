@@ -65,10 +65,10 @@ export default function Footer() {
           <div>
             <div className="mb-4 flex items-center gap-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <span className="text-xl font-bold">{(process.env.NEXT_PUBLIC_COMPANY_NAME || 'ERP').substring(0, 3)}</span>
+                <span className="text-xl font-bold">{(process.env.NEXT_PUBLIC_COMPANY_NAME || 'TBS').substring(0, 3)}</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-lg font-bold text-white">{process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System'}</span>
+                <span className="text-lg font-bold text-white">{process.env.NEXT_PUBLIC_APP_TITLE || 'TBS ERP'}</span>
                 <span className="text-xs text-gray-400">{process.env.NEXT_PUBLIC_COMPANY_NAME || ''}</span>
               </div>
             </div>
@@ -198,7 +198,7 @@ export default function Footer() {
         <div className="container mx-auto max-w-7xl px-4 py-6">
           <div className="flex flex-col items-center justify-between gap-4 text-sm text-gray-400 md:flex-row">
             <p>
-              &copy; {currentYear} {process.env.NEXT_PUBLIC_COMPANY_NAME || 'My ERP'}. All rights reserved.
+              &copy; {currentYear} {process.env.NEXT_PUBLIC_COMPANY_NAME || 'TBS'}. All rights reserved.
             </p>
             <div className="flex gap-6">
               <Link

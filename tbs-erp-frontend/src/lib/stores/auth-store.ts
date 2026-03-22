@@ -6,6 +6,7 @@ import type { UserProfile } from '@/lib/types';
 import { branding } from '@/lib/config/branding';
 
 const AUTH_COOKIE = branding.authCookie;
+const ROLE_COOKIE = branding.roleCookie;
 const AUTH_STORAGE_NAME = branding.authStorageName;
 
 interface TwoFactorChallenge {
@@ -65,12 +66,20 @@ export const useAuthStore = create<AuthState>()(
         set({ accessToken, isAuthenticated: true });
       },
 
-      setUser: (user) => set({ user }),
+      setUser: (user) => {
+        // Update role cookie when user profile changes (e.g., role change by admin)
+        if (typeof document !== 'undefined') {
+          const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+          document.cookie = `${ROLE_COOKIE}=${encodeURIComponent(user.role)}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${secure}`;
+        }
+        set({ user });
+      },
 
       setAuth: (user, accessToken) => {
         if (typeof document !== 'undefined') {
           const secure = window.location.protocol === 'https:' ? '; Secure' : '';
           document.cookie = `${AUTH_COOKIE}=1; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${secure}`;
+          document.cookie = `${ROLE_COOKIE}=${encodeURIComponent(user.role)}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${secure}`;
         }
         set({ user, accessToken, isAuthenticated: true, isLoading: false });
       },
@@ -78,9 +87,10 @@ export const useAuthStore = create<AuthState>()(
       setLoading: (loading) => set({ isLoading: loading }),
 
       logout: () => {
-        // Remove auth cookie
+        // Remove auth + role cookies
         if (typeof document !== 'undefined') {
           document.cookie = `${AUTH_COOKIE}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+          document.cookie = `${ROLE_COOKIE}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
         }
         set({
           user: null,
@@ -128,6 +138,7 @@ export const useAuthStore = create<AuthState>()(
         if (typeof document !== 'undefined') {
           const secure = window.location.protocol === 'https:' ? '; Secure' : '';
           document.cookie = `${AUTH_COOKIE}=1; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${secure}`;
+          document.cookie = `${ROLE_COOKIE}=${encodeURIComponent(user.role)}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${secure}`;
         }
         set({
           user,

@@ -24,8 +24,8 @@ const poppins = Poppins({
   variable: '--font-poppins',
 });
 
-const appTitle = process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System';
-const appDescription = process.env.NEXT_PUBLIC_APP_DESCRIPTION || 'Enterprise Resource Planning System';
+const appTitle = process.env.NEXT_PUBLIC_APP_TITLE || 'TBS ERP';
+const appDescription = process.env.NEXT_PUBLIC_APP_DESCRIPTION || 'TBS Enterprise Resource Planning';
 
 export const metadata: Metadata = {
   title: appTitle,

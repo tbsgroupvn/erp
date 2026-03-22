@@ -4,6 +4,27 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ARAgingCalculatorService, CustomerAgingResult } from './ar-aging-calculator.service';
 import { Prisma } from '@prisma/client';
 
+// Raw row returned by the company-wide aggregate query
+interface AgingSummaryRaw {
+  current:          string | null;
+  days1_30:         string | null;
+  days31_60:        string | null;
+  days61_90:        string | null;
+  days90_plus:      string | null;
+  total_outstanding: string | null;
+}
+
+// Raw row returned by the daily-trend aggregate query
+interface AgingTrendRaw {
+  snapshot_date:     Date;
+  current:           string | null;
+  days1_30:          string | null;
+  days31_60:         string | null;
+  days61_90:         string | null;
+  days90_plus:       string | null;
+  total_outstanding: string | null;
+}
+
 export interface AgingSummary {
   current: number;
   days1_30: number;
@@ -123,89 +144,87 @@ export class ARAgingSnapshotService {
   }
 
   /**
-   * Get company-wide aging summary
+   * Get company-wide aging summary.
+   *
+   * Optimization: replaced the previous findMany + JS reduce (loading every
+   * customer row into memory) with a single aggregate SQL query that lets
+   * PostgreSQL do the summing server-side.
    */
   async getCompanyAgingSummary(date?: Date): Promise<AgingSummary> {
+    const t0 = Date.now();
     const targetDate = date || new Date();
     targetDate.setHours(0, 0, 0, 0);
 
-    // Aggregate all customer snapshots for the date
-    const snapshots = await this.prisma.aRAgingSnapshot.findMany({
-      where: { snapshotDate: targetDate },
-    });
+    const rows = await this.prisma.$queryRaw<AgingSummaryRaw[]>`
+      SELECT
+        SUM(current)           AS current,
+        SUM(days_1_30)         AS days1_30,
+        SUM(days_31_60)        AS days31_60,
+        SUM(days_61_90)        AS days61_90,
+        SUM(days_90_plus)      AS days90_plus,
+        SUM(total_outstanding) AS total_outstanding
+      FROM ar_aging_snapshots
+      WHERE snapshot_date = ${targetDate}
+    `;
 
-    // Sum up all buckets
-    const summary = snapshots.reduce(
-      (acc, snap) => ({
-        current: acc.current + snap.current.toNumber(),
-        days1_30: acc.days1_30 + snap.days1_30.toNumber(),
-        days31_60: acc.days31_60 + snap.days31_60.toNumber(),
-        days61_90: acc.days61_90 + snap.days61_90.toNumber(),
-        days90Plus: acc.days90Plus + snap.days90Plus.toNumber(),
-        totalOutstanding: acc.totalOutstanding + snap.totalOutstanding.toNumber(),
-      }),
-      {
-        current: 0,
-        days1_30: 0,
-        days31_60: 0,
-        days61_90: 0,
-        days90Plus: 0,
-        totalOutstanding: 0,
-      },
+    this.logger.debug(
+      `getCompanyAgingSummary (${targetDate.toISOString().split('T')[0]}) completed in ${Date.now() - t0}ms (1 query)`,
     );
 
-    return summary;
+    const row = rows[0] ?? ({} as AgingSummaryRaw);
+    return {
+      current:          parseFloat(row.current          ?? '0'),
+      days1_30:         parseFloat(row.days1_30         ?? '0'),
+      days31_60:        parseFloat(row.days31_60        ?? '0'),
+      days61_90:        parseFloat(row.days61_90        ?? '0'),
+      days90Plus:       parseFloat(row.days90_plus      ?? '0'),
+      totalOutstanding: parseFloat(row.total_outstanding ?? '0'),
+    };
   }
 
   /**
-   * Get historical aging trends (last N days)
+   * Get historical aging trends (last N days).
+   *
+   * Optimization: replaced the previous findMany (loading all per-customer
+   * rows) + JS groupBy-and-sum with a single SQL GROUP BY snapshot_date query.
+   * For 30 days with 500 customers that is 15 000 rows → 30 rows in memory.
    */
   async getAgingTrends(days: number = 30): Promise<any[]> {
+    const t0 = Date.now();
     const endDate = new Date();
     endDate.setHours(0, 0, 0, 0);
 
     const startDate = new Date(endDate);
     startDate.setDate(startDate.getDate() - days);
 
-    // Get all snapshots within the date range
-    const snapshots = await this.prisma.aRAgingSnapshot.findMany({
-      where: {
-        snapshotDate: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-      orderBy: { snapshotDate: 'asc' },
-    });
+    const rows = await this.prisma.$queryRaw<AgingTrendRaw[]>`
+      SELECT
+        snapshot_date,
+        SUM(current)           AS current,
+        SUM(days_1_30)         AS days1_30,
+        SUM(days_31_60)        AS days31_60,
+        SUM(days_61_90)        AS days61_90,
+        SUM(days_90_plus)      AS days90_plus,
+        SUM(total_outstanding) AS total_outstanding
+      FROM ar_aging_snapshots
+      WHERE snapshot_date >= ${startDate}
+        AND snapshot_date <= ${endDate}
+      GROUP BY snapshot_date
+      ORDER BY snapshot_date ASC
+    `;
 
-    // Group by date and aggregate
-    const trendMap = new Map<string, AgingSummary>();
+    this.logger.debug(
+      `getAgingTrends (${days}d) completed in ${Date.now() - t0}ms (1 query, ${rows.length} date points)`,
+    );
 
-    for (const snap of snapshots) {
-      const dateKey = snap.snapshotDate.toISOString().split('T')[0];
-      const existing = trendMap.get(dateKey) || {
-        current: 0,
-        days1_30: 0,
-        days31_60: 0,
-        days61_90: 0,
-        days90Plus: 0,
-        totalOutstanding: 0,
-      };
-
-      trendMap.set(dateKey, {
-        current: existing.current + snap.current.toNumber(),
-        days1_30: existing.days1_30 + snap.days1_30.toNumber(),
-        days31_60: existing.days31_60 + snap.days31_60.toNumber(),
-        days61_90: existing.days61_90 + snap.days61_90.toNumber(),
-        days90Plus: existing.days90Plus + snap.days90Plus.toNumber(),
-        totalOutstanding: existing.totalOutstanding + snap.totalOutstanding.toNumber(),
-      });
-    }
-
-    // Convert to array
-    return Array.from(trendMap.entries()).map(([date, summary]) => ({
-      snapshotDate: new Date(date),
-      ...summary,
+    return rows.map((r) => ({
+      snapshotDate:     r.snapshot_date,
+      current:          parseFloat(r.current          ?? '0'),
+      days1_30:         parseFloat(r.days1_30         ?? '0'),
+      days31_60:        parseFloat(r.days31_60        ?? '0'),
+      days61_90:        parseFloat(r.days61_90        ?? '0'),
+      days90Plus:       parseFloat(r.days90_plus      ?? '0'),
+      totalOutstanding: parseFloat(r.total_outstanding ?? '0'),
     }));
   }
 

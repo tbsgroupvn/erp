@@ -4,14 +4,17 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { useWebSocket } from '@/lib/hooks/use-websocket';
+import { useIdleTimeout } from '@/lib/hooks/use-idle-timeout';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { Topbar } from '@/components/layout/topbar';
 import { LoadingOverlay } from '@/components/shared/loading-overlay';
 import { ErrorBoundary } from '@/components/shared/error-boundary';
 import { DemoBanner } from '@/components/shared/demo-banner';
+import { SessionTimeoutDialog } from '@/components/shared/session-timeout-dialog';
 import { CommandPalette } from '@/features/search/command-palette';
 import { OfflineProvider } from '@/lib/offline/offline-provider';
 import { OfflineIndicator } from '@/components/shared/offline-indicator';
+import { ServiceWorkerRegistration } from '@/components/shared/sw-registration';
 
 export default function DashboardLayout({
   children,
@@ -23,6 +26,8 @@ export default function DashboardLayout({
   const isLoading = useAuthStore((s) => s.isLoading);
   // Initialize WebSocket connection for the entire dashboard session
   useWebSocket({ autoConnect: true });
+  // Track idle time and auto-logout for security
+  const { showWarning, secondsLeft, stayLoggedIn } = useIdleTimeout();
   const [hydrated, setHydrated] = useState(false);
 
   // Wait for Zustand to hydrate from localStorage
@@ -54,6 +59,7 @@ export default function DashboardLayout({
 
   return (
     <OfflineProvider>
+      <ServiceWorkerRegistration />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md"
@@ -71,7 +77,7 @@ export default function DashboardLayout({
               id="main-content"
               role="main"
               aria-label="Nội dung chính"
-              className="flex-1 overflow-y-auto p-6 bg-gradient-to-br from-background via-background to-muted/30"
+              className="flex-1 overflow-y-auto p-4 lg:p-6 bg-gradient-to-br from-background via-background to-muted/30"
               tabIndex={-1}
             >
               <ErrorBoundary>
@@ -81,6 +87,11 @@ export default function DashboardLayout({
           </div>
         </div>
         <OfflineIndicator />
+        <SessionTimeoutDialog
+          showWarning={showWarning}
+          secondsLeft={secondsLeft}
+          stayLoggedIn={stayLoggedIn}
+        />
       </div>
     </OfflineProvider>
   );

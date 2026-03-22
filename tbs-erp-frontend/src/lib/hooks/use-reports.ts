@@ -15,6 +15,7 @@ export function useSalesReport(params?: ReportQueryParams) {
   return useQuery({
     queryKey: reportKeys.sales(params),
     queryFn: () => reportApi.getSalesReport(params),
+    staleTime: 5 * 60 * 1000, // reports are expensive queries — cache 5 min
   });
 }
 
@@ -22,5 +23,6 @@ export function useFinancialReport(params?: ReportQueryParams) {
   return useQuery({
     queryKey: reportKeys.financial(params),
     queryFn: () => reportApi.getFinancialReport(params),
+    staleTime: 5 * 60 * 1000,
   });
 }

@@ -24,6 +24,8 @@ export const options = {
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 const API_URL = `${BASE_URL}/api/v1`;
+// nosec: test-only credential — override via TEST_PASSWORD env var in CI
+const TEST_PASSWORD = __ENV.TEST_PASSWORD || 'TestPassword123';
 
 export default function () {
   // Health check endpoint (lightweight, tests infra capacity)
@@ -41,7 +43,7 @@ export default function () {
       `${API_URL}/auth/login`,
       JSON.stringify({
         email: `user${__VU}@tbslogistics.com`,
-        password: 'TestPassword123',
+        password: TEST_PASSWORD,
       }),
       { headers: { 'Content-Type': 'application/json' } },
     );

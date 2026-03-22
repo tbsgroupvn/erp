@@ -64,13 +64,14 @@ export class Disable2FADto {
  * Contains the temporary userId, verification code, and method.
  */
 export class VerifyLoginOtpDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'clxxxxxxxxxxxxxxxxxx',
-    description: 'User ID returned from the login step',
+    description: 'Deprecated — userId is now extracted from the temp token. Ignored if sent.',
+    deprecated: true,
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: 'User ID is required' })
-  userId: string;
+  userId?: string;
 
   @ApiProperty({
     example: '123456',

@@ -1,11 +1,13 @@
 'use client';
 
+import React from 'react';
+
 export interface StepIndicatorProps {
   steps: string[];
   currentStep: number;
 }
 
-export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
+export const StepIndicator = React.memo(function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
   return (
     <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-4 mb-6 sm:mb-8 overflow-x-auto pb-2">
       {steps.map((label, i) => (
@@ -31,4 +33,4 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
       ))}
     </div>
   );
-}
+});

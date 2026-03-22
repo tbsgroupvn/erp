@@ -440,7 +440,7 @@ export class MHHIssueService {
   async resolveIssue(id: string, input: ResolveMHHIssueInput, userId: string) {
     const issue = await this.prisma.mHHIssue.findUnique({
       where: { id },
-      select: { id: true, code: true, status: true },
+      select: { id: true, code: true, status: true, customerDecision: true },
     });
 
     if (!issue) {
@@ -454,6 +454,14 @@ export class MHHIssueService {
       throw new BadRequestException(
         `Cannot resolve issue from status ${issue.status}. ` +
           `Allowed transitions: [${allowedTransitions.join(', ')}]`,
+      );
+    }
+
+    // Customer decision gate: when waiting for the customer, their choice must
+    // be recorded before the issue can be resolved.
+    if (issue.status === MHHIssueStatus.WAITING_CUSTOMER && !issue.customerDecision) {
+      throw new BadRequestException(
+        'Cần ghi nhận quyết định của khách hàng trước khi giải quyết vấn đề MHH.',
       );
     }
 

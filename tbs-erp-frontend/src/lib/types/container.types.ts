@@ -69,6 +69,10 @@ export interface Container {
   demurrageStartAt: string | null;
   demurrageNote: string | null;
 
+  bookingConfirmedAt?: string;
+  bookingConfirmationUrl?: string;
+  allocationMethod?: string;
+
   createdBy: string;
   createdAt: string;
   updatedAt: string;

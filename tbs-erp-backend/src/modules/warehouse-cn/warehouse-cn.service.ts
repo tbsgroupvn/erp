@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@core/database/prisma.service';
 import { CacheService } from '@core/cache/cache.service';
@@ -310,6 +311,43 @@ export class WarehouseCNService {
             measuredBy: userId,
           });
         }
+      }
+    }
+
+    // P1-3: CW vs quotation variance alert (>10% triggers notification)
+    if (pkg.orderId) {
+      try {
+        const order = await this.prisma.order.findUnique({
+          where: { id: pkg.orderId },
+          select: {
+            code: true,
+            saleId: true,
+            totalChargeableWeight: true,
+          },
+        });
+
+        if (order?.totalChargeableWeight) {
+          const quotedCW = Number(order.totalChargeableWeight);
+          const actualCW = weightResult.chargeableWeight;
+          if (quotedCW > 0) {
+            const variancePercent = Math.abs(actualCW - quotedCW) / quotedCW * 100;
+            if (variancePercent > 10) {
+              this.eventEmitter.emit('package.cw_variance_alert', {
+                packageId,
+                packageCode: pkg.code,
+                orderId: pkg.orderId,
+                orderCode: order.code,
+                quotedCW,
+                actualCW,
+                variancePercent: Math.round(variancePercent * 10) / 10,
+                direction: actualCW > quotedCW ? 'OVER' : 'UNDER',
+                saleId: order.saleId,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        this.logger.warn(`CW variance check failed for package ${pkg.code}: ${err.message}`);
       }
     }
 
@@ -1209,6 +1247,73 @@ export class WarehouseCNService {
       trackingEvents,
       processingDays,
     };
+  }
+  // ─────────────────────────────────────────────────────────────────
+  // CRON: LONG STORAGE ALERT — Cảnh báo kiện tồn kho TQ > 30 ngày
+  // ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Cron job: Alert packages stored in CN warehouse for more than 30 days.
+   * Runs daily at 9AM. Emits notification for each overdue package.
+   */
+  @Cron('0 9 * * *')
+  async alertLongStoragePackages(): Promise<void> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+
+    const overduePackages = await this.prisma.package.findMany({
+      where: {
+        receivedCNAt: { not: null, lt: cutoff },
+        warehouseCNStatus: { notIn: ['SHIPPED'] },
+      },
+      select: {
+        id: true,
+        code: true,
+        orderId: true,
+        trackingNumberCN: true,
+        receivedCNAt: true,
+        warehouseCNStatus: true,
+        order: {
+          select: {
+            code: true,
+            saleId: true,
+            customer: { select: { fullName: true, code: true } },
+          },
+        },
+      },
+    });
+
+    if (overduePackages.length === 0) {
+      return;
+    }
+
+    this.logger.warn(
+      `Long storage alert: ${overduePackages.length} package(s) in CN warehouse > 30 days`,
+    );
+
+    for (const pkg of overduePackages) {
+      const storageDays = Math.floor(
+        (Date.now() - (pkg.receivedCNAt?.getTime() ?? Date.now())) / 86_400_000,
+      );
+
+      this.eventEmitter.emit('package.storage_exceeded', {
+        packageId: pkg.id,
+        packageCode: pkg.code,
+        orderId: pkg.orderId,
+        orderCode: pkg.order?.code,
+        trackingNumberCN: pkg.trackingNumberCN,
+        storageDays,
+        customerName: pkg.order?.customer?.fullName,
+        customerCode: pkg.order?.customer?.code,
+        saleId: pkg.order?.saleId,
+        status: pkg.warehouseCNStatus,
+      });
+    }
+
+    this.eventEmitter.emit('package.storage_exceeded.summary', {
+      count: overduePackages.length,
+      checkedAt: new Date(),
+    });
   }
 }
 

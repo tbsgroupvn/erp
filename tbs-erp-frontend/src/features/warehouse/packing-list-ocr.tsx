@@ -319,7 +319,7 @@ export function PackingListOCR({ onApply }: PackingListOCRProps) {
                         <Input
                           value={item.nameCn}
                           onChange={(e) => updateItem(i, 'nameCn', e.target.value)}
-                          className="h-7 text-xs px-1.5"
+                          className="h-10 text-xs px-1.5"
                           placeholder="Tên TQ..."
                         />
                       </td>
@@ -327,7 +327,7 @@ export function PackingListOCR({ onApply }: PackingListOCRProps) {
                         <Input
                           value={item.nameVi}
                           onChange={(e) => updateItem(i, 'nameVi', e.target.value)}
-                          className="h-7 text-xs px-1.5 font-medium"
+                          className="h-10 text-xs px-1.5 font-medium"
                           placeholder="Tên VN..."
                         />
                       </td>
@@ -337,7 +337,7 @@ export function PackingListOCR({ onApply }: PackingListOCRProps) {
                           min={1}
                           value={item.quantity}
                           onChange={(e) => updateItem(i, 'quantity', Number(e.target.value))}
-                          className="h-7 text-xs px-1.5 text-center"
+                          className="h-10 text-xs px-1.5 text-center"
                         />
                       </td>
                       <td className="px-2 py-1.5">
@@ -347,14 +347,14 @@ export function PackingListOCR({ onApply }: PackingListOCRProps) {
                           step={0.01}
                           value={item.weightKg}
                           onChange={(e) => updateItem(i, 'weightKg', Number(e.target.value))}
-                          className="h-7 text-xs px-1.5 text-right"
+                          className="h-10 text-xs px-1.5 text-right"
                         />
                       </td>
                       <td className="px-2 py-1.5">
                         <Input
                           value={item.tracking}
                           onChange={(e) => updateItem(i, 'tracking', e.target.value)}
-                          className="h-7 text-xs px-1.5 font-mono"
+                          className="h-10 text-xs px-1.5 font-mono"
                           placeholder="Tracking..."
                         />
                       </td>
@@ -363,7 +363,7 @@ export function PackingListOCR({ onApply }: PackingListOCRProps) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6"
+                            className="h-9 w-9"
                             onClick={() => moveItem(i, 'up')}
                             disabled={i === 0}
                           >
@@ -372,7 +372,7 @@ export function PackingListOCR({ onApply }: PackingListOCRProps) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6"
+                            className="h-9 w-9"
                             onClick={() => moveItem(i, 'down')}
                             disabled={i === editableItems.length - 1}
                           >
@@ -384,7 +384,7 @@ export function PackingListOCR({ onApply }: PackingListOCRProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => removeItem(i)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />

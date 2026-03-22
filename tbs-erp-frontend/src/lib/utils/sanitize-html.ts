@@ -28,18 +28,19 @@ export function sanitizeHtml(dirty: string): string {
       'blockquote', 'pre', 'code',
       'table', 'thead', 'tbody', 'tr', 'th', 'td',
       'div', 'span', 'section', 'article',
-      'video', 'source', 'iframe',
     ],
     ALLOWED_ATTR: [
       'href', 'target', 'rel',
       'src', 'alt', 'width', 'height', 'loading',
-      'class', 'id', 'style',
+      'class', 'id',
       'colspan', 'rowspan',
-      'frameborder', 'allowfullscreen', 'allow',
     ],
+    // Only allow safe URL schemes. '#' is an anchor fragment (no colon), so it
+    // is listed separately from the scheme-based alternatives.
+    ALLOWED_URI_REGEXP: /^(https?:|mailto:|tel:|#)/i,
     ALLOW_DATA_ATTR: false,
     ADD_ATTR: ['target'],
     FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'textarea', 'button'],
-    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'style'],
   });
 }

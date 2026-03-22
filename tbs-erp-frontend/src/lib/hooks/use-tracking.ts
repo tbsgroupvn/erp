@@ -21,6 +21,7 @@ export function useTracking(trackingNumber: string) {
     queryKey: trackingKeys.byNumber(trackingNumber),
     queryFn: () => trackingApi.getByTrackingNumber(trackingNumber),
     enabled: !!trackingNumber,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -29,5 +30,6 @@ export function useContainerTracking(containerId: string) {
     queryKey: trackingKeys.container(containerId),
     queryFn: () => trackingApi.getContainerTracking(containerId),
     enabled: !!containerId,
+    staleTime: 2 * 60 * 1000,
   });
 }

@@ -93,10 +93,12 @@ export function SanitizeHtml(options?: DOMPurifyConfig) {
         'height',
       ],
       // Remove all scripts and event handlers
-      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'applet', 'form', 'input', 'button'],
-      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
-      // Keep safe URL schemes only
-      ALLOWED_URI_REGEXP: /^(https?|mailto|tel|#):/i,
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'applet', 'form', 'input', 'button', 'video', 'audio', 'svg', 'math'],
+      // INJ-02 fix: 'style' attr allows CSS-based data exfiltration and clickjacking
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'style'],
+      // Only allow safe URL schemes. '#' is an anchor fragment (no colon), so it
+      // is listed separately from the scheme-based alternatives.
+      ALLOWED_URI_REGEXP: /^(https?:|mailto:|tel:|#)/i,
       // Prevent DOM clobbering
       SANITIZE_DOM: true,
       // Keep comments (optional - can be removed for stricter security)

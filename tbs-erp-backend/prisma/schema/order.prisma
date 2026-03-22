@@ -150,6 +150,7 @@ model OrderItem {
 
   order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   supplierOrders  SupplierOrder[]
+  mhhIssues       MHHIssue[] @relation("MHHIssueOrderItem")
 
   @@index([orderId])
   @@index([deletedAt])
@@ -468,6 +469,7 @@ model SupplierOrder {
   orderItem           OrderItem?          @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
   vendor              Vendor?             @relation("SupplierOrderVendor", fields: [vendorId], references: [id], onDelete: SetNull)
   paymentVouchers     PaymentVoucher[]
+  mhhIssues           MHHIssue[]         @relation("MHHIssueSupplierOrder")
 
   @@index([orderId])
   @@index([orderItemId])
@@ -524,8 +526,13 @@ model MHHIssue {
 
   // Relations
   order               Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem           OrderItem?          @relation("MHHIssueOrderItem", fields: [orderItemId], references: [id], onDelete: SetNull)
+  package             Package?            @relation("MHHIssuePackage", fields: [packageId], references: [id], onDelete: SetNull)
+  supplierOrder       SupplierOrder?      @relation("MHHIssueSupplierOrder", fields: [supplierOrderId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  @@index([orderItemId])
+  @@index([packageId])
   @@index([supplierOrderId])
   @@index([issueType])
   @@index([status])

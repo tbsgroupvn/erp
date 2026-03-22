@@ -6,13 +6,13 @@ import { ApprovalType, UserRole } from '@prisma/client';
  * Steps are processed sequentially: step 1 must be approved before step 2, etc.
  */
 export const APPROVAL_STEPS: Record<ApprovalType, UserRole[]> = {
-  [ApprovalType.DISCOUNT]: [UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR],
+  [ApprovalType.DISCOUNT]: [UserRole.SALES_LEADER, UserRole.CHIEF_ACCOUNTANT, UserRole.SALES_DIRECTOR],
   [ApprovalType.PAYMENT_VOUCHER]: [UserRole.CHIEF_ACCOUNTANT, UserRole.COO],
   [ApprovalType.RECEIPT_VOUCHER]: [UserRole.CHIEF_ACCOUNTANT],
   [ApprovalType.ORDER_CANCEL]: [UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR],
   [ApprovalType.CREDIT_EXTENSION]: [UserRole.CHIEF_ACCOUNTANT, UserRole.COO, UserRole.CEO],
-  [ApprovalType.DEPOSIT_EXEMPTION]: [UserRole.SALES_DIRECTOR, UserRole.COO],
-  [ApprovalType.CONTAINER_PLAN]: [UserRole.XNK_MANAGER, UserRole.COO],
+  [ApprovalType.DEPOSIT_EXEMPTION]: [UserRole.SALES_LEADER, UserRole.COO],
+  [ApprovalType.CONTAINER_PLAN]: [UserRole.XNK_MANAGER],
   [ApprovalType.WAREHOUSE_RELEASE]: [UserRole.WAREHOUSE_VN_MANAGER, UserRole.CHIEF_ACCOUNTANT],
   [ApprovalType.LEAVE_REQUEST]: [],
   [ApprovalType.OVERTIME_REQUEST]: [],
@@ -22,8 +22,8 @@ export const APPROVAL_STEPS: Record<ApprovalType, UserRole[]> = {
   [ApprovalType.SALARY_ADJUSTMENT]: [UserRole.CHIEF_ACCOUNTANT, UserRole.COO],
   [ApprovalType.CUSTOMS_DECLARATION]: [UserRole.XNK_MANAGER, UserRole.CHIEF_ACCOUNTANT],
   [ApprovalType.CUSTOM]: [],
-  [ApprovalType.GRACE_PERIOD_REQUEST]: [UserRole.CFO, UserRole.CEO],
-  [ApprovalType.EXTRA_CHARGE_APPROVAL]: [UserRole.WAREHOUSE_VN_MANAGER, UserRole.CHIEF_ACCOUNTANT],
+  [ApprovalType.GRACE_PERIOD_REQUEST]: [UserRole.CHIEF_ACCOUNTANT, UserRole.COO],
+  [ApprovalType.EXTRA_CHARGE_APPROVAL]: [UserRole.CHIEF_ACCOUNTANT, UserRole.COO],
   [ApprovalType.CREDIT_OVERDRAFT]: [UserRole.CHIEF_ACCOUNTANT, UserRole.COO],
   [ApprovalType.PROCUREMENT_PAYMENT]: [
     UserRole.SALES_LEADER,

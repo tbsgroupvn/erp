@@ -326,7 +326,7 @@ export default function GiaoHangPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="text-red-600 border-red-300 hover:bg-red-50"
+                            className="min-h-[44px] text-red-600 border-red-300 hover:bg-red-50"
                             onClick={() => {
                               setFailingDeliveryId(delivery.id);
                               setConfirmingId(null);
@@ -384,6 +384,7 @@ export default function GiaoHangPage() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="min-h-[44px]"
                             onClick={() => {
                               setConfirmingId(delivery.id);
                               setCodCollectId(null);
@@ -407,9 +408,10 @@ export default function GiaoHangPage() {
                                   <Label className="text-xs">Số tiền *</Label>
                                   <Input
                                     type="number"
+                                    inputMode="decimal"
                                     {...codForm.register('amount')}
                                     defaultValue={delivery.codAmount}
-                                    className="h-8 text-sm"
+                                    className="h-10 text-sm"
                                   />
                                   {codForm.formState.errors.amount && (
                                     <p className="text-xs text-red-500 mt-0.5">
@@ -453,7 +455,7 @@ export default function GiaoHangPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                                className="min-h-[44px] text-amber-600 border-amber-300 hover:bg-amber-50"
                                 onClick={() => {
                                   setCodCollectId(delivery.id);
                                   setConfirmingId(null);
@@ -685,12 +687,14 @@ export default function GiaoHangPage() {
                   {readyPackages.map((pkg: Package) => (
                     <tr key={pkg.id} className="border-b hover:bg-muted/50">
                       <td className="py-2 pr-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedPackages.has(pkg.id)}
-                          onChange={() => togglePackage(pkg.id)}
-                          className="rounded"
-                        />
+                        <label className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedPackages.has(pkg.id)}
+                            onChange={() => togglePackage(pkg.id)}
+                            className="h-5 w-5 rounded"
+                          />
+                        </label>
                       </td>
                       <td className="py-2 pr-3 font-medium">{pkg.code}</td>
                       <td className="py-2 pr-3">{pkg.orderId}</td>

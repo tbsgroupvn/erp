@@ -151,7 +151,7 @@ export default function NhapExcelPage() {
       setIsProcessing(true);
       try {
         const buffer = await file.arrayBuffer();
-        const rows = parseExcelFile(buffer);
+        const rows = await parseExcelFile(buffer);
 
         if (rows.length === 0) {
           toast.error('File Excel không có dữ liệu');

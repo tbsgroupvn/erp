@@ -49,6 +49,8 @@ model CalendarEvent {
   @@index([organizerId])
   @@index([startAt, endAt])
   @@index([roomId])
+  @@index([organizerId, startAt], map: "idx_calendar_events_organizer_start")
+  @@index([visibility, startAt], map: "idx_calendar_events_visibility_start")
   @@map("calendar_events")
 }
 
@@ -73,6 +75,8 @@ model EventReminder {
   minutesBefore Int           @map("minutes_before")
   sent          Boolean       @default(false)
 
+  @@index([eventId])
+  @@index([sent], map: "idx_event_reminders_sent")
   @@map("event_reminders")
 }
 

@@ -15,6 +15,7 @@ import { ContainerCustomsListener } from './listeners/container-customs.listener
 import { ChannelDelayListener } from './listeners/channel-delay.listener';
 import { CustomsDocumentService } from './customs-document.service';
 import { CustomsServiceRateService } from './customs-service-rate.service';
+import { CustomsReminderService } from './customs-reminder.service';
 
 @Module({
   imports: [EventEmitterModule, NotificationModule],
@@ -33,6 +34,7 @@ import { CustomsServiceRateService } from './customs-service-rate.service';
     ChannelDelayListener,
     CustomsDocumentService,
     CustomsServiceRateService,
+    CustomsReminderService,
   ],
   exports: [
     CustomsDeclarationService,

@@ -319,20 +319,24 @@ export default function KhoVietNamPage() {
       {
         id: 'select',
         header: () => (
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-gray-300"
-            checked={packages.length > 0 && selectedIds.size === packages.length}
-            onChange={toggleSelectAll}
-          />
+          <label className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] cursor-pointer">
+            <input
+              type="checkbox"
+              className="h-5 w-5 rounded border-gray-300"
+              checked={packages.length > 0 && selectedIds.size === packages.length}
+              onChange={toggleSelectAll}
+            />
+          </label>
         ),
         cell: ({ row }) => (
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-gray-300"
-            checked={selectedIds.has(row.original.id)}
-            onChange={() => toggleSelectRow(row.original.id)}
-          />
+          <label className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] cursor-pointer">
+            <input
+              type="checkbox"
+              className="h-5 w-5 rounded border-gray-300"
+              checked={selectedIds.has(row.original.id)}
+              onChange={() => toggleSelectRow(row.original.id)}
+            />
+          </label>
         ),
         enableSorting: false,
       },
@@ -412,6 +416,7 @@ export default function KhoVietNamPage() {
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="min-h-[44px] min-w-[44px]"
                   onClick={() => handleRowSort(row.original.id)}
                   disabled={sortPackagesVN.isPending}
                 >
@@ -423,6 +428,7 @@ export default function KhoVietNamPage() {
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="min-h-[44px] min-w-[44px]"
                   onClick={() => handleRowReady(row.original.id)}
                   disabled={sortPackagesVN.isPending}
                 >
@@ -588,6 +594,7 @@ export default function KhoVietNamPage() {
             <Button
               size="sm"
               variant="outline"
+              className="min-h-[44px]"
               disabled={!allSelectedAreReceived || sortPackagesVN.isPending}
               onClick={handleBatchSort}
             >
@@ -600,6 +607,7 @@ export default function KhoVietNamPage() {
             <Button
               size="sm"
               variant="outline"
+              className="min-h-[44px]"
               disabled={!allSelectedAreSorted || sortPackagesVN.isPending}
               onClick={handleBatchReady}
             >

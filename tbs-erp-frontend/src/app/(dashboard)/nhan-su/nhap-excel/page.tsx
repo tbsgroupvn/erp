@@ -17,7 +17,6 @@ import {
   User,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
@@ -70,7 +69,8 @@ interface SubmitResult {
 // EXCEL PARSING
 // ============================================
 
-function parseExcelFile(buffer: ArrayBuffer): RawEmployeeRow[] {
+async function parseExcelFile(buffer: ArrayBuffer): Promise<RawEmployeeRow[]> {
+  const XLSX = await import('xlsx');
   const workbook = XLSX.read(buffer, { type: 'array' });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) return [];
@@ -201,7 +201,8 @@ function toCreateEmployeeDto(row: RawEmployeeRow): CreateEmployeeDto {
 // TEMPLATE DOWNLOAD
 // ============================================
 
-function downloadTemplate() {
+async function downloadTemplate() {
+  const XLSX = await import('xlsx');
   const headers = [
     'hoTen',
     'email',
@@ -335,7 +336,7 @@ export default function NhapExcelNhanSuPage() {
     setIsProcessing(true);
     try {
       const buffer = await file.arrayBuffer();
-      const rows = parseExcelFile(buffer);
+      const rows = await parseExcelFile(buffer);
 
       if (rows.length === 0) {
         toast.error('File Excel không có dữ liệu');

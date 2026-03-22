@@ -21,6 +21,8 @@ import {
   ApiParam,
   ApiConsumes,
 } from '@nestjs/swagger';
+import { FileValidationPipe } from '@common/pipes/file-validation.pipe';
+import { FILE_UPLOAD_LIMITS } from '@common/constants/file-upload.constants';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
@@ -45,7 +47,7 @@ export class CarrierReconciliationController {
   @Post('upload')
   @HttpCode(HttpStatus.CREATED)
   @Roles(UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.CFO)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: FILE_UPLOAD_LIMITS.CARRIER_RECON.maxSizeBytes } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Upload file doi soat hang van chuyen',
@@ -56,7 +58,8 @@ export class CarrierReconciliationController {
   @ApiResponse({ status: 201, description: 'Upload va match thanh cong' })
   @ApiResponse({ status: 400, description: 'File khong hop le hoac khong co du lieu' })
   async upload(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(new FileValidationPipe(FILE_UPLOAD_LIMITS.CARRIER_RECON))
+    file: Express.Multer.File,
     @Body() dto: UploadCarrierReconDto,
     @CurrentUser() user: ICurrentUser,
   ) {

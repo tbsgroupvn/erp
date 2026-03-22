@@ -169,11 +169,24 @@ metadata:
     app.kubernetes.io/part-of: tbs-erp-system
 type: Opaque
 stringData:
-  # Slack Bot Token (replace with actual token via sealed-secrets)
-  slack-token: "xoxb-PLACEHOLDER-REPLACE-ME"
-  slack-signing-secret: "PLACEHOLDER-REPLACE-ME"
+  # ------------------------------------------------------------
+  # ACTION REQUIRED: Replace all REPLACE-ME values below before
+  # deploying. Never commit real credentials to version control.
+  # Use kubeseal or External Secrets Operator to inject these.
+  # ------------------------------------------------------------
+
+  # Slack Bot Token: OAuth token from https://api.slack.com/apps
+  # Format: xoxb-<numbers>-<numbers>-<alphanumeric>
+  # MUST be replaced via sealed-secrets before applying to cluster.
+  slack-token: "REPLACE-BEFORE-DEPLOY" # nosec: placeholder — inject via kubeseal or External Secrets
+
+  # Slack Signing Secret: found in App Credentials on api.slack.com/apps
+  # MUST be replaced via sealed-secrets before applying to cluster.
+  slack-signing-secret: "REPLACE-BEFORE-DEPLOY" # nosec: placeholder — inject via kubeseal or External Secrets
+
   # Email SMTP credentials
   email-smtp-host: "smtp.gmail.com"
   email-from-address: "devops@tbslogistics.com"
   email-username: "devops@tbslogistics.com"
-  email-password: "PLACEHOLDER-REPLACE-ME"
+  # SMTP credential — MUST be replaced before deploy via kubeseal or External Secrets.
+  email-password: "REPLACE-BEFORE-DEPLOY" # nosec: placeholder — inject via kubeseal or External Secrets

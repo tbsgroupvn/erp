@@ -42,6 +42,24 @@ export interface Package {
   note: string | null;
   createdAt: string;
   updatedAt: string;
+
+  // ZERO TRUST — separate CN/VN weights (REAL vs DECLARED principle)
+  cnWeight?: number;
+  vnWeight?: number;
+  weightVariancePercent?: number;
+
+  // Weight confirmation audit
+  weightConfirmedBy?: string;
+
+  // High-risk tracking
+  independentStatus?: 'NORMAL' | 'CONFISCATED' | 'HIGH_RISK_HOLD';
+  isHighRisk?: boolean;
+  highRiskDisclaimerAccepted?: boolean;
+  highRiskAcceptedAt?: string;
+  highRiskAcceptedBy?: string;
+
+  // Storage location
+  storageLocationId?: string;
 }
 
 /** DTO for receiving a package at warehouse CN */

@@ -54,6 +54,8 @@ model Objective {
   @@index([ownerId])
   @@index([period, year])
   @@index([level])
+  @@index([level, period, year], map: "idx_objectives_level_period_year")
+  @@index([ownerId, status], map: "idx_objectives_owner_status")
   @@map("objectives")
 }
 

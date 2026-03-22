@@ -10,6 +10,7 @@ import { TransformInterceptor } from '@common/interceptors/transform.interceptor
 import { AppModule } from '@/app.module';
 import { Branch, UserRole } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
+import { TEST_PASSWORD } from './setup';
 
 // ESM-only packages are handled by __mocks__/ manual mocks at project root
 
@@ -29,8 +30,7 @@ describe('Auth + RBAC System (e2e)', () => {
   let prisma: PrismaService;
   let jwtService: JwtService;
 
-  // Test users created during setup
-  const TEST_PASSWORD = 'Test@2024!';
+  // Test users created during setup — TEST_PASSWORD imported from ./setup
   let passwordHash: string;
 
   // User records
@@ -198,7 +198,7 @@ describe('Auth + RBAC System (e2e)', () => {
     it('1.2 Login thất bại - sai mật khẩu', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
-        .send({ email: testUsers.ceo.email, password: 'WrongPass123!' })
+        .send({ email: testUsers.ceo.email, password: 'WrongPass123!' }) // nosec: intentionally wrong password to test rejection
         .expect(401);
 
       expect(res.body.success).toBe(false);
@@ -207,7 +207,7 @@ describe('Auth + RBAC System (e2e)', () => {
     it('1.3 Login thất bại - email không tồn tại', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
-        .send({ email: 'nonexistent@e2e.local', password: 'SomePass@123' })
+        .send({ email: 'nonexistent@e2e.local', password: 'SomePass@123' }) // nosec: intentionally wrong password to test rejection
         .expect(401);
 
       expect(res.body.success).toBe(false);
@@ -817,7 +817,7 @@ describe('Auth + RBAC System (e2e)', () => {
 
   describe('6. Password Change', () => {
     it('6.1 Đổi mật khẩu thành công', async () => {
-      const newPass = 'NewPass@2024!';
+      const newPass = 'NewPass@2024!'; // nosec: test fixture new-password value
       const res = await request(app.getHttpServer())
         .patch('/api/v1/auth/change-password')
         .set(authHeader('sale2'))
@@ -852,8 +852,8 @@ describe('Auth + RBAC System (e2e)', () => {
         .patch('/api/v1/auth/change-password')
         .set(authHeader('sale1'))
         .send({
-          currentPassword: 'WrongCurrent123!',
-          newPassword: 'NewPass@2024!',
+          currentPassword: 'WrongCurrent123!', // nosec: intentionally wrong password to test rejection
+          newPassword: 'NewPass@2024!', // nosec: test fixture new-password value
         })
         .expect(400);
 
@@ -865,7 +865,7 @@ describe('Auth + RBAC System (e2e)', () => {
         .patch('/api/v1/auth/change-password')
         .send({
           currentPassword: TEST_PASSWORD,
-          newPassword: 'NewPass@2024!',
+          newPassword: 'NewPass@2024!', // nosec: test fixture new-password value
         })
         .expect(401);
     });

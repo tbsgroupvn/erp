@@ -48,7 +48,7 @@ export class ContractEventsListener {
           userId: executive.id,
           title: 'Hop dong moi',
           body: `Hop dong ${event.code} (${event.type}) cho khach hang "${customerLabel}" da duoc tao.`,
-          type: 'CONTRACT',
+          type: 'ORDER',
           referenceId: event.contractId,
         });
       }
@@ -82,7 +82,7 @@ export class ContractEventsListener {
           userId: contract.createdBy,
           title: 'Trang thai hop dong thay doi',
           body: `Hop dong ${event.code} da chuyen trang thai tu ${event.fromStatus} sang ${event.toStatus}.`,
-          type: 'CONTRACT',
+          type: 'ORDER',
           referenceId: event.contractId,
           isUrgent: event.toStatus === 'CANCELLED' || event.toStatus === 'SUSPENDED',
         });
@@ -120,7 +120,7 @@ export class ContractEventsListener {
           userId: quotation.createdBy,
           title: 'Phu luc hop dong tu dong tao',
           body: `Phu luc hop dong ${event.contractCode} da duoc tu dong tao tu bao gia ${event.quotationCode}.`,
-          type: 'CONTRACT',
+          type: 'ORDER',
           referenceId: event.contractId,
         });
       }

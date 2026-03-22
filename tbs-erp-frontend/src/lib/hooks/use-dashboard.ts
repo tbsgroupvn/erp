@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import {
   dashboardApi,
   type DashboardQueryParams,
@@ -14,6 +14,13 @@ import type {
   DrillDownQueryParams,
   MetricHistoryQueryParams,
 } from '@/lib/types';
+
+// ---------------------------------------------------------------------------
+// Stale time constants for dashboard queries
+// ---------------------------------------------------------------------------
+const DASHBOARD_STALE_TIME = 2 * 60 * 1000; // 2 minutes — dashboard stats
+const DASHBOARD_REFETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes — auto-refresh
+const ANALYTICS_STALE_TIME = 5 * 60 * 1000; // 5 minutes — analytics/reports
 
 // ---------------------------------------------------------------------------
 // Query key factory
@@ -55,7 +62,8 @@ export function useDashboardOverview(params?: DashboardQueryParams) {
   return useQuery({
     queryKey: dashboardKeys.overview(params),
     queryFn: () => dashboardApi.getOverview(params),
-    refetchInterval: 60_000,
+    staleTime: DASHBOARD_STALE_TIME,
+    refetchInterval: DASHBOARD_REFETCH_INTERVAL,
   });
 }
 
@@ -63,7 +71,8 @@ export function useOrderStats(params?: DashboardQueryParams) {
   return useQuery({
     queryKey: dashboardKeys.orderStats(params),
     queryFn: () => dashboardApi.getOrderStats(params),
-    refetchInterval: 60_000,
+    staleTime: DASHBOARD_STALE_TIME,
+    refetchInterval: DASHBOARD_REFETCH_INTERVAL,
   });
 }
 
@@ -71,7 +80,8 @@ export function useFinanceStats(params?: DashboardQueryParams) {
   return useQuery({
     queryKey: dashboardKeys.financeStats(params),
     queryFn: () => dashboardApi.getFinanceStats(params),
-    refetchInterval: 60_000,
+    staleTime: DASHBOARD_STALE_TIME,
+    refetchInterval: DASHBOARD_REFETCH_INTERVAL,
   });
 }
 
@@ -79,7 +89,8 @@ export function useWarehouseStats(params?: DashboardQueryParams) {
   return useQuery({
     queryKey: dashboardKeys.warehouseStats(params),
     queryFn: () => dashboardApi.getWarehouseStats(params),
-    refetchInterval: 60_000,
+    staleTime: DASHBOARD_STALE_TIME,
+    refetchInterval: DASHBOARD_REFETCH_INTERVAL,
   });
 }
 
@@ -87,6 +98,7 @@ export function useHRStats(params?: DashboardQueryParams) {
   return useQuery({
     queryKey: dashboardKeys.hrStats(params),
     queryFn: () => dashboardApi.getHRStats(params),
+    staleTime: ANALYTICS_STALE_TIME,
   });
 }
 
@@ -94,7 +106,8 @@ export function useSalesPipeline(params?: SalesPipelineQueryParams) {
   return useQuery({
     queryKey: dashboardKeys.salesPipeline(params),
     queryFn: () => dashboardApi.getSalesPipeline(params),
-    refetchInterval: 60_000,
+    staleTime: DASHBOARD_STALE_TIME,
+    refetchInterval: DASHBOARD_REFETCH_INTERVAL,
   });
 }
 
@@ -102,6 +115,7 @@ export function useAnalytics(params?: AnalyticsQueryParams) {
   return useQuery({
     queryKey: dashboardKeys.analytics(params),
     queryFn: () => dashboardApi.getAnalytics(params),
+    staleTime: ANALYTICS_STALE_TIME,
   });
 }
 
@@ -109,7 +123,8 @@ export function useSlaTracking() {
   return useQuery({
     queryKey: dashboardKeys.slaTracking(),
     queryFn: () => dashboardApi.getSlaTracking(),
-    refetchInterval: 60_000,
+    staleTime: DASHBOARD_STALE_TIME,
+    refetchInterval: DASHBOARD_REFETCH_INTERVAL,
   });
 }
 
@@ -117,6 +132,7 @@ export function useOrderPnl(params?: OrderPnLQueryParams) {
   return useQuery({
     queryKey: dashboardKeys.orderPnl(params),
     queryFn: () => dashboardApi.getOrderPnl(params),
+    staleTime: ANALYTICS_STALE_TIME,
   });
 }
 
@@ -124,6 +140,7 @@ export function useMarginByRoute(params?: MarginByRouteQueryParams) {
   return useQuery({
     queryKey: dashboardKeys.marginByRoute(params),
     queryFn: () => dashboardApi.getMarginByRoute(params),
+    staleTime: ANALYTICS_STALE_TIME,
   });
 }
 
@@ -131,6 +148,7 @@ export function useCashFlowForecast(params?: CashFlowForecastQueryParams) {
   return useQuery({
     queryKey: dashboardKeys.cashFlowForecast(params),
     queryFn: () => dashboardApi.getCashFlowForecast(params),
+    staleTime: ANALYTICS_STALE_TIME,
   });
 }
 
@@ -139,6 +157,8 @@ export function useDrillDown(metric: string, page: number = 1, limit: number = 2
     queryKey: dashboardKeys.drillDown({ metric, page, limit }),
     queryFn: () => dashboardApi.getDrillDown({ metric, page, limit }),
     enabled: !!metric,
+    staleTime: DASHBOARD_STALE_TIME,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -147,5 +167,6 @@ export function useMetricHistory(metric: string, days: number, branch?: string) 
     queryKey: dashboardKeys.metricHistory({ metric, days, branch }),
     queryFn: () => dashboardApi.getMetricHistory({ metric, days, branch }),
     enabled: !!metric,
+    staleTime: ANALYTICS_STALE_TIME,
   });
 }

@@ -43,6 +43,8 @@ model Employee {
   @@index([status])
   @@index([email])
   @@index([managerId])
+  @@index([departmentCode, status], map: "idx_employees_dept_status")
+  @@index([branch, status], map: "idx_employees_branch_status")
   @@map("employees")
 }
 
@@ -119,13 +121,15 @@ model OvertimeRequest {
 
   @@index([employeeId])
   @@index([date])
+  @@index([employeeId, date], map: "idx_overtime_requests_employee_date")
+  @@index([employeeId, status], map: "idx_overtime_requests_employee_status")
   @@map("overtime_requests")
 }
 
 model PayrollRecord {
   id           String   @id @default(cuid())
   employeeId   String
-  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   month        Int
   year         Int
   baseSalary         Decimal  @db.Decimal(18, 2)

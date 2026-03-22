@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '@core/database/prisma.service';
 import { NotificationChannel, NotificationType } from '@prisma/client';
@@ -20,7 +20,10 @@ export interface SendNotificationDto {
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   /**
    * Route notification to appropriate channel(s) and persist in DB.
@@ -553,6 +556,22 @@ export class NotificationService {
         type: 'APPROVAL',
         referenceId: event.approvalId,
         isUrgent: event.status === 'REJECTED',
+      });
+
+      // Emit real-time WebSocket event so the frontend can invalidate the
+      // approvals query cache immediately, without waiting for the next poll.
+      const wsEvent =
+        event.status === 'APPROVED' ? 'approval_approved' : 'approval_rejected';
+      this.eventEmitter.emit('ws.emit.user', {
+        userId: approval.requestedBy,
+        event: wsEvent,
+        data: {
+          approvalId: event.approvalId,
+          type: event.type,
+          referenceId: event.referenceId,
+          referenceCode: approval.referenceCode,
+          status: event.status,
+        },
       });
     }
   }

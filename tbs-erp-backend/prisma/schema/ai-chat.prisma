@@ -24,5 +24,6 @@ model AIMessage {
   createdAt DateTime      @default(now()) @map("created_at")
 
   @@index([sessionId])
+  @@index([sessionId, createdAt], map: "idx_ai_messages_session_created")
   @@map("ai_messages")
 }

@@ -113,7 +113,7 @@ export function DataTable({
               aria-label={`Trang trước (hiện tại: trang ${page})`}
               aria-disabled={page <= 1}
               className={cn(
-                'inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition-all duration-200',
+                'inline-flex h-10 w-10 items-center justify-center rounded-lg border text-sm transition-all duration-200',
                 page <= 1
                   ? 'opacity-50 cursor-not-allowed'
                   : 'hover:bg-primary hover:text-primary-foreground hover:border-primary cursor-pointer',
@@ -127,7 +127,7 @@ export function DataTable({
               aria-label={`Trang sau (hiện tại: trang ${page} / ${pageCount})`}
               aria-disabled={page >= pageCount}
               className={cn(
-                'inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition-all duration-200',
+                'inline-flex h-10 w-10 items-center justify-center rounded-lg border text-sm transition-all duration-200',
                 page >= pageCount
                   ? 'opacity-50 cursor-not-allowed'
                   : 'hover:bg-primary hover:text-primary-foreground hover:border-primary cursor-pointer',

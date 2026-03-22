@@ -9,7 +9,9 @@ server.port: 5601
 # Elasticsearch connection
 elasticsearch.hosts: ["http://elasticsearch:9200"]
 elasticsearch.username: "kibana_system"
-elasticsearch.password: "${ELASTICSEARCH_PASSWORD}"
+# SECURITY: Password injected at runtime via ELASTICSEARCH_PASSWORD env var (set in docker-compose).
+# Do not provide a static default here — Kibana does not expand shell-style variable syntax in kibana.yml.
+elasticsearch.password: "${ELASTICSEARCH_PASSWORD}" # nosec: value injected at runtime via env var, no hardcoded default
 
 # Default index pattern
 # kibana.defaultAppId: "discover"

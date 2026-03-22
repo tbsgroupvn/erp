@@ -236,16 +236,16 @@ export function AppSidebar() {
               {/* Logo mark */}
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm">
                 <span className="font-heading text-[11px] font-bold tracking-wide text-sidebar-primary-foreground">
-                  {(process.env.NEXT_PUBLIC_APP_TITLE || 'ERP')[0]}
+                  {(process.env.NEXT_PUBLIC_APP_TITLE || 'TBS')[0]}
                 </span>
               </div>
               {/* Brand text */}
               <div className="leading-none">
                 <p className="font-heading text-[15px] font-semibold tracking-tight text-sidebar-foreground">
-                  {process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System'}
+                  {process.env.NEXT_PUBLIC_APP_TITLE || 'TBS ERP'}
                 </p>
                 <p className="text-[10px] font-medium tracking-[0.08em] text-sidebar-foreground/40 uppercase mt-0.5">
-                  Enterprise
+                  Enterprise Resource Planning
                 </p>
               </div>
             </Link>
@@ -255,11 +255,11 @@ export function AppSidebar() {
           {isCollapsed && (
             <Link
               href="/tong-quan"
-              title={process.env.NEXT_PUBLIC_APP_TITLE || 'ERP System'}
+              title={process.env.NEXT_PUBLIC_APP_TITLE || 'TBS ERP'}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm transition-opacity duration-200 hover:opacity-80"
             >
               <span className="font-heading text-[11px] font-bold tracking-wide text-sidebar-primary-foreground">
-                {(process.env.NEXT_PUBLIC_APP_TITLE || 'ERP')[0]}
+                {(process.env.NEXT_PUBLIC_APP_TITLE || 'TBS')[0]}
               </span>
             </Link>
           )}

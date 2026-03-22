@@ -42,6 +42,7 @@ import { UpdateMHHIssueStatusDto } from './dto/update-mhh-issue-status.dto';
 import { AssignMHHIssueDto } from './dto/assign-mhh-issue.dto';
 import { RecordCustomerDecisionDto } from './dto/record-customer-decision.dto';
 import { CreateReturnRequestDto } from './dto/create-return-request.dto';
+import { ReopenOrderDto } from './dto/reopen-order.dto';
 import { CreditCheckGuard } from './guards/credit-check.guard';
 import { ComplianceCheckerService } from '@modules/customs-declaration/domain/compliance-checker.service';
 
@@ -187,6 +188,40 @@ export class OrderController {
     return BaseResponse.ok(view);
   }
 
+  @Get(':id/essential')
+  @ApiOperation({
+    summary: 'Get order essential data (Tier-1)',
+    description:
+      'Returns immediately-needed order data for page render: order header, items, ' +
+      'customer summary, last 10 status history entries, contract reference, and sale user. ' +
+      'Faster than the full 360 view because heavy relations (packages, payments, audit log) ' +
+      'are excluded. Use GET /:id/extended for the deferred tier-2 data.',
+  })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 200, description: 'Order essential data retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async getOrderEssential(@Param('id') id: string) {
+    const data = await this.orderReadService.findByIdEssential(id);
+    return BaseResponse.ok(data);
+  }
+
+  @Get(':id/extended')
+  @ApiOperation({
+    summary: 'Get order extended data (Tier-2)',
+    description:
+      'Returns deferred order data loaded on-demand: packages with QC inspections, ' +
+      'supplier orders, container, deliveries, complaints, commissions, cost allocations, ' +
+      'payment allocations, procurement vouchers, and audit log. ' +
+      'Call after GET /:id/essential once the page has rendered.',
+  })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 200, description: 'Order extended data retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async getOrderExtended(@Param('id') id: string) {
+    const data = await this.orderReadService.findByIdExtended(id);
+    return BaseResponse.ok(data);
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'Get order detail',
@@ -285,6 +320,7 @@ export class OrderController {
 
   @Post(':id/mhh-issues')
   @HttpCode(HttpStatus.CREATED)
+  @Roles(UserRole.SALE, UserRole.CSKH, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CEO, UserRole.COO, UserRole.WAREHOUSE_CN_AGENT)
   @ApiOperation({
     summary: 'Create MHH issue',
     description:
@@ -302,6 +338,7 @@ export class OrderController {
   }
 
   @Get(':id/mhh-issues')
+  @Roles(UserRole.SALE, UserRole.CSKH, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CEO, UserRole.COO, UserRole.WAREHOUSE_CN_AGENT, UserRole.WAREHOUSE_VN_MANAGER)
   @ApiOperation({
     summary: 'List MHH issues for an order',
     description: 'Returns all MHH issues associated with this order.',
@@ -314,6 +351,7 @@ export class OrderController {
   }
 
   @Get('mhh-issues/:issueId')
+  @Roles(UserRole.SALE, UserRole.CSKH, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CEO, UserRole.COO, UserRole.WAREHOUSE_CN_AGENT, UserRole.WAREHOUSE_VN_MANAGER)
   @ApiOperation({
     summary: 'Get MHH issue detail',
     description: 'Returns full details of a single MHH issue by ID.',
@@ -327,6 +365,7 @@ export class OrderController {
   }
 
   @Patch('mhh-issues/:issueId/status')
+  @Roles(UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.CEO, UserRole.COO)
   @ApiOperation({
     summary: 'Update MHH issue status',
     description:
@@ -347,6 +386,7 @@ export class OrderController {
 
   @Post('mhh-issues/:issueId/resolve')
   @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.CSKH, UserRole.SALES_DIRECTOR, UserRole.CEO, UserRole.COO)
   @ApiOperation({
     summary: 'Resolve MHH issue',
     description: 'Resolves an MHH issue with a resolution type and optional compensation.',
@@ -372,6 +412,7 @@ export class OrderController {
   }
 
   @Patch('mhh-issues/:issueId/assign')
+  @Roles(UserRole.SALES_DIRECTOR, UserRole.CEO, UserRole.COO)
   @ApiOperation({
     summary: 'Assign handler to MHH issue',
     description: 'Assigns a user as the handler for an MHH issue. Cannot assign to closed issues.',
@@ -391,6 +432,7 @@ export class OrderController {
 
   @Post('mhh-issues/:issueId/customer-decision')
   @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SALE, UserRole.CSKH, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR)
   @ApiOperation({
     summary: 'Record customer decision on MHH issue',
     description:
@@ -469,6 +511,7 @@ export class OrderController {
   }
 
   @Get(':id/extra-charges')
+  @Roles(UserRole.SALE, UserRole.SALES_LEADER, UserRole.SALES_DIRECTOR, UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT, UserRole.CFO, UserRole.CEO, UserRole.COO)
   @ApiOperation({
     summary: 'List extra charges for order',
     description: 'Returns all extra charges (phu phi phat sinh) for an order.',
@@ -529,5 +572,29 @@ export class OrderController {
   async getReturnRequests(@Param('id') id: string) {
     const requests = await this.returnRequestService.findByOrderId(id);
     return BaseResponse.ok(requests);
+  }
+
+  // ─── P0-2: Reopen COMPLETED Order (BGĐ only) ───
+
+  @Post(':id/reopen')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.CEO, UserRole.COO, UserRole.SALES_DIRECTOR)
+  @ApiOperation({
+    summary: 'Reopen a completed order',
+    description:
+      'Reverts a COMPLETED order back to SETTLEMENT for financial reconciliation. ' +
+      'Only available to BGĐ (CEO, COO, SALES_DIRECTOR).',
+  })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 200, description: 'Order reopened successfully' })
+  @ApiResponse({ status: 400, description: 'Order is not in COMPLETED status' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async reopenOrder(
+    @Param('id') id: string,
+    @Body() dto: ReopenOrderDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    const result = await this.orderService.reopenOrder(id, user, dto.reason);
+    return BaseResponse.ok(result, 'Đã mở lại đơn hàng');
   }
 }

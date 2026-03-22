@@ -23,5 +23,8 @@ model TrackingEvent {
   @@index([containerId])
   @@index([trackingNumber])
   @@index([eventTimestamp])
+  @@index([packageId, eventTimestamp], map: "idx_tracking_events_package_time")
+  @@index([containerId, eventTimestamp], map: "idx_tracking_events_container_time")
+  @@index([trackingNumber, eventTimestamp], map: "idx_tracking_events_tracking_time")
   @@map("tracking_events")
 }

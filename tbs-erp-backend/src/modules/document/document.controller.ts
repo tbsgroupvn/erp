@@ -15,8 +15,10 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@ne
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
+import { DataScopeGuard, DataScopeFilter } from '@common/guards/data-scope.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
+import { DataScope } from '@common/decorators/data-scope.decorator';
 import { ICurrentUser } from '@common/interfaces/current-user.interface';
 import { BaseResponse, PaginatedResponse } from '@common/dto/base-response.dto';
 import { DocumentService } from './document.service';
@@ -26,7 +28,7 @@ import { AddVersionDto } from './dto/add-version.dto';
 
 @ApiTags('Documents')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, DataScopeGuard)
 @Controller('documents')
 export class DocumentController {
   constructor(private readonly documentService: DocumentService) { }
@@ -34,6 +36,17 @@ export class DocumentController {
   @Post()
   @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 uploads per minute
   @HttpCode(HttpStatus.CREATED)
+  @Roles(
+    UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.DIRECTOR_OPERATIONS,
+    UserRole.SALES_DIRECTOR, UserRole.SALES_LEADER, UserRole.SALE,
+    UserRole.MARKETING_STAFF, UserRole.CSKH,
+    UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.ACCOUNTANT_COST,
+    UserRole.HR_MANAGER,
+    UserRole.LOGISTICS_MANAGER, UserRole.XNK_MANAGER, UserRole.XNK_STAFF,
+    UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_CN_AGENT,
+    UserRole.WAREHOUSE_VN_MANAGER, UserRole.WAREHOUSE_VN_STAFF,
+    UserRole.DRIVER,
+  )
   @ApiOperation({ summary: 'Upload a document' })
   @ApiResponse({ status: 201, description: 'Document uploaded successfully' })
   async upload(@Body() dto: UploadDocumentDto, @CurrentUser() user: ICurrentUser) {
@@ -42,14 +55,39 @@ export class DocumentController {
   }
 
   @Get()
+  @Roles(
+    UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.DIRECTOR_OPERATIONS,
+    UserRole.SALES_DIRECTOR, UserRole.SALES_LEADER, UserRole.SALE,
+    UserRole.MARKETING_STAFF, UserRole.CSKH,
+    UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.ACCOUNTANT_COST,
+    UserRole.HR_MANAGER,
+    UserRole.LOGISTICS_MANAGER, UserRole.XNK_MANAGER, UserRole.XNK_STAFF,
+    UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_CN_AGENT,
+    UserRole.WAREHOUSE_VN_MANAGER, UserRole.WAREHOUSE_VN_STAFF,
+    UserRole.DRIVER,
+  )
   @ApiOperation({ summary: 'List documents with filters' })
   @ApiResponse({ status: 200, description: 'Documents retrieved successfully' })
-  async findAll(@Query() query: DocumentQueryDto) {
-    const result = await this.documentService.findAll(query);
+  async findAll(
+    @Query() query: DocumentQueryDto,
+    @DataScope() dataScope: DataScopeFilter | undefined,
+  ) {
+    const result = await this.documentService.findAll(query, dataScope);
     return PaginatedResponse.paginate(result.data, result.total, result.page, result.limit);
   }
 
   @Get('order/:orderId/hub')
+  @Roles(
+    UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.DIRECTOR_OPERATIONS,
+    UserRole.SALES_DIRECTOR, UserRole.SALES_LEADER, UserRole.SALE,
+    UserRole.MARKETING_STAFF, UserRole.CSKH,
+    UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.ACCOUNTANT_COST,
+    UserRole.HR_MANAGER,
+    UserRole.LOGISTICS_MANAGER, UserRole.XNK_MANAGER, UserRole.XNK_STAFF,
+    UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_CN_AGENT,
+    UserRole.WAREHOUSE_VN_MANAGER, UserRole.WAREHOUSE_VN_STAFF,
+    UserRole.DRIVER,
+  )
   @ApiOperation({
     summary: 'Get order document hub',
     description:
@@ -64,6 +102,17 @@ export class DocumentController {
   }
 
   @Get('entity/:entityType/:entityId')
+  @Roles(
+    UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.DIRECTOR_OPERATIONS,
+    UserRole.SALES_DIRECTOR, UserRole.SALES_LEADER, UserRole.SALE,
+    UserRole.MARKETING_STAFF, UserRole.CSKH,
+    UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.ACCOUNTANT_COST,
+    UserRole.HR_MANAGER,
+    UserRole.LOGISTICS_MANAGER, UserRole.XNK_MANAGER, UserRole.XNK_STAFF,
+    UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_CN_AGENT,
+    UserRole.WAREHOUSE_VN_MANAGER, UserRole.WAREHOUSE_VN_STAFF,
+    UserRole.DRIVER,
+  )
   @ApiOperation({ summary: 'Get documents by entity' })
   @ApiParam({ name: 'entityType', description: 'Entity type (ORDER, CUSTOMER, etc.)' })
   @ApiParam({ name: 'entityId', description: 'Entity ID' })
@@ -73,6 +122,17 @@ export class DocumentController {
   }
 
   @Get(':id')
+  @Roles(
+    UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.DIRECTOR_OPERATIONS,
+    UserRole.SALES_DIRECTOR, UserRole.SALES_LEADER, UserRole.SALE,
+    UserRole.MARKETING_STAFF, UserRole.CSKH,
+    UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.ACCOUNTANT_COST,
+    UserRole.HR_MANAGER,
+    UserRole.LOGISTICS_MANAGER, UserRole.XNK_MANAGER, UserRole.XNK_STAFF,
+    UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_CN_AGENT,
+    UserRole.WAREHOUSE_VN_MANAGER, UserRole.WAREHOUSE_VN_STAFF,
+    UserRole.DRIVER,
+  )
   @ApiOperation({ summary: 'Get document detail' })
   @ApiParam({ name: 'id', description: 'Document ID' })
   async findById(@Param('id') id: string) {
@@ -81,6 +141,17 @@ export class DocumentController {
   }
 
   @Get(':id/download')
+  @Roles(
+    UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.DIRECTOR_OPERATIONS,
+    UserRole.SALES_DIRECTOR, UserRole.SALES_LEADER, UserRole.SALE,
+    UserRole.MARKETING_STAFF, UserRole.CSKH,
+    UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.ACCOUNTANT_COST,
+    UserRole.HR_MANAGER,
+    UserRole.LOGISTICS_MANAGER, UserRole.XNK_MANAGER, UserRole.XNK_STAFF,
+    UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_CN_AGENT,
+    UserRole.WAREHOUSE_VN_MANAGER, UserRole.WAREHOUSE_VN_STAFF,
+    UserRole.DRIVER,
+  )
   @ApiOperation({ summary: 'Get download URL for a document' })
   @ApiParam({ name: 'id', description: 'Document ID' })
   async getDownloadUrl(@Param('id') id: string) {
@@ -89,18 +160,42 @@ export class DocumentController {
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.CEO, UserRole.COO, UserRole.DIRECTOR_OPERATIONS, UserRole.WAREHOUSE_MANAGER)
+  @Roles(
+    UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.DIRECTOR_OPERATIONS,
+    UserRole.WAREHOUSE_MANAGER,
+    // All other roles may also delete — the service enforces ownership check
+    // so non-management roles can only delete documents they themselves uploaded.
+    UserRole.SALES_DIRECTOR, UserRole.SALES_LEADER, UserRole.SALE,
+    UserRole.MARKETING_STAFF, UserRole.CSKH,
+    UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.ACCOUNTANT_COST,
+    UserRole.HR_MANAGER,
+    UserRole.LOGISTICS_MANAGER, UserRole.XNK_MANAGER, UserRole.XNK_STAFF,
+    UserRole.WAREHOUSE_CN_AGENT, UserRole.WAREHOUSE_VN_MANAGER, UserRole.WAREHOUSE_VN_STAFF,
+    UserRole.DRIVER,
+  )
   @ApiOperation({ summary: 'Soft delete a document' })
+  @ApiResponse({ status: 200, description: 'Document deleted' })
+  @ApiResponse({ status: 403, description: 'Only the document owner or management may delete' })
   @ApiParam({ name: 'id', description: 'Document ID' })
   async delete(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
-    const result = await this.documentService.delete(id, user.id);
+    const result = await this.documentService.delete(id, user.id, user.role);
     return BaseResponse.ok(result, 'Document deleted');
   }
 
   @Post(':id/version')
   @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 uploads per minute
   @HttpCode(HttpStatus.OK)
+  @Roles(
+    UserRole.CEO, UserRole.COO, UserRole.CFO, UserRole.DIRECTOR_OPERATIONS,
+    UserRole.SALES_DIRECTOR, UserRole.SALES_LEADER, UserRole.SALE,
+    UserRole.MARKETING_STAFF, UserRole.CSKH,
+    UserRole.CHIEF_ACCOUNTANT, UserRole.ACCOUNTANT, UserRole.ACCOUNTANT_AR, UserRole.ACCOUNTANT_COST,
+    UserRole.HR_MANAGER,
+    UserRole.LOGISTICS_MANAGER, UserRole.XNK_MANAGER, UserRole.XNK_STAFF,
+    UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_CN_AGENT,
+    UserRole.WAREHOUSE_VN_MANAGER, UserRole.WAREHOUSE_VN_STAFF,
+    UserRole.DRIVER,
+  )
   @ApiOperation({ summary: 'Upload a new version of a document' })
   @ApiParam({ name: 'id', description: 'Document ID' })
   async addVersion(

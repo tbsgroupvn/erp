@@ -48,6 +48,10 @@ export interface Order {
   // Contract link
   contractId: string | null;
 
+  baseExchangeRate?: number;
+  exchangeRateMode?: string;
+  fulfillmentStatus?: 'FULL' | 'PARTIAL' | 'NONE';
+
   note: string | null;
   cancelReason: string | null;
   completedAt: string | null;
@@ -109,6 +113,7 @@ export interface OrderItem {
   totalCostVND: number | null;
 
   note: string | null;
+  fulfilledQuantity?: number;
   createdAt: string;
 }
 

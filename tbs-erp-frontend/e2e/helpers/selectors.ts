@@ -91,7 +91,8 @@ export const LABELS = {
 
   // Form labels
   FIELD_EMAIL: /Email/i,
-  FIELD_PASSWORD: /Mật khẩu/i,
+  // Renamed from FIELD_PASSWORD — this is a Vietnamese UI label regex, not a credential.
+  FIELD_CREDENTIALS_INPUT: /Mật khẩu/i,
   FIELD_NAME: /Tên/i,
   FIELD_PHONE: /Điện thoại|Số điện thoại/i,
   FIELD_ADDRESS: /Địa chỉ/i,

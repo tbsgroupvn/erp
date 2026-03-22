@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
+import { TEST_ADMIN_PASSWORD } from '../setup';
 
 /**
  * Integration tests for the complete Order lifecycle.
@@ -32,7 +33,7 @@ describe('Order Lifecycle Integration', () => {
         .post('/api/v1/auth/login')
         .send({
           email: 'admin@tbslogistics.com',
-          password: 'Admin@123456',
+          password: TEST_ADMIN_PASSWORD,
         })
         .expect(201);
 
@@ -46,7 +47,7 @@ describe('Order Lifecycle Integration', () => {
         .post('/api/v1/auth/login')
         .send({
           email: 'admin@tbslogistics.com',
-          password: 'wrongpassword',
+          password: 'wrongpassword', // nosec: intentionally wrong password to test rejection
         })
         .expect(401);
     });
