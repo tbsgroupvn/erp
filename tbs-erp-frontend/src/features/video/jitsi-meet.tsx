@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, PhoneOff, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type JitsiMeetExternalAPIInstance = any;
+type JitsiMeetExternalAPIInstance = any; // eslint-disable-line
 
 interface JitsiMeetProps {
   roomName: string;
