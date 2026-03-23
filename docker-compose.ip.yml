@@ -67,6 +67,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      APP_ENV: production
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erp_db}
       DIRECT_DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erp_db}
