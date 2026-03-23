@@ -42,10 +42,10 @@ export function JitsiMeet({
     let script = document.getElementById(scriptId) as HTMLScriptElement | null;
 
     const initApi = () => {
-      if (!window.JitsiMeetExternalAPI) return;
+      if (!(window as any).JitsiMeetExternalAPI) return;
       if (apiRef.current) return;
 
-      apiRef.current = new window.JitsiMeetExternalAPI(domain, {
+      apiRef.current = new (window as any).JitsiMeetExternalAPI(domain, {
         roomName,
         parentNode: containerRef.current,
         userInfo: { displayName },
