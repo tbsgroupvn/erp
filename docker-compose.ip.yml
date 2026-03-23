@@ -69,6 +69,7 @@ services:
       NODE_ENV: production
       APP_ENV: production
       STORAGE_PATH: /app/uploads
+      SENTRY_DSN: "https://public@sentry.example.com/1"
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erp_db}
       DIRECT_DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erp_db}
