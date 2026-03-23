@@ -1,0 +1,21 @@
+; PgBouncer userlist — used by pgbouncer.ini (production / staging)
+; auth_type = md5  →  passwords must be stored as MD5 hashes here.
+;
+; HOW TO GENERATE THE HASH FOR YOUR USER:
+;   The MD5 format is: "md5" + md5( password + username )
+;
+;   On Linux / macOS (replace erp_user and YOUR_PASSWORD):
+;     printf 'md5%s' "$(printf '%s%s' 'YOUR_PASSWORD' 'erp_user' | md5sum | cut -d' ' -f1)"
+;
+;   Example one-liner (bash):
+;     PG_USER=erp_user PG_PASS=secret
+;     echo "\"$PG_USER\" \"md5$(printf '%s%s' "$PG_PASS" "$PG_USER" | md5sum | cut -d' ' -f1)\""
+;
+;   Replace the placeholder hash below with the real output BEFORE deploying.
+;
+; FORMAT: "username" "md5<32-hex-chars>"
+;
+; NOTE: The username here must match POSTGRES_USER in your .env file.
+;       For selfhost the default is erp_user; for staging it is also erp_user.
+;
+"erp_user" "md5REPLACE_WITH_GENERATED_HASH_FOR_erp_user"

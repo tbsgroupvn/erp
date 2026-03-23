@@ -12,6 +12,7 @@ import { ReportJobProcessor } from '@modules/reports/report-job.processor';
 import { BatchJobProcessor } from '@modules/batch/batch-job.processor';
 import { ReportsModule } from '@modules/reports/reports.module';
 import { BatchModule } from '@modules/batch/batch.module';
+import { NotificationModule } from '@modules/notification/notification.module';
 
 /**
  * Queue module that configures BullMQ with Redis connection and registers
@@ -33,6 +34,7 @@ import { BatchModule } from '@modules/batch/batch.module';
     forwardRef(() => OperationCostModule),
     forwardRef(() => ReportsModule),
     forwardRef(() => BatchModule),
+    NotificationModule,
 
     // ─── BullMQ Root Configuration ───
     BullModule.forRootAsync({

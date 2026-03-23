@@ -1,0 +1,32 @@
+{
+  "quota": 1500000000,
+  "currency": "VND",
+  "stages": ["Tư vấn", "Báo giá", "Chờ cọc", "Mua hàng", "Kho TQ", "Vận chuyển", "Kho VN", "Đang giao", "Quyết toán", "Hoàn thành"],
+  "average_cycle_days": 45,
+  "deals": [
+    {"id": "TV-001", "name": "Nhóm Tư vấn 1", "stage": "Tư vấn", "value": 15000000, "age_days": 5, "close_date": "2026-04-30", "owner": "sale_01"},
+    {"id": "TV-002", "name": "Nhóm Tư vấn 2", "stage": "Tư vấn", "value": 22000000, "age_days": 8, "close_date": "2026-04-25", "owner": "sale_02"},
+    {"id": "TV-003", "name": "Nhóm Tư vấn 3", "stage": "Tư vấn", "value": 18500000, "age_days": 3, "close_date": "2026-05-10", "owner": "sale_03"},
+    {"id": "TV-004", "name": "Nhóm Tư vấn 4", "stage": "Tư vấn", "value": 45000000, "age_days": 12, "close_date": "2026-04-20", "owner": "sale_01"},
+    {"id": "TV-005", "name": "Nhóm Tư vấn 5", "stage": "Tư vấn", "value": 8000000, "age_days": 2, "close_date": "2026-05-15", "owner": "sale_04"},
+    {"id": "BG-001", "name": "Báo giá lô hàng A", "stage": "Báo giá", "value": 35000000, "age_days": 10, "close_date": "2026-04-15", "owner": "sale_01"},
+    {"id": "BG-002", "name": "Báo giá container B", "stage": "Báo giá", "value": 85000000, "age_days": 7, "close_date": "2026-04-10", "owner": "sale_02"},
+    {"id": "BG-003", "name": "Báo giá bulk C", "stage": "Báo giá", "value": 42000000, "age_days": 15, "close_date": "2026-04-08", "owner": "sale_03"},
+    {"id": "CC-001", "name": "Chờ cọc đơn lớn", "stage": "Chờ cọc", "value": 120000000, "age_days": 18, "close_date": "2026-04-05", "owner": "sale_01"},
+    {"id": "CC-002", "name": "Chờ cọc KH mới", "stage": "Chờ cọc", "value": 25000000, "age_days": 5, "close_date": "2026-04-12", "owner": "sale_02"},
+    {"id": "CC-003", "name": "Chờ cọc KH VIP", "stage": "Chờ cọc", "value": 95000000, "age_days": 22, "close_date": "2026-04-02", "owner": "sale_03"},
+    {"id": "MH-001", "name": "Mua hàng Taobao lot", "stage": "Mua hàng", "value": 65000000, "age_days": 14, "close_date": "2026-04-15", "owner": "sale_01"},
+    {"id": "MH-002", "name": "Mua hàng 1688 bulk", "stage": "Mua hàng", "value": 180000000, "age_days": 20, "close_date": "2026-04-10", "owner": "sale_02"},
+    {"id": "KTQ-001", "name": "Kho TQ - container chính", "stage": "Kho TQ", "value": 350000000, "age_days": 25, "close_date": "2026-04-20", "owner": "sale_01"},
+    {"id": "KTQ-002", "name": "Kho TQ - hàng lẻ", "stage": "Kho TQ", "value": 45000000, "age_days": 30, "close_date": "2026-04-15", "owner": "sale_03"},
+    {"id": "KTQ-003", "name": "Kho TQ - hàng nặng", "stage": "Kho TQ", "value": 210000000, "age_days": 35, "close_date": "2026-04-08", "owner": "sale_02"},
+    {"id": "VC-001", "name": "Vận chuyển SEA", "stage": "Vận chuyển", "value": 150000000, "age_days": 40, "close_date": "2026-04-05", "owner": "sale_01"},
+    {"id": "VC-002", "name": "Vận chuyển ROAD", "stage": "Vận chuyển", "value": 28000000, "age_days": 38, "close_date": "2026-04-03", "owner": "sale_04"},
+    {"id": "KVN-001", "name": "Kho VN nhập", "stage": "Kho VN", "value": 18000000, "age_days": 42, "close_date": "2026-03-30", "owner": "sale_02"},
+    {"id": "DG-001", "name": "Đang giao KH Hà Nội", "stage": "Đang giao", "value": 35000000, "age_days": 44, "close_date": "2026-03-28", "owner": "sale_01"},
+    {"id": "DG-002", "name": "Đang giao KH HCM", "stage": "Đang giao", "value": 22000000, "age_days": 43, "close_date": "2026-03-29", "owner": "sale_03"},
+    {"id": "QT-001", "name": "Quyết toán Q1", "stage": "Quyết toán", "value": 85000000, "age_days": 48, "close_date": "2026-03-25", "owner": "sale_01"},
+    {"id": "QT-002", "name": "Quyết toán đơn cũ", "stage": "Quyết toán", "value": 42000000, "age_days": 55, "close_date": "2026-03-20", "owner": "sale_02"},
+    {"id": "HT-001", "name": "Hoàn thành batch 1", "stage": "Hoàn thành", "value": 120000000, "age_days": 60, "close_date": "2026-03-15", "owner": "sale_01"}
+  ]
+}

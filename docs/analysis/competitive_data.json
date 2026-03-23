@@ -1,0 +1,141 @@
+{
+  "our_product": "TBS ERP",
+  "competitors": ["Odoo", "SAP Business One", "Exact ERP", "Custom Solutions"],
+  "categories": [
+    {
+      "name": "Quản lý đơn hàng cross-border",
+      "weight": 5,
+      "features": [
+        {
+          "name": "FSM 17+ trạng thái đơn hàng",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Partial", "SAP Business One": "Partial", "Exact ERP": "None", "Custom Solutions": "Full"}
+        },
+        {
+          "name": "Deposit gate 4 tier (NEW/REGULAR/VIP/STRATEGIC)",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "None", "SAP Business One": "Limited", "Exact ERP": "None", "Custom Solutions": "Partial"}
+        },
+        {
+          "name": "Tự động chuyển trạng thái kho CN→VN",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "None", "SAP Business One": "None", "Exact ERP": "None", "Custom Solutions": "Partial"}
+        },
+        {
+          "name": "Quản lý container & ghép cont",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Limited", "SAP Business One": "Partial", "Exact ERP": "Limited", "Custom Solutions": "Full"}
+        }
+      ]
+    },
+    {
+      "name": "Tài chính & Kế toán",
+      "weight": 4,
+      "features": [
+        {
+          "name": "Double-entry General Ledger",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Full", "SAP Business One": "Full", "Exact ERP": "Full", "Custom Solutions": "Partial"}
+        },
+        {
+          "name": "AR Aging tự động block khách 90+ ngày",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Partial", "SAP Business One": "Full", "Exact ERP": "Partial", "Custom Solutions": "None"}
+        },
+        {
+          "name": "Anti-fraud 5 rules phiếu thu/chi",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "None", "SAP Business One": "Partial", "Exact ERP": "None", "Custom Solutions": "None"}
+        },
+        {
+          "name": "FX gain/loss tự động ghi sổ",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Full", "SAP Business One": "Full", "Exact ERP": "Partial", "Custom Solutions": "None"}
+        },
+        {
+          "name": "Bù trừ công nợ (Debt Netting)",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Partial", "SAP Business One": "Full", "Exact ERP": "None", "Custom Solutions": "None"}
+        }
+      ]
+    },
+    {
+      "name": "Bảo mật & RBAC",
+      "weight": 4,
+      "features": [
+        {
+          "name": "22 roles với data scoping",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Full", "SAP Business One": "Full", "Exact ERP": "Partial", "Custom Solutions": "Limited"}
+        },
+        {
+          "name": "JWT + TOTP 2FA",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Full", "SAP Business One": "Full", "Exact ERP": "Partial", "Custom Solutions": "Limited"}
+        },
+        {
+          "name": "Rate limiting & HTML sanitization",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Partial", "SAP Business One": "Full", "Exact ERP": "Partial", "Custom Solutions": "None"}
+        },
+        {
+          "name": "Audit log toàn bộ CRUD",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Full", "SAP Business One": "Full", "Exact ERP": "Partial", "Custom Solutions": "Limited"}
+        }
+      ]
+    },
+    {
+      "name": "Vận hành & Logistics",
+      "weight": 5,
+      "features": [
+        {
+          "name": "Quản lý kho TQ + kho VN riêng biệt",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "None", "SAP Business One": "Limited", "Exact ERP": "None", "Custom Solutions": "Full"}
+        },
+        {
+          "name": "Thông quan tự động (9 trạng thái)",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "None", "SAP Business One": "Limited", "Exact ERP": "None", "Custom Solutions": "Partial"}
+        },
+        {
+          "name": "COD enforcement 24h",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "None", "SAP Business One": "None", "Exact ERP": "None", "Custom Solutions": "Partial"}
+        },
+        {
+          "name": "Dynamic cost allocation (weight/volume/even)",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Partial", "SAP Business One": "Partial", "Exact ERP": "None", "Custom Solutions": "Partial"}
+        }
+      ]
+    },
+    {
+      "name": "Nền tảng & Công nghệ",
+      "weight": 3,
+      "features": [
+        {
+          "name": "Real-time WebSocket updates",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Partial", "SAP Business One": "None", "Exact ERP": "None", "Custom Solutions": "Partial"}
+        },
+        {
+          "name": "PWA mobile support",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Full", "SAP Business One": "Partial", "Exact ERP": "Partial", "Custom Solutions": "Limited"}
+        },
+        {
+          "name": "Docker containerized deployment",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Full", "SAP Business One": "None", "Exact ERP": "None", "Custom Solutions": "Partial"}
+        },
+        {
+          "name": "Vietnamese UI + diacritics support",
+          "our_score": "Full",
+          "competitor_scores": {"Odoo": "Full", "SAP Business One": "Partial", "Exact ERP": "Limited", "Custom Solutions": "Full"}
+        }
+      ]
+    }
+  ]
+}
