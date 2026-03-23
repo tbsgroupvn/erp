@@ -257,27 +257,15 @@ services:
           memory: 256M
     ports:
       - '80:80'
-      - '443:443'
     volumes:
-      - ./nginx/nginx.selfhost.conf.template:/etc/nginx/nginx.conf.template:ro
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
+      - ./nginx/nginx.ip-only.conf:/etc/nginx/nginx.conf:ro
       - nginx_logs:/var/log/nginx
-    environment:
-      ERP_DOMAIN: ${ERP_DOMAIN:-erp.localhost}
-      CMS_DOMAIN: ${CMS_DOMAIN:-localhost}
-      API_DOMAIN: ${API_DOMAIN:-api.localhost}
     depends_on:
       - frontend
       - cms
       - backend
     networks:
       - app_network
-    command: >
-      /bin/sh -c '
-        envsubst "$$ERP_DOMAIN $$CMS_DOMAIN $$API_DOMAIN" < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf &&
-        while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"
-      '
 
   # ============================================
   # MIGRATE - One-off migration & seed (has devDeps)
@@ -300,17 +288,8 @@ services:
     working_dir: /app
     command: sh -c "npx prisma migrate deploy && npx prisma db seed"
 
-  # ============================================
-  # CERTBOT - SSL Certificate Management
-  # ============================================
-  certbot:
-    image: certbot/certbot
-    container_name: ${COMPOSE_PROJECT_NAME:-erp}_certbot
-    restart: unless-stopped
-    volumes:
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+  # CERTBOT disabled - no domain yet, IP-only mode
+  # Re-enable when domain is configured with SSL
 
 # ============================================
 # NETWORKS
@@ -327,9 +306,5 @@ volumes:
     name: ${COMPOSE_PROJECT_NAME:-erp}_pgdata
   redisdata:
     name: ${COMPOSE_PROJECT_NAME:-erp}_redisdata
-  certbot_conf:
-    name: ${COMPOSE_PROJECT_NAME:-erp}_certbot_conf
-  certbot_www:
-    name: ${COMPOSE_PROJECT_NAME:-erp}_certbot_www
   nginx_logs:
     name: ${COMPOSE_PROJECT_NAME:-erp}_nginx_logs
