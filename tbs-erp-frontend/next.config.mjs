@@ -40,9 +40,10 @@ const nextConfig = {
   reactStrictMode: true,
   // Enable standalone output for Docker deployment
   output: 'standalone',
-  // Skip non-critical errors during production build
+  // Skip TS and ESLint errors during build (non-blocking issues)
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
+  // Increase static page generation timeout (default 60s)
   staticPageGenerationTimeout: 120,
   // Security headers
   async headers() {

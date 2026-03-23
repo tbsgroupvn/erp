@@ -1,0 +1,295 @@
+# ============================================
+# Self-Hosted ERP - Docker Compose (IP-only, no SSL)
+# Dung khi chua co domain - truy cap qua IP:80
+# Usage: docker compose -f docker-compose.ip.yml up -d
+# ============================================
+
+services:
+  # ============================================
+  # DATABASE - PostgreSQL
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-erp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-erp_db}
+    command: postgres -c password_encryption=scram-sha-256
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-erp_user} -d ${POSTGRES_DB:-erp_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
+  # ============================================
+  # CACHE - Redis
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required} --maxmemory 512mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
+  # ============================================
+  # CONNECTION POOLER — PgBouncer
+  # ============================================
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_pgbouncer
+    restart: unless-stopped
+    volumes:
+      - ./tbs-erp-backend/config/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./tbs-erp-backend/config/pgbouncer-userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-h', 'localhost', '-p', '6432', '-U', '${POSTGRES_USER:-erp_user}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - app_network
+
+  # ============================================
+  # BACKEND - NestJS API
+  # ============================================
+  backend:
+    build:
+      context: ./tbs-erp-backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@pgbouncer:6432/tbs_erp?pgbouncer=true
+      DIRECT_DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erp_db}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      FRONTEND_URL: http://${ERP_DOMAIN:-localhost}
+      CORS_ORIGINS: http://${ERP_DOMAIN:-localhost},http://${CMS_DOMAIN:-localhost}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:?FIELD_ENCRYPTION_KEY is required}
+      TWO_FA_ENCRYPTION_KEY: ${TWO_FA_ENCRYPTION_KEY:?TWO_FA_ENCRYPTION_KEY is required}
+      TWO_FA_ENCRYPTION_SALT: ${TWO_FA_ENCRYPTION_SALT:?TWO_FA_ENCRYPTION_SALT is required}
+      COMPANY_NAME: ${COMPANY_NAME:-TBS Group}
+      COMPANY_FULL_NAME: ${COMPANY_FULL_NAME:-TBS Group Vietnam}
+      COMPANY_DOMAIN: ${CMS_DOMAIN:-localhost}
+      CUSTOMER_CODE_PREFIX: ${CUSTOMER_CODE_PREFIX:-TBS-KH-}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
+      SUPPORT_PHONE: ${SUPPORT_PHONE:-}
+      APP_TITLE: ${APP_TITLE:-TBS ERP}
+      COMPANY_ADDRESS: ${COMPANY_ADDRESS:-}
+      COMPANY_TAX_CODE: ${COMPANY_TAX_CODE:-}
+      SEED_EMAIL_DOMAIN: ${SEED_EMAIL_DOMAIN:-tbs.com}
+      BULLMQ_REDIS_HOST: redis
+      BULLMQ_REDIS_PORT: 6379
+      BULLMQ_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-20}
+      ORDER_QUEUE_CONCURRENCY: ${ORDER_QUEUE_CONCURRENCY:-3}
+      NOTIFICATION_QUEUE_CONCURRENCY: ${NOTIFICATION_QUEUE_CONCURRENCY:-5}
+      FINANCE_QUEUE_CONCURRENCY: ${FINANCE_QUEUE_CONCURRENCY:-2}
+      WAREHOUSE_QUEUE_CONCURRENCY: ${WAREHOUSE_QUEUE_CONCURRENCY:-3}
+      INTEGRATION_QUEUE_CONCURRENCY: ${INTEGRATION_QUEUE_CONCURRENCY:-2}
+      QUEUE_RATE_LIMIT_MAX: ${QUEUE_RATE_LIMIT_MAX:-100}
+      QUEUE_RATE_LIMIT_DURATION_MS: ${QUEUE_RATE_LIMIT_DURATION_MS:-10000}
+      QUEUE_STALLED_INTERVAL_MS: ${QUEUE_STALLED_INTERVAL_MS:-30000}
+      QUEUE_MAX_STALLED_COUNT: ${QUEUE_MAX_STALLED_COUNT:-2}
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/api/v1/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - app_network
+
+  # ============================================
+  # FRONTEND - ERP Next.js
+  # ============================================
+  frontend:
+    build:
+      context: ./tbs-erp-frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_COMPANY_NAME: ${COMPANY_NAME:-TBS Group}
+        NEXT_PUBLIC_COMPANY_FULL_NAME: ${COMPANY_FULL_NAME:-TBS Group Vietnam}
+        NEXT_PUBLIC_APP_TITLE: ${APP_TITLE:-TBS ERP}
+        NEXT_PUBLIC_APP_DESCRIPTION: ${APP_DESCRIPTION:-Enterprise Resource Planning System}
+        NEXT_PUBLIC_DOMAIN: ${ERP_DOMAIN:-localhost}
+        NEXT_PUBLIC_AUTH_COOKIE: ${AUTH_COOKIE:-erp-auth}
+        NEXT_PUBLIC_DEMO_MODE: ${DEMO_MODE:-false}
+        NEXT_PUBLIC_API_URL: http://${API_DOMAIN:-localhost}:8080
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: 1
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - app_network
+
+  # ============================================
+  # CMS FRONTEND - Next.js
+  # ============================================
+  cms:
+    build:
+      context: ./tbs-cms-frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_COMPANY_NAME: ${COMPANY_NAME:-TBS Group}
+        NEXT_PUBLIC_COMPANY_FULL_NAME: ${COMPANY_FULL_NAME:-TBS Group Vietnam}
+        NEXT_PUBLIC_APP_TITLE: ${CMS_TITLE:-TBS CMS}
+        NEXT_PUBLIC_APP_DESCRIPTION: ${CMS_DESCRIPTION:-Content Management System}
+        NEXT_PUBLIC_DOMAIN: ${CMS_DOMAIN:-localhost}
+        NEXT_PUBLIC_AUTH_COOKIE: ${AUTH_COOKIE:-erp-auth}
+        NEXT_PUBLIC_DEMO_MODE: ${DEMO_MODE:-false}
+        NEXT_PUBLIC_API_URL: http://${API_DOMAIN:-localhost}:8080
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_cms
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: 1
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - app_network
+
+  # ============================================
+  # NGINX - Reverse Proxy (HTTP only, no SSL)
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_nginx
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    ports:
+      - '80:80'
+      - '8080:8080'
+    volumes:
+      - ./nginx/nginx.ip-only.conf:/etc/nginx/nginx.conf:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - cms
+      - backend
+    networks:
+      - app_network
+
+  # ============================================
+  # MIGRATE - Run once: prisma migrate + seed
+  # Usage: docker compose -f docker-compose.ip.yml run --rm migrate
+  # ============================================
+  migrate:
+    build:
+      context: ./tbs-erp-backend
+      dockerfile: Dockerfile
+      target: build
+    container_name: ${COMPOSE_PROJECT_NAME:-erp}_migrate
+    profiles: ['migrate']
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-erp_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-erp_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app_network
+    working_dir: /app
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed"
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  app_network:
+    driver: bridge
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  pgdata:
+    name: ${COMPOSE_PROJECT_NAME:-erp}_pgdata
+  redisdata:
+    name: ${COMPOSE_PROJECT_NAME:-erp}_redisdata
+  nginx_logs:
+    name: ${COMPOSE_PROJECT_NAME:-erp}_nginx_logs
