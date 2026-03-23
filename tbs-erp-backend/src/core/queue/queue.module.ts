@@ -34,7 +34,7 @@ import { NotificationModule } from '@modules/notification/notification.module';
     forwardRef(() => OperationCostModule),
     forwardRef(() => ReportsModule),
     forwardRef(() => BatchModule),
-    NotificationModule,
+    forwardRef(() => NotificationModule),
 
     // ─── BullMQ Root Configuration ───
     BullModule.forRootAsync({
