@@ -15,8 +15,17 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+<<<<<<< Updated upstream
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
+=======
+  const isAuthenticated = true; // useAuthStore((s) => s.isAuthenticated); // BYPASSED
+  const isLoading = false; // useAuthStore((s) => s.isLoading); // BYPASSED
+  // Initialize WebSocket connection for the entire dashboard session
+  useWebSocket({ autoConnect: true });
+  // Track idle time and auto-logout for security
+  const { showWarning, secondsLeft, stayLoggedIn } = useIdleTimeout();
+>>>>>>> Stashed changes
   const [hydrated, setHydrated] = useState(false);
 
   // Wait for Zustand to hydrate from localStorage
