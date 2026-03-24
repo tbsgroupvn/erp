@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html><head><title>Auto Login</title></head>
+<body>
+<script>
+// Set auth cookies for middleware
+document.cookie = "erp-auth=1; path=/; max-age=31536000";
+document.cookie = "erp-role=CEO; path=/; max-age=31536000";
+
+// Set Zustand auth store in localStorage
+var authData = {
+  state: {
+    user: {
+      id: "mock-admin-001",
+      email: "admin@tbs.com",
+      fullName: "Admin (Demo)",
+      role: "CEO",
+      branch: "HN",
+      leaderId: null,
+      isActive: true,
+      lastLoginAt: null
+    },
+    isAuthenticated: true
+  },
+  version: 0
+};
+localStorage.setItem("erp-auth-storage", JSON.stringify(authData));
+
+// Redirect to dashboard
+window.location.href = "/tong-quan";
+</script>
+<noscript><p>JavaScript required. <a href="/tong-quan">Click here</a></p></noscript>
+</body>
+</html>

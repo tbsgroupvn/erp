@@ -86,6 +86,7 @@ services:
       FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:?FIELD_ENCRYPTION_KEY is required}
       TWO_FA_ENCRYPTION_KEY: ${TWO_FA_ENCRYPTION_KEY:?TWO_FA_ENCRYPTION_KEY is required}
       TWO_FA_ENCRYPTION_SALT: ${TWO_FA_ENCRYPTION_SALT:?TWO_FA_ENCRYPTION_SALT is required}
+      COOKIE_SECURE: 'false'
       COMPANY_NAME: ${COMPANY_NAME:-TBS Group}
       COMPANY_FULL_NAME: ${COMPANY_FULL_NAME:-TBS Group Vietnam}
       COMPANY_DOMAIN: ${CMS_DOMAIN:-localhost}
@@ -144,7 +145,7 @@ services:
         NEXT_PUBLIC_DOMAIN: ${ERP_DOMAIN:-localhost}
         NEXT_PUBLIC_AUTH_COOKIE: ${AUTH_COOKIE:-erp-auth}
         NEXT_PUBLIC_DEMO_MODE: ${DEMO_MODE:-false}
-        NEXT_PUBLIC_API_URL: http://${API_DOMAIN:-localhost}:8080/api/v1
+        NEXT_PUBLIC_API_URL: /api/v1
     container_name: ${COMPOSE_PROJECT_NAME:-erp}_frontend
     restart: unless-stopped
     environment:

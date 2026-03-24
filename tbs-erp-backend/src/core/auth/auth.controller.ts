@@ -102,10 +102,10 @@ export class AuthController {
     // Standard login: set refresh token in HttpOnly cookie
     res.cookie('refreshToken', result.tokens.refreshToken, {
       httpOnly: true,
-      secure: process.env.APP_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.COOKIE_SECURE === 'true',
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/api/auth/refresh',
+      path: '/api/v1/auth/refresh',
     });
 
     return {
@@ -140,10 +140,10 @@ export class AuthController {
     // Set new refresh token in HttpOnly cookie
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
-      secure: process.env.APP_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.COOKIE_SECURE === 'true',
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/api/auth/refresh',
+      path: '/api/v1/auth/refresh',
     });
 
     return {
@@ -168,9 +168,9 @@ export class AuthController {
     // Clear the refresh token cookie
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      secure: process.env.APP_ENV === 'production',
-      sameSite: 'strict',
-      path: '/api/auth/refresh',
+      secure: process.env.COOKIE_SECURE === 'true',
+      sameSite: 'lax',
+      path: '/api/v1/auth/refresh',
     });
 
     return { message: 'Logged out successfully' };
@@ -337,10 +337,10 @@ export class AuthController {
     // Set refresh token in HttpOnly cookie
     res.cookie('refreshToken', result.tokens.refreshToken, {
       httpOnly: true,
-      secure: process.env.APP_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.COOKIE_SECURE === 'true',
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/api/auth/refresh',
+      path: '/api/v1/auth/refresh',
     });
 
     return {

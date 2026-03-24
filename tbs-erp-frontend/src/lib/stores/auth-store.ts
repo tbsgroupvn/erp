@@ -43,19 +43,10 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      // Initial state — MOCK USER (login bypassed)
-      user: {
-        id: 'mock-admin-001',
-        email: 'admin@tbs.com',
-        fullName: 'Admin (Demo)',
-        role: 'CEO' as UserProfile['role'],
-        branch: 'HN' as UserProfile['branch'],
-        leaderId: null,
-        isActive: true,
-        lastLoginAt: null,
-      } as UserProfile,
-      accessToken: 'mock-token',
-      isAuthenticated: true,
+      // Initial state — unauthenticated (real login required)
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
       isLoading: false,
 
       // 2FA challenge state

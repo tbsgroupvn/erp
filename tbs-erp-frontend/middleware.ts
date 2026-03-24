@@ -22,48 +22,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-<<<<<<< Updated upstream
-  const token = request.cookies.get(AUTH_COOKIE)?.value;
+  // Check auth flag cookie (set by frontend JS on login)
+  // This is a lightweight presence check — real JWT validation happens on API calls
+  const authFlag = request.cookies.get(AUTH_COOKIE)?.value;
 
-  if (!token || token.trim() === '' || token === 'undefined' || token === 'null') {
+  if (!authFlag || authFlag.trim() === '' || authFlag === 'undefined' || authFlag === 'null') {
     const loginUrl = new URL('/login', request.url);
     // Sanitize callbackUrl to only allow relative paths
     if (pathname.startsWith('/') && !pathname.startsWith('//') && !pathname.includes('://')) {
       loginUrl.searchParams.set('callbackUrl', pathname);
     }
     return NextResponse.redirect(loginUrl);
-  }
-=======
-  // --- 2. Auth check: BYPASSED (login not required) ---
-  // To re-enable login, uncomment the block below:
-  // const authFlag = request.cookies.get(AUTH_COOKIE)?.value;
-  // if (!authFlag || authFlag.trim() === '' || authFlag === 'undefined' || authFlag === 'null') {
-  //   const loginUrl = new URL('/login', request.url);
-  //   if (pathname.startsWith('/') && !pathname.startsWith('//') && !pathname.includes('://')) {
-  //     loginUrl.searchParams.set('callbackUrl', pathname);
-  //   }
-  //   return NextResponse.redirect(loginUrl);
-  // }
->>>>>>> Stashed changes
-
-  // Validate JWT structure
-  const parts = token.split('.');
-  if (parts.length !== 3) {
-    const response = NextResponse.redirect(new URL('/login', request.url));
-    response.cookies.delete(AUTH_COOKIE);
-    return response;
-  }
-  try {
-    const payload = JSON.parse(atob(parts[1]));
-    if (payload.exp && payload.exp * 1000 < Date.now()) {
-      const response = NextResponse.redirect(new URL('/login', request.url));
-      response.cookies.delete(AUTH_COOKIE);
-      return response;
-    }
-  } catch {
-    const response = NextResponse.redirect(new URL('/login', request.url));
-    response.cookies.delete(AUTH_COOKIE);
-    return response;
   }
 
   // Add security headers to all responses

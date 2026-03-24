@@ -52,30 +52,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ---- Validate session on mount ----
   const validateSession = useCallback(async () => {
-    const { accessToken, setUser, setLoading, logout } =
+    const { accessToken, isAuthenticated: isAuth, setUser, setLoading, logout } =
       useAuthStore.getState();
 
-    if (!accessToken) {
+    // Not authenticated at all — nothing to validate
+    if (!isAuth && !accessToken) {
       setLoading(false);
       return;
     }
 
+    // If we have an access token, try using it directly
+    if (accessToken) {
+      try {
+        const profile = await authApi.getProfile();
+        setUser(profile);
+        setLoading(false);
+        return;
+      } catch {
+        // Token expired or invalid — fall through to refresh
+      }
+    }
+
+    // Access token missing or expired — try refresh via HttpOnly cookie
     try {
+      const tokens = await refreshTokenWithLock();
+      useAuthStore.getState().setTokens(tokens.accessToken);
       const profile = await authApi.getProfile();
       setUser(profile);
       setLoading(false);
     } catch {
-      // Token might be expired, try refresh (refresh token is in HttpOnly cookie)
-      try {
-        const tokens = await refreshTokenWithLock();
-        useAuthStore.getState().setTokens(tokens.accessToken);
-        const profile = await authApi.getProfile();
-        setUser(profile);
-        setLoading(false);
-      } catch {
-        // Refresh also failed — session is dead
-        logout();
-      }
+      // Refresh also failed — session is dead
+      logout();
     }
   }, []);
 
