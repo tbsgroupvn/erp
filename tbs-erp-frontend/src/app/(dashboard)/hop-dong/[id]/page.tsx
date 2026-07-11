@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, FileText } from 'lucide-react';
+import { ArrowLeft, Eye, Loader2 } from 'lucide-react';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { LoadingOverlay } from '@/components/shared/loading-overlay';
 import { useContract, useUpdateContractStatus, useDeleteContract } from '@/lib/hooks/use-contracts';
@@ -19,6 +19,7 @@ import { ContractStatus, ContractType } from '@/lib/types';
 import type { Contract } from '@/lib/types';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { ContractPreview } from '@/features/contracts/contract-preview';
 import { useState } from 'react';
 
 /** Valid next statuses for each current status */
@@ -56,6 +57,7 @@ export default function ContractDetailPage() {
   const updateStatus = useUpdateContractStatus();
   const deleteContract = useDeleteContract();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   if (isLoading) return <LoadingOverlay className="h-[60vh]" />;
   if (!contract) {
@@ -115,6 +117,13 @@ export default function ContractDetailPage() {
 
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setShowPreview(true)}
+          className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
+        >
+          <Eye className="h-4 w-4" />
+          Xem trước / In
+        </button>
         {actions.map((action) => (
           <button
             key={action.status}
@@ -208,6 +217,18 @@ export default function ContractDetailPage() {
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Email</dt>
                   <dd>{c.customer.email}</dd>
+                </div>
+              )}
+              {c.customer.taxCode && (
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Mã số thuế</dt>
+                  <dd>{c.customer.taxCode}</dd>
+                </div>
+              )}
+              {c.customer.address && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground shrink-0">Địa chỉ</dt>
+                  <dd className="text-right">{c.customer.address}</dd>
                 </div>
               )}
             </dl>
@@ -326,6 +347,27 @@ export default function ContractDetailPage() {
           <div className="whitespace-pre-wrap text-sm">{c.terms}</div>
         </div>
       )}
+
+      {/* Contract Preview / Print */}
+      <ContractPreview
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        data={{
+          code: c.code,
+          title: c.title,
+          typeLabel: CONTRACT_TYPE_LABELS[c.type as ContractType] || 'Hợp đồng',
+          effectiveDate: c.effectiveDate,
+          expiryDate: c.expiryDate,
+          signedDate: c.signedDate,
+          totalValue: Number(c.totalValue) || 0,
+          depositRequired: Number(c.depositRequired) || 0,
+          currency: c.currency,
+          terms: c.terms,
+          note: c.note,
+          saleName: c.sale?.fullName,
+        }}
+        customer={c.customer ?? null}
+      />
 
       {/* Delete Confirmation */}
       <ConfirmDialog

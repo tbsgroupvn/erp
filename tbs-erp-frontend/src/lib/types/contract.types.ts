@@ -11,6 +11,8 @@ export interface Contract {
     companyName?: string;
     phone?: string;
     email?: string;
+    address?: string;
+    taxCode?: string;
     tier?: string;
   };
   saleId: string;

@@ -151,6 +151,8 @@ export class ContractService {
             tier: true,
             phone: true,
             email: true,
+            address: true,
+            taxCode: true,
           },
         },
         sale: {

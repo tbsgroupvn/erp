@@ -7,15 +7,15 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Loader2, Search } from 'lucide-react';
+import { ArrowLeft, Eye, Loader2, Search } from 'lucide-react';
 import Link from 'next/link';
-import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/page-header';
 import { useCreateContract } from '@/lib/hooks/use-contracts';
 import { apiClient } from '@/lib/api/client';
 import { ContractType, Currency } from '@/lib/types';
 import { CONTRACT_TYPE_LABELS } from '@/lib/utils/constants';
 import { useAuthStore } from '@/lib/stores/auth-store';
+import { ContractPreview } from '@/features/contracts/contract-preview';
 
 // --- Schema ---
 const createContractSchema = z.object({
@@ -40,6 +40,10 @@ interface CustomerOption {
   code: string;
   fullName: string;
   companyName?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  taxCode?: string;
 }
 
 export default function TaoHopDongPage() {
@@ -51,6 +55,7 @@ export default function TaoHopDongPage() {
   const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerOption | null>(null);
   const [searchingCustomer, setSearchingCustomer] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const {
     register,
@@ -86,6 +91,10 @@ export default function TaoHopDongPage() {
             code: c.code,
             fullName: c.fullName,
             companyName: c.companyName,
+            phone: c.phone,
+            email: c.email,
+            address: c.address,
+            taxCode: c.taxCode,
           })),
         );
       } catch {
@@ -102,16 +111,39 @@ export default function TaoHopDongPage() {
     setValue('customerId', customer.id);
     setCustomerSearch('');
     setCustomerOptions([]);
+
+    // Bổ sung thông tin chi tiết (địa chỉ, MST...) nếu danh sách tìm kiếm chưa trả về đủ
+    apiClient
+      .get(`/customers/${customer.id}`)
+      .then((res) => {
+        const detail = res.data?.data ?? res.data;
+        if (!detail?.id) return;
+        setSelectedCustomer((prev) =>
+          prev && prev.id === detail.id
+            ? {
+                ...prev,
+                phone: detail.phone ?? prev.phone,
+                email: detail.email ?? prev.email,
+                address: detail.address ?? prev.address,
+                taxCode: detail.taxCode ?? prev.taxCode,
+              }
+            : prev,
+        );
+      })
+      .catch(() => {
+        // Giữ nguyên thông tin từ kết quả tìm kiếm
+      });
   };
 
   const onSubmit = (data: CreateContractForm) => {
     createContract.mutate(data, {
       onSuccess: (result: any) => {
-        toast.success('Tạo hợp đồng thành công');
         router.push(`/hop-dong/${result.id}`);
       },
     });
   };
+
+  const formValues = watch();
 
   return (
     <div>
@@ -141,19 +173,39 @@ export default function TaoHopDongPage() {
         <div className="space-y-2">
           <label className="text-sm font-medium">Khách hàng *</label>
           {selectedCustomer ? (
-            <div className="flex items-center gap-2 rounded-md border p-2">
-              <span className="text-sm font-medium">{selectedCustomer.code}</span>
-              <span className="text-sm">{selectedCustomer.fullName}</span>
-              {selectedCustomer.companyName && (
-                <span className="text-xs text-muted-foreground">({selectedCustomer.companyName})</span>
-              )}
-              <button
-                type="button"
-                onClick={() => { setSelectedCustomer(null); setValue('customerId', ''); }}
-                className="ml-auto text-xs text-destructive hover:underline"
-              >
-                Đổi
-              </button>
+            <div className="rounded-md border p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">{selectedCustomer.code}</span>
+                <span className="text-sm">{selectedCustomer.fullName}</span>
+                {selectedCustomer.companyName && (
+                  <span className="text-xs text-muted-foreground">({selectedCustomer.companyName})</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setSelectedCustomer(null); setValue('customerId', ''); }}
+                  className="ml-auto text-xs text-destructive hover:underline"
+                >
+                  Đổi
+                </button>
+              </div>
+              <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
+                <div>
+                  <dt className="inline font-medium">Điện thoại: </dt>
+                  <dd className="inline">{selectedCustomer.phone || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="inline font-medium">Email: </dt>
+                  <dd className="inline">{selectedCustomer.email || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="inline font-medium">Mã số thuế: </dt>
+                  <dd className="inline">{selectedCustomer.taxCode || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="inline font-medium">Địa chỉ: </dt>
+                  <dd className="inline">{selectedCustomer.address || '—'}</dd>
+                </div>
+              </dl>
             </div>
           ) : (
             <div className="relative">
@@ -267,7 +319,16 @@ export default function TaoHopDongPage() {
         </div>
 
         {/* Submit */}
-        <div className="flex gap-3 pt-4">
+        <div className="flex flex-wrap gap-3 pt-4">
+          <button
+            type="button"
+            onClick={handleSubmit(() => setShowPreview(true))}
+            disabled={createContract.isPending}
+            className="inline-flex items-center gap-2 rounded-md border px-6 py-2.5 text-sm font-medium hover:bg-accent disabled:opacity-50"
+          >
+            <Eye className="h-4 w-4" />
+            Xem trước
+          </button>
           <button
             type="submit"
             disabled={createContract.isPending}
@@ -284,6 +345,39 @@ export default function TaoHopDongPage() {
           </Link>
         </div>
       </form>
+
+      {/* Contract Preview */}
+      <ContractPreview
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        data={{
+          title: formValues.title || 'Hợp đồng chưa đặt tiêu đề',
+          typeLabel: CONTRACT_TYPE_LABELS[formValues.type] || 'Hợp đồng',
+          effectiveDate: formValues.effectiveDate,
+          expiryDate: formValues.expiryDate,
+          totalValue: formValues.totalValue ? Number(formValues.totalValue) : undefined,
+          depositRequired: formValues.depositRequired ? Number(formValues.depositRequired) : undefined,
+          currency: formValues.currency,
+          terms: formValues.terms,
+          note: formValues.note,
+          saleName: user?.fullName,
+        }}
+        customer={selectedCustomer}
+        footer={
+          <button
+            type="button"
+            onClick={handleSubmit((data) => {
+              setShowPreview(false);
+              onSubmit(data);
+            })}
+            disabled={createContract.isPending}
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {createContract.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Tạo hợp đồng
+          </button>
+        }
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ export const branding = {
   supportEmailFallback: process.env.NEXT_PUBLIC_COMPANY_SUPPORT_EMAIL || '',
   supportPhone: process.env.NEXT_PUBLIC_COMPANY_PHONE || '',
   companyAddress: process.env.NEXT_PUBLIC_COMPANY_ADDRESS || '',
+  companyTaxCode: process.env.NEXT_PUBLIC_COMPANY_TAX_CODE || '',
   companyWechat: process.env.NEXT_PUBLIC_COMPANY_WECHAT || '',
   zaloId: process.env.NEXT_PUBLIC_ZALO_ID || '',
   whatsappNumber: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '',
