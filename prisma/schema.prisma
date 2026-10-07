@@ -1,0 +1,2588 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Wallet {
+  id     BigInt @id @default(autoincrement())
+  cusId  String @unique @map("cus_id")
+  total  BigInt @default(0)
+  status Int    @default(1)
+
+  @@map("tbl_wallet")
+}
+
+model WalletEntry {
+  id          BigInt  @id @default(autoincrement())
+  type        Int
+  accountType String  @default("cty") @map("account_type")
+  cusId       String  @map("cus_id")
+  oid         Int?
+  money       BigInt
+  payInfo     String? @map("pay_info")
+  payFrom     String? @map("pay_from")
+  note        String?
+  cdate       Int
+  author      String?
+  status      Int     @default(1)
+  poId        Int?    @map("po_id")
+  settled     Int     @default(0)
+
+  // ⚠⚠ NEO CHỐNG GHI TRÙNG (23/09/2026). Khoá nghiệp vụ DUY NHẤT của bút toán,
+  // do bên gọi đặt (vd 'approval:123' cho phiếu duyệt #123). NULL = không neo
+  // (đường ghi tay, giữ nguyên hành vi cũ — Postgres cho phép nhiều NULL trong
+  // UNIQUE). Có neo thì applyEntry trở nên AN TOÀN KHI CHẠY LẠI: lần hai không
+  // ghi nữa mà trả về chính bút toán đã ghi.
+  // Vì sao cần: business-sync đánh dấu `synced` TRƯỚC khi handler chạy, nên nếu
+  // tiến trình chết giữa chừng thì phiếu mang tiếng đã đồng bộ mà tiền chưa đi —
+  // và không có cách nào chạy lại an toàn vì sổ không phân biệt được "chưa ghi"
+  // với "đã ghi rồi". Neo này gỡ đúng nút đó.
+  refKey String? @unique @map("ref_key")
+
+  // Q8 (24/09/2026) — liên kết bút toán ví ↔ giao dịch ngân hàng, chở nguyên từ prod
+  // (`tranId`/`trandetailId`, đo TỪNG cột: bigint(20) NULL cả hai; 15.755 dòng có giá trị).
+  // Là khoá DUY NHẤT để phát hiện một giao dịch ngân hàng bị cộng vào ví quá số tiền về.
+  // ⚠ 3.299 dòng cũ có trandetailId = tranId — nạp nguyên giá trị, đừng "sửa".
+  tranId       BigInt? @map("tran_id")
+  trandetailId BigInt? @map("trandetail_id")
+
+  @@index([cusId])
+  @@map("tbl_wallet_detail")
+}
+
+model GlAccount {
+  code           String  @id
+  name           String
+  parentCode     String? @map("parent_code")
+  nature         String
+  isLeaf         Boolean @default(true) @map("is_leaf")
+  active         Boolean @default(true)
+  requirePartner Boolean @default(false) @map("require_partner")
+
+  @@map("tbl_gl_account")
+}
+
+model GlEntry {
+  id             Int      @id @default(autoincrement())
+  entryNo        String   @unique @map("entry_no")
+  entryDate      Int      @map("entry_date")
+  sourceType     String   @map("source_type")
+  sourceId       BigInt   @map("source_id")
+  description    String?
+  totalDebit     Decimal  @map("total_debit") @db.Decimal(20, 2)
+  totalCredit    Decimal  @map("total_credit") @db.Decimal(20, 2)
+  status         Int      @default(1)
+  reversalOf     Int?     @map("reversal_of")
+  reversalReason String?  @map("reversal_reason")
+  createdBy      String?  @map("created_by")
+  cdate          Int
+  lines          GlLine[]
+
+  @@unique([sourceType, sourceId])
+  @@map("tbl_gl_entry")
+}
+
+model GlLine {
+  id          Int     @id @default(autoincrement())
+  entryId     Int     @map("entry_id")
+  lineNo      Int     @map("line_no")
+  accountCode String  @map("account_code")
+  debit       Decimal @db.Decimal(20, 2)
+  credit      Decimal @db.Decimal(20, 2)
+  currency    String  @default("VND")
+  amountCcy   Decimal @default(0) @map("amount_ccy") @db.Decimal(20, 4)
+  fxRate      Decimal @default(0) @map("fx_rate") @db.Decimal(14, 4)
+  cusId       String? @map("cus_id")
+  orderId     Int?    @map("order_id")
+  note        String?
+  entry       GlEntry @relation(fields: [entryId], references: [id])
+
+  @@map("tbl_gl_line")
+}
+
+model GlMapping {
+  id            Int     @id @default(autoincrement())
+  bizType       String  @unique @map("biz_type")
+  bizLabel      String  @map("biz_label")
+  debitAccount  String  @map("debit_account")
+  creditAccount String  @map("credit_account")
+  moneySide     String  @default("") @map("money_side")
+  isApproved    Boolean @default(false) @map("is_approved")
+  active        Boolean @default(true)
+
+  @@map("tbl_gl_mapping")
+}
+
+// NOTE: at most ONE open row (hieu_luc_den IS NULL) per (loai, hang_khach) is enforced
+// by a partial unique index that Prisma cannot express in this schema:
+//   CREATE UNIQUE INDEX "tbl_mh_tygia_single_open" ON "tbl_mh_tygia" ("loai", "hang_khach")
+//     WHERE "hieu_luc_den" IS NULL;
+// See migration prisma/migrations/20260922074655_fx_single_open_row/migration.sql.
+// Do NOT drop this on a future `db pull` / schema regen without re-adding the migration.
+model MhRate {
+  id         Int     @id @default(autoincrement())
+  loai       String
+  hangKhach  String  @default("MAC_DINH") @map("hang_khach")
+  tyGia      Decimal @map("ty_gia") @db.Decimal(18, 4)
+  hieuLucTu  Int     @map("hieu_luc_tu")
+  hieuLucDen Int?    @map("hieu_luc_den")
+  nguoiTao   String? @map("nguoi_tao")
+  createdAt  Int     @map("created_at")
+
+  @@map("tbl_mh_tygia")
+}
+
+model PoReceipt {
+  id             Int     @id @default(autoincrement())
+  poId           Int?    @map("po_id")
+  customerId     String  @map("customer_id")
+  amount         Decimal @db.Decimal(18, 2)
+  // ⚠⚠ method/status/customerId/amount/allocRequestId là ĐƯỜNG SỐNG của #03
+  // HoldService (src/money/hold.service.ts) — nó đọc thẳng { method:'wallet',
+  // status:'no' } + loại trừ allocRequestId để tính tiền đang GIỮ. TUYỆT ĐỐI
+  // không đổi tên/kiểu/bỏ 5 cột này khi mở rộng bảng cho #06 PO.
+  method         String
+  status         String
+  allocRequestId Int?    @map("alloc_request_id")
+
+  // ===== #06 PO — mở rộng theo đợt (dot), giữ nguyên ngữ nghĩa hold #03 =====
+  receiptCode String?   @map("receipt_code")
+  orderId     Int?      @map("order_id")
+  bankRef     String?   @map("bank_ref")
+  // ⚠ F3 (review cuối #06): prod `receipt_date` là DATE, không phải epoch —
+  // và có dữ liệu trên TẤT CẢ 226 phiếu thu đo được (không phải cột "chỉ mô
+  // tả" như migration doc từng ghi nhầm). DateTime? @db.Date, KHÔNG Int.
+  receiptDate DateTime? @map("receipt_date") @db.Date
+  dot         Int?
+  approvedBy  String?   @map("approved_by")
+  approvedAt  Int?      @map("approved_at")
+  createdBy   String?   @map("created_by")
+  cdate       Int?
+  // F2 (review cuối #06) — varchar(500), có dữ liệu trên 225/226 phiếu thu đo
+  // được 23/09/2026. Không có home trong bản port ban đầu; thêm lại để không
+  // mất ghi chú phiếu thu ở cutover.
+  note        String?   @db.VarChar(500)
+
+  @@map("tbl_po_receipts")
+}
+
+// ===== IAM (identity & permissions) =====
+
+enum Scope {
+  own
+  team
+  dept
+  dept_tree
+  warehouse
+  all
+}
+
+enum PermKind {
+  allow
+  deny
+}
+
+enum ScopeKind {
+  warehouse
+  dept
+}
+
+// Nhóm quyền CŨ (prod `tbl_user_group`, 31 dòng) — entity `LegacyGroup` theo 01-iam.md, GIỮ TỐI THIỂU:
+// chỉ các cột mã mới đang đọc. `id` = gid cũ (giữ nguyên số prod, KHÔNG tự tăng).
+// Hiện dùng DUY NHẤT cho miễn trừ chặn-tự-duyệt của prod approve(): nhóm `isaccountant=1 AND isactive=1`
+// (prod 24/09/2026: chỉ gid 46). 01-iam.md muốn thay cờ này bằng quyền có tên — xem báo cáo I2.
+model LegacyGroup {
+  id           Int     @id
+  name         String  @db.VarChar(50)
+  isAccountant Boolean @default(false) @map("isaccountant")
+  isActive     Boolean @default(true) @map("isactive")
+
+  @@map("tbl_user_group")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  // UNIQUE phân biệt hoa-thường ở đây; UNIQUE KHÔNG phân biệt hoa-thường (như prod utf8mb3_unicode_ci)
+  // là chỉ mục biểu thức `tbl_user_username_lower_key` ON lower(username) — Prisma không khai được
+  // chỉ mục biểu thức, nó nằm ở migration 20260925000000_iam_unique_d8 (D8). ĐỪNG để migrate diff xoá.
+  username     String    @unique
+  password     String
+  firstname    String?
+  lastname     String?
+  email        String?
+  gid          Int?
+  phongbanId   Int?      @map("phongban_id")
+  leaderId     Int?      @map("leader_id")
+  jobTitleId   Int?      @map("job_title_id")
+  isSuperAdmin Boolean   @default(false) @map("is_super_admin")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLogin    DateTime? @map("lastlogin")
+  gsecret      String?
+
+  @@index([phongbanId])
+  @@map("tbl_user")
+}
+
+model Permission {
+  code   String  @id
+  module String
+  action String
+  nhanVn String? @map("nhan_vn")
+  moTa   String? @map("mo_ta")
+  sort   Int     @default(0)
+
+  @@index([module])
+  @@map("tbl_perm")
+}
+
+model Role {
+  id        Int              @id @default(autoincrement())
+  code      String           @unique
+  ten       String
+  moTa      String?          @map("mo_ta")
+  isSystem  Boolean          @default(false) @map("is_system")
+  active    Boolean          @default(true)
+  cdate     Int?
+  rolePerms RolePermission[]
+  userRoles UserRole[]
+
+  @@map("tbl_role")
+}
+
+model RolePermission {
+  id       Int    @id @default(autoincrement())
+  roleId   Int    @map("role_id")
+  permCode String @map("perm_code")
+  scope    Scope
+  role     Role   @relation(fields: [roleId], references: [id])
+
+  @@unique([roleId, permCode])
+  @@index([permCode])
+  @@map("tbl_role_perm")
+}
+
+model UserRole {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @map("user_id")
+  roleId     Int       @map("role_id")
+  hieuLucTu  DateTime  @map("hieu_luc_tu") @db.Date
+  hieuLucDen DateTime? @map("hieu_luc_den") @db.Date
+  capBoi     String?   @map("cap_boi")
+  cdate      Int?
+  role       Role      @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId, hieuLucTu], map: "uq_user_role") // prod uq_user_role (D8)
+  @@index([userId])
+  @@map("tbl_user_role")
+}
+
+model UserPermission {
+  id       Int      @id @default(autoincrement())
+  userId   Int      @map("user_id")
+  permCode String   @map("perm_code")
+  loai     PermKind
+  scope    Scope
+  lyDo     String?  @map("ly_do")
+  capBoi   String?  @map("cap_boi")
+  cdate    Int?
+
+  @@unique([userId, permCode, loai], map: "uq_user_perm") // prod uq_user_perm (D8)
+  @@index([userId])
+  @@map("tbl_user_perm")
+}
+
+model UserScope {
+  id     Int       @id @default(autoincrement())
+  userId Int       @map("user_id")
+  loai   ScopeKind
+  giaTri String    @map("gia_tri")
+
+  @@unique([userId, loai, giaTri], map: "uq_user_scope") // prod uq_user_scope (D8)
+  @@index([userId])
+  @@map("tbl_user_scope")
+}
+
+model Department {
+  id             Int     @id @default(autoincrement())
+  parentId       Int?    @map("parent_id")
+  duongDan       String? @map("duong_dan")
+  ma             String?
+  ten            String
+  truongPhongUid Int?    @map("truong_phong_uid")
+  sort           Int     @default(0)
+  isActive       Boolean @default(true) @map("isactive")
+  cdate          Int?
+
+  @@index([parentId])
+  @@index([duongDan])
+  @@map("tbl_phongban")
+}
+
+model JobTitle {
+  id       Int     @id @default(autoincrement())
+  name     String
+  level    Int
+  isActive Boolean @default(true) @map("isactive")
+
+  @@map("tbl_job_titles")
+}
+
+model Team {
+  id       Int    @id @default(autoincrement())
+  name     String @unique
+  leaderId Int?   @map("leader_id")
+  deputyId Int?   @map("deputy_id")
+
+  @@map("tbl_team")
+}
+
+model SalerTeam {
+  id       Int    @id @default(autoincrement())
+  saler    String @unique
+  teamName String @map("team_name")
+  teamId   Int?   @map("team_id")
+
+  @@map("tbl_saler_team")
+}
+
+model PermConfig {
+  ten    String @id
+  giaTri String @map("gia_tri")
+
+  @@map("tbl_perm_cfg")
+}
+
+model LoginLog {
+  id        BigInt  @id @default(autoincrement())
+  userId    Int?    @map("user_id")
+  username  String
+  loai      String
+  ip        String?
+  userAgent String? @map("user_agent")
+  referer   String?
+  cdate     Int
+
+  @@index([username])
+  @@map("tbl_login_log")
+}
+
+model StaffLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  hanhDong  String   @map("hanh_dong")
+  truocJson String?  @map("truoc_json")
+  sauJson   String?  @map("sau_json")
+  boi       Int?
+  luc       DateTime @default(now())
+  lydo      String?
+
+  @@index([userId])
+  @@map("tbl_staff_log")
+}
+
+// ===== Approval (Duyệt) =====
+
+enum ApprovalNodeType {
+  AND
+  OR
+  SEQ
+}
+
+enum ApprovalMode {
+  manual
+  auto_approve
+  auto_reject
+}
+
+enum EmptyApproverAction {
+  auto_approve
+  to_user
+  to_admin
+}
+
+enum SelfApprovalAction {
+  self
+  skip
+  to_user
+}
+
+enum ApproverType {
+  group
+  user
+  submitter_manager
+  requester
+  self_select
+  step_approver
+}
+
+enum DedupMode {
+  auto_all
+  auto_consecutive
+  none
+}
+
+enum ActionType {
+  approve
+  reject
+  transfer
+  return
+  add_approver
+  remove_approver
+  auto_approve
+  auto_reject
+  revoke
+  return_submitter
+  resubmit
+  // D4 — phần còn thiếu so với miền enum prod tbl_approval_actions.action (24/09/2026).
+  // stuck_no_approver có dữ liệu thật (8 dòng); modify_* / fx_adjust là giá trị prod cho phép ghi.
+  modify_submit
+  modify_approve
+  modify_reject
+  stuck_no_approver
+  fx_adjust
+}
+
+enum RequestApproverChange {
+  transfer_in
+  added
+  excluded
+}
+
+model ApprovalTemplate {
+  id                  Int            @id @default(autoincrement())
+  code                String         @unique
+  name                String
+  objectType          String         @map("object_type")
+  category            String?
+  isactive            Boolean        @default(true)
+  approverDedupMode   DedupMode      @default(auto_all) @map("approver_dedup_mode")
+  allowRevokePending  Boolean        @default(false) @map("allow_revoke_pending")
+  allowBatch          Boolean        @default(false) @map("allow_batch")
+  prohibitAdminManage Boolean        @default(false) @map("prohibit_admin_manage")
+  createdBy           String?        @map("created_by")
+  cdate               Int?
+  steps               ApprovalStep[]
+
+  @@index([objectType])
+  @@map("tbl_approval_templates")
+}
+
+model ApprovalStep {
+  id                  Int                    @id @default(autoincrement())
+  templateId          Int                    @map("template_id")
+  stepOrder           Int                    @map("step_order")
+  stepName            String?                @map("step_name")
+  nodeType            ApprovalNodeType       @default(OR) @map("node_type")
+  branchId            Int?                   @map("branch_id")
+  approvalMode        ApprovalMode           @default(manual) @map("approval_mode")
+  requireComment      Boolean                @default(false) @map("require_comment")
+  allowTransfer       Boolean                @default(true) @map("allow_transfer")
+  allowReturn         Boolean                @default(true) @map("allow_return")
+  emptyApproverAction EmptyApproverAction    @default(to_admin) @map("empty_approver_action")
+  emptyApproverRef    Int?                   @map("empty_approver_ref")
+  selfApprovalAction  SelfApprovalAction     @default(skip) @map("self_approval_action")
+  selfApprovalRef     Int?                   @map("self_approval_ref")
+  template            ApprovalTemplate       @relation(fields: [templateId], references: [id])
+  approvers           ApprovalStepApprover[]
+
+  @@index([templateId])
+  @@map("tbl_approval_steps")
+}
+
+model ApprovalStepApprover {
+  id           Int          @id @default(autoincrement())
+  stepId       Int          @map("step_id")
+  approverType ApproverType @map("approver_type")
+  approverRef  Int?         @map("approver_ref")
+  step         ApprovalStep @relation(fields: [stepId], references: [id])
+
+  @@index([stepId])
+  @@map("tbl_approval_step_approvers")
+}
+
+model ApprovalBranchGroup {
+  id         Int              @id @default(autoincrement())
+  templateId Int              @map("template_id")
+  branches   ApprovalBranch[]
+
+  @@map("tbl_approval_branch_groups")
+}
+
+model ApprovalBranch {
+  id            Int                 @id @default(autoincrement())
+  branchGroupId Int                 @map("branch_group_id")
+  branchName    String?             @map("branch_name")
+  priority      Int                 @default(0)
+  conditionJson String?             @map("condition_json")
+  isDefault     Boolean             @default(false) @map("is_default")
+  group         ApprovalBranchGroup @relation(fields: [branchGroupId], references: [id])
+
+  @@index([branchGroupId])
+  @@map("tbl_approval_branches")
+}
+
+model ApprovalFormField {
+  id             Int     @id @default(autoincrement())
+  templateId     Int     @map("template_id")
+  fieldKey       String  @map("field_key")
+  label          String?
+  fieldType      String  @map("field_type")
+  optionsJson    String? @map("options_json")
+  required       Boolean @default(false)
+  sortOrder      Int     @default(0) @map("sort_order")
+  visibilityJson String? @map("visibility_json")
+
+  @@index([templateId])
+  @@map("tbl_approval_form_fields")
+}
+
+model ApprovalRequest {
+  id                  Int     @id @default(autoincrement())
+  templateId          Int     @map("template_id")
+  objectType          String  @map("object_type")
+  objectId            Int     @map("object_id")
+  objectCode          String? @map("object_code")
+  currentStepOrder    Int     @map("current_step_order")
+  status              Int     @default(1)
+  submittedBy         String  @map("submitted_by")
+  submittedAt         Int     @map("submitted_at")
+  pendingSince        Int?    @map("pending_since")
+  finishedAt          Int?    @map("finished_at")
+  formData            String? @map("form_data")
+  resolvedBranchId    Int?    @map("resolved_branch_id")
+  submittedOnBehalfBy String? @map("submitted_on_behalf_by")
+  noAutoDedup         Boolean @default(false) @map("no_auto_dedup")
+  modifiedOnce        Boolean @default(false) @map("modified_once")
+  isDeleted           Boolean @default(false) @map("is_deleted")
+  synced              Boolean @default(false) // business-sync idempotency flag
+
+  @@index([objectType])
+  @@index([status])
+  @@map("tbl_approval_requests")
+}
+
+model ApprovalAction {
+  id            Int        @id @default(autoincrement())
+  requestId     Int        @map("request_id")
+  stepOrder     Int        @map("step_order")
+  stepName      String?    @map("step_name")
+  action        ActionType
+  actedBy       String     @map("acted_by")
+  actedByUid    Int?       @map("acted_by_uid")
+  actedAt       Int        @map("acted_at")
+  note          String?
+  voided        Boolean    @default(false)
+  adminOverride Boolean    @default(false) @map("admin_override")
+
+  @@index([requestId])
+  @@map("tbl_approval_actions")
+}
+
+// Nhận xét trên phiếu — chép cột-đối-cột prod `tbl_approval_comments` (SHOW CREATE TABLE 24/09/2026).
+// Máy ghi vết (`is_system = true`, `commented_by = 'system'`) dùng bảng này để để lại dấu THẤY ĐƯỢC
+// trên phiếu, vd "[VI] TRU VI THAT BAI: …" khi bước trừ ví lúc duyệt xong không thành.
+enum ApprovalCommentType {
+  comment
+  urge
+}
+
+model ApprovalComment {
+  id          Int                 @id @default(autoincrement())
+  requestId   Int                 @map("request_id")
+  commentedBy String              @map("commented_by") @db.VarChar(50)
+  commentType ApprovalCommentType @default(comment) @map("comment_type")
+  comment     String?
+  attachments String?
+  mentions    String?             @db.VarChar(255)
+  isSystem    Boolean             @default(false) @map("is_system")
+  cdate       Int
+
+  @@index([requestId])
+  @@map("tbl_approval_comments")
+}
+
+model ApprovalRequestApprover {
+  id               Int                   @id @default(autoincrement())
+  requestId        Int                   @map("request_id")
+  stepOrder        Int                   @map("step_order")
+  username         String
+  changeType       RequestApproverChange @map("change_type")
+  replacedUsername String?               @map("replaced_username")
+  removed          Boolean               @default(false)
+
+  @@index([requestId])
+  @@map("tbl_approval_request_approvers")
+}
+
+// ===== Danh mục lõi (master data) =====
+
+enum KhoLoai {
+  VN
+  TQ
+}
+
+model Customer {
+  id            Int     @id @default(autoincrement())
+  code          String  @unique @db.VarChar(50)
+  name          String  @db.VarChar(255)
+  companyNameVn String? @map("company_name_vn") @db.VarChar(255)
+  taxCode       String? @map("tax_code") @db.VarChar(50)
+  groupCode     String? @map("group_code") @db.VarChar(50)
+  phone         String? @db.VarChar(50)
+  email         String? @db.VarChar(150)
+  address       String?
+  bankName      String? @map("bank_name") @db.VarChar(150)
+  bankAccount   String? @map("bank_account") @db.VarChar(80)
+  // Đăng nhập cổng khách — TÁCH KHỎI tbl_user (#01)
+  username      String? @unique @db.VarChar(50)
+  password      String? @db.VarChar(255)
+  // Sale sở hữu — ScopeService #01 lọc theo 2 cột này
+  saler         String? @db.VarChar(50)
+  salerOther    String? @map("saler_other")
+  source        Int     @default(0)
+  isNew         Int     @default(1) @map("is_new")
+  // Tín dụng — VND BigInt; CHỈ đặt qua duyệt (#04)
+  creditLimit   BigInt  @default(0) @map("credit_limit")
+  creditDays    Int     @default(0) @map("credit_days")
+  creditAt      Int?    @map("credit_at")
+  creditBy      String? @map("credit_by") @db.VarChar(50)
+  type          Int     @default(1)
+  author        String? @db.VarChar(50)
+  editBy        String? @map("edit_by") @db.VarChar(50)
+  cdate         Int
+  mdate         Int
+  isactive      Int     @default(1)
+
+  @@index([saler])
+  @@map("tbl_customer")
+}
+
+model CustomerGroup {
+  code     String @id @db.VarChar(50)
+  name     String @db.VarChar(50)
+  author   String @default("") @db.VarChar(50)
+  cdate    Int    @default(0)
+  mdate    Int?
+  isactive Int    @default(1)
+
+  @@map("tbl_customer_group")
+}
+
+model Warehouse {
+  ma       String   @id @db.VarChar(24)
+  ten      String   @db.VarChar(100)
+  loai     KhoLoai  @default(VN)
+  diaChi   String?  @map("dia_chi") @db.VarChar(255)
+  lat      Decimal? @db.Decimal(10, 7)
+  lng      Decimal? @db.Decimal(10, 7)
+  sort     Int      @default(0)
+  isactive Int      @default(1)
+
+  @@map("tbl_kho")
+}
+
+model ExpenseCategory {
+  id            Int     @id @default(autoincrement())
+  code          String? @db.VarChar(100)
+  name          String? @db.VarChar(100)
+  // MỚI so với prod (prod KHÔNG có cột này) — bắt buộc để ghi sổ #03/#09
+  glAccountCode String? @map("gl_account_code") @db.VarChar(20)
+  status        String  @default("yes") @db.VarChar(3)
+  author        String? @db.VarChar(100)
+  cdate         Int?
+  mdate         Int?
+
+  @@map("tbl_chiphi_group")
+}
+
+model CrmCategory {
+  id        Int    @id @default(autoincrement())
+  name      String @db.VarChar(150)
+  sort      Int    @default(0)
+  active    Int    @default(1)
+  createdAt Int    @default(0) @map("created_at")
+
+  @@map("tbl_crm_categories")
+}
+
+model SupplierCn {
+  id           Int     @id @default(autoincrement())
+  name         String  @db.VarChar(255)
+  address      String? @db.VarChar(500)
+  region       String? @db.VarChar(100)
+  industry     String? @db.VarChar(200)
+  receiverName String? @map("receiver_name") @db.VarChar(150)
+  bankName     String? @map("bank_name") @db.VarChar(150)
+  bankAccount  String? @map("bank_account") @db.VarChar(80)
+  qrImage      String? @map("qr_image") @db.VarChar(255)
+  note         String?
+  saleUsername String? @map("sale_username") @db.VarChar(50)
+  isActive     Int     @default(1) @map("is_active")
+  cdate        Int?
+  udate        Int?
+
+  @@index([saleUsername])
+  @@map("tbl_ncc")
+}
+
+model SupplierPayInfo {
+  id           Int    @id @default(autoincrement())
+  bankAccount  String @unique @map("bank_account") @db.VarChar(80)
+  receiverName String @default("") @map("receiver_name") @db.VarChar(150)
+  bankName     String @default("") @map("bank_name") @db.VarChar(150)
+  qrImage      String @default("") @map("qr_image") @db.VarChar(255)
+  note         String @default("") @db.VarChar(255)
+  timesUsed    Int    @default(1) @map("times_used")
+  lastUsedAt   Int    @default(0) @map("last_used_at")
+  createdBy    String @default("") @map("created_by") @db.VarChar(50)
+
+  @@map("tbl_ncc_pay_info")
+}
+
+model SupplierVn {
+  id          Int     @id @default(autoincrement())
+  name        String  @db.VarChar(255)
+  taxCode     String? @map("tax_code") @db.VarChar(50)
+  loaiDichvu  String? @map("loai_dichvu") @db.VarChar(100)
+  bankName    String? @map("bank_name") @db.VarChar(150)
+  bankAccount String? @map("bank_account") @db.VarChar(80)
+  creditDays  Int     @default(0) @map("credit_days")
+  note        String? @db.VarChar(500)
+  createdBy   String? @map("created_by") @db.VarChar(50)
+  isActive    Int     @default(1) @map("is_active")
+  cdate       Int?
+
+  @@map("tbl_ncc_vn")
+}
+
+// ===== #05 Báo giá (Quotation) =====
+// Độ chính xác cột đo TRỰC TIẾP trên prod 23/09/2026 — xem
+// docs/rewrite-spec/plans/2026-09-23-05-bao-gia-plan.md (mục "SỐ HỌC" + "BỘ SỐ VÀNG").
+// ⚠ QuoteFee dùng NUMERIC(18,3) — 3 SỐ LẺ, không phải 2. Đây không phải lỗi đánh máy:
+//   hệ PHP cũ từng ÂM THẦM làm tròn về 2 số lẻ và cắn thật — đừng "chuẩn hoá" lại về 2.
+// ⚠ Thuế suất trên QuoteItem lưu dạng PHÂN SỐ (0.08 = 8%), NGƯỢC với ImportTaxService
+//   nhận PHẦN TRĂM (8.0) — đơn vị đổi ở biên service, không đổi ở schema.
+
+enum PaymentMode {
+  tra_truoc
+  cong_no
+}
+
+model Quote {
+  id        Int    @id @default(autoincrement())
+  quoteCode String @unique @map("quote_code")
+
+  // Khách hàng / lead CRM (báo giá có thể dựng cho lead chưa là khách)
+  buyerId         Int?    @map("buyer_id")
+  leadId          Int?    @map("lead_id")
+  prospectName    String? @map("prospect_name")
+  prospectPhone   String? @map("prospect_phone")
+  prospectTax     String? @map("prospect_tax")
+  prospectAddress String? @map("prospect_address")
+
+  // Tỷ giá + tham số tính giá header — đo prod, XEM mục "SỐ HỌC" trong plan trước khi đổi precision
+  rateRmbVnd Decimal @map("rate_rmb_vnd") @db.Decimal(12, 4)
+  rateUsdVnd Decimal @map("rate_usd_vnd") @db.Decimal(12, 4)
+  rateCnyUsd Decimal @map("rate_cny_usd") @db.Decimal(12, 4)
+
+  fxBufferPct   Decimal  @map("fx_buffer_pct") @db.Decimal(6, 2)
+  entrustFeePct Decimal  @map("entrust_fee_pct") @db.Decimal(8, 6)
+  depositPct    Decimal? @map("deposit_pct") @db.Decimal(5, 2)
+  marginPct     Decimal? @map("margin_pct") @db.Decimal(5, 2)
+
+  // F3 — cột prod (22 dòng có nội dung) chưa có model, đo 23/09/2026.
+  deliveryExpected String? @map("delivery_expected") @db.VarChar(255)
+  deliveryDeadline String? @map("delivery_deadline") @db.VarChar(255)
+
+  freightVnPerKg  Decimal @map("freight_vn_per_kg") @db.Decimal(14, 2)
+  freightVnPerCbm Decimal @map("freight_vn_per_cbm") @db.Decimal(14, 2)
+
+  entrustBase  String?  @map("entrust_base") // 'goods'(legacy)|'full'|'ship'|'tax'|'both'
+  depositVnd   Decimal? @map("deposit_vnd") @db.Decimal(20, 2)
+  currencyMode String?  @map("currency_mode") // 'rmb'|'usd'
+
+  // Cờ dạng tinyint — theo quy ước tinyint của #02 (vd Customer.isactive), KHÔNG dùng Boolean
+  vatBaseFull      Int @default(0) @map("vat_base_full")
+  vatExclService   Int @default(0) @map("vat_excl_service")
+  declUsdCanonical Int @default(0) @map("decl_usd_canonical")
+  printExplain     Int @default(0) @map("print_explain")
+
+  shippingMode  String? @map("shipping_mode")
+  incoterm      String?
+  incotermPlace String? @map("incoterm_place")
+  declarant     String?
+
+  paymentMode PaymentMode @map("payment_mode")
+  status      Int
+
+  poId Int? @map("po_id")
+
+  approvalStatus Int     @default(0) @map("approval_status")
+  approvalBy     String? @map("approval_by")
+  approvalNote   String? @map("approval_note")
+  approvalAt     Int?    @map("approval_at")
+
+  createdBy String? @map("created_by")
+  cdate     Int
+
+  items QuoteItem[]
+  fees  QuoteFee[]
+
+  @@index([buyerId])
+  @@index([createdBy])
+  @@index([status])
+  @@map("tbl_quotes")
+}
+
+model QuoteItem {
+  id        Int @id @default(autoincrement())
+  quoteId   Int @map("quote_id")
+  sortOrder Int @map("sort_order")
+
+  productUrl String? @map("product_url")
+  imageUrl   String? @map("image_url")
+  origin     String?
+  model      String?
+  hsCode     String? @map("hs_code")
+  nameVn     String? @map("name_vn")
+  size       String?
+  material   String?
+  specParams String? @map("spec_params")
+  unit       String?
+
+  packLCm    Decimal? @map("pack_l_cm") @db.Decimal(10, 2)
+  packWCm    Decimal? @map("pack_w_cm") @db.Decimal(10, 2)
+  packHCm    Decimal? @map("pack_h_cm") @db.Decimal(10, 2)
+  packBoxes  Int?     @map("pack_boxes")
+  weightMode String?  @map("weight_mode")
+  shipBy     String?  @map("ship_by") // 'kg'|'cbm' — kết quả tính, xem mục "SỐ HỌC"
+
+  qty      Decimal @db.Decimal(14, 2)
+  weightKg Decimal @map("weight_kg") @db.Decimal(14, 2)
+  // F1 — prod là decimal(14,4), KHÔNG (14,2). Golden case C tự mang
+  // cbm=0.1479 (4 số lẻ); (14,2) âm thầm làm tròn về 0.15 lúc ghi, và vì
+  // cbm feed thẳng vào so sánh cước kg/cbm, sai số này chảy vào
+  // shipToVnVnd/totalVnd (đo prod 23/09/2026: 86/1894 dòng có >2 số lẻ,
+  // 64 trong số đó nhánh cbm thắng cước) — xem review F1 + test
+  // "QuoteItem.cbm giữ 4 số lẻ" (schema.spec.ts) và test idempotency
+  // addItem/recalcQuote (quote-service.spec.ts).
+  cbm      Decimal @db.Decimal(14, 4)
+
+  unitPriceRmb    Decimal @map("unit_price_rmb") @db.Decimal(14, 4)
+  domesticShipRmb Decimal @map("domestic_ship_rmb") @db.Decimal(14, 4)
+  qcCost          Decimal @map("qc_cost") @db.Decimal(14, 4)
+  otherCost       Decimal @map("other_cost") @db.Decimal(14, 4)
+  // F1 — prod là decimal(16,2); model cũ (14,4) hẹp hơn ở PHẦN NGUYÊN (10
+  // chữ số vs 12) dù rộng hơn ở phần lẻ — widen phần nguyên để không tràn,
+  // giữ 4 số lẻ (rộng hơn 2 số lẻ của prod, không mất dữ liệu).
+  amountRmb       Decimal @map("amount_rmb") @db.Decimal(16, 4)
+
+  amountVnd   Decimal @map("amount_vnd") @db.Decimal(20, 2)
+  shipToVnVnd Decimal @map("ship_to_vn_vnd") @db.Decimal(20, 2)
+
+  // Thuế suất PHÂN SỐ (0.08 = 8%) — KHÔNG phải phần trăm, xem comment đầu khối model
+  importTaxPct      Decimal @map("import_tax_pct") @db.Decimal(6, 4)
+  consumptionTaxPct Decimal @map("consumption_tax_pct") @db.Decimal(6, 4)
+  antidumpingPct    Decimal @map("antidumping_pct") @db.Decimal(6, 4)
+  vatPct            Decimal @map("vat_pct") @db.Decimal(6, 4)
+  envtaxAmount      Decimal @map("envtax_amount") @db.Decimal(14, 2) // tuyệt đối/đơn vị, KHÔNG phải %
+
+  importFeeVnd      Decimal @map("import_fee_vnd") @db.Decimal(20, 2)
+  consumptionTaxVnd Decimal @map("consumption_tax_vnd") @db.Decimal(20, 2)
+  antidumpingVnd    Decimal @map("antidumping_vnd") @db.Decimal(20, 2)
+  envtaxVnd         Decimal @map("envtax_vnd") @db.Decimal(20, 2)
+  vatAmount         Decimal @map("vat_amount") @db.Decimal(20, 2)
+  entrustFeeVnd     Decimal @map("entrust_fee_vnd") @db.Decimal(20, 2)
+  fxBufferVnd       Decimal @map("fx_buffer_vnd") @db.Decimal(20, 2)
+  totalVnd          Decimal @map("total_vnd") @db.Decimal(20, 2)
+  unitPriceVnd      Decimal @map("unit_price_vnd") @db.Decimal(20, 2)
+  unitPriceNovatVnd Decimal @map("unit_price_novat_vnd") @db.Decimal(20, 2)
+  baseInvoice       Decimal @map("base_invoice") @db.Decimal(20, 2)
+  vatInvoice        Decimal @map("vat_invoice") @db.Decimal(20, 2)
+
+  customsDeclaredUsd Decimal? @map("customs_declared_usd") @db.Decimal(14, 4)
+  declaredPriceUsd   Decimal? @map("declared_price_usd") @db.Decimal(14, 4)
+  importLabelText    String?  @map("import_label_text")
+
+  // F3 — cột prod chưa có model, đo 23/09/2026.
+  // detailAuto: 1.892/1.894 dòng prod có nội dung — bỏ là mất dữ liệu thật.
+  detailAuto        String?   @map("detail_auto") @db.VarChar(1000)
+  // antidumpingExpire: 0 dòng prod hiện tại, nhưng spec đặt tên cột và #08
+  // (hải quan) sẽ cần.
+  antidumpingExpire DateTime? @map("antidumping_expire") @db.Date
+
+  quote Quote @relation(fields: [quoteId], references: [id])
+
+  @@index([quoteId])
+  @@map("tbl_quote_items")
+}
+
+model QuoteFee {
+  id      Int @id @default(autoincrement())
+  quoteId Int @map("quote_id")
+
+  catalogId Int?    @map("catalog_id")
+  feeCode   String? @map("fee_code")
+  feeName   String? @map("fee_name")
+  leg       String?
+  basis     String?
+  pctBase   String? @map("pct_base")
+  unit      String?
+
+  qty  Decimal  @db.Decimal(14, 4)
+  qty2 Decimal? @db.Decimal(14, 4)
+  pct  Decimal? @db.Decimal(8, 4)
+
+  // ⚠ 3 SỐ LẺ — NUMERIC(18,3), không phải (18,2). Xem comment đầu khối #05.
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(18, 3)
+  // F6 — prod là "unit_price2" (KHÔNG có gạch dưới trước số 2), khác quy ước
+  // mọi cột khác của bảng này. @map phải khớp CHÍNH XÁC tên cột thật.
+  unitPrice2  Decimal? @map("unit_price2") @db.Decimal(18, 3)
+  amountNovat Decimal  @map("amount_novat") @db.Decimal(18, 3)
+  vatPct      Decimal  @map("vat_pct") @db.Decimal(6, 4)
+  vatAmount   Decimal  @map("vat_amount") @db.Decimal(18, 3)
+  amountTotal Decimal  @map("amount_total") @db.Decimal(18, 3)
+
+  included Int @default(1)
+
+  formulaText String? @map("formula_text")
+  explainText String? @map("explain_text")
+  note        String?
+  sortOrder   Int     @default(0) @map("sort_order")
+
+  quote Quote @relation(fields: [quoteId], references: [id])
+
+  @@index([quoteId])
+  @@map("tbl_quote_fees")
+}
+
+// F4 — realigned 23/09/2026 to match prod tbl_fee_catalog (17 rows) exactly.
+// Trước đây MỌI cột bị đổi tên (code≠fee_code, name≠name_vn,
+// default_unit_price≠default_price, is_active≠isactive) và THIẾU 9 cột —
+// gồm những cột lái hành vi phí (default_vat_pct, default_included,
+// pct_base, applies_mode). Mọi bảng khác của module #05 @map đúng tên cột
+// prod — bảng này phá quy ước đó, khiến script nạp dữ liệu không map được
+// nguồn. Field Prisma vẫn camelCase, chỉ @map đúng tên cột thật.
+model FeeCatalog {
+  id      Int     @id @default(autoincrement())
+  feeCode String  @unique @map("fee_code")
+  nameVn  String  @map("name_vn")
+  nameEn  String? @map("name_en")
+  leg     String?
+  basis   String?
+  pctBase String? @map("pct_base")
+
+  defaultUnit   String?  @map("default_unit")
+  defaultPrice  Decimal? @map("default_price") @db.Decimal(18, 3)
+  // Phân số (0.08 = 8%) — cùng quy ước với QuoteItem.vatPct/QuoteFee.vatPct.
+  defaultVatPct Decimal? @map("default_vat_pct") @db.Decimal(6, 4)
+
+  appliesMode String? @map("applies_mode")
+  explainVn   String? @map("explain_vn")
+
+  defaultIncluded Int @default(1) @map("default_included")
+  sortOrder       Int @default(0) @map("sort_order")
+  isactive        Int @default(1) @map("isactive")
+
+  @@map("tbl_fee_catalog")
+}
+
+// ===== #06 PO (Purchase Order / đơn mua hàng) =====
+// Độ chính xác + sự thật vòng đời đo TRỰC TIẾP trên prod 23/09/2026 — xem
+// docs/rewrite-spec/plans/2026-09-23-06-po-plan.md (mục "Sự thật đã ĐO trên PROD").
+//
+// ⚠⚠⚠ ĐƠN VỊ %VAT NGƯỢC NHAU GIỮA HAI BẢNG — ĐÃ ĐO 23/09/2026:
+//   PoItem.vatRate  (tbl_po_items.vat_rate)   lưu PHẦN TRĂM — đo thật:
+//     8.0000 x1460 dòng · 10.0000 x50 · 26.0000 x1 · 0 x3 · NULL x2.
+//   QuoteItem.vatPct (tbl_quote_items.vat_pct) lưu PHÂN SỐ  — 0.0800 = 8%.
+//   Hai bảng được so trực tiếp qua PoItem.quoteItemId (cổng lệch BG↔PO,
+//   Task 3/4/5 của #06). Nhầm đơn vị ở đây là SAI 100 LẦN — quy đổi ×100
+//   PHẢI làm ở biên service so sánh, KHÔNG được "chuẩn hoá" lại ở schema.
+//
+// ⚠ status: đo prod chỉ thấy -1(9) · 0(33) · 1(5) · 2(1) · 3(255) — CHƯA
+//   dòng nào tới 4/5/6. Vẫn dựng đủ máy trạng thái (interface PoStatus ở
+//   service layer, Task 2) nhưng 4/5/6 là đường CHƯA có dữ liệu thật trên
+//   prod — ghi rõ trong test khi dùng tới.
+model PurchaseOrder {
+  id         Int       @id @default(autoincrement())
+  poCode     String    @unique @map("po_code")
+  contractId Int?      @map("contract_id")
+  contractNo String?   @map("contract_no")
+  buyerId    Int?      @map("buyer_id")
+  // ⚠⚠ F3 (review cuối #06): prod `po_date` là DATE, KHÔNG phải epoch — đổi
+  // Int? -> DateTime? @db.Date (cùng mapping QuoteItem.antidumpingExpire).
+  // ⚠⚠⚠ 111/305 giá trị đo được là NULL hoặc chuỗi-0 MySQL '0000-00-00' —
+  // luật nạp BẮT BUỘC: chuỗi-0 ⇒ NULL, KHÔNG BAO GIỜ suy ra một epoch/ngày
+  // tính toán (naive parse ra 0 hoặc ngày âm). Production tự guard
+  // '0000-00-00' ở tầng đọc — quy tắc migrate phải làm y hệt ở tầng nạp.
+  poDate     DateTime? @map("po_date") @db.Date
+  currency   String?
+
+  subtotal      Decimal  @db.Decimal(20, 2)
+  vatAmount     Decimal  @map("vat_amount") @db.Decimal(20, 2)
+  totalAmount   Decimal  @map("total_amount") @db.Decimal(20, 2)
+  advanceAmount Decimal  @map("advance_amount") @db.Decimal(20, 2)
+  vatRate       Decimal? @map("vat_rate") @db.Decimal(6, 2)
+  fxRateCommit  Decimal? @map("fx_rate_commit") @db.Decimal(12, 4)
+
+  paymentTerms    String? @map("payment_terms")
+  paymentSchedule String? @map("payment_schedule")
+  // 'tra_truoc' | 'cong_no_ncc' — GIỮ String, KHÔNG dựng enum: prod lưu chữ
+  // tự do và chưa đo được đủ bộ giá trị thật.
+  poType          String? @map("po_type")
+
+  deliveryPlace    String?   @map("delivery_place")
+  deliveryMethod   String?   @map("delivery_method")
+  deliveryExpected String?   @map("delivery_expected")
+  // ⚠⚠ F3 — prod `delivery_deadline` là DATE (KHÔNG phải text tự do như
+  // Quote.deliveryDeadline, cột KHÁC bảng, giữ String cho đúng đo lường
+  // riêng của nó — đừng nhầm hai cột đồng tên khác model). Cùng luật
+  // zero-date ⇒ NULL ở trên (poDate).
+  deliveryDeadline DateTime? @map("delivery_deadline") @db.Date
+  shippingMode     String?   @map("shipping_mode")
+  incoterm         String?
+  incotermPlace    String?   @map("incoterm_place")
+  taxPaidBy        String?   @map("tax_paid_by")
+
+  // ===== Vòng đời (trái tim của model) =====
+  status Int @default(0)
+
+  submittedBy      String? @map("submitted_by")
+  submittedAt      Int?    @map("submitted_at")
+  leaderBy         String? @map("leader_by")
+  leaderAt         Int?    @map("leader_at")
+  tpkdBy           String? @map("tpkd_by")
+  tpkdAt           Int?    @map("tpkd_at")
+  rejectBy         String? @map("reject_by")
+  rejectAt         Int?    @map("reject_at")
+  rejectNote       String? @map("reject_note")
+  cancelBy         String? @map("cancel_by")
+  cancelAt         Int?    @map("cancel_at")
+  cancelNote       String? @map("cancel_note")
+  // Trạng thái NGAY TRƯỚC khi huỷ — cho phép restoreFromCancel() trả PO về
+  // đúng chỗ nó đang đứng, không phải luôn về 0.
+  cancelPrevStatus Int?    @map("cancel_prev_status")
+
+  paymentGuaranteed Int     @default(0) @map("payment_guaranteed")
+  // ===== F2 (review cuối #06) — bảo lãnh TT / rủi ro công nợ / hồ sơ: prod
+  // đo 23/09/2026 có 0–1 dòng dữ liệu, chưa có PO thật đi qua đường này, vẫn
+  // thêm để đúng đặc tả §3.1 và không mất chỗ đứng khi tính năng bật lên.
+  guaranteedBy      String? @map("guaranteed_by")
+  guaranteedAt      Int?    @map("guaranteed_at")
+  guaranteeNote     String? @map("guarantee_note")
+  creditRiskOk      Int     @default(0) @map("credit_risk_ok")
+  creditRiskAt      Int?    @map("credit_risk_at")
+  creditRiskBy      String? @map("credit_risk_by")
+  creditDueDays     Int?    @map("credit_due_days")
+  declaresCustoms   Int     @default(0) @map("declares_customs")
+  dossierClosedAt   Int?    @map("dossier_closed_at")
+  suborderGenerated Int     @default(0) @map("suborder_generated")
+  ordersGenerated   Int     @default(0) @map("orders_generated")
+  // 14/305 đo được — mốc "đã gửi PO cho khách", KHÔNG có ở prod cũ order.taobaostore.vn.
+  sentToCustomerAt  Int?    @map("sent_to_customer_at")
+
+  assignedTo String? @map("assigned_to")
+  createdBy  String? @map("created_by")
+  // ⚠ F3: 1/305 PO có cdate NULL/0 trên prod. Giữ NOT NULL ở đây (hệ mới LUÔN
+  // set cdate khi tạo PO — PoService.createPo đã làm vậy) — coi dòng lệch đó
+  // là lỗi dữ liệu LỊCH SỬ, không phải hình dạng cần hỗ trợ về sau. Luật nạp
+  // cho riêng dòng đó: coerce cdate NULL/0 -> `updated_at`/`po_date` của
+  // chính dòng nếu có giá trị, nếu cả hai đều rỗng thì dùng thời điểm CHẠY
+  // migration (nowSec() lúc nạp) — ghi rõ record nào bị coerce vào log
+  // migrate để truy lại được, không âm thầm đoán 0.
+  cdate      Int
+  // ⚠ F2 — 131/1539 dòng PoItem có notes thật (xem PoItem.notes bên dưới);
+  // notes ở đây là của HEADER PO — 11/305 PO có documents (text), 19/305 có
+  // sellerRep. Cả hai nằm trong đặc tả §3.1, KHÔNG nằm trong danh sách ngoài
+  // phạm vi của plan — chưa từng có quyết định ghi nhận bỏ chúng.
+  notes      String?
+  sellerRep  String? @map("seller_rep")
+  documents  String?
+
+  // ===== F2 — 4 cột liên hệ mua/bán, 143–166/305 dòng có dữ liệu =====
+  buyerContact       String? @map("buyer_contact")
+  buyerContactPhone  String? @map("buyer_contact_phone")
+  sellerContact      String? @map("seller_contact")
+  sellerContactPhone String? @map("seller_contact_phone")
+
+  @@index([status])
+  @@map("tbl_purchase_orders")
+}
+
+model PoItem {
+  id          Int     @id @default(autoincrement())
+  poId        Int     @map("po_id")
+  sortOrder   Int     @default(0) @map("sort_order")
+  productName String? @map("product_name")
+  spec        String?
+  unit        String?
+
+  quantity  Decimal @db.Decimal(14, 2)
+  unitPrice Decimal @map("unit_price") @db.Decimal(20, 2)
+  amount    Decimal @db.Decimal(20, 2)
+
+  // ⚠⚠⚠ PHẦN TRĂM, không phải phân số — xem comment đầu khối #06 ở trên.
+  // 8.0000 nghĩa là 8%. So với QuoteItem.vatPct (phân số) phải quy đổi ×100.
+  vatRate Decimal? @map("vat_rate") @db.Decimal(6, 4)
+
+  hsCode          String?  @map("hs_code")
+  origin          String?
+  supplierCostRmb Decimal? @map("supplier_cost_rmb")
+  currency        String?
+  weightKg        Decimal? @map("weight_kg")
+  // 4 số lẻ — cùng bài học F1 của #05 (QuoteItem.cbm): (14,2) âm thầm làm
+  // tròn và làm sai lệch cước/so sánh hạ nguồn.
+  cbm             Decimal? @db.Decimal(14, 4)
+  nccId           Int?     @map("ncc_id")
+  lineKind        String?  @map("line_kind")
+
+  // Khoá ghép cặp của cổng lệch BG↔PO (QuotePoDiffService, Task 3/4/5) — có
+  // index vì mọi so sánh join thẳng qua cột này.
+  quoteItemId Int? @map("quote_item_id")
+
+  // ===== F2 (review cuối #06) =====
+  // suborderId — 1.224/1.539 dòng đo được có giá trị: đường SỐNG DUY NHẤT nối
+  // một dòng PO tới đơn con của nó. Plan hoãn TÍNH NĂNG sinh đơn con (Task
+  // riêng, chưa port) — hoãn tính năng KHÔNG đồng nghĩa bỏ 1.224 tham chiếu
+  // dữ liệu đã tồn tại. #06 đợt 2 (sinh đơn con + sinh đơn) truy vấn theo cột
+  // này ⇒ thêm index cùng lúc, khớp prod (`tbl_po_items` có KEY `suborder_id`,
+  // đo SHOW INDEX 24/09/2026).
+  suborderId Int?    @map("suborder_id")
+  notes      String?
+
+  @@index([poId])
+  @@index([quoteItemId])
+  @@index([suborderId])
+  @@map("tbl_po_items")
+}
+
+// Task 5 #06 — "chấp nhận chênh": ghi lại rằng một người có thẩm quyền đã
+// ký nhận BỘ SỐ LỆCH hiện tại giữa PO và báo giá (QuotePoDiffService.hash),
+// không phải ký nhận cái PO chung chung — nếu số lệch đổi (dù PO đứng yên,
+// chỉ phía báo giá đổi) thì bản ghi cũ hết hiệu lực, xem
+// `QuotePoDiffService.canIssueInvoice`.
+//
+// Đã soát `StaffLog` (tbl_staff_log) trước khi thêm bảng này — KHÔNG dùng
+// lại: `boi`/`userId` ở đó là Int (actorUid/user bị tác động kiểu IAM),
+// trong khi mọi actor của domain PO trong repo này là String (xem
+// `PurchaseOrder.submittedBy/leaderBy/tpkdBy...`, `PoService.submit(poId,
+// by: string)`) — ép qua Int sẽ lại đúng bẫy "tên cột hay đoán nhầm". Bảng
+// riêng, nhỏ, rõ nghĩa hơn là gò vào bảng audit chung sai kiểu.
+model PoDiffAcceptance {
+  id        Int      @id @default(autoincrement())
+  poId      Int      @map("po_id")
+  // Fingerprint SHA-256 của compare() TẠI THỜI ĐIỂM chấp nhận — xem
+  // QuotePoDiffService.hash(). Sản xuất dùng SHA-1; ở bản viết lại này nâng
+  // lên SHA-256 (cố ý, không phải tương thích ngược với dữ liệu cũ).
+  hash      String
+  reason    String
+  actor     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([poId])
+  @@map("tbl_po_diff_acceptance")
+}
+
+// ===== #06 đợt 2 — Phụ lục PO (suborder) + sinh đơn hàng =====
+// Đo prod `sql_nhpcn` 24/09/2026 qua SSH read-only (SHOW COLUMNS, so THEO TÊN
+// với information_schema — không đếm số cột, xem task-1-report.md phần "hai
+// danh sách hiệu"). `tbl_po_phuluc` KHÔNG TỒN TẠI — tên thật của bảng phụ lục
+// là `tbl_po_suborders` (546 dòng, 24/09/2026); đừng tin tên bảng trong tài
+// liệu cũ.
+
+// Phụ lục PO — 1 PO có N suborder, mỗi suborder gom nhiều tbl_po_items
+// (PoItem.suborderId, đã có ở #06 đợt 1). Đủ 13/13 cột đo được trên prod,
+// không thiếu không thừa.
+model PoSuborder {
+  id Int @id @default(autoincrement())
+
+  // Không dựng quan hệ Prisma tới PurchaseOrder (theo đúng quy ước PoItem.poId
+  // ở #06 đợt 1) — chỉ FK vô hướng + index, prod cũng không có FK CSDL thật.
+  poId Int? @default(0) @map("po_id")
+
+  subCode String? @map("sub_code") @db.VarChar(40)
+  title   String?
+
+  // ⚠ prod là DATE thật (không phải epoch) — cùng luật zero-date '0000-00-00'
+  // ⇒ NULL như PurchaseOrder.poDate/deliveryDeadline (#06 đợt 1, F3): ETL
+  // KHÔNG được suy ra một epoch/ngày tính toán từ chuỗi-0 MySQL.
+  subDate DateTime? @map("sub_date") @db.Date
+
+  status Int? @default(0)
+
+  subtotal   Decimal? @default(0.00) @db.Decimal(18, 2)
+  totalItems Int?     @default(0) @map("total_items")
+  sortOrder  Int?     @default(0) @map("sort_order")
+
+  notes     String? @db.VarChar(500)
+  createdBy String? @map("created_by") @db.VarChar(50)
+
+  // ⚠⚠⚠ Đo TRỪNG cột — int(11), KHÔNG phải datetime dù đứng cạnh sub_date
+  // (datetime thật). Bẫy #08: 3 cột từng bị mô hình nhầm vì suy theo cột
+  // anh em cùng bảng — cột này đo riêng, xác nhận epoch int.
+  cdate Int? @default(0)
+
+  // Đơn hàng ĐẦU TIÊN sinh ra từ phụ lục này (createOrdersPerItem: "giữ tương
+  // thích, chỉ gán khi đang NULL/0"). KHÔNG có quan hệ Prisma sang Order vì
+  // prod cũng không ràng buộc FK — chỉ là dấu vết ghi tay của tầng service.
+  orderId Int? @default(0) @map("order_id")
+
+  @@index([poId])
+  @@map("tbl_po_suborders")
+}
+
+// tbl_order — PHẠM VI HẸP CÓ CHỦ Ý: bảng thật có 68 cột / 48.057 dòng, nhưng
+// đợt này chỉ đi đường order_type=1 (1.259/48.057 dòng — sinh từ PO). 46.798
+// dòng order_type=0 (đơn thủ công, vòng đời khác hẳn) NGOÀI PHẠM VI, không
+// đụng tới ở đợt này (xem plan mục "Đo prod" + "Ngoài phạm vi").
+//
+// Model dưới đây CHỈ gồm: (a) đúng tập cột `createOrdersPerItem`
+// (libs/cls.po.php:481-548, đo trực tiếp trên file prod 24/09/2026) ghi khi
+// INSERT — 30 cột (gồm cả vat_rate/vat_amount/total_money — lần soát đầu bỏ
+// sót ba cột này, bắt lại đúng bằng phép so "hai danh sách hiệu" theo TÊN ở
+// task-1-report.md, KHÔNG phải đếm số) — cộng (b) `id` (khoá chính, prod
+// bigint(255)) = 31 field Prisma / 31 cột Postgres thật. KHÔNG có field nào
+// cho 37 cột còn lại (parid, type, code_ship, code_khotq, rate_buy,
+// quan_store, weight, deposit, amount, fee_weight, fee_weight_root,
+// fee_service, fee_insurance, fee_incurred, total_money_fund, chiphikhac,
+// source, processor, is_wrong, note_wrong, website, isview, ischeck,
+// delivery_confirm, type_order, note_khieunai, ncc_pay_requested, invoiced,
+// cont_cost_alloc, duty_alloc, profit_amount, profit_calc_at, cogs_locked,
+// cogs_locked_at, cogs_locked_by, cogs_period, cogs_adjust) — chúng thuộc
+// module khác (kho vận đơn cũ, COGS #08/#09 đợt sau, khiếu nại…).
+// ⚠ `cogs_locked_at` là cột `datetime` THẬT trên prod (đo riêng, không suy)
+// — nằm NGOÀI phạm vi cột được ghi, nên không mô hình hoá, không phải vì
+// nhầm nó với cdate/mdate (hai cột đó CŨNG đo riêng, xác nhận int(11)).
+model Order {
+  // prod: bigint(255) — BigInt để không tràn ở quy mô 48k dòng/năm.
+  id BigInt @id @default(autoincrement())
+
+  oid String? @db.VarChar(100)
+
+  shop String?
+  sku  String? // prod: text — createOrdersPerItem luôn ghi '[]'
+
+  cusId   String? @map("cus_id") @db.VarChar(100)
+  cusInfo String? @map("cus_info") // prod: text (JSON string)
+
+  // prod: pro_id là varchar(255) (KHÔNG phải int — đo trực tiếp, không suy
+  // theo tên cột) — createOrdersPerItem luôn ghi '0' dạng chuỗi.
+  proId   String? @map("pro_id")
+  proInfo String? @map("pro_info") // prod: text (JSON string)
+
+  detailInfo String? @map("detail_info") // prod: text (JSON string)
+
+  codeOrder String? @map("code_order") // TRUY VẾT — <sub_code>-<seq 2 số>
+
+  priceCyn Decimal? @map("price_cyn") @db.Decimal(65, 4)
+  feeShip  Decimal? @default(0.000) @map("fee_ship") @db.Decimal(65, 3)
+  priceVn  BigInt?  @map("price_vn") // tiền hàng CHƯA thuế
+
+  rateSell Int? @default(3500) @map("rate_sell")
+
+  // ⚠⚠⚠ prod: decimal(14,2) — GIỮ thập phân (quantity=2.5 ⇒ quan=2.5). ĐỪNG
+  // ép Int: PoItem.quantity nguồn cũng là DECIMAL(14,2).
+  quan Decimal? @db.Decimal(14, 2)
+
+  // ⚠⚠⚠ Đo TỪNG cột — cả hai là int(11), epoch giây (PHP time()), KHÔNG phải
+  // datetime dù `cogs_locked_at` (ngoài phạm vi model) đứng cùng bảng LÀ
+  // datetime thật. Suy theo hàng xóm là đúng bẫy #08 — đo riêng từng cột.
+  cdate Int?
+  mdate Int?
+
+  saler String? @db.VarChar(50)
+  store String? @db.VarChar(50)
+
+  // ⚠⚠⚠ Thuế GTGT theo DÒNG HÀNG — prod: vat_rate decimal(6,4) NOT NULL
+  // default 0, vat_amount bigint(20) NOT NULL default 0. vat_rate là PHẦN
+  // TRĂM (khớp PoItem.vatRate nguồn — 8 nghĩa là 8%, KHÔNG phải 0.08), nhân
+  // thẳng amount*vat_rate/100, KHÔNG chia/nhân lệch chiều (bẫy CÔNG THỨC).
+  vatRate   Decimal @default(0.0000) @map("vat_rate") @db.Decimal(6, 4)
+  vatAmount BigInt  @default(0) @map("vat_amount")
+
+  // prod: bigint(255) YES, KHÔNG có default (NULL nếu bỏ trống) — số tiền
+  // KHÁCH PHẢI TRẢ đã gồm thuế (= price_vn + vat_amount). Nullable đúng theo
+  // đo prod, dù createOrdersPerItem luôn ghi giá trị này.
+  totalMoney BigInt? @map("total_money")
+
+  notes String?
+
+  // TRUY VẾT — chống trùng khi createOrdersPerItem gọi lại (SELECT ... WHERE
+  // po_item_id=? AND order_type=1).
+  orderType Int? @default(0) @map("order_type")
+  // prod: 2 = mặc định createOrdersPerItem ghi lúc sinh đơn (không phải 1).
+  isactive  Int? @default(0)
+
+  poId         Int? @default(0) @map("po_id")
+  poSuborderId Int? @default(0) @map("po_suborder_id")
+  // ⚠⚠ BẪY prod tự ghi (libs/cls.po.php:1238): PoItem.suborderId KHÔNG phải
+  // id đơn hàng — nó trỏ PoSuborder. Đơn hàng thật nối PO item bằng CHÍNH
+  // cột này (po_item_id), không phải suborderId. prod: NOT NULL default 0.
+  poItemId     Int  @default(0) @map("po_item_id")
+
+  // prod: decimal(16,2) NOT NULL default 0.00
+  supplierCostRmb Decimal @default(0.00) @map("supplier_cost_rmb") @db.Decimal(16, 2)
+
+  // prod: ENUM('CNY','USD') NOT NULL DEFAULT 'CNY' — ENUM CSDL thật (khác
+  // PoItem.currency, varchar tự do) nên mô hình bằng enum Prisma đúng domain.
+  currency OrderCurrency @default(CNY)
+
+  nccId Int? @default(0) @map("ncc_id")
+
+  @@index([cusId])
+  @@index([codeOrder])
+  @@index([poId])
+  @@index([poSuborderId])
+  @@index([poItemId])
+  @@map("tbl_order")
+}
+
+// #06 đợt 2 Task 3 — DEVIATION CÓ CHỦ Ý so với prod: chống trùng đơn khi
+// sinh từ PO là check-then-insert TẦNG ỨNG DỤNG trên prod (race thật, xem
+// `OrderGenService.createOrdersPerItem`). Postgres có thêm một partial
+// unique index Prisma KHÔNG THỂ biểu diễn ở đây (cùng giới hạn của
+// `tbl_mh_tygia_single_open` phía trên):
+//   CREATE UNIQUE INDEX "tbl_order_po_item_dedup" ON "tbl_order" ("po_item_id")
+//     WHERE "order_type" = 1 AND "po_item_id" > 0;
+// Xem prisma/migrations/20260924180000_po_dot2_order_dedup_index/migration.sql.
+// ⚠ KHÔNG bắt được po_item_id=0 (sentinel "chưa gán", 0 là giá trị hợp lệ
+// trên diện rộng của order_type=0) — xem comment đầu migration. Đừng xoá
+// index này ở một lượt `db pull`/schema regen sau này mà không thêm lại.
+
+enum OrderCurrency {
+  CNY
+  USD
+}
+
+// ===== #07 Kho — Kiện — Lô — Container (ĐỢT 1: đường có dữ liệu thật) =====
+// Cột + độ chính xác đo TRỰC TIẾP trên prod 23/09/2026 (`SHOW COLUMNS`) — xem
+// docs/rewrite-spec/plans/2026-09-23-07-kho-plan.md mục "⚠ ĐO PROD". Không
+// đoán/làm tròn — nơi nào KHÔNG đo được cột thì model để tối giản và ghi rõ
+// trong task-1-report.md (PackingLotItem/TransportFileItem/TransportFilePackage).
+
+// prod: lark 1.249 · unclaimed 234 · po_scan 85 · claimed 0 · manual 0.
+// ⚠⚠⚠ 'unclaimed' TỪNG THIẾU khỏi enum này trên prod và chặn cả luồng vô
+// chủ → nhận chủ (§4.4) — thiếu MỘT giá trị ở đây không phải chuyện cosmetic.
+enum KhoTqReceiptSource {
+  manual
+  lark
+  po_scan
+  unclaimed
+  claimed
+}
+
+model KhoTqReceipt {
+  id           Int     @id @default(autoincrement())
+  receiptCode  String? @map("receipt_code") @db.VarChar(100)
+  trackingCode String? @map("tracking_code") @db.VarChar(100)
+  poId         Int?    @map("po_id")
+  poItemId     Int?    @map("po_item_id")
+  lotId        Int?    @map("lot_id")
+  orderId      Int?    @map("order_id")
+  customerId   String? @map("customer_id") @db.VarChar(20)
+
+  // Cột PHẠM VI KHO — fail-closed (#01 `ScopeService.buildDocScope`, nhánh
+  // `warehouse` là opt-in: chứng từ có cột này PHẢI truyền tên cột, không
+  // truyền là DENY). Task 2 là nơi ĐẦU TIÊN thật sự dùng nhánh đó.
+  kho String? @db.VarChar(24)
+
+  productName String? @map("product_name") @db.VarChar(500)
+
+  quantity Int?
+  packages Int?
+  weight   Decimal? @db.Decimal(10, 2)
+  // 4 số lẻ — CỐ Ý, cùng bẫy F1 đã ăn Critical ở #05 (QuoteItem.cbm)/#06
+  // (PoItem.cbm). Đo prod: cột này là DECIMAL(10,4).
+  volume   Decimal? @db.Decimal(10, 4)
+
+  status          Int     @default(1)
+  conditionStatus String? @map("condition_status") @db.VarChar(20)
+  tempLocation    String? @map("temp_location")
+
+  containerItemId Int?    @map("container_item_id")
+  fileId          Int?    @map("file_id")
+  codeKhotq       String? @map("code_khotq")
+  larkRecordId    String? @map("lark_record_id")
+  clientRef       String? @map("client_ref")
+
+  source KhoTqReceiptSource?
+
+  // ===== Workflow tách lô — GIỮ CỘT dù đợt này KHÔNG dựng service =====
+  // Đo prod: split_status = 0 ở TOÀN BỘ 1.568 dòng — workflow chưa từng
+  // chạy thật. Vẫn giữ đủ cột để một lần migrate dữ liệu thật không mất gì
+  // (xem plan mục "⚠ ĐO PROD" + Task 1 điểm phải đúng).
+  splitStatus   Int     @default(0) @map("split_status")
+  splitParentId Int?    @map("split_parent_id")
+  splitSeq      Int?    @map("split_seq")
+  splitReqBy    String? @map("split_req_by")
+  splitReqAt    Int?    @map("split_req_at")
+  splitReqNote  String? @map("split_req_note")
+  splitBy       String? @map("split_by")
+  splitAt       Int?    @map("split_at")
+  splitNote     String? @map("split_note")
+  splitXnkBy    String? @map("split_xnk_by")
+  splitXnkAt    Int?    @map("split_xnk_at")
+  splitOnCont   Int?    @map("split_on_cont")
+
+  receivedBy String? @map("received_by")
+  receivedAt Int?    @map("received_at")
+  notes      String?
+
+  @@index([trackingCode])
+  @@index([poId])
+  @@index([poItemId])
+  @@index([orderId])
+  @@index([kho])
+  @@index([status])
+  @@index([fileId])
+  @@index([clientRef])
+  @@map("tbl_khotq_receipts")
+}
+
+// "1 dòng = 1 lô" — refactor đã chốt (xem memory `tbs-1dong-1lo-refactor-2808`).
+// unique(poId, lotNo) là chốt chặn cấp DB của luật đó: Task 3 sẽ chứng minh
+// hai PO KHÁC nhau được phép trùng lotNo (ràng buộc scope theo từng PO, không
+// phải toàn cục), còn trùng lotNo TRONG CÙNG một PO phải bị DB chặn thẳng.
+model PackingLot {
+  id           Int     @id @default(autoincrement())
+  poId         Int     @map("po_id")
+  // Đo prod: INTEGER, KHÔNG phải chuỗi — đừng "chuẩn hoá" thành String.
+  lotNo        Int     @map("lot_no")
+  supplierName String? @map("supplier_name") @db.VarChar(255)
+
+  planPackages      Int?      @map("plan_packages")
+  planQtyPerPack    Decimal?  @map("plan_qty_per_pack") @db.Decimal(15, 2)
+  planSpec          String?   @map("plan_spec")
+  planWeightKg      Decimal?  @map("plan_weight_kg") @db.Decimal(12, 2)
+  planCbm           Decimal?  @map("plan_cbm") @db.Decimal(12, 4)
+  expectedReadyDate DateTime? @map("expected_ready_date") @db.Date
+
+  claimNote String? @map("claim_note")
+  claimAt   Int?    @map("claim_at")
+  claimBy   String? @map("claim_by")
+
+  labelNeed Int?    @map("label_need")
+  labelBy   String? @map("label_by")
+  labelQty  Int?    @map("label_qty")
+  labelNote String? @map("label_note")
+
+  supplierNote String? @map("supplier_note")
+
+  @@unique([poId, lotNo])
+  @@index([poId])
+  @@map("tbl_po_packing_lot")
+}
+
+// ⚠ Cột prod của bảng này KHÔNG được đo trong đợt khảo sát 23/09/2026 (chỉ
+// đo được số dòng của PackingLot/TransportFile*/PackageIssue) — giữ TỐI
+// GIẢN theo đúng chỉ dẫn brief, ghi rõ trong task-1-report.md. Mở rộng khi
+// có phép đo `SHOW COLUMNS` thật.
+model PackingLotItem {
+  id          Int      @id @default(autoincrement())
+  lotId       Int      @map("lot_id")
+  poItemId    Int?     @map("po_item_id")
+  productName String?  @map("product_name")
+  quantity    Decimal? @db.Decimal(15, 2)
+  unit        String?
+
+  @@index([lotId])
+  @@map("tbl_po_packing_lot_item")
+}
+
+enum TransportType {
+  cont_ghep
+  duong_bo
+  duong_bien
+  duong_sat
+  duong_hang_khong
+}
+
+enum CargoType {
+  ghep
+  nguyen
+}
+
+model TransportFile {
+  id          Int     @id @default(autoincrement())
+  fileCode    String? @map("file_code") @db.VarChar(50)
+  route       String?
+  truckBillNo String? @map("truck_bill_no")
+
+  transportType TransportType? @map("transport_type")
+  cargoType     CargoType?     @map("cargo_type")
+
+  status         Int     @default(0)
+  classification String?
+
+  // ⚠⚠ Bài học #06: đây là DATE THẬT, KHÔNG map sang Int epoch — đổi kiểu
+  // sau này phải dùng ALTER COLUMN ... USING, không được DROP+ADD.
+  packDate          DateTime? @map("pack_date") @db.Date
+  lockDeadline      DateTime? @map("lock_deadline") @db.Date
+  packDateActual    DateTime? @map("pack_date_actual") @db.Date
+  runDate           DateTime? @map("run_date") @db.Date
+  portArrivalDate   DateTime? @map("port_arrival_date") @db.Date
+  arrivalDate       DateTime? @map("arrival_date") @db.Date
+  arrivalDateActual DateTime? @map("arrival_date_actual") @db.Date
+  clearanceDate     DateTime? @map("clearance_date") @db.Date
+
+  settledAt Int? @map("settled_at")
+
+  totalWeight        Decimal? @map("total_weight") @db.Decimal(12, 2)
+  totalVolume        Decimal? @map("total_volume") @db.Decimal(12, 4)
+  totalPackages      Int?     @map("total_packages")
+  totalOrders        Int?     @map("total_orders")
+  totalCustomers     Int?     @map("total_customers")
+  totalCost          Decimal? @map("total_cost") @db.Decimal(15, 2)
+  totalDeclaredValue Decimal? @map("total_declared_value") @db.Decimal(15, 2)
+
+  contSize  String?  @map("cont_size")
+  // Brief không nêu precision cho hai cột này (khác totalWeight/totalVolume
+  // đã đo) — giữ Decimal? không giới hạn, cùng cách #06 xử lý
+  // PoItem.supplierCostRmb/weightKg khi brief không chỉ định @db.Decimal.
+  maxVolume Decimal? @map("max_volume")
+  maxWeight Decimal? @map("max_weight")
+
+  packingListSentAt  Int?    @map("packing_list_sent_at")
+  packingListSentBy  String? @map("packing_list_sent_by")
+  packingConfirmedAt Int?    @map("packing_confirmed_at")
+  packingConfirmedBy String? @map("packing_confirmed_by")
+
+  customsLocked   Int     @default(0) @map("customs_locked")
+  customsLockedBy String? @map("customs_locked_by")
+  customsLockedAt Int?    @map("customs_locked_at")
+  customsGate     String? @map("customs_gate")
+  vehicleType     String? @map("vehicle_type")
+  vehicleCode     String? @map("vehicle_code")
+
+  assignedTo String?   @map("assigned_to")
+  createdBy  String?   @map("created_by")
+  createdAt  Int?      @map("created_at")
+  closedBy   String?   @map("closed_by")
+  // ⚠⚠ #08 fix-round-1 (23/09/2026): RETYPE từ Int? (epoch, giả định #07)
+  // sang DateTime? — đo prod: cột thật là `datetime`, và
+  // `tbs_decl_usd_rate()` (libs/decl_source.php) dùng nó như một MỐC NGÀY
+  // (`date('Y-m-d', closed_at)`) để tra tỷ giá đóng cont, không phải một
+  // epoch tuỳ ý. Trước bản vá này KHÔNG có code/test nào trong #07 hay #08
+  // đọc/ghi cột này (đã kiểm `grep -rn closedAt src/ test/` — chỉ khớp
+  // PackageIssue.closedAt, một cột KHÁC, không liên quan) nên retype không
+  // phá call site nào. Migration ALTER COLUMN ... TYPE timestamp(3) USING
+  // to_timestamp(closed_at) — KHÔNG dùng migrate diff sinh DROP+ADD (sẽ mất
+  // dữ liệu nếu cột này có dữ liệu thật trên prod sau này).
+  closedAt   DateTime? @map("closed_at")
+
+  // #08 fix-round-1 — hạng 1 trong thang tra tỷ giá `tbs_decl_usd_rate`
+  // (libs/decl_source.php): tỷ giá USD ĐÃ CHỐT thủ công cho cont này khi
+  // đóng tờ khai (`src='cont'`), ưu tiên TRÊN CÙNG mọi nguồn treasury. Đo
+  // prod 23/09/2026: NULL ở CẢ 14/14 cont — cột này CHƯA TỪNG được set,
+  // nhưng vẫn là hạng đầu tiên của thang tra, phải giữ đúng thứ tự ưu tiên.
+  usdRateClosed Decimal? @map("usd_rate_closed") @db.Decimal(12, 4)
+
+  @@index([status])
+  @@index([assignedTo])
+  @@index([createdAt])
+  @@map("tbl_transport_files")
+}
+
+// ⚠ Cột prod KHÔNG được đo chi tiết đợt #07 — giữ tối giản theo brief lúc đó.
+// ⚠ #08 (23/09/2026) ĐO LẠI và mở rộng bảng này với các cột dòng khai hải
+// quan — xem khối "cột dòng khai (#08)" bên dưới. `quantity` đã tồn tại từ
+// #07 (Decimal(15,2), placeholder CHƯA đo) — phép đo #08 cho biết cột thật
+// trên prod là int(11), nhưng brief Task 1 của #08 CẤM retype cột đã có ở
+// module khác trong lúc chỉ "mở rộng" — GIỮ NGUYÊN Decimal(15,2) ở đợt này,
+// không đổi sang Int. Ghi lại trong task-1-report.md để #07/#08 sau này tự
+// quyết định có retype hay không (đổi kiểu cột cần ALTER...USING cẩn thận,
+// ngoài phạm vi "chỉ tạo bảng mới + ADD COLUMN" của Task 1).
+model TransportFileItem {
+  id          Int      @id @default(autoincrement())
+  fileId      Int      @map("file_id")
+  productName String?  @map("product_name")
+  quantity    Decimal? @db.Decimal(15, 2)
+  unit        String?
+
+  // ===== #08 Hải quan — cột dòng khai, đo TRỰC TIẾP trên prod 23/09/2026 =====
+  // Xem docs/rewrite-spec/plans/2026-09-23-08-haiquan-plan.md mục "⚠ ĐO PROD"
+  // + công thức `recalcItemTax` (cls.container.php:726).
+
+  // ⚠⚠⚠ declaredValue là USD, freightAlloc là VND — TUYỆT ĐỐI KHÔNG được
+  // cộng hai cột này lại với nhau. Bug y hệt đã bắt được tại
+  // cls.container.php:707 khi ai đó cộng thẳng USD với VND.
+  declaredValue Decimal? @map("declared_value") @db.Decimal(15, 2)
+  // VND — xem cảnh báo ở declaredValue phía trên. `freightAlloc` (phí CIF
+  // phân bổ) KHÔNG đi vào nền thuế NK (huytbs chốt 02/09) — Task 3 sẽ chứng
+  // minh đổi freightAlloc không làm đổi một đồng thuế nào.
+  freightAlloc  Decimal? @map("freight_alloc") @db.Decimal(18, 2)
+
+  // Ba thuế suất dưới đây là PHẦN TRĂM (đo prod: import_duty_rate 5.00 x6
+  // dòng/0.00 x139 · vat_rate 8.00 x128/10.00 x9/0.00 x8) — NGƯỢC với
+  // QuoteItem.*Pct (phân số, 0.08=8%). `recalcItemTax` truyền THẲNG các cột
+  // này vào hàm 5-sắc-thuế dùng chung, KHÔNG ×100 (khác #05, nơi báo giá
+  // lưu phân số nên phải ×100 khi gọi cùng hàm).
+  importDutyRate     Decimal? @map("import_duty_rate") @db.Decimal(5, 2)
+  consumptionTaxRate Decimal? @map("consumption_tax_rate") @db.Decimal(5, 2)
+  vatRate            Decimal? @map("vat_rate") @db.Decimal(5, 2)
+
+  // ⚠⚠ BẪY ĐƠN VỊ: kiểu (6,4) mang HÌNH DẠNG phân số giống các cột *Pct của
+  // QuoteItem, NHƯNG prod `recalcItemTax` (cls.container.php:726) truyền
+  // THẲNG cột này vào hàm 5-sắc-thuế dùng chung — hàm đó nhận PHẦN TRĂM.
+  // Quy ước THẬT (dù kiểu trông giống phân số): nhập `5` cho nghĩa 5%, TUYỆT
+  // ĐỐI không nhập `0.05`. Đo prod: 100% (145/145) dòng là 0.0000 — quy ước
+  // này CHƯA TỪNG bị dữ liệu thật kiểm chứng. Người đầu tiên nhập một mức
+  // chống bán phá giá khác 0 mà không đọc comment này sẽ sai 100 lần.
+  antidumpingPct Decimal? @map("antidumping_pct") @db.Decimal(6, 4)
+
+  // Số TUYỆT ĐỐI trên một đơn vị hàng — KHÔNG phải phần trăm.
+  envtaxAmount Decimal? @map("envtax_amount") @db.Decimal(14, 2)
+
+  // ===== Cột kết quả tính thuế (ghi bởi CustomsDeclarationService, #08 Task 3) =====
+  // ⚠⚠⚠ taxBase CỐ Ý lưu TRỊ GIÁ KHAI quy VND (declaredValue × tỷ giá),
+  // KHÔNG phải phần "nền hàng" sau khi tách cước — để cột này còn đối chiếu
+  // được trực tiếp với declaredValue × tỷ giá trên lưới báo cáo. Đây là
+  // quyết định nghiệp vụ đã chốt (cổng gác THUE5-01/02/03), không phải bug.
+  taxBase     Decimal? @map("tax_base") @db.Decimal(18, 2)
+  dutyNkAmt   Decimal? @map("duty_nk_amt") @db.Decimal(18, 2)
+  dutyTtdbAmt Decimal? @map("duty_ttdb_amt") @db.Decimal(18, 2)
+  dutyCbpgAmt Decimal? @map("duty_cbpg_amt") @db.Decimal(18, 2)
+  envtaxVnd   Decimal? @map("envtax_vnd") @db.Decimal(18, 2)
+  dutyVatAmt  Decimal? @map("duty_vat_amt") @db.Decimal(18, 2)
+  totalTax    Decimal? @map("total_tax") @db.Decimal(15, 2)
+  taxRateUsed Decimal? @map("tax_rate_used") @db.Decimal(12, 4)
+
+  // Khoá tra dòng báo giá gốc của `tbs_decl_tach_nen_thue()` — CÓ INDEX vì
+  // hàm tách nền thuế join qua cột này ở MỌI lần tính lại thuế của dòng
+  // khai; thiếu index thì lookup đó chạy full-scan trên mỗi recalc.
+  quoteItemId Int? @map("quote_item_id")
+
+  declaredNameVi String? @map("declared_name_vi") @db.VarChar(500)
+
+  // ⚠⚠⚠ D2 (review cuối #08, 23/09/2026) — KHOÁ NỐI dòng khai về TỜ KHAI.
+  // Đo prod: `declaration_id int(11) NOT NULL DEFAULT 0`, phân bố
+  // `6223 -> 60 dòng · 6224 -> 40 dòng · 0 -> 45 dòng`, và JOIN sang
+  // `tbl_customs_declarations` giải được **100/145 dòng, không sót dòng nào**.
+  // Bản trước BỎ HẲN cột này vì danh sách cột Task 1 được suy ra từ công thức
+  // `recalcItemTax` (công thức đó không dùng FK) — hệ quả: `CustomsDeclaration`
+  // thành một hòn ĐẢO (không ai ghi, không ai đọc, không có đường xuống dòng).
+  // ⚠ Quy tắc ETL: `NULLIF(declaration_id, 0)` — `0` là sentinel "chưa gắn tờ
+  // khai", ĐÚNG cùng cách §6.1 của migration doc xử lý `quote_item_id` (và
+  // KHÁC nhóm §6.2, nơi `0` là giá trị thật).
+  declarationId Int?                @map("declaration_id")
+  declaration   CustomsDeclaration? @relation(fields: [declarationId], references: [id])
+
+  @@index([fileId])
+  @@index([quoteItemId])
+  // Prod có index tương ứng: `idx_tfi_decl (declaration_id)`, non_unique=1.
+  @@index([declarationId], map: "idx_tfi_decl")
+  @@map("tbl_transport_file_items")
+}
+
+// 1.568 dòng đo được (khớp đúng số phiếu KhoTqReceipt — kiện trên cont là
+// đường CHẠY THẬT) nhưng cột chi tiết KHÔNG được đo — giữ tối giản.
+//
+// ⚠⚠⚠ Review cuối #07 (F3/F6, đo lại prod 23/09/2026):
+//  - `fileId` ĐỔI `Int` -> `Int?`. `tbl_transport_file_packages.file_id`
+//    trên prod dùng sentinel 0 = "đã nhận nhưng CHƯA lên cont" — 1.510/1.568
+//    dòng đo được (96,3%) là 0, trạng thái PHỔ BIẾN chứ không phải ngoại lệ.
+//    Luật nạp dữ liệu hiện hành đổi sentinel 0 -> NULL; giữ NOT NULL ở đây
+//    sẽ làm ETL vỡ giữa chừng. Một kiện CHƯA lên cont là bình thường — kiểu
+//    phải nói lên điều đó.
+//  - Thêm `khotqReceiptId` — nối NGƯỢC kiện trên cont về phiếu nhận kho gốc
+//    của nó. `tbl_transport_file_packages.khotq_receipt_id` trên prod là FK
+//    có giá trị ở 100% (1.568/1.568) dòng — thiếu cột này là lý do
+//    `TransportFile.totalCustomers`/`totalOrders` không ai tính được, và một
+//    kiện trên cont không thể truy ngược ra khách/đơn hàng. Xem
+//    `TransportFileService.loadPackage`/`listReceiptsByFile`.
+model TransportFilePackage {
+  id             Int      @id @default(autoincrement())
+  fileId         Int?     @map("file_id")
+  packageCode    String?  @map("package_code")
+  weight         Decimal? @db.Decimal(10, 2)
+  volume         Decimal? @db.Decimal(10, 4)
+  khotqReceiptId Int?     @map("khotq_receipt_id")
+
+  @@index([fileId])
+  @@index([khotqReceiptId])
+  @@map("tbl_transport_file_packages")
+}
+
+model PackageContent {
+  id         Int      @id @default(autoincrement())
+  packageId  Int      @map("package_id")
+  fileId     Int?     @map("file_id")
+  itemId     Int?     @map("item_id")
+  orderId    Int?     @map("order_id")
+  customerId String?  @map("customer_id")
+  quantity   Decimal? @db.Decimal(15, 2)
+  netWeight  Decimal? @map("net_weight") @db.Decimal(10, 2)
+
+  @@index([packageId])
+  @@map("tbl_transport_package_contents")
+}
+
+// Đo CHÍNH XÁC trên prod (1.464 dòng, 1.457 đã ack, 0 ĐÃ ĐÓNG — §4.10 đòi
+// "ack RỒI đóng", 100% dữ liệu thật đang vi phạm nửa "đóng"). `ackNote` và
+// `closeNote` có trên prod nhưng KHÔNG có trong đặc tả viết — đo được nên
+// vẫn thêm vào đây (brief Task 1 nêu rõ điểm này).
+model PackageIssue {
+  id        Int     @id @default(autoincrement())
+  packageId Int     @map("package_id")
+  khau      String? @db.VarChar(20)
+  reasons   String? @db.VarChar(255)
+  note      String? @db.VarChar(500)
+
+  createdBy String? @map("created_by") @db.VarChar(50)
+  createdAt Int?    @map("created_at")
+
+  ackBy   String? @map("ack_by") @db.VarChar(50)
+  ackAt   Int?    @map("ack_at")
+  ackNote String? @map("ack_note") @db.VarChar(500)
+
+  closedBy  String? @map("closed_by") @db.VarChar(50)
+  closedAt  Int?    @map("closed_at")
+  closeNote String? @map("close_note") @db.VarChar(500)
+
+  @@index([packageId])
+  @@map("tbl_package_issue")
+}
+
+// ===== #08 Hải quan (Customs) — ĐỢT 1: lõi tính thuế nhập khẩu =====
+// Độ chính xác đo TRỰC TIẾP trên prod 23/09/2026 — xem
+// docs/rewrite-spec/plans/2026-09-23-08-haiquan-plan.md (mục "⚠ ĐO PROD").
+//
+// ⚠⚠⚠ Đo được CHƯA TỪNG chạy thật trên prod, giữ cột nhưng KHÔNG dựng
+// service ở đợt này: luồng channel xanh/vàng/đỏ (channel='' toàn bộ 248/248
+// dòng) · đóng băng tờ khai (frozen_at rỗng toàn bộ) · khai bổ sung
+// (tbl_customs_amendment 0 dòng, KHÔNG port bảng này đợt 1) · quy tắc quy
+// đổi SL1/SL2 (tbl_customs_unit_rules 0 dòng) · workflow duyệt HS
+// (hs_status=0 toàn bộ 690/690 dòng ImportGoods). Mọi con số là ẢNH CHỤP
+// 23/09/2026, đo lại lúc cutover.
+
+// Cột gốc: enum('','green','yellow','red') MySQL. Prisma không cho tên
+// thành viên rỗng ⇒ đặt tên KHONG, @map("") xuống đúng giá trị cột thật —
+// round-trip cả 4 giá trị (test/customs/schema.spec.ts), kể cả '' (giá trị
+// PHỔ BIẾN NHẤT — 248/248 dòng đo được — không phải trường hợp biên).
+enum CustomsChannel {
+  KHONG  @map("")
+  green
+  yellow
+  red
+}
+
+// Đo prod: lark_import 424, manual 266 dòng — đủ 3 giá trị đo được.
+enum ImportGoodsSource {
+  manual
+  from_declaration
+  lark_import
+}
+
+// ⚠⚠⚠ BẢNG NÀY HIỆN CHỈ ĐƯỢC NẠP BỞI MIGRATION — KHÔNG CÓ ĐƯỜNG GHI TỪ ỨNG
+// DỤNG (#08 review cuối, D2, 23/09/2026). Không một nơi nào trong `src/` gọi
+// `customsDeclaration.create/update/upsert` — cố ý, KHÔNG phải thiếu sót:
+// đợt 1 của #08 chỉ port LÕI TÍNH THUẾ của dòng khai (`recalcItemTax`), còn
+// việc tạo/sửa tờ khai (số tờ khai, kênh xanh/vàng/đỏ, đóng băng, khai bổ
+// sung) là ĐỢT 2. Bảng vẫn được dựng và giữ ĐỦ CỘT ở đợt này vì trên prod nó
+// mang **248 dòng dữ liệu THẬT** và `tbl_transport_file_items.declaration_id`
+// nối 100/145 dòng khai về đúng 2 tờ khai trong đó — không dựng bảng + quan
+// hệ ngay bây giờ nghĩa là ETL đợt 1 sẽ VỨT mối nối đó đi.
+// ⚠ "Bảng không ai ghi" thường là LỖI (bảng chết) — ở đây được chấp nhận vì
+// nó CỐ Ý, ĐƯỢC GHI RÕ (ở đây + docs/rewrite-spec/migration/08-haiquan.md
+// mục 7.1), và ĐANG CHỞ dữ liệu migrate thật. Đợt 2 dựng write path thì xoá
+// đoạn ghi chú này đi.
+model CustomsDeclaration {
+  id Int @id @default(autoincrement())
+
+  fileId            Int?      @map("file_id")
+  declarationNumber String?   @map("declaration_number") @db.VarChar(50)
+  declarationDate   DateTime? @map("declaration_date") @db.Date
+
+  // ⚠ KHÔNG có `customsGate` ở đây. Bản trước khai `customsGate String?
+  // @map("customs_gate")` — đo prod 23/09/2026 (information_schema, 30 cột
+  // của tbl_customs_declarations): **KHÔNG TỒN TẠI cột customs_gate trên
+  // bảng này**; cột đó nằm ở `tbl_transport_files` (đã có ở model
+  // TransportFile phía trên). Nó là cột MA, và vì đếm cột vẫn khớp 30/30 nên
+  // nó che đúng một cột BỊ THIẾU (`updated_at`) — xem review cuối #08 D1.
+  customsOffice       String? @map("customs_office")
+  declType            String? @map("decl_type")
+  declarantType       String? @map("declarant_type")
+  declarantCustomerId String? @map("declarant_customer_id")
+
+  status Int @default(0)
+
+  // Cột thật KHÔNG NULL trên prod, mặc định chuỗi rỗng (100% 248/248 dòng đo
+  // được là ''). Xem enum CustomsChannel phía trên cho cách map giá trị rỗng.
+  channel CustomsChannel @default(KHONG)
+
+  totalDeclaredValue Decimal? @map("total_declared_value") @db.Decimal(15, 2)
+  totalTax           Decimal? @map("total_tax") @db.Decimal(15, 2)
+  totalVat           Decimal? @map("total_vat") @db.Decimal(15, 2)
+  totalImportDuty    Decimal? @map("total_import_duty") @db.Decimal(15, 2)
+
+  // ⚠ registeredAt đo prod là DATETIME (giờ:phút:giây), KHÔNG phải DATE —
+  // khác clearanceDate (@db.Date, chỉ giữ ngày). Đừng gộp hai cột này lại.
+  registeredAt  DateTime? @map("registered_at")
+  clearanceDate DateTime? @map("clearance_date") @db.Date
+  taxPaidAt     DateTime? @map("tax_paid_at")
+  taxPaidBy     String?   @map("tax_paid_by")
+
+  // Đóng băng tờ khai (§4.7) — CHƯA TỪNG chạy thật (frozen_at rỗng ở TOÀN BỘ
+  // 248/248 dòng đo được). Giữ cột để một lần migrate dữ liệu thật không mất
+  // gì; KHÔNG dựng service đóng băng ở đợt 1.
+  frozenJson String?   @map("frozen_json")
+  frozenAt   DateTime? @map("frozen_at")
+
+  // ⚠ RETYPE Int?(epoch) -> DateTime? ở review cuối #08 (D5). Đo prod
+  // 23/09/2026: cả hai cột là `datetime` (rỗng 0/248 — nên retype không mất
+  // gì, nhưng kiểu phải đúng trước khi có dòng dữ liệu đầu tiên).
+  hqPrecheckSentAt DateTime? @map("hq_precheck_sent_at")
+  hqPrecheckSentBy String?   @map("hq_precheck_sent_by")
+  hqPrecheckOkAt   DateTime? @map("hq_precheck_ok_at")
+  hqPrecheckOkBy   String?   @map("hq_precheck_ok_by")
+  hqPrecheckNote   String?   @map("hq_precheck_note")
+
+  attachments String?
+  notes       String?
+  createdBy   String? @map("created_by")
+
+  // ⚠⚠ RETYPE Int?(epoch) -> DateTime? ở review cuối #08 (D5). Đo prod
+  // 23/09/2026: `created_at datetime DEFAULT current_timestamp()`, có giá trị
+  // ở **248/248 dòng** — kiểu Int? cũ KHÔNG CÓ CHỖ để nhận 248 dòng datetime
+  // thật này (Postgres không có ép ngầm datetime->int), ETL sẽ mất sạch.
+  createdAt DateTime? @map("created_at")
+
+  // ⚠⚠⚠ D1 — cột này TỪNG BỊ BỎ SÓT hoàn toàn. Đo prod 23/09/2026:
+  // `updated_at datetime DEFAULT current_timestamp()`, có giá trị ở
+  // **248/248 dòng** (dải 2026-09-02 20:55:08 … 2026-09-20 08:30:03) — vết
+  // audit sống trên MỌI dòng. Nó lọt lưới vì phép nghiệm thu chỉ ĐẾM cột
+  // (30 model vs 30 prod) mà không đối chiếu TÊN — và cột ma `customs_gate`
+  // (xem ghi chú ở customsOffice) làm con số khớp. Đúng lớp bẫy
+  // `receipt_images` của #07.
+  updatedAt DateTime? @map("updated_at")
+
+  // D2 — mặt NGƯỢC của `TransportFileItem.declaration_id`. Không có quan hệ
+  // này thì không có đường nào đi từ một tờ khai xuống các dòng khai của nó
+  // (hay ngược lại), và 100/145 dòng nối thật trên prod biến mất khi ETL.
+  items TransportFileItem[]
+
+  @@index([fileId])
+  @@index([declarationNumber])
+  @@index([status])
+  @@map("tbl_customs_declarations")
+}
+
+model ImportGoods {
+  id Int @id @default(autoincrement())
+
+  // ⚠ fix-round-1 (Task 4, 23/09/2026): prod goods_key là varchar(500) NOT
+  // NULL + UNIQUE KEY uq_goods_key (đo non_unique=0) — bản trước để nullable
+  // và không có unique, khiến upsert() phải findFirst+create/update (check-
+  // then-act, có race). Khôi phục đúng ràng buộc prod; upsert() đã đổi sang
+  // prisma.importGoods.upsert() thật (xem import-goods.service.ts).
+  goodsKey    String  @unique(map: "uq_goods_key") @map("goods_key") @db.VarChar(500)
+  productName String? @map("product_name")
+  spec        String?
+  hsCode      String? @map("hs_code") @db.VarChar(20)
+
+  declaredNameVi      String? @map("declared_name_vi")
+  declaredNameEn      String? @map("declared_name_en")
+  declaredNameCn      String? @map("declared_name_cn")
+  tenChung            String? @map("ten_chung")
+  declaredDescription String? @map("declared_description")
+  brand               String?
+  modelCode           String? @map("model_code")
+  material            String?
+  manufacturer        String?
+
+  declaredUnit String? @map("declared_unit")
+  sl2Unit      String? @map("sl2_unit")
+  hqUnit1Cn    String? @map("hq_unit1_cn")
+  hqUnit2Cn    String? @map("hq_unit2_cn")
+
+  // fix-round-1 (Task 4): đo prod 23/09 — origin varchar(100) NULL DEFAULT
+  // 'CN' (429/690 dòng có dữ liệu). Thiếu ở bản trước — đúng bẫy #07
+  // (receipt_images: cột có dữ liệu thật nhưng migration acceptance chỉ so
+  // ĐẾM DÒNG nên không phát hiện được).
+  origin String? @default("CN") @db.VarChar(100)
+
+  // PHẦN TRĂM — cùng quy ước với TransportFileItem.importDutyRate/vatRate
+  // phía trên (không phải phân số như QuoteItem).
+  importDutyRate     Decimal? @map("import_duty_rate") @db.Decimal(5, 2)
+  consumptionTaxRate Decimal? @map("consumption_tax_rate") @db.Decimal(5, 2)
+  vatRate            Decimal? @map("vat_rate") @db.Decimal(5, 2)
+
+  // Dải giá khai — §4.10, dùng để cảnh báo khai thấp/cao bất thường (Task 4).
+  minDeclaredPriceUsd  Decimal? @map("min_declared_price_usd") @db.Decimal(15, 4)
+  maxDeclaredPriceUsd  Decimal? @map("max_declared_price_usd") @db.Decimal(15, 4)
+  lastDeclaredPriceUsd Decimal? @map("last_declared_price_usd") @db.Decimal(15, 4)
+
+  coForm         String? @map("co_form")
+  procedureType  String? @map("procedure_type")
+  // ⚠ RETYPE String? -> Int? ở review cuối #08 (D5). Đo prod 23/09/2026:
+  // `procedure_days int(11) NULL` — số NGÀY làm thủ tục, không phải chuỗi.
+  // Rỗng 0/690 dòng nên retype không mất dữ liệu. ETL: `NULLIF(procedure_days
+  // , '')::int` không cần thiết (nguồn đã là int), chỉ chép thẳng.
+  procedureDays  Int?    @map("procedure_days")
+  policyNotes    String? @map("policy_notes")
+  goodsCondition String? @map("goods_condition")
+
+  // §4.8: hs_status=0 trên TOÀN BỘ 690/690 dòng đo được — workflow duyệt HS
+  // CHƯA TỪNG chạy. Giữ cột để migrate không mất dữ liệu, không dựng service
+  // duyệt HS ở đợt 1.
+  // ⚠⚠ RETYPE Int?(epoch) -> DateTime? cho approvedAt/pendingAt ở review
+  // cuối #08 (D5). Đo prod 23/09/2026: CẢ HAI là `datetime` (rỗng 0/690).
+  // Bản trước gõ Int? vì PATTERN-MATCH theo tên cột `*_at` của module khác —
+  // đúng cái bẫy mà comment ở khối status/createdBy phía dưới tự nhận là đã
+  // tránh được, nhưng không.
+  hsStatus    Int       @default(0) @map("hs_status")
+  approvedBy  String?   @map("approved_by")
+  approvedAt  DateTime? @map("approved_at")
+  hsVersion   Int?      @map("hs_version")
+  pendingJson String?   @map("pending_json")
+  pendingBy   String?   @map("pending_by")
+  pendingAt   DateTime? @map("pending_at")
+
+  source ImportGoodsSource?
+
+  timesUsed Int? @map("times_used")
+
+  // fix-round-1 (Task 4): 4 cột này đo prod ĐẦY ĐỦ 690/690 dòng (status
+  // luôn =1, created_by/created_at luôn có) — cùng lớp bẫy #07 nêu ở
+  // "origin" phía trên. status là tinyint(4) DEFAULT 1 trên prod.
+  // ⚠⚠⚠ Ở ĐÂY TỪNG CÓ MỘT LỜI KHẲNG ĐỊNH SAI, đã xoá ở review cuối #08
+  // (D5): bản trước viết "approvedAt/pendingAt/lastClearedAt cạnh đó LÀ
+  // epoch int — đã tự kiểm SHOW COLUMNS cho từng cột trước khi gõ kiểu".
+  // Đo lại prod 23/09/2026: cả ba cột đó là `datetime`, không phải epoch —
+  // phép kiểm được khẳng định KHÔNG HỀ XẢY RA. Cả ba nay đã retype sang
+  // DateTime?. Không viết lại một câu "đã kiểm" nào ở đây: một lời khẳng
+  // định đã-kiểm mà sai còn tệ hơn không có ghi chú, vì người đọc sau tin
+  // nó rồi thôi không đo nữa. Muốn biết kiểu cột thật -> tự chạy SHOW
+  // COLUMNS trên sql_nhpcn.
+  status     Int?      @default(1)
+  createdBy  String?   @map("created_by") @db.VarChar(100)
+  createdAt  DateTime? @map("created_at")
+  // 58/690 và 1/690 dòng có dữ liệu — vẫn ĐO ĐƯỢC dữ liệu thật, không phải
+  // cột chết; giữ đúng kiểu datetime của prod.
+  updatedBy  String?   @map("updated_by") @db.VarChar(100)
+  updatedAt  DateTime? @map("updated_at")
+  lastUsedAt DateTime? @map("last_used_at")
+
+  clearedCount    Int?      @map("cleared_count")
+  // ⚠ RETYPE Int?(epoch) -> DateTime? ở review cuối #08 (D5) — đo prod: cột
+  // thật là `datetime` (rỗng 0/690).
+  lastClearedAt   DateTime? @map("last_cleared_at")
+  lastClearedCont String?   @map("last_cleared_cont")
+
+  @@index([productName], map: "idx_name")
+  @@index([hsCode], map: "idx_hs")
+  @@map("tbl_import_goods")
+}
+
+// ⚠ Thuế suất lưu dạng CHUỖI trên prod (VARCHAR), KHÔNG phải số — đo
+// nk_uu_dai: '0' x3.769 dòng · RỖNG x3.115 dòng (3.115/15.119 — PHỔ BIẾN,
+// không phải lỗi dữ liệu) · '20'/'5'/'10'/'3'/'12'/'15'. Chuẩn hoá sang số ở
+// BIÊN service (HsTariffService, Task 4), KHÔNG đổi kiểu ở schema — bộ
+// chuẩn hoá đó PHẢI xử lý được cả chuỗi rỗng lẫn giá trị lạ ('-', '5%'...).
+model HsTariff {
+  id Int @id @default(autoincrement())
+
+  hsRaw   String? @map("hs_raw") @db.VarChar(30)
+  hsNorm  String? @map("hs_norm") @db.VarChar(20)
+  hsLevel Int?    @map("hs_level")
+  descVi  String? @map("desc_vi")
+  descEn  String? @map("desc_en")
+  unit    String?
+
+  nkTt      String? @map("nk_tt") @db.VarChar(40)
+  nkUuDai   String? @map("nk_uu_dai") @db.VarChar(40)
+  vat       String? @db.VarChar(40)
+  acfta     String? @db.VarChar(40)
+  rcep      String? @db.VarChar(40)
+  ttdb      String? @db.VarChar(40)
+  xk        String? @db.VarChar(40)
+  bvmt      String? @db.VarChar(60)
+  chinhSach String? @map("chinh_sach")
+  giamVat   String? @map("giam_vat")
+
+  @@index([hsNorm])
+  @@map("tbl_hs_tariff")
+}
+
+// Đo prod: tbl_customs_unit_rules = 0 dòng — quy tắc quy đổi SL1/SL2 chưa
+// từng được cấu hình. Cột prod BÊN NGOÀI danh sách dưới đây KHÔNG được đo
+// (không có dữ liệu để soi `SHOW COLUMNS` có ý nghĩa) — giữ tối giản đúng
+// theo brief, mở rộng khi có dòng dữ liệu thật để đo.
+model CustomsUnitRule {
+  id Int @id @default(autoincrement())
+
+  scopeType      String?  @map("scope_type")
+  scopeKey       String?  @map("scope_key")
+  unit1          String?
+  unit2          String?
+  conversionType String?  @map("conversion_type")
+  factor         Decimal? @db.Decimal(18, 6)
+  paramsJson     String?  @map("params_json")
+
+  @@index([scopeType])
+  @@map("tbl_customs_unit_rules")
+}
+
+// ═══ #08 fix-round-1 (23/09/2026) — bảng tỷ giá TREASURY dùng bởi
+// `tbs_decl_usd_rate()` (libs/decl_source.php), hạng 2/3 trong thang tra
+// tỷ giá của `recalcItemTax`. ⚠ KHÁC HẲN `MhRate`/`tbl_mh_tygia` phía trên
+// (bảng đó phục vụ tỷ giá mua-hộ/ví, có "hiệu lực từ/đến" — hai bảng tỷ giá
+// SONG SONG, không được gộp hay dùng lẫn cho nhau). Đo prod 23/09/2026:
+// tbl_exchange_rates = 0 DÒNG — bảng CHƯA TỪNG được nạp dữ liệu, nên nhánh
+// "0 dòng ⇒ getRate trả 0 ⇒ no_rate" là đường DUY NHẤT từng chạy thật (xem
+// DeclSourceService.usdRateForFile + test/customs/usd-rate-for-file.spec.ts).
+enum Currency {
+  CNY
+  USD
+}
+
+model ExchangeRate {
+  id Int @id @default(autoincrement())
+
+  currency Currency
+  rateVnd  Decimal  @map("rate_vnd") @db.Decimal(12, 2)
+  rateDate DateTime @map("rate_date") @db.Date
+
+  createdBy String @default("") @map("created_by")
+  cdate     Int    @default(0)
+
+  // ⚠⚠ IMPORTANT 2 (fix-round-2, 23/09/2026) — coordinator đo prod:
+  // `uq_cur_date` UNIQUE trên (currency, rate_date), `non_unique=0`. Bản
+  // trước model plain @@index — với trùng lặp có thể xảy ra, `findFirst
+  // orderBy rateDate desc` không có cách phân định (tiebreaker), khiến tỷ
+  // giá chọn được NHÔNG XÁC ĐỊNH (và do đó cả tiền thuế) giữa các lần chạy.
+  // @@unique tạo UNIQUE INDEX — vẫn phục vụ đúng truy vấn
+  // getRate(currency,date)=SELECT...WHERE currency=? AND rate_date<=?
+  // ORDER BY rate_date DESC LIMIT 1 (một UNIQUE INDEX vẫn dùng được cho
+  // range scan như index thường), CỘNG THÊM chặn trùng lặp ở tầng CSDL.
+  // Service vẫn giữ tiebreaker `id DESC` tường minh trong ORDER BY (xem
+  // decl-source.service.ts) thay vì dựa vào constraint này — phòng khi có
+  // dữ liệu cũ nạp trước khi constraint tồn tại, hoặc constraint bị gỡ sau
+  // này mà code không được cập nhật theo.
+  @@unique([currency, rateDate])
+  @@map("tbl_exchange_rates")
+}
+
+// ═══ #04b (24/09/2026) — "trả về cho người nộp sửa" (CLS_TRAVE), Task 1.
+// Chép cột-đối-cột prod (`tbl_return_config`/`tbl_return_fields`/`tbl_return_state`,
+// đo `information_schema` 24/09/2026, xem docs/rewrite-spec/04b-tra-ve-nguoi-nop-sua.md §7.1/§8.2).
+// Không FK từ ReturnState tới đối tượng gốc (đa hình: 'approval_request' | 'payment', như prod).
+enum ReturnCheckpointType {
+  approval
+  biz
+}
+
+enum ReturnEditMode {
+  off
+  all
+  whitelist
+}
+
+enum ReturnStateValue {
+  returned
+  resubmitted
+}
+
+model ReturnConfig {
+  id             Int                  @id @default(autoincrement())
+  checkpointType ReturnCheckpointType @map("checkpoint_type")
+  checkpointRef  String               @map("checkpoint_ref") @db.VarChar(60) // approval: id bước dạng chuỗi; biz: khoá tv_checkpoints
+  editMode       ReturnEditMode       @default(off) @map("edit_mode")
+  requireReason  Boolean              @default(true) @map("require_reason")
+  updatedBy      String?              @default("") @map("updated_by") @db.VarChar(50)
+  updatedAt      Int?                 @default(0) @map("updated_at")
+  fields         ReturnConfigField[]
+
+  @@unique([checkpointType, checkpointRef])
+  @@map("tbl_return_config")
+}
+
+model ReturnConfigField {
+  id       Int          @id @default(autoincrement())
+  configId Int          @map("config_id")
+  fieldKey String       @map("field_key") @db.VarChar(60)
+  config   ReturnConfig @relation(fields: [configId], references: [id], onDelete: Cascade) // prod không FK — mồ côi (A5) bị loại lúc nạp, hệ mới siết bằng FK
+
+  @@unique([configId, fieldKey])
+  @@map("tbl_return_fields")
+}
+
+model ReturnState {
+  id             Int                  @id @default(autoincrement())
+  objectType     String               @map("object_type") @db.VarChar(30) // 'approval_request' | 'payment'
+  objectId       Int                  @map("object_id") // prod bigint; mọi giá trị nguồn ≤ 97.817 — Int khớp ApprovalRequest.id (Q8)
+  checkpointType ReturnCheckpointType @map("checkpoint_type")
+  checkpointRef  String               @map("checkpoint_ref") @db.VarChar(60)
+  state          ReturnStateValue     @default(returned)
+  reason         String               @default("") @db.VarChar(255)
+  round          Int                  @default(1) @db.SmallInt
+  fieldsOpened   Json                 @map("fields_opened") // mảng field_key, ảnh chụp lúc trả
+  dataBefore     Json?                @map("data_before")
+  dataAfter      Json?                @map("data_after") // '' prod -> NULL
+  returnedBy     String               @map("returned_by") @db.VarChar(50)
+  returnedAt     Int                  @map("returned_at")
+  resubmittedAt  Int?                 @map("resubmitted_at") // 0 prod -> NULL
+
+  @@unique([objectType, objectId])
+  @@index([state])
+  @@map("tbl_return_state")
+}
+
+// ===== #09a Phiếu thanh toán NCC (Supplier Payment) — ĐỢT 1: model + migration ONLY =====
+// Chép cột-đối-cột prod tbl_payment/tbl_payment_orders/tbl_payment_log/tbl_payment_source
+// (đo information_schema 24/09/2026, docs/rewrite-spec/09a-thanh-toan-ncc.md §2/§8).
+// Task 1 của kế hoạch 09a đợt 1 — KHÔNG có service/HTTP ở đợt này (Q10 mặc định: ở lại PHP).
+//
+// ⚠⚠⚠ KHÔNG FK tới Order/PurchaseOrder dù hai model đó đã có trong schema này (#06).
+// Prod tự thân KHÔNG FK orderId/poId (đo: 9 orderId mồ côi, order_id=0 hợp lệ cho phiếu
+// gộp pay_type='supplier', po_id=0 hợp lệ khi không có PO) — port trung thành nghĩa là
+// giữ nguyên KHÔNG ràng buộc, không phải "giờ có model rồi thì thêm FK cho chặt".
+//
+// price_cyn/price_payment: prod decimal(65,2) nhưng đo được MAX price_cyn 8,7×10⁸ và
+// MAX price_payment 1,84×10⁹ — Decimal(18,2) đủ, không mất giá trị (đặc tả §8 mở đầu).
+enum PaymentCurrency {
+  CNY
+  USD
+}
+
+model SupplierPayment {
+  id    Int  @id @default(autoincrement()) // prod bigint, MAX 53.736 — Int khớp quy ước ReturnState.objectId (Q9 mặc định)
+  cdate Int? // unix; 0 dòng NULL thực tế nhưng giữ nullable như kiểu cột prod (int(11) NULL)
+  mdate Int? // 12.181/15.517 NULL (phiếu cũ chưa từng sửa/duyệt qua đường ghi mdate) — giữ NULL, KHÔNG suy ra từ cdate
+
+  priceCyn Decimal?        @map("price_cyn") @db.Decimal(18, 2) // số nguyên tệ; rate_buy=1 ⇒ là VND (25 dòng, §11.2)
+  currency PaymentCurrency @default(CNY) // ⚠ KHÔNG đáng tin cho phiếu cũ (276 dòng CNY có tỷ giá USD, §11.2) — đừng dùng để phân loại quỹ
+  rateBuy  Int?            @map("rate_buy") // int(11) prod — process_edit_batch_rate.php ghi floatval() vào, MariaDB làm tròn
+
+  saler String? @db.VarChar(50) // người TẠO phiếu (tên sai lệch lịch sử); KHÔNG FK — 335/15.517 dòng trỏ user đã mất khỏi tbl_user
+  from  String? @db.VarChar(50) // "Đặt hàng tại": Thanh toán ngoài | 1688 | Taobao | Khác | Xiamyu
+
+  source    String? @db.VarChar(50) // NHÃN nguồn tệ tự do lịch sử — ví thật tra qua accountCode, KHÔNG qua cột này
+  codeOrder String? @map("code_order") @db.VarChar(255) // mã đơn, hoặc mã PO khi phiếu gộp — giữ NGUYÊN BYTE, đừng TRIM (2 dòng có khoảng trắng đầu/cuối)
+  orderId   Int?    @map("order_id") // ⚠ 0 = phiếu gộp (pay_type='supplier') là GIÁ TRỊ THẬT, KHÔNG NULLIF; 9 dòng mồ côi giữ nguyên — không FK
+
+  note         String?  @db.VarChar(255)
+  notePayment  String?  @map("note_payment") // 2 định dạng trong 1 cột: JSON mảng tệp đính kèm | chữ thường "Danh sách đơn (N): …" — giữ TEXT, không parse
+  pricePayment Decimal? @map("price_payment") @db.Decimal(18, 2) // số VND dẫn xuất; 14.328/15.517 NULL là BÌNH THƯỜNG (web tạo không ghi) — KHÔNG backfill ROUND(priceCyn*rateBuy), mã đọc tự rơi về công thức (§11.1)
+
+  payment String? @default("no") @db.VarChar(3) // cờ "Đã TT": giữ NGUYÊN 3 giá trị NULL/'no'/'yes' — KHÔNG chuẩn hoá NULL→'no' (migration M2)
+  pdate   Int? // ngày "Đã TT" — có ⇔ payment='yes' (đo 1.016/1.016, 0 ngoại lệ)
+
+  status  String? @default("no") @db.VarChar(3) // BẢN SAO confirm (D7) — mọi ghi trong service phải đặt CẢ HAI cột cùng lúc (Q8 mặc định)
+  confirm String? @default("no") @db.VarChar(3) // duy nhất do confirm() đặt 'yes' — xem 09a §3.2/§5.11
+
+  poId    Int    @default(0) @map("po_id") // 0 = không có PO — giá trị THẬT, giữ 0 không NULL (15.046/15.517 dòng)
+  payType String @default("") @map("pay_type") @db.VarChar(20) // '' = luồng cũ (15.084) | 'supplier' = gộp từ PO (433)
+
+  billImages String? @map("bill_images") // JSON mảng URL uploads/payment/… dạng chuỗi
+
+  accountCode String @default("") @map("account_code") @db.VarChar(10) // ⛔ ví quỹ bị trừ — '' LÀ GIÁ TRỊ THẬT (14.238/15.517 dòng không trừ quỹ nào), KHÔNG NULLIF
+
+  nccReceiver      String  @default("") @map("ncc_receiver") @db.VarChar(150)
+  nccBankName      String  @default("") @map("ncc_bank_name") @db.VarChar(150)
+  nccBankAccount   String  @default("") @map("ncc_bank_account") @db.VarChar(80) // ⚠ KHÔNG in ra log ETL/ứng dụng (migration §2.1)
+  nccQrImage       String  @default("") @map("ncc_qr_image") @db.VarChar(255)
+  nccBankNote      String? @map("ncc_bank_note") @db.VarChar(255)
+  nccPayChannel    String  @default("bank") @map("ncc_pay_channel") @db.VarChar(20) // bank | 1688 | taobao
+  nccPlatformOrder String  @default("") @map("ncc_platform_order") @db.VarChar(255)
+
+  nccInvoiceImages     String? @map("ncc_invoice_images") // giữ chuỗi JSON nguyên — mergeResubmit (04b) so ép chuỗi, Json '[]' ≠ chuỗi '[]' sinh "trường đã đổi" giả
+  nccPackingListImages String? @map("ncc_packing_list_images")
+
+  ktNote String? @map("kt_note")
+
+  ttNgoaiKieu String @default("") @map("tt_ngoai_kieu") @db.VarChar(20) // '' | alipay | wechat | tk_canhan | tk_cty
+
+  orders SupplierPaymentOrder[]
+
+  @@index([poId])
+  @@index([accountCode])
+  @@index([orderId])
+  @@map("tbl_payment")
+}
+
+model SupplierPaymentOrder {
+  id        Int             @id @default(autoincrement())
+  paymentId Int             @map("payment_id")
+  orderId   Int             @map("order_id")
+  rmb       Decimal         @default(0) @db.Decimal(16, 2) // decimal(16,2) đúng kiểu prod — KHÁC price_cyn (18,2) của bảng cha, đừng "thống nhất"
+  cdate     Int             @default(0)
+  prevFund  Decimal?        @map("prev_fund") @db.Decimal(18, 2) // ảnh chụp giá gốc đơn TRƯỚC khi duyệt — NULL = "không có ảnh chụp", khác 0
+  prevRate  Decimal?        @map("prev_rate") @db.Decimal(18, 2)
+  payment   SupplierPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade) // prod KHÔNG FK: 40 dòng mồ côi bị loại lúc nạp (migration A2, Q3) — v2 siết FK
+
+  @@unique([paymentId, orderId], map: "uq_pay_order")
+  @@index([orderId])
+  @@map("tbl_payment_orders")
+}
+
+enum SupplierPaymentLogAction {
+  rollback
+  edit
+  delete
+  doc_return
+  doc_resubmit
+  doc_chan_truong
+}
+
+model SupplierPaymentLog {
+  id        Int                      @id @default(autoincrement())
+  paymentId Int                      @map("payment_id") // KHÔNG FK — 240/3.597 dòng trỏ phiếu đã xoá; vết xoá phải sống (migration A5, Q3)
+  action    SupplierPaymentLogAction
+  oldData   String?                  @map("old_data")
+  newData   String?                  @map("new_data")
+  note      String?                  @db.VarChar(255)
+  createdBy String?                  @map("created_by") @db.VarChar(50)
+  cdate     Int?
+
+  @@index([paymentId])
+  @@map("tbl_payment_log")
+}
+
+model PaymentSource {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(100)
+  tkCode    String?   @map("tk_code") @db.VarChar(10) // NULL hợp lệ (vd 'TT quỹ USD') — payment_tao.php từ chối nguồn này, đúng hành vi
+  sortOrder Int?      @default(0) @map("sort_order")
+  isActive  Int?      @default(1) @map("is_active")
+  createdAt DateTime? @default(now()) @map("created_at")
+
+  @@map("tbl_payment_source")
+}
+
+// 09b đợt 1 — Sổ quỹ / Ví quỹ công ty (CLS_TREASURY). Đặc tả:
+// docs/rewrite-spec/09b-so-quy-treasury.md §9; migration:
+// docs/rewrite-spec/migration/09b-so-quy-treasury.md. Model-only ở đợt này —
+// TreasuryService/GL-biết-ví/đọc HTTP là Task 2-3 (không có ở nhánh này).
+enum FundCurrency {
+  VND
+  CNY
+  USD
+}
+
+enum FundGroup {
+  bank
+  store
+}
+
+model FundAccount {
+  // tbl_accounts — 15 dòng prod, id 1-321. KHÔNG mang cột `password` (§2.1 Q15:
+  // không mã nào đọc; mật khẩu API cũ nằm ở gfconfig.php, không migrate).
+  id             Int          @id @default(autoincrement())
+  code           String       @unique @db.VarChar(10)
+  name           String       @db.VarChar(100)
+  subname        String       @default("") @db.VarChar(150)
+  currency       FundCurrency @default(VND)
+  accGroup       FundGroup    @default(bank) @map("acc_group")
+  hasGout        Int          @default(0) @map("has_gout") @db.SmallInt
+  displayOrder   Int          @default(0) @map("display_order")
+  isActive       Int          @default(1) @map("is_active") @db.SmallInt
+  note           String       @default("") @db.VarChar(255)
+  // `0` là THẬT (10/15 ví opening=0) — KHÔNG NULLIF.
+  openingBalance Decimal      @default(0) @map("opening_balance") @db.Decimal(20, 5)
+  // Khoá ánh xạ SePay (`findBySTK`) — KHÔNG log giá trị cột này ra ngoài (đặc tả §2.1/§6).
+  stk            String       @default("") @db.VarChar(30)
+  bankCode       String       @default("") @map("bank_code") @db.VarChar(30)
+  walletStream   String       @default("cty") @map("wallet_stream") @db.VarChar(10)
+  customLabel    String       @default("") @map("custom_label") @db.VarChar(50)
+  cdate          Int          @default(0)
+  mdate          Int          @default(0)
+  ownerUid       Int?         @default(0) @map("owner_uid")
+  // '' = chưa khai vế tiền GL (TK07) — postBiz GIỮ cặp mapping cũ khi rỗng; KHÔNG NULLIF.
+  glAccount      String       @default("") @map("gl_account") @db.VarChar(20)
+  quyDoiSang     String       @default("") @map("quy_doi_sang") @db.VarChar(10)
+
+  @@map("tbl_accounts")
+}
+
+model TreasuryEntry {
+  // tbl_account_histories — 2.429 dòng prod, id 1.788.363.983-1.790.251.005
+  // (< 2³¹-1 ⇒ Int, đặc tả §9/Q2). `id` nạp TƯỜNG MINH lúc ETL, sequence chỉ
+  // cấp id MỚI sau `setval` (migration §6) — v2 KHÔNG cấp id theo time() như prod.
+  id             Int      @id @default(autoincrement())
+  // KHÔNG FK tới FundAccount.code: 39 dòng 'CHI-TBS'/'THU-TBS'/'THEO-DOI-CN'
+  // là mã theo dõi, cố ý không có trong danh mục ví (đặc tả §2.2/§12.5).
+  tkCode         String?  @map("tk_code") @db.VarChar(50)
+  // 'in' | 'out' | 'tranfer' (sic, giữ nguyên chính tả — KHOÁ lọc báo cáo,
+  // đặc tả §12.1) | 'note' (0 dòng hiện tại nhưng có trong mã nguồn).
+  type           String?  @db.VarChar(50)
+  bankInfo       String?  @map("bank_info") @db.VarChar(50)
+  // NULL ≠ '' — giữ phân biệt (412 NULL, 2.017 '').
+  gout           String?  @db.VarChar(255)
+  walletDetailId Int?     @map("wallet_detail_id")
+  // NULL ≠ '' — giữ phân biệt (2.014 NULL, 256 ''); KHÔNG FK, KHÔNG TRIM
+  // (54 giá trị chữ tự do từ form phiếu, đặc tả §2.2).
+  cusId          String?  @map("cus_id") @db.VarChar(50)
+  cdate          Int?
+  cuser          String?  @db.VarChar(50)
+  // Có dấu, đơn vị = tệ của ví (không phải VND); \|max\| đo được 2,9×10¹¹, 5 chữ
+  // số lẻ (đặc tả §2.2/§3.1) ⇒ giữ Decimal(20,5) như prod.
+  money          Decimal? @db.Decimal(20, 5)
+  // prod decimal(12,2) cắt tỷ giá FX 6 chữ số (18 dòng lệch tbl_fx_transfers.rate,
+  // đặc tả P9) ⇒ NỚI Decimal(18,6) theo đề xuất §9/Q8, chốt M3 migration doc
+  // ("Nới — mất độ chính xác không phải hành vi đáng chép"). NULL ≠ 0 (39 dòng
+  // INSERT cũ không có cột) — giữ phân biệt.
+  rate           Decimal? @db.Decimal(18, 6)
+  approveUser    String?  @map("approve_user") @db.VarChar(50)
+  approveDate    Int?     @map("approve_date")
+  note           String?  @db.VarChar(255)
+  // 1 = đã lên sổ (vào số dư) · 0 = treo/nháp (chưa gắn ví hợp lệ) · 9 = huỷ,
+  // chưa từng lên số dư (đặc tả §3.2). CẢ HAI 0/9 vẫn CHẶN hasPosted — KHÔNG
+  // lọc theo status khi kiểm tra đã ghi (đặc tả §12.2).
+  status         Int?     @default(0) @db.SmallInt
+  tranId         BigInt?  @map("tran_id")
+  trandetailId   BigInt?  @map("trandetail_id")
+  // '' là THẬT (39 dòng mở sổ tay/luồng bank cũ) — KHÔNG NULLIF.
+  sourceModule   String   @default("") @map("source_module") @db.VarChar(20)
+  sourceId       Int      @default(0) @map("source_id")
+  // 0 = sentinel "không phải dòng đảo" (2.409/2.429) — logic `NOT EXISTS
+  // reversal_of=h.id` của hasPosted dựa vào giá trị 0 này (đặc tả T3/§12.2).
+  reversalOf     Int      @default(0) @map("reversal_of")
+  reversalCode   String   @default("") @map("reversal_code") @db.VarChar(20)
+  reversalReason String   @default("") @map("reversal_reason") @db.VarChar(255)
+  refRequestId   Int      @default(0) @map("ref_request_id")
+  poId           Int      @default(0) @map("po_id")
+  containerId    Int      @default(0) @map("container_id")
+  orderCode      String   @default("") @map("order_code") @db.VarChar(50)
+
+  // KHÔNG unique — chống trùng ở tầng CODE (advisory lock, đặc tả Q3/§10.2),
+  // giữ đúng thiết kế prod "đảo xong thì ghi lại được" (`ix_source` non-unique).
+  @@index([sourceModule, sourceId], map: "ix_source")
+  @@index([tkCode, status])
+  @@index([reversalOf])
+  @@index([refRequestId])
+  @@index([tranId])
+  @@index([walletDetailId])
+  @@index([cusId])
+  @@index([poId])
+  @@index([containerId])
+  @@index([orderCode])
+  @@map("tbl_account_histories")
+}
+
+// ===== #09c L1 — FX transfer + bank cash book (model-only, không service/HTTP/ETL) =====
+// Đặc tả: docs/rewrite-spec/09c-fx-ngan-hang.md §2, §9, §12; migration/09c-fx-ngan-hang.md §2.
+// Plan:   docs/rewrite-spec/plans/2026-09-25-09c-L1-models-plan.md.
+// Q-BANK-1/2 (đo prod 24/09): prod KHÔNG có UNIQUE một phần cho `bankid<>''` hay cho khớp chi
+// đang hiệu lực ⇒ lô này CHÉP PROD — index THƯỜNG (không UNIQUE), không thêm raw SQL partial
+// unique mà §9 đề xuất. Nâng lên UNIQUE là thay đổi tuỳ chọn sau (chốt trong plan header).
+
+model FxTransfer {
+  // tbl_fx_transfers — 89 dòng prod, id 16–6.797, AUTO_INCREMENT 7.090 (bộ test tạo-xoá).
+  id                Int      @id @default(autoincrement())
+  // FX-YYMM-NNN — sinh theo MAX tiền tố tháng (process_fx_transfer.php:140-145), không
+  // sequence — có cửa sổ đua, UNIQUE chặn (§2.1).
+  code              String   @unique @db.VarChar(20)
+  fromTk            String   @map("from_tk") @db.VarChar(10)
+  toTk              String   @map("to_tk") @db.VarChar(10)
+  fromCurrency      String   @default("VND") @map("from_currency") @db.VarChar(5)
+  toCurrency        String   @default("VND") @map("to_currency") @db.VarChar(5)
+  amountOut         Decimal  @default(0) @map("amount_out") @db.Decimal(18, 5)
+  amountIn          Decimal  @default(0) @map("amount_in") @db.Decimal(18, 5)
+  rate              Decimal  @default(1) @db.Decimal(15, 6)
+  // 89/89 = 0 hiện tại (getRate() đọc bảng tỷ giá rỗng) — giữ 0, KHÔNG NULLIF.
+  rateSystem        Decimal  @default(0) @map("rate_system") @db.Decimal(15, 6)
+  fee               Decimal  @default(0) @db.Decimal(15, 2)
+  // NULL hợp lệ (0 dòng hiện tại nhưng cột cho NULL theo §9) — KHÔNG NULLIF thành ''.
+  feeCurrency       String?  @map("fee_currency") @db.VarChar(10)
+  // NULL = phí nhập tay (61 dòng) ≠ 0 (28 dòng có giá trị, kể cả 0,000 thật) — KHÔNG NULLIF.
+  feePercent        Decimal? @map("fee_percent") @db.Decimal(6, 3)
+  poId              Int      @default(0) @map("po_id")
+  // NULL ≠ '' (8 dòng '' hiện tại) — giữ phân biệt.
+  note              String?  @db.Text
+  status            String   @default("draft") @db.VarChar(20)
+  // 4 dòng trỏ phiếu duyệt đã xoá cứng (#246–#249) — KHÔNG FK.
+  approvalRequestId Int      @default(0) @map("approval_request_id")
+  createdBy         String   @default("") @map("created_by") @db.VarChar(50)
+  createdAt         Int      @default(0) @map("created_at")
+  // = người NỘP, không phải người duyệt (bẫy §12.3, fxTransferDuyetXong ghi submitted_by).
+  approvedBy        String   @default("") @map("approved_by") @db.VarChar(50)
+  approvedAt        Int      @default(0) @map("approved_at")
+  reversedBy        String   @default("") @map("reversed_by") @db.VarChar(50)
+  reversedAt        Int      @default(0) @map("reversed_at")
+  reverseOf         Int      @default(0) @map("reverse_of")
+  // 0 = sentinel "chưa neo" (81/89) — 8 dòng >0 neo 1:1 với BankTransaction.id, KHÔNG FK.
+  bankTranId        BigInt   @default(0) @map("bank_tran_id")
+  agentRate         Decimal  @default(0) @map("agent_rate") @db.Decimal(18, 6)
+  agentTk           String   @default("") @map("agent_tk") @db.VarChar(10)
+  agentAmount       Decimal  @default(0) @map("agent_amount") @db.Decimal(18, 5)
+
+  @@index([approvalRequestId], map: "idx_approval")
+  @@index([createdAt], map: "idx_fx_created")
+  @@index([fromTk], map: "idx_from_tk")
+  @@index([toTk], map: "idx_to_tk")
+  @@index([status], map: "idx_status")
+  @@map("tbl_fx_transfers")
+}
+
+model FxAdjustment {
+  // tbl_fx_adjustments — 0 dòng prod hiện tại (bảng bật cho_am khi duyệt lại — nếu có dòng
+  // lúc rút ETL thì DỪNG, đo lại theo migration §2.2). Chỉ tạo bảng ở lô này.
+  id        Int     @id @default(autoincrement())
+  fxId      Int     @map("fx_id")
+  requestId Int     @default(0) @map("request_id")
+  oldRate   Decimal @default(0) @map("old_rate") @db.Decimal(18, 6)
+  oldOut    Decimal @default(0) @map("old_out") @db.Decimal(20, 5)
+  oldIn     Decimal @default(0) @map("old_in") @db.Decimal(20, 5)
+  oldFee    Decimal @default(0) @map("old_fee") @db.Decimal(20, 2)
+  oldFeeCur String? @map("old_fee_cur") @db.VarChar(3)
+  newRate   Decimal @default(0) @map("new_rate") @db.Decimal(18, 6)
+  newOut    Decimal @default(0) @map("new_out") @db.Decimal(20, 5)
+  newIn     Decimal @default(0) @map("new_in") @db.Decimal(20, 5)
+  newFee    Decimal @default(0) @map("new_fee") @db.Decimal(20, 2)
+  newFeeCur String? @map("new_fee_cur") @db.VarChar(3)
+  deltaOut  Decimal @default(0) @map("delta_out") @db.Decimal(20, 5)
+  deltaIn   Decimal @default(0) @map("delta_in") @db.Decimal(20, 5)
+  deltaFee  Decimal @default(0) @map("delta_fee") @db.Decimal(20, 2)
+  // JSON mảng id dòng sổ — giữ chuỗi nguyên văn, không parse ở tầng model.
+  histIds   String? @map("hist_ids") @db.VarChar(255)
+  reason    String  @db.VarChar(255)
+  cuser     String  @db.VarChar(50)
+  cdate     Int
+
+  @@index([fxId], map: "idx_fx")
+  @@index([requestId], map: "idx_req")
+  @@map("tbl_fx_adjustments")
+}
+
+model FxFeeRate {
+  // tbl_fx_fee_rates — 6 dòng prod, id 1–6, AI 27, UNIQUE uq_pair(from_cur,to_cur) — prod CÓ.
+  id         Int     @id @default(autoincrement())
+  fromCur    String  @map("from_cur") @db.VarChar(3)
+  toCur      String  @map("to_cur") @db.VarChar(3)
+  feePercent Decimal @default(0) @map("fee_percent") @db.Decimal(6, 3)
+  updatedBy  String? @map("updated_by") @db.VarChar(50)
+  updatedAt  Int?    @map("updated_at")
+
+  @@unique([fromCur, toCur], map: "uq_pair")
+  @@map("tbl_fx_fee_rates")
+}
+
+model FundAccountChangelog {
+  // tbl_account_changelog — 22 dòng prod, id 7–28, AI 29.
+  id          Int     @id @default(autoincrement())
+  accountId   Int     @default(0) @map("account_id")
+  accountCode String  @default("") @map("account_code") @db.VarChar(10)
+  action      String  @default("") @db.VarChar(30)
+  // JSON nguyên văn; 4/22 dòng chứa STK ngân hàng dạng rõ (khoá JSON `stk`) — KHÔNG log/in
+  // giá trị cột này ở bất kỳ đâu (đặc tả §12.13).
+  changes     String? @db.Text
+  // 0 = ghi trước khi có id người dùng trong phiên (5 dòng) — giữ 0, KHÔNG NULLIF.
+  userId      Int     @default(0) @map("user_id")
+  userName    String  @default("") @map("user_name") @db.VarChar(80)
+  createdAt   Int     @default(0) @map("created_at")
+
+  @@index([accountCode], map: "idx_account")
+  @@index([createdAt], map: "idx_changelog_created")
+  @@map("tbl_account_changelog")
+}
+
+model BankTransaction {
+  // tbl_bank_transaction — 17.123 dòng prod, id 193–17.323, AI 17.324. utf8mb3_general_ci
+  // (cus_id utf8mb3_unicode_ci) — không ảnh hưởng Postgres. KHÔNG index/UNIQUE trên `bankid`
+  // ở prod (khoá chống trùng webhook, P-B4) và không index `tk_code` — chép nguyên trạng.
+  id          BigInt  @id @default(autoincrement())
+  // '' = không phải SePay (2.619/17.123 dòng nhập tay/SMS/cũ) — ⛔ '' THẬT, KHÔNG NULLIF.
+  bankid      String  @db.VarChar(10)
+  bankName    String? @map("bank_name") @db.VarChar(50)
+  // KHÔNG log — số tài khoản ngân hàng (đặc tả §12.13).
+  bankAccount String? @map("bank_account") @db.VarChar(20)
+  tranType    String? @map("tran_type") @db.VarChar(1)
+  // nguyên đồng — BigInt, KHÔNG Decimal (đặc tả §12.7).
+  tranAmount  BigInt? @map("tran_amount")
+  // mili-giây (strtotime(...).'000') — KHÔNG giây (đặc tả §12.8).
+  tranTime    BigInt? @map("tran_time")
+  tranMess    String? @map("tran_mess") @db.Text
+  originMess  String? @map("origin_mess") @db.Text
+  // NULL (321) ≠ '' (895) — giữ phân biệt, KHÔNG TRIM (0 khoảng trắng thừa đo được).
+  cusId       String? @map("cus_id") @db.VarChar(50)
+  // chuỗi '1'..'5' — giữ chuỗi, KHÔNG enum/Int (đặc tả §12.9).
+  type        String? @default("1") @db.VarChar(3)
+  cdate       Int?
+  // NULL 292/17.123 — giữ NULL.
+  mdate       Int?
+  status      String? @default("no") @db.VarChar(3)
+  confirm     String? @default("no") @db.VarChar(3)
+  // '' = trước cutover 02/09 22:46 (16.117/17.123) — ⛔ '' THẬT, KHÔNG FK.
+  tkCode      String  @default("") @map("tk_code") @db.VarChar(10)
+
+  @@index([confirm], map: "idx_confirm")
+  @@index([cusId], map: "idx_cus_id")
+  // MỚI — prod không có (Q-BANK-1). Plan chốt: index THƯỜNG chép prod, không UNIQUE một phần.
+  @@index([bankid])
+  @@index([tkCode, tranType])
+  @@map("tbl_bank_transaction")
+}
+
+model BankTransactionDetail {
+  // tbl_bank_transaction_detail — 16.943 dòng prod, id 38–17.128, AI 17.129. Prod chỉ có
+  // PRIMARY(id) — không index `tranId` dù mọi truy vấn lọc theo nó; v2 thêm index MỚI.
+  id           BigInt  @id @default(autoincrement())
+  // → BankTransaction.id (0 mồ côi đo được) — KHÔNG FK cứng, chép prod.
+  tranId       BigInt? @map("tran_id")
+  type         String? @db.VarChar(3)
+  // nguyên đồng — BigInt (đặc tả §12.7).
+  money        BigInt?
+  // NULL 935/16.943 — giữ NULL, KHÔNG COALESCE.
+  cusId        String? @map("cus_id") @db.VarChar(50)
+  payInfo      String? @map("pay_info") @db.VarChar(100)
+  note         String? @db.VarChar(255)
+  // 'auto' = webhook tự phân loại (29 dòng).
+  author       String? @db.VarChar(50)
+  cdate        Int?
+  // NULL 10/16.943 — giữ NULL.
+  mdate        Int?
+  confirm      String? @default("no") @db.VarChar(3)
+  poId         Int     @default(0) @map("po_id")
+  // NULL = dòng cũ (16.649, duyệt suy theo TK + mốc) ≠ 'cty' (243) — ⛔ KHÔNG COALESCE.
+  walletStream String? @map("wallet_stream") @db.VarChar(10)
+
+  // MỚI — prod chỉ có PK.
+  @@index([tranId])
+  @@map("tbl_bank_transaction_detail")
+}
+
+enum BankChiMatchMethod {
+  auto
+  manual
+}
+
+model BankChiMatch {
+  // tbl_bank_chi_match — 77 dòng prod, id 3–79, AI 80.
+  id          Int                @id @default(autoincrement())
+  bankTxId    BigInt             @map("bank_tx_id")
+  requestId   Int                @map("request_id")
+  method      BankChiMatchMethod @default(manual)
+  matchedBy   String             @map("matched_by") @db.VarChar(50)
+  matchedAt   Int                @map("matched_at")
+  // NULL = đang hiệu lực (77/77 hiện tại — prod chưa có đường gỡ khớp) — giữ NULL.
+  unmatchedAt Int?               @map("unmatched_at")
+  unmatchedBy String?            @map("unmatched_by") @db.VarChar(50)
+  note        String             @default("") @db.VarChar(255)
+
+  // Chép prod nguyên trạng: UNIQUE(bank_tx_id, unmatched_at) — NULL không chặn hai dòng
+  // đang hiệu lực (P-B5, đã ghi nhận là bất thường tiềm ẩn, KHÔNG sửa ở lô này). Q-BANK-2:
+  // KHÔNG thêm raw SQL UNIQUE một phần `WHERE unmatched_at IS NULL` — prod không có.
+  @@unique([bankTxId, unmatchedAt], map: "uq_banktx_active")
+  @@index([requestId], map: "idx_request")
+  @@map("tbl_bank_chi_match")
+}
+
+model BankReconcileLink {
+  // tbl_bank_reconcile_link — 125 dòng prod, id 2–126, AI 127.
+  id         Int    @id @default(autoincrement())
+  bankTranId BigInt @unique(map: "uq_bank") @map("bank_tran_id")
+  docModule  String @default("") @map("doc_module") @db.VarChar(20)
+  docId      Int    @default(0) @map("doc_id")
+  matchType  String @default("manual") @map("match_type") @db.VarChar(10)
+  note       String @default("") @db.VarChar(255)
+  cuser      String @default("") @db.VarChar(50)
+  cdate      Int    @default(0)
+
+  @@index([docModule, docId], map: "idx_doc")
+  @@map("tbl_bank_reconcile_link")
+}

@@ -1,0 +1,13 @@
+-- Sequence for PO codes. Same pattern as customer_code_seq
+-- (20260922173800_customer_code_seq) and quote_code_seq
+-- (20260923130000_quote_code_seq): nextval() is non-transactional, so a
+-- rolled-back createPo() transaction still burns the number — a PO code,
+-- once handed out, is never reused. See PoService.nextPoCode().
+--
+-- ⚠ Format chosen here (PO-<seq>) is NOT a measured production format — the
+-- 06-po-plan.md brief explicitly notes the real prod PO code format has not
+-- been measured (unlike quote_code_seq, whose BG-YYYY-MM-NNN format WAS
+-- measured against 413 real rows). Do not use PO-<seq> for any real data
+-- migration without first measuring prod's actual format (see #05's Critical
+-- finding: codes generated in a format no report/regex recognised).
+CREATE SEQUENCE IF NOT EXISTS po_code_seq AS BIGINT START WITH 1 INCREMENT BY 1;

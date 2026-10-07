@@ -1,0 +1,30 @@
+-- #06 đợt 2, Task 3 — deviation CÓ CHỦ Ý so với prod (task-3-brief.md mục 4).
+--
+-- Prod (`libs/cls.po.php::createOrdersPerItem`) chỉ chống trùng bằng
+-- check-then-insert Ở TẦNG ỨNG DỤNG:
+--   SELECT id FROM tbl_order WHERE po_item_id=? AND order_type=1 LIMIT 1
+-- Đây là race THẬT: hai lượt gọi song song cùng thấy "chưa có đơn" rồi cùng
+-- INSERT ⇒ HAI nghĩa vụ khách hàng cho CÙNG một dòng PO. Đo prod 24/09/2026:
+-- 0 trùng hiện tại, `tbl_order` không có unique index nào ngoài PRIMARY —
+-- nên thêm NGAY một partial unique index trong khi còn sạch, trước khi có
+-- dữ liệu trùng khiến việc thêm sau này khó hơn.
+--
+-- Prisma schema KHÔNG thể biểu diễn partial unique index (cùng giới hạn đã
+-- gặp ở `tbl_mh_tygia_single_open`, xem comment đầu `model MhRate` trong
+-- schema.prisma) — viết tay migration này, KHÔNG qua `prisma migrate diff`
+-- (không có gì để diff: thay đổi này không nằm trong schema.prisma).
+--
+-- ⚠ GIỚI HẠN ĐÃ BIẾT (task-3-brief.md mục 3): index này không bắt được một
+-- dòng "lỡ" ghi po_item_id=0 (ví dụ do quên set field, `Order.poItemId` là
+-- NOT NULL @default(0) nên bỏ trống ⇒ 0 lặng lẽ, không lỗi) — điều kiện
+-- `po_item_id > 0` cố tình LOẠI sentinel 0 ra khỏi phạm vi chặn, vì 0 không
+-- phải khoá thật (nhiều dòng order_type=0 hợp lệ có po_item_id=0). Chốt
+-- chặn cho trường hợp đó là OrderGenService phải LUÔN set po_item_id tường
+-- minh (kiểm tra ở tầng service, không dựa vào schema).
+--
+-- Giữ NGUYÊN check tầng ứng dụng trong OrderGenService — index này CHỈ là
+-- lưới chặn cho race, KHÔNG thay thế: đường bình thường (không có race) vẫn
+-- phải trả lại đúng id CŨ như prod, không phải ném lỗi unique violation lên
+-- người dùng.
+CREATE UNIQUE INDEX "tbl_order_po_item_dedup" ON "tbl_order" ("po_item_id")
+  WHERE "order_type" = 1 AND "po_item_id" > 0;

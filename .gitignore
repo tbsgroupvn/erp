@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.test
+*.log
+
+# build artifact của tsc --build (không commit)
+*.tsbuildinfo
+
+# Diễn tập cutover L0 (scripts/rehearsal/): kết quả/đầu ra có số tiền thật
+# PHẢI ghi ngoài repo theo mặc định (xem README) — dòng này chỉ là lưới an
+# toàn phòng khi ai đó trỏ REHEARSAL_OUT_DIR vào trong repo.
+rehearsal-out/
+scripts/rehearsal/rehearsal-out/

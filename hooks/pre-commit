@@ -1,0 +1,36 @@
+#!/bin/sh
+# Cổng gác TRƯỚC MỖI COMMIT của tbs-erp-v2.
+#
+# ⚠ VÌ SAO LÀ pre-commit CHỨ KHÔNG PHẢI CI HAY pre-push:
+# Repo này chứa cấu hình có mật khẩu CSDL nên theo luật dự án **vĩnh viễn
+# không được thêm remote công khai**. Không có remote ⇒
+#   - `.github/workflows` / `.gitlab-ci.yml` là FILE CHẾT, không bao giờ chạy;
+#   - `pre-push` cũng KHÔNG BAO GIỜ kích hoạt (chẳng có gì để push).
+# Viết CI kiểu đó ra chỉ tạo cảm giác được bảo vệ — nguy hiểm hơn là không có.
+# `pre-commit` là hook DUY NHẤT thật sự chạy trong bối cảnh này.
+#
+# ⚠ VÌ SAO CHỈ CHẠY LƯỚI CHỨ KHÔNG CHẠY CẢ BỘ TEST:
+# Cả bộ mất ~110 giây. Gắn vào mỗi commit thì người ta sẽ gõ `--no-verify`,
+# mà cổng bị vòng qua thì vô dụng ngang cổng không tồn tại. Bốn tấm lưới
+# dưới đây chạy ~11 giây — đủ rẻ để KHÔNG ai muốn né.
+# Cả bộ test vẫn phải chạy trước khi gộp nhánh: `npm run verify`.
+#
+# Bỏ qua khi thật sự cần: `git commit --no-verify` (biết mình đang làm gì).
+
+set -e
+
+echo "[pre-commit] tsc --noEmit ..."
+npx tsc --noEmit
+
+echo "[pre-commit] 5 lưới chốt chặn (kiểm kê route x2 · rò e?.message · DTO · bề mặt sinh đơn) ..."
+# order-gen-surface: chặn mọi chỗ trong src/ import thẳng hàm sinh đơn KHÔNG CỔNG
+# (order-gen.core.ts). Để ngoài pre-commit thì nó chỉ bắt được khi có người nhớ
+# chạy cả bộ — đúng khe hở cổng này sinh ra để bịt (review cuối #06 đợt 2).
+npx dotenv -e .env.test -- npx jest \
+  test/auth/route-inventory.spec.ts \
+  test/common/no-raw-exception-leak.spec.ts \
+  test/common/dto-no-leak.spec.ts \
+  test/po/order-gen-surface.spec.ts \
+  --silent
+
+echo "[pre-commit] OK. (Nhớ: 'npm run verify' chạy CẢ bộ trước khi gộp nhánh.)"
